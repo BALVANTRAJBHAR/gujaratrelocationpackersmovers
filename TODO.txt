@@ -1,0 +1,71 @@
+# Packers & Movers - Build TODO
+
+Last updated: 2026-01-25
+
+## ✅ Completed
+- Requirements + current flow reviewed (OTP auth, booking, quote, fare, payments outline)
+- Supabase initial SQL migration drafted (schema + RLS)
+- Tamagui UI setup (config + provider)
+- SecureStore session storage for Supabase auth
+- Role selection + gating (customer/driver/staff/admin)
+- Fare calculation rules (base + per km + labor + GST)
+- Driver onboarding + login (role selection)
+- Driver onboarding detail form (license, vehicle, docs)
+- Admin driver approvals (status filter, thumbnails, audit log, CSV export)
+- Driver status shown on booking card
+- Razorpay order creation
+- Razorpay verify webhook
+- Update booking payment_status
+- RLS policies on Supabase tables
+- Edge functions deployed (razorpay-order, razorpay-verify, razorpay-webhook)
+- Cron enabled (pg_cron)
+- Migration 007 run (admin_action_logs)
+
+## 🟨 In Progress
+- Supabase client setup + auth flow integration (Expo)
+- OTP-only login screen (bold premium UI)
+- Profile completion screen (name/email)
+- Booking + realtime tracking integration
+- Driver module UI (accept booking + start trip)
+- Driver live location updates (real GPS push)
+- Trip status flow (pickup_started -> in_transit -> delivered)
+- Sound alerts for pickup_started + delivered
+- Live map tracking (Mapbox marker updates)
+- Razorpay order + webhook edge functions
+- Razorpay client order invoke + UI CTA
+- Payment status update on checkout success
+- Razorpay webhook updates booking payment_status
+
+## ⏳ Pending
+### Core Setup
+- Configure environment variables for Google Maps, Twilio, Razorpay, SMTP (Gmail)
+
+### Auth & Users
+- Implement phone OTP login (Twilio + Supabase Auth)
+- Store user profile (name, email, role)
+
+### Booking & Pricing
+
+### Driver Module
+
+### Realtime Tracking
+
+### Notifications
+
+### Payments
+
+### Uploads & Items
+- Supabase Storage for item images/videos
+- Booking uploads table (link files to booking)
+
+### Reports
+- Generate PDF invoice
+- Download link + email via Gmail SMTP
+
+### Admin / Web
+- Web dashboard (bookings, drivers, payments)
+- Booking status control + manual assignment
+
+### Security
+- Validate webhook signatures
+- Rate limiting on OTP endpoints
