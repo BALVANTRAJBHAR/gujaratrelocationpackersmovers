@@ -22,6 +22,7 @@ import ViewShot from 'react-native-view-shot';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { supabase } from '@/lib/supabase';
+import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
 
 if (typeof window !== 'undefined' && !Linking.openURL) {
@@ -124,32 +125,36 @@ const themes = {
 };
 
 const BusinessCard = ({ theme, viewShotRef }: any) => {
+  const { width: cardWindowWidth } = useWindowDimensions();
+  const isCardNarrow = cardWindowWidth <= 420;
+
   return (
-    <ViewShot
-      ref={viewShotRef}
-      pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'}
-      options={{ format: 'png', quality: 1.0 }}>
-      <YStack
-        nativeID={Platform.OS === 'web' ? 'business-card' : undefined}
-        backgroundColor={theme.bgCard}
-        borderRadius={20}
-        padding={28}
-        gap="$3"
-        borderWidth={2}
-        borderColor={theme.primary}
-        shadowColor={theme.shadow}
-        shadowOffset={{ width: 0, height: 12 }}
-        shadowOpacity={0.15}
-        shadowRadius={24}
-        elevation={10}
-        width={screenWidth > 768 ? 640 : screenWidth - 48}
-        minHeight={360}>
+    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%' }}>
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>
+        <YStack
+          nativeID={Platform.OS === 'web' ? 'business-card' : undefined}
+          backgroundColor={theme.bgCard}
+          borderRadius={20}
+          padding={isCardNarrow ? 18 : 28}
+          gap="$3"
+          borderWidth={2}
+          borderColor={theme.primary}
+          shadowColor={theme.shadow}
+          shadowOffset={{ width: 0, height: 12 }}
+          shadowOpacity={0.15}
+          shadowRadius={24}
+          elevation={10}
+          width="100%"
+          maxWidth={640}
+          alignSelf="center"
+          minHeight={360}>
         <XStack justifyContent="space-between" alignItems="flex-start" gap="$4" flexWrap="wrap">
           <YStack flex={1} gap="$3" minWidth={280}>
             <XStack alignItems="center" gap="$3">
               <Image
                 source={require('../assets/images/PackersMoversLogo.png')}
-                style={{ width: 70, height: 70, resizeMode: 'contain' }}
+                resizeMode="contain"
+                style={{ width: 70, height: 70 }}
               />
               <YStack>
                 <Text
@@ -228,8 +233,9 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               paddingVertical={10}
               borderRadius={10}
               marginTop={1}
-              marginLeft={155}
-              width={screenWidth > 568 ? 265 : '80%'}
+              alignSelf="center"
+              width="100%"
+              maxWidth={320}
               alignItems="center"
               justifyContent="center">
               <Text
@@ -275,8 +281,9 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             www.grmoverspackers.com • © 2026 GRMoversPackers
           </Text>
         </YStack>
-      </YStack>
-    </ViewShot>
+        </YStack>
+      </ViewShot>
+    </View>
   );
 };
 
@@ -285,12 +292,12 @@ export default function HomeLandingScreen() {
   const { scrollTo } = useLocalSearchParams<{ scrollTo?: string }>();
   const { session, profile, refreshProfile } = useSession();
   const { width: windowWidth } = useWindowDimensions();
+  const appColorScheme = useAppColorScheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponIndex, setCouponIndex] = useState(0);
   const couponTimerRef = useRef<any>(null);
   const couponScrollRef = useRef<ScrollView | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [quoteName, setQuoteName] = useState('');
@@ -327,15 +334,16 @@ export default function HomeLandingScreen() {
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? 64 : windowWidth < 900 ? 86 : 112;
-  const statsMinHeight = windowWidth < 480 ? 190 : windowWidth < 900 ? 220 : 260;
+  const statsPaddingVertical = windowWidth < 480 ? 72 : windowWidth < 900 ? 96 : 124;
+  const statsMinHeight = windowWidth < 480 ? 210 : windowWidth < 900 ? 245 : 290;
   const bookBannerPaddingLeft = windowWidth < 480 ? 26 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 26 : windowWidth < 900 ? 40 : 52;
-  const bookBannerMinHeight = windowWidth < 480 ? 190 : windowWidth < 900 ? 210 : 230;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 32 : windowWidth < 900 ? 48 : 60;
+  const bookBannerMinHeight = windowWidth < 480 ? 205 : windowWidth < 900 ? 230 : 255;
   const pricingPaddingVertical = windowWidth < 480 ? 32 : windowWidth < 900 ? 44 : 58;
   const pricingMinHeight = windowWidth < 480 ? 250 : windowWidth < 900 ? 280 : 320;
 
+  const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = screenWidth <= 768;
 
@@ -353,13 +361,13 @@ export default function HomeLandingScreen() {
     },
     {
       key: 'slide-2',
-      image: require('../assets/images/moving-house-service.webp'),
+      image: require('../assets/images/truckpackerss.jpg'),
       title: 'Gujarat Relocation\nPackers and Movers',
       subtitle: 'Your Trusted Moving Partner Since 2006',
     },
     {
       key: 'slide-3',
-      image: require('../assets/images/furniture-packers-moving-helpers-carry.webp'),
+      image: require('../assets/images/truckpackers.jpg'),
       title: 'Safe & Secure\nRelocation',
       subtitle: '18+ Years of Quality Service',
     },
@@ -526,7 +534,7 @@ export default function HomeLandingScreen() {
   }, [scrollTo]);
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
+    appColorScheme?.toggleColorScheme?.();
   };
 
   const handleCallNow = () => {
@@ -885,27 +893,6 @@ export default function HomeLandingScreen() {
                             </Text>
                           </YStack>
                         </Pressable>
-                        <Pressable onPress={() => void handleAdminSectionSafe('vehicles')}>
-                          <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.menuBg}>
-                            <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                              Vehicles
-                            </Text>
-                          </YStack>
-                        </Pressable>
-                        <Pressable onPress={() => void handleAdminSectionSafe('floors')}>
-                          <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.menuBg}>
-                            <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                              Floors
-                            </Text>
-                          </YStack>
-                        </Pressable>
-                        <Pressable onPress={() => void handleAdminSectionSafe('staff')}>
-                          <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.menuBg}>
-                            <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                              Staff
-                            </Text>
-                          </YStack>
-                        </Pressable>
                       </>
                     )}
 
@@ -1046,53 +1033,11 @@ export default function HomeLandingScreen() {
                         }}>
                         <Text
                           color={theme.primary}
-                          fontSize={17}
+                          fontSize={16}
                           fontWeight="800"
                           paddingVertical={10}
                           style={{ fontFamily: 'Georgia' }}>
                           Admin Panel
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={async () => {
-                          setMobileMenuOpen(false);
-                          await handleAdminSectionSafe('vehicles');
-                        }}>
-                        <Text
-                          color={theme.text}
-                          fontSize={17}
-                          fontWeight="700"
-                          paddingVertical={10}
-                          style={{ fontFamily: 'Georgia' }}>
-                          Vehicles
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={async () => {
-                          setMobileMenuOpen(false);
-                          await handleAdminSectionSafe('floors');
-                        }}>
-                        <Text
-                          color={theme.text}
-                          fontSize={17}
-                          fontWeight="700"
-                          paddingVertical={10}
-                          style={{ fontFamily: 'Georgia' }}>
-                          Floors
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={async () => {
-                          setMobileMenuOpen(false);
-                          await handleAdminSectionSafe('staff');
-                        }}>
-                        <Text
-                          color={theme.text}
-                          fontSize={17}
-                          fontWeight="700"
-                          paddingVertical={10}
-                          style={{ fontFamily: 'Georgia' }}>
-                          Staff
                         </Text>
                       </Pressable>
                     </>
@@ -1674,39 +1619,62 @@ export default function HomeLandingScreen() {
           </View>
 
           <YStack style={[styles.statsStrip, { paddingVertical: statsPaddingVertical, minHeight: statsMinHeight }]} marginTop={64}>
-            <XStack flexWrap="wrap" justifyContent="space-between" gap="$3.5">
-              {[
-                { label: 'Branches', value: '5', icon: '📍' },
-                { label: 'Years Experience', value: '18+', icon: '🕒' },
-                { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
-                { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
-              ].map((s) => (
-                <YStack
-                  key={s.label}
-                  style={[styles.statItem, { width: isSmallScreen ? '50%' : '24%' }]}
-                  alignItems="center"
-                  gap="$1.5">
-                  <YStack style={styles.statIcon}>
-                    <Text fontSize={20}>{s.icon}</Text>
+            {isSmallScreen ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'center', gap: 18 } as any}>
+                {[
+                  { label: 'Branches', value: '5', icon: '📍' },
+                  { label: 'Years Experience', value: '18+', icon: '🕒' },
+                  { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
+                  { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
+                ].map((s) => (
+                  <YStack key={s.label} style={[styles.statItem, { width: 170 }]} alignItems="center" gap="$1.5">
+                    <YStack style={styles.statIcon}>
+                      <Text fontSize={20}>{s.icon}</Text>
+                    </YStack>
+                    <Text color="#FFFFFF" fontSize={32} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                      {s.value}
+                    </Text>
+                    <Text
+                      color="rgba(255,255,255,0.8)"
+                      fontSize={13}
+                      fontWeight="700"
+                      textAlign="center"
+                      style={{ fontFamily: 'Georgia' }}>
+                      {s.label}
+                    </Text>
                   </YStack>
-                  <Text
-                    color="#FFFFFF"
-                    fontSize={isSmallScreen ? 30 : 38}
-                    fontWeight="900"
-                    style={{ fontFamily: 'Georgia' }}>
-                    {s.value}
-                  </Text>
-                  <Text
-                    color="rgba(255,255,255,0.8)"
-                    fontSize={13}
-                    fontWeight="700"
-                    textAlign="center"
-                    style={{ fontFamily: 'Georgia' }}>
-                    {s.label}
-                  </Text>
-                </YStack>
-              ))}
-            </XStack>
+                ))}
+              </ScrollView>
+            ) : (
+              <XStack flexWrap="wrap" justifyContent="space-between" gap="$3.5">
+                {[
+                  { label: 'Branches', value: '5', icon: '📍' },
+                  { label: 'Years Experience', value: '18+', icon: '🕒' },
+                  { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
+                  { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
+                ].map((s) => (
+                  <YStack key={s.label} style={[styles.statItem, { width: '24%' }]} alignItems="center" gap="$1.5">
+                    <YStack style={styles.statIcon}>
+                      <Text fontSize={20}>{s.icon}</Text>
+                    </YStack>
+                    <Text color="#FFFFFF" fontSize={38} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                      {s.value}
+                    </Text>
+                    <Text
+                      color="rgba(255,255,255,0.8)"
+                      fontSize={13}
+                      fontWeight="700"
+                      textAlign="center"
+                      style={{ fontFamily: 'Georgia' }}>
+                      {s.label}
+                    </Text>
+                  </YStack>
+                ))}
+              </XStack>
+            )}
           </YStack>
 
           <YStack marginTop={64} alignItems="center">
@@ -2155,8 +2123,17 @@ export default function HomeLandingScreen() {
                 </Text>
               </YStack>
 
-              <XStack flexWrap="wrap" justifyContent="space-between" gap="$4">
-                <YStack style={{ width: isSmallScreen ? '100%' : '48%' }} alignItems="center" gap="$4">
+              <XStack flexWrap="wrap" justifyContent="space-between" gap="$4" alignItems="flex-start">
+                <YStack
+                  style={{
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    flexBasis: isSmallScreen ? '100%' : 0,
+                    maxWidth: isSmallScreen ? '100%' : 560,
+                    minWidth: isSmallScreen ? '100%' : 360,
+                  }}
+                  alignItems="center"
+                  gap="$4">
                   <BusinessCard theme={theme} viewShotRef={businessCardRef} />
 
                   <Pressable onPress={downloadBusinessCard} style={{ zIndex: 5 }} pointerEvents="auto">
@@ -2193,7 +2170,13 @@ export default function HomeLandingScreen() {
                 </YStack>
 
                 <YStack
-                  style={{ width: isSmallScreen ? '100%' : '48%' }}
+                  style={{
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    flexBasis: isSmallScreen ? '100%' : 0,
+                    maxWidth: isSmallScreen ? '100%' : 560,
+                    minWidth: isSmallScreen ? '100%' : 360,
+                  }}
                   backgroundColor={isDarkMode ? 'rgba(79, 70, 229, 0.1)' : theme.gradient1}
                   borderRadius={22}
                   padding={22}
@@ -2241,7 +2224,7 @@ export default function HomeLandingScreen() {
                   )}
 
                   <Text
-                    marginTop={120}
+                    marginTop={16}
                     color="#0ba705ff"
                     //color={theme.textMuted}
                     fontSize={13}

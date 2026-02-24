@@ -14,33 +14,39 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function AppLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <SessionProvider>
+      <TamaguiProvider config={tamaguiConfig}>
+        <PortalProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="splash" options={{ headerShown: false }} />
+              <Stack.Screen name="home" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
+              <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
+              <Stack.Screen name="book/index" options={{ headerShown: false }} />
+              <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+              <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
+              <Stack.Screen name="auth/login" options={{ title: 'Login' }} />
+              <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </PortalProvider>
+      </TamaguiProvider>
+    </SessionProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <ColorSchemeProvider>
-      <SessionProvider>
-        <TamaguiProvider config={tamaguiConfig}>
-          <PortalProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="splash" options={{ headerShown: false }} />
-                <Stack.Screen name="home" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
-                <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
-                <Stack.Screen name="book/index" options={{ headerShown: false }} />
-                <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
-                <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
-                <Stack.Screen name="auth/login" options={{ title: 'Login' }} />
-                <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              </Stack>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </PortalProvider>
-        </TamaguiProvider>
-      </SessionProvider>
+      <AppLayout />
     </ColorSchemeProvider>
   );
 }

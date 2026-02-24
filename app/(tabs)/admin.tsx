@@ -728,6 +728,22 @@ export default function AdminScreen() {
   }, [managedUsers, userRoleFilter, userSearchText]);
 
   const selectManagedUser = (u: ManagedUser) => {
+    if (selectedManagedUserId === u.id) {
+      setSelectedManagedUserId(null);
+      setManagedUserForm({
+        id: null,
+        name: '',
+        phone: '',
+        email: '',
+        role: 'staff' as any,
+        is_verified: true,
+      });
+      setUserDocuments([]);
+      setPendingDocuments([]);
+      setUserMgmtInfo(null);
+      return;
+    }
+
     setSelectedManagedUserId(u.id);
     setManagedUserForm({
       id: u.id,
@@ -877,6 +893,13 @@ export default function AdminScreen() {
     if (!u) return { name: null, phone: null, email: null };
     if (Array.isArray(u)) return u[0] ?? { name: null, phone: null, email: null };
     return u ?? { name: null, phone: null, email: null };
+  };
+
+  const getBookingDriver = (booking: BookingAdmin) => {
+    const d: any = (booking as any).driver;
+    if (!d) return { name: null };
+    if (Array.isArray(d)) return d[0] ?? { name: null };
+    return d ?? { name: null };
   };
 
   const toggleDriverStatus = async (userId: string, nextStatus: boolean) => {
@@ -1099,6 +1122,13 @@ export default function AdminScreen() {
       charge_without_lift: '0',
       is_active: true,
     });
+  };
+
+  const parseOptionalNumber = (value: string) => {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) ? num : null;
   };
 
   const parseRequiredNumber = (value: string, fallback: number) => {
@@ -1324,10 +1354,11 @@ export default function AdminScreen() {
     setLoading(false);
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (overrides?: { status?: typeof bookingFilter }) => {
     if (!canManage) return;
     setLoading(true);
     setError(null);
+    const statusFilter = overrides?.status ?? bookingFilter;
     let query = supabase
       .from('bookings')
       .select(
@@ -1335,8 +1366,8 @@ export default function AdminScreen() {
       )
       .order('created_at', { ascending: false });
 
-    if (bookingFilter !== 'all') {
-      query = query.eq('status', bookingFilter);
+    if (statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
     }
     if (bookingStartDate) {
       query = query.gte('created_at', `${bookingStartDate}T00:00:00.000Z`);
@@ -1563,367 +1594,287 @@ export default function AdminScreen() {
                       ? '#0EA5E9'
                       : roleKey === 'customer'
                         ? '#94A3B8'
-                      : roleKey === 'admin'
-                        ? '#F97316'
-                        : roleKey === 'driver'
-                          ? '#A78BFA'
-                          : '#22C55E';
+                        : roleKey === 'admin'
+                          ? '#F97316'
+                          : roleKey === 'driver'
+                            ? '#A78BFA'
+                            : '#22C55E';
 
                   return (
-                    <Pressable key={`${String(item.id ?? '').trim() || 'managed-user'}-${idx}`} onPress={() => selectManagedUser(item)}>
-                      <YStack
-                        backgroundColor={isSelected ? '#0F172A' : '#111827'}
-                        borderRadius={18}
-                        padding={16}
-                        gap="$2"
-                        borderWidth={1}
-                        borderColor={isSelected ? '#F97316' : '#1F2937'}>
-                        <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                          <YStack gap={6} flexShrink={1}>
-                            <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                              <Text color="#F9FAFB" fontWeight="900" fontSize={15}>
-                                {item.name ?? '—'}
-                              </Text>
-                              <YStack backgroundColor={badgeColor} paddingHorizontal={10} paddingVertical={5} borderRadius={999}>
-                                <Text color="#0B0B12" fontWeight="900" fontSize={11}>
-                                  {(item.role ?? 'staff').toString().toUpperCase()}
+                    <YStack key={`${String(item.id ?? '').trim() || 'managed-user'}-${idx}`} gap="$2">
+                      <Pressable onPress={() => selectManagedUser(item)}>
+                        <YStack
+                          backgroundColor={isSelected ? '#0F172A' : '#111827'}
+                          borderRadius={18}
+                          padding={16}
+                          gap="$2"
+                          borderWidth={1}
+                          borderColor={isSelected ? '#F97316' : '#1F2937'}>
+                          <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                            <YStack gap={6} flexShrink={1}>
+                              <XStack gap="$2" alignItems="center" flexWrap="wrap">
+                                <Text color="#F9FAFB" fontWeight="900" fontSize={15}>
+                                  {item.name ?? '—'}
                                 </Text>
-                              </YStack>
-                            </XStack>
-                            <Text color="#94A3B8" fontSize={12}>Phone: {item.phone ?? '—'}</Text>
-                            <Text color="#94A3B8" fontSize={12}>Email: {item.email ?? '—'}</Text>
-                          </YStack>
-                          <YStack alignItems="flex-end" gap="$2">
-                            <Text color={item.is_verified ? '#22C55E' : '#FCA5A5'} fontSize={12} fontWeight="800">
-                              {item.is_verified ? 'ACTIVE' : 'INACTIVE'}
-                            </Text>
-                            <Text color="#94A3B8" fontSize={12}>Tap to edit</Text>
-                          </YStack>
-                        </XStack>
-                      </YStack>
-                    </Pressable>
-                  );
-                })}
-
-                {managedUserForm.id ? (
-                  <YStack backgroundColor="#111827" borderRadius={18} padding={16} gap="$3" borderWidth={1} borderColor="#1F2937">
-                    <Text color="#F9FAFB" fontWeight="800" fontSize={14}>
-                      Edit user
-                    </Text>
-
-                    <XStack gap="$2" flexWrap="wrap">
-                      <Input
-                        value={managedUserForm.name}
-                        onChangeText={(v) => setManagedUserForm((p) => ({ ...p, name: v }))}
-                        placeholder="Name"
-                        backgroundColor="#0F172A"
-                        borderColor="#1F2937"
-                        color="#E5E7EB"
-                        minWidth={220}
-                        flexGrow={2}
-                        flexBasis={260}
-                      />
-                      <Input
-                        value={managedUserForm.phone}
-                        onChangeText={(v) => setManagedUserForm((p) => ({ ...p, phone: v }))}
-                        placeholder="Phone"
-                        backgroundColor="#0F172A"
-                        borderColor="#1F2937"
-                        color="#E5E7EB"
-                        minWidth={180}
-                        flexGrow={1}
-                        flexBasis={200}
-                      />
-                      <Input
-                        value={managedUserForm.email}
-                        editable={false as any}
-                        placeholder="Email"
-                        backgroundColor="#0B0B12"
-                        borderColor="#1F2937"
-                        color="#94A3B8"
-                        minWidth={240}
-                        flexGrow={2}
-                        flexBasis={260}
-                      />
-                    </XStack>
-
-                    <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                      <Text color="#E5E7EB" fontSize={12} fontWeight="800">
-                        Role:
-                      </Text>
-                      {(['customer', 'driver', 'staff', 'admin', 'worker'] as const).map((r) => (
-                        <Button
-                          key={r}
-                          size="$2"
-                          backgroundColor={managedUserForm.role === r ? '#F97316' : '#0F172A'}
-                          color={managedUserForm.role === r ? '#0B0B12' : '#E5E7EB'}
-                          borderRadius={999}
-                          onPress={() => setManagedUserForm((p) => ({ ...p, role: r }))}>
-                          {r.toUpperCase()}
-                        </Button>
-                      ))}
-
-                      <Button
-                        size="$2"
-                        backgroundColor={managedUserForm.is_verified ? '#22C55E' : '#EF4444'}
-                        color="#0B0B12"
-                        borderRadius={999}
-                        onPress={() => setManagedUserForm((p) => ({ ...p, is_verified: !p.is_verified }))}>
-                        {managedUserForm.is_verified ? 'Active' : 'Inactive'}
-                      </Button>
-                    </XStack>
-
-                    <YStack gap="$2" backgroundColor="#0F172A" borderRadius={14} padding={12} borderWidth={1} borderColor="#1F2937">
-                      <Text color="#E5E7EB" fontSize={12} fontWeight="800">
-                        Documents
-                      </Text>
-
-                      {userDocuments.length ? (
-                        <YStack gap="$2">
-                          {userDocuments.map((doc, idx) => (
-                            <XStack
-                              key={`${String(doc.id ?? '').trim() || 'user-doc'}-${idx}`}
-                              justifyContent="space-between"
-                              alignItems="center"
-                              flexWrap="wrap"
-                              gap="$2"
-                              backgroundColor="#111827"
-                              borderRadius={12}
-                              padding={10}
-                              borderWidth={1}
-                              borderColor="#1F2937">
-                              <YStack gap={4} flexShrink={1}>
-                                <Text color="#F9FAFB" fontWeight="800" fontSize={12}>
-                                  {(doc.document_type ?? '').toString().toUpperCase()}
-                                </Text>
-                                <Text color="#E5E7EB" fontSize={12}>
-                                  {doc.document_number}
-                                </Text>
-                                <Text color="#94A3B8" fontSize={11}>
-                                  {new Date(doc.created_at).toLocaleString()}
-                                </Text>
-                              </YStack>
-                              <XStack gap="$2" alignItems="center">
-                                {doc.image_url ? (
-                                  <Pressable
-                                    onPress={() => {
-                                      try {
-                                        void Linking.openURL(doc.image_url as string);
-                                      } catch {
-                                        // ignore
-                                      }
-                                    }}>
-                                    <Image
-                                      source={{ uri: doc.image_url }}
-                                      style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: '#0F172A' }}
-                                      resizeMode="cover"
-                                    />
-                                  </Pressable>
-                                ) : (
-                                  <YStack
-                                    width={68}
-                                    height={44}
-                                    borderRadius={8}
-                                    backgroundColor="#0F172A"
-                                    borderWidth={1}
-                                    borderColor="#1F2937"
-                                    alignItems="center"
-                                    justifyContent="center">
-                                    <Text color="#94A3B8" fontSize={10}>
-                                      No image
-                                    </Text>
-                                  </YStack>
-                                )}
+                                <YStack backgroundColor={badgeColor} paddingHorizontal={10} paddingVertical={5} borderRadius={999}>
+                                  <Text color="#0B0B12" fontWeight="900" fontSize={11}>
+                                    {(item.role ?? 'staff').toString().toUpperCase()}
+                                  </Text>
+                                </YStack>
                               </XStack>
-                            </XStack>
-                          ))}
+                              <Text color="#94A3B8" fontSize={12}>Phone: {item.phone ?? '—'}</Text>
+                              <Text color="#94A3B8" fontSize={12}>Email: {item.email ?? '—'}</Text>
+                            </YStack>
+                            <YStack alignItems="flex-end" gap="$2">
+                              <Text color={item.is_verified ? '#22C55E' : '#FCA5A5'} fontSize={12} fontWeight="800">
+                                {item.is_verified ? 'ACTIVE' : 'INACTIVE'}
+                              </Text>
+                              <Text color="#94A3B8" fontSize={12}>{isSelected ? 'Tap to close' : 'Tap to edit'}</Text>
+                            </YStack>
+                          </XStack>
                         </YStack>
-                      ) : (
-                        <Text color="#94A3B8" fontSize={12}>
-                          No documents added.
-                        </Text>
-                      )}
+                      </Pressable>
 
-                      {pendingDocuments.length ? (
-                        <YStack gap="$2" paddingTop={6}>
-                          <Text color="#E5E7EB" fontSize={12} fontWeight="800">
-                            Pending documents (will save on Save)
-                          </Text>
-                          {pendingDocuments.map((doc, idx) => (
-                            <XStack
-                              key={`${String(doc.key ?? '').trim() || 'pending-doc'}-${idx}`}
-                              justifyContent="space-between"
-                              alignItems="center"
-                              flexWrap="wrap"
-                              gap="$2"
-                              backgroundColor="#111827"
-                              borderRadius={12}
-                              padding={10}
-                              borderWidth={1}
-                              borderColor="#1F2937">
-                              <YStack gap={4} flexShrink={1}>
-                                <Text color="#F9FAFB" fontWeight="800" fontSize={12}>
-                                  {(doc.document_type ?? '').toString().toUpperCase()}
-                                </Text>
-                                <Text color="#E5E7EB" fontSize={12}>
-                                  {doc.document_number}
-                                </Text>
-                              </YStack>
-                              <XStack gap="$2" alignItems="center">
-                                {doc.image_uri ? (
-                                  <Image
-                                    source={{ uri: doc.image_uri }}
-                                    style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: '#0F172A' }}
-                                    resizeMode="cover"
-                                  />
-                                ) : (
-                                  <YStack
-                                    width={68}
-                                    height={44}
-                                    borderRadius={8}
-                                    backgroundColor="#0F172A"
-                                    borderWidth={1}
-                                    borderColor="#1F2937"
+                      {isSelected && managedUserForm.id === item.id ? (
+                        <YStack backgroundColor="#111827" borderRadius={18} padding={16} gap="$3" borderWidth={1} borderColor="#1F2937">
+                          <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                            <Text color="#F9FAFB" fontWeight="800" fontSize={14}>
+                              Edit user
+                            </Text>
+                            <Button
+                              size="$2"
+                              backgroundColor="#0F172A"
+                              color="#E5E7EB"
+                              borderRadius={10}
+                              onPress={() => selectManagedUser(item)}>
+                              Close
+                            </Button>
+                          </XStack>
+
+                          <XStack gap="$2" flexWrap="wrap">
+                            <Input
+                              value={managedUserForm.name}
+                              onChangeText={(v) => setManagedUserForm((p) => ({ ...p, name: v }))}
+                              placeholder="Name"
+                              backgroundColor="#0F172A"
+                              borderColor="#1F2937"
+                              color="#E5E7EB"
+                              minWidth={220}
+                              flexGrow={2}
+                              flexBasis={260}
+                            />
+                            <Input
+                              value={managedUserForm.phone}
+                              onChangeText={(v) => setManagedUserForm((p) => ({ ...p, phone: v }))}
+                              placeholder="Phone"
+                              backgroundColor="#0F172A"
+                              borderColor="#1F2937"
+                              color="#E5E7EB"
+                              minWidth={180}
+                              flexGrow={1}
+                              flexBasis={200}
+                            />
+                            <Input
+                              value={managedUserForm.email}
+                              editable={false as any}
+                              placeholder="Email"
+                              backgroundColor="#0B0B12"
+                              borderColor="#1F2937"
+                              color="#94A3B8"
+                              minWidth={240}
+                              flexGrow={2}
+                              flexBasis={260}
+                            />
+                          </XStack>
+
+                          <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                            <Text color="#E5E7EB" fontSize={12} fontWeight="800">
+                              Role:
+                            </Text>
+                            {(['customer', 'driver', 'staff', 'admin', 'worker'] as const).map((r) => (
+                              <Button
+                                key={r}
+                                size="$2"
+                                backgroundColor={managedUserForm.role === r ? '#F97316' : '#0F172A'}
+                                color={managedUserForm.role === r ? '#0B0B12' : '#E5E7EB'}
+                                borderRadius={999}
+                                onPress={() => setManagedUserForm((p) => ({ ...p, role: r }))}>
+                                {r.toUpperCase()}
+                              </Button>
+                            ))}
+                            <Button
+                              size="$2"
+                              backgroundColor={managedUserForm.is_verified ? '#22C55E' : '#EF4444'}
+                              color="#0B0B12"
+                              borderRadius={999}
+                              onPress={() => setManagedUserForm((p) => ({ ...p, is_verified: !p.is_verified }))}>
+                              {managedUserForm.is_verified ? 'Active' : 'Inactive'}
+                            </Button>
+                          </XStack>
+
+                          <YStack gap="$2" backgroundColor="#0F172A" borderRadius={14} padding={12} borderWidth={1} borderColor="#1F2937">
+                            <Text color="#E5E7EB" fontSize={12} fontWeight="800">
+                              Documents
+                            </Text>
+
+                            {userDocuments.length ? (
+                              <YStack gap="$2">
+                                {userDocuments.map((doc, dIdx) => (
+                                  <XStack
+                                    key={`${String(doc.id ?? '').trim() || 'user-doc'}-${dIdx}`}
+                                    justifyContent="space-between"
                                     alignItems="center"
-                                    justifyContent="center">
-                                    <Text color="#94A3B8" fontSize={10}>
-                                      No image
-                                    </Text>
-                                  </YStack>
-                                )}
+                                    flexWrap="wrap"
+                                    gap="$2"
+                                    backgroundColor="#111827"
+                                    borderRadius={12}
+                                    padding={10}>
+                                    <YStack gap={4} flexShrink={1}>
+                                      <Text color="#F9FAFB" fontWeight="800" fontSize={12}>
+                                        {(doc.document_type ?? '').toString().toUpperCase()}
+                                      </Text>
+                                      <Text color="#94A3B8" fontSize={12}>
+                                        {doc.document_number}
+                                      </Text>
+                                    </YStack>
+                                    {doc.image_url ? (
+                                      <Button
+                                        size="$2"
+                                        backgroundColor="#0F172A"
+                                        color="#E5E7EB"
+                                        borderRadius={10}
+                                        onPress={() => Linking.openURL(doc.image_url as any)}>
+                                        Open
+                                      </Button>
+                                    ) : null}
+                                  </XStack>
+                                ))}
+                              </YStack>
+                            ) : (
+                              <Text color="#94A3B8" fontSize={12}>
+                                No documents added.
+                              </Text>
+                            )}
+
+                            <YStack gap="$2" paddingTop={4}>
+                              <Text color="#E5E7EB" fontSize={12} fontWeight="800">
+                                Add document
+                              </Text>
+
+                              <XStack gap="$1" flexWrap="wrap">
+                                {([
+                                  { label: 'Aadhar', value: 'aadhar' },
+                                  { label: 'PAN', value: 'pan' },
+                                  { label: 'Voter', value: 'voter' },
+                                  { label: 'License', value: 'license' },
+                                  { label: 'Other', value: 'other' },
+                                ] as const).map((opt) => (
+                                  <Button
+                                    key={opt.value}
+                                    size="$2"
+                                    backgroundColor={documentFormType === opt.value ? '#F97316' : '#111827'}
+                                    color={documentFormType === opt.value ? '#0B0B12' : '#E5E7EB'}
+                                    borderRadius={999}
+                                    onPress={() => setDocumentFormType(opt.value)}>
+                                    {opt.label}
+                                  </Button>
+                                ))}
+                              </XStack>
+
+                              <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                                <Input
+                                  value={documentFormNumber}
+                                  onChangeText={setDocumentFormNumber}
+                                  placeholder="Document number"
+                                  backgroundColor="#111827"
+                                  borderColor="#1F2937"
+                                  color="#E5E7EB"
+                                  minWidth={240}
+                                  flexGrow={2}
+                                  flexBasis={260}
+                                />
                                 <Button
                                   size="$2"
                                   backgroundColor="#111827"
-                                  color="#FCA5A5"
+                                  color="#E5E7EB"
                                   borderRadius={10}
-                                  onPress={() => setPendingDocuments((p) => p.filter((x) => x.key !== doc.key))}
+                                  onPress={() => pickDocumentImage('gallery')}
                                   disabled={documentBusy}>
-                                  Remove
+                                  Pick image
+                                </Button>
+                                {Platform.OS !== 'web' ? (
+                                  <Button
+                                    size="$2"
+                                    backgroundColor="#111827"
+                                    color="#E5E7EB"
+                                    borderRadius={10}
+                                    onPress={() => pickDocumentImage('camera')}
+                                    disabled={documentBusy}>
+                                    Camera
+                                  </Button>
+                                ) : null}
+                                <Button
+                                  size="$2"
+                                  backgroundColor="#F97316"
+                                  color="#0B0B12"
+                                  borderRadius={10}
+                                  onPress={stageUserDocument}
+                                  disabled={documentBusy}>
+                                  Add Document
                                 </Button>
                               </XStack>
-                            </XStack>
-                          ))}
+
+                              {documentFormImageUri ? (
+                                <XStack gap="$2" alignItems="center">
+                                  <Image
+                                    source={{ uri: documentFormImageUri }}
+                                    style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: '#0F172A' }}
+                                    resizeMode="cover"
+                                  />
+                                  <Text color="#94A3B8" fontSize={11}>
+                                    Image selected.
+                                  </Text>
+                                </XStack>
+                              ) : null}
+                            </YStack>
+                          </YStack>
+
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
+                            <Button
+                              size="$3"
+                              backgroundColor="#0F172A"
+                              color="#E5E7EB"
+                              borderRadius={12}
+                              onPress={() => {
+                                setSelectedManagedUserId(null);
+                                setManagedUserForm({
+                                  id: null,
+                                  name: '',
+                                  phone: '',
+                                  email: '',
+                                  role: 'staff',
+                                  is_verified: true,
+                                });
+                                setPendingDocuments([]);
+                                setUserMgmtInfo(null);
+                              }}>
+                              Clear
+                            </Button>
+                            <Button
+                              size="$3"
+                              backgroundColor="#F97316"
+                              color="#0B0B12"
+                              borderRadius={12}
+                              onPress={saveManagedUser}
+                              disabled={loading || documentBusy}>
+                              Save
+                            </Button>
+                          </XStack>
                         </YStack>
                       ) : null}
-
-                      <YStack gap="$2" paddingTop={4}>
-                        <Text color="#E5E7EB" fontSize={12} fontWeight="800">
-                          Add document
-                        </Text>
-
-                        <XStack gap="$1" flexWrap="wrap">
-                          {([
-                            { label: 'Aadhar', value: 'aadhar' },
-                            { label: 'PAN', value: 'pan' },
-                            { label: 'Voter', value: 'voter' },
-                            { label: 'License', value: 'license' },
-                            { label: 'Other', value: 'other' },
-                          ] as const).map((opt) => (
-                            <Button
-                              key={opt.value}
-                              size="$2"
-                              backgroundColor={documentFormType === opt.value ? '#F97316' : '#111827'}
-                              color={documentFormType === opt.value ? '#0B0B12' : '#E5E7EB'}
-                              borderRadius={999}
-                              onPress={() => setDocumentFormType(opt.value)}>
-                              {opt.label}
-                            </Button>
-                          ))}
-                        </XStack>
-
-                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                          <Input
-                            value={documentFormNumber}
-                            onChangeText={setDocumentFormNumber}
-                            placeholder="Document number"
-                            backgroundColor="#111827"
-                            borderColor="#1F2937"
-                            color="#E5E7EB"
-                            minWidth={240}
-                            flexGrow={2}
-                            flexBasis={260}
-                          />
-
-                          <Button
-                            size="$2"
-                            backgroundColor="#111827"
-                            color="#E5E7EB"
-                            borderRadius={10}
-                            onPress={() => pickDocumentImage('gallery')}
-                            disabled={documentBusy}>
-                            Pick image
-                          </Button>
-                          {Platform.OS !== 'web' ? (
-                            <Button
-                              size="$2"
-                              backgroundColor="#111827"
-                              color="#E5E7EB"
-                              borderRadius={10}
-                              onPress={() => pickDocumentImage('camera')}
-                              disabled={documentBusy}>
-                              Camera
-                            </Button>
-                          ) : null}
-
-                          <Button
-                            size="$2"
-                            backgroundColor="#F97316"
-                            color="#0B0B12"
-                            borderRadius={10}
-                            onPress={stageUserDocument}
-                            disabled={documentBusy}>
-                            Add Document
-                          </Button>
-                        </XStack>
-
-                        {documentFormImageUri ? (
-                          <XStack gap="$2" alignItems="center">
-                            <Image
-                              source={{ uri: documentFormImageUri }}
-                              style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: '#0F172A' }}
-                              resizeMode="cover"
-                            />
-                            <Text color="#94A3B8" fontSize={11}>
-                              Image selected.
-                            </Text>
-                          </XStack>
-                        ) : null}
-                      </YStack>
                     </YStack>
-
-                    <XStack gap="$2" flexWrap="wrap">
-                      <Button
-                        size="$3"
-                        backgroundColor="#F97316"
-                        color="#0B0B12"
-                        borderRadius={12}
-                        onPress={saveManagedUser}
-                        disabled={loading}>
-                        Save
-                      </Button>
-                      <Button
-                        size="$3"
-                        backgroundColor="#0F172A"
-                        color="#E5E7EB"
-                        borderRadius={12}
-                        onPress={() => {
-                          setSelectedManagedUserId(null);
-                          setManagedUserForm({
-                            id: null,
-                            name: '',
-                            phone: '',
-                            email: '',
-                            role: 'staff',
-                            is_verified: true,
-                          });
-                          setPendingDocuments([]);
-                          setUserMgmtInfo(null);
-                        }}>
-                        Clear
-                      </Button>
-                    </XStack>
-                  </YStack>
-                ) : null}
+                  );
+                })}
               </YStack>
             ) : null}
 
@@ -2644,30 +2595,36 @@ export default function AdminScreen() {
                         backgroundColor={bookingFilter === filter.value ? '#F97316' : '#111827'}
                         color={bookingFilter === filter.value ? '#0B0B12' : '#E5E7EB'}
                         borderRadius={999}
-                        onPress={() => setBookingFilter(filter.value as typeof bookingFilter)}>
+                        onPress={() => {
+                          const next = filter.value as typeof bookingFilter;
+                          setBookingFilter(next);
+                          fetchBookings({ status: next });
+                        }}>
                         {filter.label}
                       </Button>
                     ))}
-                    <Button
-                      size="$2"
-                      backgroundColor="#0F172A"
-                      color="#E5E7EB"
-                      borderRadius={10}
-                      onPress={fetchBookings}
-                      disabled={loading}>
-                      Apply
-                    </Button>
                   </XStack>
                 </YStack>
 
                 {bookings.map((item) => {
                   const user = getBookingUser(item);
+                  const driver = getBookingDriver(item);
                   const remaining = typeof item.remaining_amount === 'number' ? item.remaining_amount : null;
                   const paymentModeLabel = remaining !== null ? (remaining <= 0 ? 'Full' : 'Advance') : null;
                   const paidAmount = typeof item.advance_amount === 'number' ? item.advance_amount : null;
                   const canUpdateBooking = item.status !== 'cancelled' && item.status !== 'rescheduled';
                   const currentDriverId = (item as any).driver_id ?? null;
+                  const hasAssignedDriver = Boolean(currentDriverId);
                   const canAssign = canUpdateBooking;
+                  const statusText = String(item.status ?? '—').replaceAll('_', ' ');
+                  const statusColor =
+                    item.status === 'assigned'
+                      ? '#3B82F6'
+                      : item.status === 'cancelled'
+                        ? '#EF4444'
+                        : item.status === 'delivered'
+                          ? '#10B981'
+                          : '#94A3B8';
                   return (
                     <YStack
                       key={item.id}
@@ -2685,7 +2642,7 @@ export default function AdminScreen() {
                           User: {user.name ?? '—'} • {user.phone ?? '—'} • {user.email ?? '—'}
                         </Text>
                         <Text color="#94A3B8" fontSize={12}>
-                          Driver: {item.driver?.[0]?.name ?? 'Unassigned'}
+                          Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
                         </Text>
                       </YStack>
 
@@ -2703,7 +2660,7 @@ export default function AdminScreen() {
                               disabled={loading || assignDriverBusy === item.id}>
                               Assign driver
                             </Button>
-                            {currentDriverId ? (
+                            {hasAssignedDriver ? (
                               <Button
                                 size="$2"
                                 backgroundColor="#111827"
@@ -2752,8 +2709,8 @@ export default function AdminScreen() {
                       ) : null}
 
                       <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                        <Text color="#94A3B8" fontSize={12}>
-                          Status: {String(item.status ?? '—').replaceAll('_', ' ')}
+                        <Text color={statusColor} fontSize={12} fontWeight="700">
+                          Status: {statusText}
                         </Text>
                         <Text color="#94A3B8" fontSize={12}>
                           Payment: {String(item.payment_status ?? '—').replaceAll('_', ' ')}
@@ -2770,6 +2727,17 @@ export default function AdminScreen() {
                       </XStack>
                       {canUpdateBooking ? (
                         <XStack gap="$2" flexWrap="wrap">
+                          {item.status === 'assigned' ? (
+                            <Button
+                              size="$2"
+                              backgroundColor="#3B82F6"
+                              color="#0B0B12"
+                              borderRadius={10}
+                              minWidth={120}
+                              onPress={() => updateBookingStatus(item.id, 'not_started')}>
+                              Start
+                            </Button>
+                          ) : null}
                           <Button
                             size="$2"
                             backgroundColor="#0F172A"

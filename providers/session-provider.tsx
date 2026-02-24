@@ -44,6 +44,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const activeProfileUserIdRef = useRef<string | null>(null);
   const profileLoadPromiseRef = useRef<Promise<void> | null>(null);
 
+  const ensureUserRow = async (s: Session) => {
+    const userId = s?.user?.id;
+    if (!userId) return;
+    try {
+      const email = s.user.email ?? null;
+      const name = (s.user.user_metadata as any)?.name ?? null;
+      await supabase
+        .from('users')
+        .upsert({ id: userId, email, name }, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+  };
+
   const registerPushToken = async (userId: string) => {
     if (Platform.OS === 'web') return;
 
@@ -65,7 +79,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const token = tokenResp?.data;
       if (!token) return;
 
-      await supabase.from('users').update({ expo_push_token: token }).eq('id', userId);
+      await supabase
+        .from('users')
+        .upsert({ id: userId, expo_push_token: token }, { onConflict: 'id' });
     } catch {
       // ignore
     }
@@ -191,6 +207,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const { data } = await supabase.auth.getSession();
         safeSetSession(data.session ?? null);
         if (data.session?.user?.id) {
+          void ensureUserRow(data.session);
           void loadProfile(data.session.user.id);
           void registerPushToken(data.session.user.id);
         } else {
@@ -215,6 +232,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return;
         setSession(nextSession);
         if (nextSession?.user?.id) {
+          void ensureUserRow(nextSession);
           void loadProfile(nextSession.user.id);
           void registerPushToken(nextSession.user.id);
         } else {

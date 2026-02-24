@@ -4,6 +4,7 @@ import { FlatList } from 'react-native';
 import { H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import TrackingMap from '@/components/tracking-map';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +32,19 @@ const STATUS_STEPS: Array<{ key: string; label: string }> = [
 export default function TrackingScreen() {
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const { session } = useSession();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
+  const panelBg = isDark ? '#0F172A' : '#F3F4F6';
+  const panelBgStrong = isDark ? '#111827' : '#FFFFFF';
+  const border = isDark ? '#1F2937' : '#E5E7EB';
+  const titleColor = isDark ? '#F9FAFB' : '#111827';
+  const muted = isDark ? '#9CA3AF' : '#6B7280';
+  const label = isDark ? '#E5E7EB' : '#111827';
+  const badgeIdleBg = isDark ? '#111827' : '#E5E7EB';
+  const badgeIdleText = isDark ? '#94A3B8' : '#111827';
+  const badgeActiveBg = '#F97316';
+  const badgeActiveText = '#0B0B12';
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -52,22 +66,30 @@ export default function TrackingScreen() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
+    if (!params.bookingId) return;
 
-    const subscription = supabase
-      .channel('driver-locations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_locations' }, (payload) => {
-        const next = payload.new as DriverLocation;
+    const channel = supabase
+      .channel(`driver-location-${params.bookingId}`)
+      .on('broadcast', { event: 'location' }, (payload) => {
+        const p: any = (payload as any)?.payload ?? {};
+        const next: DriverLocation = {
+          id: String(p.updated_at ?? Date.now()),
+          booking_id: String(p.booking_id ?? params.bookingId),
+          lat: typeof p.lat === 'number' ? p.lat : Number(p.lat ?? null),
+          lng: typeof p.lng === 'number' ? p.lng : Number(p.lng ?? null),
+          updated_at: String(p.updated_at ?? new Date().toISOString()),
+        };
         setLocations((prev) => {
           const filtered = prev.filter((item) => item.id !== next.id);
-          return [next, ...filtered];
+          return [next, ...filtered].slice(0, 60);
         });
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
-  }, [session?.user?.id]);
+  }, [params.bookingId, session?.user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,28 +145,28 @@ export default function TrackingScreen() {
   }, [params.bookingId]);
 
   return (
-    <YStack flex={1} backgroundColor="#0B0B12" padding={24}>
+    <YStack flex={1} backgroundColor={pageBg} padding={24}>
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
         <Text color="#F97316" fontSize={12} letterSpacing={2} textTransform="uppercase">
           Live tracking
         </Text>
-        <H2 color="#F9FAFB">Driver signals</H2>
-        <Paragraph color="#9CA3AF">
+        <H2 color={titleColor}>Driver signals</H2>
+        <Paragraph color={muted}>
           Realtime updates will appear here once driver starts the trip.
         </Paragraph>
         {params.bookingId ? (
-          <Text color="#94A3B8" fontSize={12}>Tracking booking: {params.bookingId}</Text>
+          <Text color={muted} fontSize={12}>Tracking booking: {params.bookingId}</Text>
         ) : null}
 
         {params.bookingId ? (
           <YStack
-            backgroundColor="#0F172A"
-            borderColor="#1F2937"
+            backgroundColor={panelBg}
+            borderColor={border}
             borderWidth={1}
             borderRadius={18}
             padding={14}
             gap="$2">
-            <Text color="#E5E7EB" fontSize={12} fontWeight="700">
+            <Text color={label} fontSize={12} fontWeight="700">
               Status
             </Text>
             <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -159,12 +181,12 @@ export default function TrackingScreen() {
                       paddingHorizontal={10}
                       paddingVertical={6}
                       borderRadius={999}
-                      backgroundColor={isActive ? '#F97316' : '#111827'}
-                      color={isActive ? '#0B0B12' : '#94A3B8'}>
+                      backgroundColor={isActive ? badgeActiveBg : badgeIdleBg}
+                      color={isActive ? badgeActiveText : badgeIdleText}>
                       {step.label}
                     </Text>
                     {idx !== STATUS_STEPS.length - 1 ? (
-                      <Text color="#374151" fontSize={12}>
+                      <Text color={muted} fontSize={12}>
                         —
                       </Text>
                     ) : null}
@@ -175,7 +197,7 @@ export default function TrackingScreen() {
           </YStack>
         ) : null}
 
-        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor="#0F172A">
+        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={panelBg}>
           <TrackingMap
             token={mapboxToken}
             latitude={mapLat}
@@ -189,12 +211,12 @@ export default function TrackingScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
           renderItem={({ item }) => (
-            <YStack backgroundColor="#111827" padding={16} borderRadius={16} gap="$1">
-              <Text color="#E5E7EB" fontSize={13}>Booking: {item.booking_id}</Text>
-              <Text color="#94A3B8" fontSize={12}>
+            <YStack backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
+              <Text color={label} fontSize={13}>Booking: {item.booking_id}</Text>
+              <Text color={muted} fontSize={12}>
                 Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
               </Text>
-              <Text color="#6B7280" fontSize={11}>
+              <Text color={muted} fontSize={11}>
                 {new Date(item.updated_at).toLocaleString()}
               </Text>
             </YStack>

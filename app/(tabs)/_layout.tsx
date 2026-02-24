@@ -13,6 +13,7 @@ export default function TabLayout() {
   const role = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canSeeDriver = ['driver', 'staff', 'admin'].includes(role);
   const canSeeAdmin = ['admin', 'staff'].includes(role);
+  const canSeeBookings = role !== 'driver';
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -59,6 +60,7 @@ export default function TabLayout() {
         key="tab-bookings"
         name="bookings"
         options={{
+          href: canSeeBookings ? undefined : null,
           title: 'Bookings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
         }}

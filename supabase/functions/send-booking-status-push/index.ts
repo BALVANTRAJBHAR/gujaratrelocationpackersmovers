@@ -18,6 +18,90 @@ type UserRow = {
   role?: string | null;
 };
 
+function getStatusMessages(status: string) {
+  const s = String(status ?? '').trim();
+
+  if (s === 'not_started') {
+    return {
+      title: 'Vehicle on the way',
+      customer: 'Driver is on the way for pickup.',
+      admin: 'Driver started and is on the way for pickup.',
+      driver: 'Trip started. Proceed to pickup location.',
+    };
+  }
+
+  if (s === 'pickup_reached') {
+    return {
+      title: 'Pickup completed',
+      customer: 'Pickup is completed. Your goods are now on the move.',
+      admin: 'Pickup is completed for the booking.',
+      driver: 'Pickup verified. Continue to transit.',
+    };
+  }
+
+  if (s === 'in_transit') {
+    return {
+      title: 'In transit',
+      customer: 'Your vehicle is in transit towards the destination.',
+      admin: 'Booking is now in transit.',
+      driver: 'You are in transit. Keep updating as required.',
+    };
+  }
+
+  if (s === 'delivered') {
+    return {
+      title: 'Delivered',
+      customer: 'Your delivery has been completed successfully.',
+      admin: 'Delivery has been completed for the booking.',
+      driver: 'Delivery completed. Good job.',
+    };
+  }
+
+  if (s === 'assigned') {
+    return {
+      title: 'Driver assigned',
+      customer: 'A driver has been assigned to your booking.',
+      admin: 'Driver assigned to the booking.',
+      driver: 'A new booking has been assigned to you.',
+    };
+  }
+
+  if (s === 'unassigned') {
+    return {
+      title: 'Driver unassigned',
+      customer: 'Driver assignment was removed for your booking. We will assign a new driver soon.',
+      admin: 'Driver unassigned from the booking.',
+      driver: 'A booking assigned to you was unassigned.',
+    };
+  }
+
+  if (s === 'cancelled') {
+    return {
+      title: 'Booking cancelled',
+      customer: 'Your booking has been cancelled.',
+      admin: 'A booking was cancelled.',
+      driver: 'A booking was cancelled.',
+    };
+  }
+
+  if (s === 'rescheduled') {
+    return {
+      title: 'Booking rescheduled',
+      customer: 'Your booking has been rescheduled.',
+      admin: 'A booking was rescheduled.',
+      driver: 'A booking was rescheduled.',
+    };
+  }
+
+  const human = s.replaceAll('_', ' ');
+  return {
+    title: 'Booking update',
+    customer: `Your booking status updated: ${human}.`,
+    admin: `Booking status updated: ${human}.`,
+    driver: `Booking status updated: ${human}.`,
+  };
+}
+
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -186,14 +270,16 @@ serve(async (req) => {
     const oldDriverId = oldDriverIdOverride || (nextStatus === 'unassigned' ? bookingDriverId : '');
     const newDriverId = newDriverIdOverride || (nextStatus === 'assigned' ? bookingDriverId : '');
 
+    const statusMessages = getStatusMessages(nextStatus);
+
     const currentDriverToken = await fetchDriverToken(bookingDriverId);
     if (currentDriverToken) {
-      driverTokens.push({ to: currentDriverToken, body: `Booking status updated: ${nextStatus.replaceAll('_', ' ')}.` });
+      driverTokens.push({ to: currentDriverToken, body: statusMessages.driver });
     }
 
     if (nextStatus === 'assigned') {
       const newToken = await fetchDriverToken(newDriverId);
-      if (newToken) driverTokens.push({ to: newToken, body: 'New booking assigned to you.' });
+      if (newToken) driverTokens.push({ to: newToken, body: statusMessages.driver });
 
       if (oldDriverId && oldDriverId !== newDriverId) {
         const oldToken = await fetchDriverToken(oldDriverId);
@@ -203,13 +289,12 @@ serve(async (req) => {
 
     if (nextStatus === 'unassigned') {
       const oldToken = await fetchDriverToken(oldDriverId);
-      if (oldToken) driverTokens.push({ to: oldToken, body: 'A booking assigned to you was unassigned.' });
+      if (oldToken) driverTokens.push({ to: oldToken, body: statusMessages.driver });
     }
 
-    const humanStatus = nextStatus.replaceAll('_', ' ');
-    const title = 'Booking update';
-    const customerMessage = `Your booking was ${humanStatus}.`;
-    const adminMessage = `A booking was ${humanStatus}.`;
+    const title = statusMessages.title;
+    const customerMessage = statusMessages.customer;
+    const adminMessage = statusMessages.admin;
 
     const notifications: Array<{ to: string; body: string }> = [];
 
