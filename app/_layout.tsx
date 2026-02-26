@@ -26,6 +26,7 @@ function AppLayout() {
               <Stack.Screen name="splash" options={{ headerShown: false }} />
               <Stack.Screen name="home" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ headerShown: false }} />
               <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
               <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
               <Stack.Screen name="book/index" options={{ headerShown: false }} />

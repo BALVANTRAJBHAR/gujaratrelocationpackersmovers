@@ -1058,6 +1058,14 @@ export default function BookingWizardScreen() {
       setBookingId(data.id);
 
       try {
+        await supabase.functions.invoke('send-booking-status-push', {
+          body: { booking_id: data.id, status: 'pending' },
+        });
+      } catch {
+        // ignore push failures
+      }
+
+      try {
         await supabase.functions.invoke('send-booking-bill', {
           body: { booking_id: data.id },
         });
@@ -1214,6 +1222,14 @@ export default function BookingWizardScreen() {
       }
 
       const createdBookingId = booking.id;
+
+      try {
+        await supabase.functions.invoke('send-booking-status-push', {
+          body: { booking_id: createdBookingId, status: 'pending' },
+        });
+      } catch {
+        // ignore push failures
+      }
 
       try {
         await uploadBookingUploads(createdBookingId);

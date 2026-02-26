@@ -46,7 +46,7 @@ type ServiceConfig = {
 const SERVICES: Record<ServiceKey, ServiceConfig> = {
   'office-shifting': {
     title: 'Office Shifting',
-    heroImage: require('../../assets/images/moving-house-service.webp'),
+    heroImage: require('../../assets/images/Office Shifting.jpg'),
     rating: '4.8',
     exp: '18+ Years Experience',
     priceLabel: '₹8,000',
@@ -73,7 +73,7 @@ const SERVICES: Record<ServiceKey, ServiceConfig> = {
   },
   'car-bike-transport': {
     title: 'Car & Bike Transport',
-    heroImage: require('../../assets/images/furniture-packers-moving-helpers-carry.webp'),
+    heroImage: require('../../assets/images/Car Bike Transport SHIFTING.jpg'),
     rating: '4.8',
     exp: '18+ Years Experience',
     priceLabel: '₹5,000',
@@ -147,7 +147,7 @@ const SERVICES: Record<ServiceKey, ServiceConfig> = {
   },
   'international-relocation': {
     title: 'International Relocation',
-    heroImage: require('../../assets/images/moving-house-service.webp'),
+    heroImage: require('../../assets/images/international-moving-services.jpg'),
     rating: '4.8',
     exp: '18+ Years Experience',
     priceLabel: 'Custom Quote',
@@ -224,7 +224,7 @@ const SERVICES: Record<ServiceKey, ServiceConfig> = {
   },
   'domestic-relocations': {
     title: 'Domestic Relocations',
-    heroImage: require('../../assets/images/moving-house-service.webp'),
+    heroImage: require('../../assets/images/packers-movers-bg.jpg'),
     rating: '4.8',
     exp: '18+ Years Experience',
     priceLabel: '₹12,000',

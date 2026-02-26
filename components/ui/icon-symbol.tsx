@@ -21,6 +21,7 @@ const MAPPING = {
   'location.fill': 'location-on',
   'steeringwheel': 'local-shipping',
   'gearshape.fill': 'settings',
+  'bell.fill': 'notifications',
 } as IconMapping;
 
 /**

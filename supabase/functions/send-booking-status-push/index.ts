@@ -21,6 +21,15 @@ type UserRow = {
 function getStatusMessages(status: string) {
   const s = String(status ?? '').trim();
 
+  if (s === 'pending') {
+    return {
+      title: 'New booking created',
+      customer: 'Your booking has been created successfully.',
+      admin: 'New booking created. Open Admin → Bookings to assign a driver.',
+      driver: 'A new booking was created.',
+    };
+  }
+
   if (s === 'not_started') {
     return {
       title: 'Vehicle on the way',
@@ -124,6 +133,55 @@ async function getRest<T>(url: string, serviceKey: string): Promise<T> {
   }
 
   return (await res.json()) as T;
+}
+
+async function postRest<T>(url: string, serviceKey: string, payload: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+      apikey: serviceKey,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `REST error: ${res.status}`);
+  }
+
+  return (await res.json()) as T;
+}
+
+async function insertNotifications(
+  supabaseUrl: string,
+  serviceKey: string,
+  rows: Array<{
+    user_id: string;
+    title: string;
+    body: string;
+    type?: string;
+    booking_id?: string;
+    status?: string;
+    data?: Record<string, unknown>;
+  }>
+) {
+  if (!rows.length) return;
+  await postRest(
+    `${supabaseUrl}/rest/v1/notifications`,
+    serviceKey,
+    rows.map((r) => ({
+      user_id: r.user_id,
+      title: r.title,
+      body: r.body,
+      type: r.type ?? null,
+      booking_id: r.booking_id ?? null,
+      status: r.status ?? null,
+      data: r.data ?? null,
+    }))
+  );
 }
 
 async function sendExpoPush(to: string, title: string, body: string, data: Record<string, unknown>) {
@@ -249,7 +307,7 @@ serve(async (req) => {
       const customerToken = customer?.expo_push_token ?? '';
       if (customerToken) notifications.push({ to: customerToken, body: customerBody });
 
-      (admins ?? []).forEach((u) => {
+      (admins ?? []).forEach((u: UserRow) => {
         const t = u?.expo_push_token ?? '';
         if (!t) return;
         notifications.push({ to: t, body: adminBody });
@@ -260,6 +318,57 @@ serve(async (req) => {
 
       for (const n of notifications) {
         await sendExpoPush(n.to, title, n.body, { booking_id: bookingId, type: 'otp', otp_kind: kind });
+      }
+
+      try {
+        const rows: Array<{
+          user_id: string;
+          title: string;
+          body: string;
+          type?: string;
+          booking_id?: string;
+          status?: string;
+          data?: Record<string, unknown>;
+        }> = [];
+
+        if (customer?.id) {
+          rows.push({
+            user_id: customer.id,
+            title,
+            body: customerBody,
+            type: 'booking_otp',
+            booking_id: bookingId,
+            data: { booking_id: bookingId, type: 'otp', otp_kind: kind },
+          });
+        }
+
+        (admins ?? []).forEach((u: UserRow) => {
+          if (!u?.id) return;
+          rows.push({
+            user_id: u.id,
+            title,
+            body: adminBody,
+            type: 'booking_otp',
+            booking_id: bookingId,
+            data: { booking_id: bookingId, type: 'otp', otp_kind: kind },
+          });
+        });
+
+        const driverId = String((booking as any)?.driver_id ?? '').trim();
+        if (driverId) {
+          rows.push({
+            user_id: driverId,
+            title,
+            body: driverBody,
+            type: 'booking_otp',
+            booking_id: bookingId,
+            data: { booking_id: bookingId, type: 'otp', otp_kind: kind },
+          });
+        }
+
+        await insertNotifications(supabaseUrl, serviceKey, rows);
+      } catch {
+        // ignore notification inbox failures
       }
 
       return jsonResponse({ sent: true, otp_kind: kind, otp });
@@ -301,7 +410,7 @@ serve(async (req) => {
     const customerToken = customer?.expo_push_token ?? '';
     if (customerToken) notifications.push({ to: customerToken, body: customerMessage });
 
-    (admins ?? []).forEach((u) => {
+    (admins ?? []).forEach((u: UserRow) => {
       const t = u?.expo_push_token ?? '';
       if (!t) return;
       notifications.push({ to: t, body: adminMessage });
@@ -313,6 +422,58 @@ serve(async (req) => {
     });
 
     if (!notifications.length) return jsonResponse({ skipped: true, reason: 'no_push_tokens' }, 200);
+
+    try {
+      const rows: Array<{ user_id: string; title: string; body: string; type?: string; booking_id?: string; status?: string; data?: Record<string, unknown> }> = [];
+
+      if (customer?.id) {
+        rows.push({
+          user_id: customer.id,
+          title,
+          body: customerMessage,
+          type: 'booking_status',
+          booking_id: bookingId,
+          status: nextStatus,
+          data: { booking_id: bookingId, status: nextStatus },
+        });
+      }
+
+      (admins ?? []).forEach((u: UserRow) => {
+        if (!u?.id) return;
+        rows.push({
+          user_id: u.id,
+          title,
+          body: adminMessage,
+          type: 'booking_status',
+          booking_id: bookingId,
+          status: nextStatus,
+          data: { booking_id: bookingId, status: nextStatus },
+        });
+      });
+
+      const driverIds: string[] = [];
+      const bookingDriverId = String((booking as any)?.driver_id ?? '').trim();
+      if (bookingDriverId) driverIds.push(bookingDriverId);
+      if (nextStatus === 'assigned' && newDriverId && !driverIds.includes(newDriverId)) driverIds.push(newDriverId);
+      if (nextStatus === 'unassigned' && oldDriverId && !driverIds.includes(oldDriverId)) driverIds.push(oldDriverId);
+
+      driverIds.forEach((driverId) => {
+        if (!driverId) return;
+        rows.push({
+          user_id: driverId,
+          title,
+          body: statusMessages.driver,
+          type: 'booking_status',
+          booking_id: bookingId,
+          status: nextStatus,
+          data: { booking_id: bookingId, status: nextStatus },
+        });
+      });
+
+      await insertNotifications(supabaseUrl, serviceKey, rows);
+    } catch {
+      // ignore notification inbox failures
+    }
 
     const seen = new Set<string>();
     for (const n of notifications) {

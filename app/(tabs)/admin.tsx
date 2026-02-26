@@ -1,10 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Linking, Platform, Pressable, ScrollView } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import DateTimePicker from '@/components/AppDateTimePicker';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -39,6 +40,17 @@ type PendingUserDocument = {
   document_type: string;
   document_number: string;
   image_uri: string | null;
+};
+
+type BookingUploadRow = {
+  id: string;
+  booking_id: string;
+  file_url: string | null;
+  file_type: string | null;
+  file_name: string | null;
+  file_size: number | null;
+  created_at: string | null;
+  uploaded_at: string | null;
 };
 
 const normalizeOcrText = (lines: string[]) => {
@@ -357,46 +369,112 @@ type CouponAdmin = {
   is_active: boolean | null;
   valid_from: string | null;
   valid_until: string | null;
-  usage_limit?: number | null;
-  used_count?: number | null;
+  usage_limit: number | null;
+  used_count: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export default function AdminScreen() {
-  const { session, profile } = useSession();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ section?: string }>();
+  const section = params?.section;
+  const { session, profile, refreshProfile } = useSession();
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const maxContentWidth = 1100;
+
   const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F3F4F6';
+  const panelBg = isDark ? '#111827' : '#F8FAFC';
   const panelBgStrong = isDark ? '#0F172A' : '#FFFFFF';
   const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const inputBg = panelBgStrong;
-  const inputText = isDark ? '#E5E7EB' : '#111827';
-  const idleBtnBg = isDark ? '#111827' : '#E5E7EB';
-  const idleBtnText = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#F97316';
+  const inputBg = isDark ? '#0B1220' : '#FFFFFF';
+  const inputText = isDark ? '#FFFFFF' : '#0F172A';
+  const titleColor = isDark ? '#FFFFFF' : '#0F172A';
+  const muted = isDark ? '#94A3B8' : '#64748B';
+  const activeBtnBg = '#28b467ff';
   const activeBtnText = '#0B0B12';
-  const params = useLocalSearchParams<{ section?: string }>();
-  const router = useRouter();
-  const sectionParam = (params as any)?.section;
-  const section = Array.isArray(sectionParam) ? sectionParam[0] : sectionParam;
-  const { refreshProfile } = useSession();
-  const maxContentWidth = 1200;
-  const [drivers, setDrivers] = useState<DriverProfile[]>([]);
-  const [bookings, setBookings] = useState<BookingAdmin[]>([]);
-  const [assigningBookingId, setAssigningBookingId] = useState<string | null>(null);
-  const [assignDriverBusy, setAssignDriverBusy] = useState<string | null>(null);
-  const [staffMembers, setStaffMembers] = useState<StaffProfile[]>([]);
+  const idleBtnBg = isDark ? '#0F172A' : '#F1F5F9';
+  const idleBtnText = isDark ? '#E2E8F0' : '#0F172A';
+
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const userId = session?.user?.id ?? '';
+    if (!userId) return;
+
+    let active = true;
+    const fetchUnread = async () => {
+      try {
+        const { count } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .is('read_at', null);
+        if (!active) return;
+        setUnreadCount(count ?? 0);
+      } catch {
+        // ignore
+      }
+    };
+
+    void fetchUnread();
+
+    const channel = supabase
+      .channel('admin-notification-unread')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => {
+          void fetchUnread();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
+  const [activeSection, setActiveSection] = useState<'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings'>('bookings');
+
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
+  const [drivers, setDrivers] = useState<DriverProfile[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffProfile[]>([]);
+  const [bookings, setBookings] = useState<BookingAdmin[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeAdmin[]>([]);
   const [floorOptions, setFloorOptions] = useState<FloorOptionAdmin[]>([]);
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports'>(
-    'users'
-  );
+
+  const [bookingUploadsOpenId, setBookingUploadsOpenId] = useState<string | null>(null);
+  const [bookingUploadsBusyId, setBookingUploadsBusyId] = useState<string | null>(null);
+  const [bookingUploads, setBookingUploads] = useState<Record<string, BookingUploadRow[]>>({});
+
+  const fetchBookingUploads = async (bookingId: string) => {
+    if (!bookingId) return;
+    setBookingUploadsBusyId(bookingId);
+    try {
+      const { data, error } = await supabase
+        .from('booking_uploads')
+        .select('id,booking_id,file_url,file_type,file_name,file_size,created_at,uploaded_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: false });
+      if (error) return;
+      setBookingUploads((prev) => ({ ...prev, [bookingId]: ((data as any) ?? []) as BookingUploadRow[] }));
+    } finally {
+      setBookingUploadsBusyId(null);
+    }
+  };
+
+  const [assignDriverBusy, setAssignDriverBusy] = useState(false);
+  const [assigningBookingId, setAssigningBookingId] = useState<string | null>(null);
+
   const [vehicleForm, setVehicleForm] = useState<{
     id: string | null;
     name: string;
@@ -1473,6 +1551,42 @@ export default function AdminScreen() {
             <Paragraph color={muted}>Manage staff, bookings, approvals, and reports.</Paragraph>
           </YStack>
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
+            <Pressable
+              onPress={() => {
+                (router as any).push('/notifications');
+              }}>
+              <XStack
+                alignItems="center"
+                justifyContent="center"
+                width={40}
+                height={40}
+                borderRadius={12}
+                backgroundColor={idleBtnBg}
+                borderWidth={1}
+                borderColor={border}
+                position="relative">
+                <IconSymbol name="bell.fill" size={20} color={idleBtnText} />
+                {unreadCount > 0 ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 99,
+                      backgroundColor: '#EF4444',
+                      paddingHorizontal: 4,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                      {unreadCount > 99 ? '99+' : String(unreadCount)}
+                    </Text>
+                  </View>
+                ) : null}
+              </XStack>
+            </Pressable>
             <Button
               size="$2"
               backgroundColor={idleBtnBg}
@@ -2719,6 +2833,78 @@ export default function AdminScreen() {
                               ) : null}
                             </YStack>
                           ) : null}
+                        </YStack>
+                      ) : null}
+
+                      <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
+                        <Button
+                          size="$2"
+                          backgroundColor={inputBg}
+                          color={inputText}
+                          borderRadius={10}
+                          minWidth={120}
+                          disabled={bookingUploadsBusyId === item.id}
+                          onPress={async () => {
+                            const nextOpen = bookingUploadsOpenId === item.id ? null : item.id;
+                            setBookingUploadsOpenId(nextOpen);
+                            if (nextOpen) await fetchBookingUploads(item.id);
+                          }}>
+                          {bookingUploadsOpenId === item.id ? 'Hide media' : 'Media'}
+                        </Button>
+                      </XStack>
+
+                      {bookingUploadsOpenId === item.id ? (
+                        <YStack
+                          backgroundColor={panelBg}
+                          borderRadius={14}
+                          padding={12}
+                          gap="$2"
+                          borderWidth={1}
+                          borderColor={border}>
+                          <Text color={muted} fontSize={12}>
+                            Uploaded files
+                          </Text>
+                          {(bookingUploads[item.id] ?? []).length ? (
+                            (bookingUploads[item.id] ?? []).map((u) => {
+                              const url = String(u.file_url ?? '').trim();
+                              const label = u.file_name || (u.file_type === 'video' ? 'Video' : 'Photo');
+                              return (
+                                <Pressable
+                                  key={u.id}
+                                  onPress={() => {
+                                    if (!url) return;
+                                    Linking.openURL(url);
+                                  }}>
+                                  <XStack
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    paddingVertical={8}
+                                    paddingHorizontal={10}
+                                    borderRadius={10}
+                                    backgroundColor={panelBgStrong}
+                                    borderWidth={1}
+                                    borderColor={border}
+                                    gap="$2">
+                                    <YStack flex={1} gap="$1">
+                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                        {label}
+                                      </Text>
+                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                        {u.file_type ?? 'file'}
+                                      </Text>
+                                    </YStack>
+                                    <Text color={muted} fontSize={11}>
+                                      Open
+                                    </Text>
+                                  </XStack>
+                                </Pressable>
+                              );
+                            })
+                          ) : (
+                            <Text color={muted} fontSize={12}>
+                              No uploads.
+                            </Text>
+                          )}
                         </YStack>
                       ) : null}
 

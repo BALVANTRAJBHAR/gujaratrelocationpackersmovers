@@ -1,7 +1,7 @@
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -316,6 +316,9 @@ export default function HomeLandingScreen() {
   const businessCardRef = useRef<any>(null);
   const heroTimerRef = useRef<any>(null);
   const didScrollParamRef = useRef<string>('');
+  const testimonialScrollRef = useRef<ScrollView | null>(null);
+  const testimonialTimerRef = useRef<any>(null);
+  const [testimonialIndex, setTestimonialIndex] = useState(0);
 
   const quoteServiceOptions = React.useMemo(
     () => [
@@ -340,17 +343,56 @@ export default function HomeLandingScreen() {
   const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
   const bookBannerPaddingVertical = windowWidth < 480 ? 32 : windowWidth < 900 ? 48 : 60;
   const bookBannerMinHeight = windowWidth < 480 ? 205 : windowWidth < 900 ? 230 : 255;
-  const pricingPaddingVertical = windowWidth < 480 ? 32 : windowWidth < 900 ? 44 : 58;
-  const pricingMinHeight = windowWidth < 480 ? 250 : windowWidth < 900 ? 280 : 320;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
-  const isSmallScreen = screenWidth <= 768;
+  const isSmallScreen = windowWidth <= 768;
 
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
   const isDriver = roleKey === 'driver';
   const isCustomer = !canManage && !isDriver;
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const userId = session?.user?.id ?? '';
+    if (!userId) return;
+    if (!canManage) return;
+
+    let active = true;
+    const fetchUnread = async () => {
+      try {
+        const { count } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .is('read_at', null);
+        if (!active) return;
+        setUnreadCount(count ?? 0);
+      } catch {
+        // ignore
+      }
+    };
+
+    void fetchUnread();
+
+    const channel = supabase
+      .channel('home-notification-unread')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => {
+          void fetchUnread();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [canManage, session?.user?.id]);
 
   const heroSlides = [
     {
@@ -460,11 +502,60 @@ export default function HomeLandingScreen() {
 
   useEffect(() => {
     if (coupons.length <= 1) return;
-    const cardWidth = isSmallScreen ? Math.min(screenWidth - 64, 380) : 380;
+    const cardWidth = isSmallScreen ? Math.min(windowWidth - 64, 380) : 380;
     const gap = 16;
     const x = couponIndex * (cardWidth + gap);
     couponScrollRef.current?.scrollTo({ x, y: 0, animated: true });
-  }, [couponIndex, coupons.length, isSmallScreen]);
+  }, [couponIndex, coupons.length, isSmallScreen, windowWidth]);
+
+  const testimonials = useMemo(
+    () => [
+      {
+        name: 'Rajesh Sharma',
+        route: 'Mumbai to Ahmedabad',
+        letter: 'R',
+        body: 'Excellent service! Very professional team. My entire house was shifted without any damage. Highly recommended!',
+      },
+      {
+        name: 'Priya Patel',
+        route: 'Surat to Mumbai',
+        letter: 'P',
+        body: 'Best packers and movers in Gujarat. Timely delivery and very careful handling of all items.',
+      },
+      {
+        name: 'Amit Joshi',
+        route: 'Vadodara to Pune',
+        letter: 'A',
+        body: 'Very happy with the service. Fair pricing and great communication throughout the process.',
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!isSmallScreen) return;
+    if (!testimonials.length) return;
+
+    if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
+    testimonialTimerRef.current = setInterval(() => {
+      setTestimonialIndex((prev) => {
+        const next = (prev + 1) % testimonials.length;
+        return next;
+      });
+    }, 3500);
+
+    return () => {
+      if (testimonialTimerRef.current) clearInterval(testimonialTimerRef.current);
+    };
+  }, [isSmallScreen, testimonials.length]);
+
+  useEffect(() => {
+    if (!isSmallScreen) return;
+    const cardWidth = Math.min(windowWidth - 64, 420);
+    const gap = 18;
+    const x = testimonialIndex * (cardWidth + gap);
+    testimonialScrollRef.current?.scrollTo({ x, y: 0, animated: true });
+  }, [isSmallScreen, testimonialIndex, windowWidth]);
 
   const buttonStyle = {
     opacity: buttonAnim.interpolate({
@@ -838,8 +929,8 @@ export default function HomeLandingScreen() {
           gap="$3"
           flexWrap="wrap"
           justifyContent="space-between"
-          paddingHorizontal={24}
-          paddingVertical={14}>
+          paddingHorizontal={isSmallScreen ? 14 : 24}
+          paddingVertical={isSmallScreen ? 12 : 14}>
           <Image source={require('../assets/images/PackersMoversLogo.png')} style={styles.logo} />
 
           {!isSmallScreen ? (
@@ -859,6 +950,8 @@ export default function HomeLandingScreen() {
                       paddingVertical={12}
                       borderRadius={14}
                       backgroundColor={theme.menuBg}
+                      borderWidth={1}
+                      borderColor="rgba(255,255,255,0.12)"
                       shadowColor={theme.shadow}
                       shadowOffset={{ width: 0, height: 3 }}
                       shadowOpacity={0.12}
@@ -869,7 +962,7 @@ export default function HomeLandingScreen() {
                         fontSize={15}
                         fontWeight="700"
                         letterSpacing={0.3}
-                        style={{ fontFamily: 'Georgia' }}>
+                        style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                         {item}
                       </Text>
                     </YStack>
@@ -877,8 +970,21 @@ export default function HomeLandingScreen() {
                 ))}
 
                 <Pressable onPress={toggleTheme}>
-                  <YStack paddingHorizontal={18} paddingVertical={12} borderRadius={14} backgroundColor={theme.menuBg}>
-                    <Text fontSize={20}>{isDarkMode ? '☀️' : '🌙'}</Text>
+                  <YStack
+                    paddingHorizontal={18}
+                    paddingVertical={12}
+                    borderRadius={14}
+                    backgroundColor={theme.menuBg}
+                    borderWidth={1}
+                    borderColor="rgba(255,255,255,0.12)"
+                    shadowColor={theme.shadow}
+                    shadowOffset={{ width: 0, height: 3 }}
+                    shadowOpacity={0.12}
+                    shadowRadius={6}
+                    elevation={3}>
+                    <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
+                      {isDarkMode ? '☀️' : '🌙'}
+                    </Text>
                   </YStack>
                 </Pressable>
 
@@ -886,9 +992,67 @@ export default function HomeLandingScreen() {
                   <>
                     {canManage && (
                       <>
+                        <Pressable
+                          onPress={() => {
+                            router.push('/notifications' as any);
+                          }}>
+                          <YStack
+                            paddingHorizontal={16}
+                            paddingVertical={12}
+                            borderRadius={14}
+                            backgroundColor={theme.menuBg}
+                            borderWidth={1}
+                            borderColor="rgba(255,255,255,0.12)"
+                            shadowColor={theme.shadow}
+                            shadowOffset={{ width: 0, height: 3 }}
+                            shadowOpacity={0.12}
+                            shadowRadius={6}
+                            elevation={3}
+                            alignItems="center"
+                            justifyContent="center">
+                            <View style={{ position: 'relative', width: 22, height: 22 } as any}>
+                              <FontAwesome name="bell" size={18} color={theme.menuText} />
+                              {unreadCount > 0 ? (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: -6,
+                                    right: -8,
+                                    minWidth: 16,
+                                    height: 16,
+                                    borderRadius: 99,
+                                    backgroundColor: '#EF4444',
+                                    paddingHorizontal: 4,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}>
+                                  <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                                    {unreadCount > 99 ? '99+' : String(unreadCount)}
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          </YStack>
+                        </Pressable>
+
                         <Pressable onPress={handleDashboardSafe}>
-                          <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.primary}>
-                            <Text color="#FFFFFF" fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                          <YStack
+                            paddingHorizontal={22}
+                            paddingVertical={12}
+                            borderRadius={14}
+                            backgroundColor={theme.menuBg}
+                            borderWidth={1}
+                            borderColor="rgba(255,255,255,0.12)"
+                            shadowColor={theme.shadow}
+                            shadowOffset={{ width: 0, height: 3 }}
+                            shadowOpacity={0.12}
+                            shadowRadius={6}
+                            elevation={3}>
+                            <Text
+                              color={theme.menuText}
+                              fontSize={15}
+                              fontWeight="700"
+                              style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                               Admin Panel
                             </Text>
                           </YStack>
@@ -898,8 +1062,23 @@ export default function HomeLandingScreen() {
 
                     {isDriver && (
                       <Pressable onPress={handleDashboardSafe}>
-                        <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.primary}>
-                          <Text color="#FFFFFF" fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                        <YStack
+                          paddingHorizontal={22}
+                          paddingVertical={12}
+                          borderRadius={14}
+                          backgroundColor={theme.menuBg}
+                          borderWidth={1}
+                          borderColor="rgba(255,255,255,0.12)"
+                          shadowColor={theme.shadow}
+                          shadowOffset={{ width: 0, height: 3 }}
+                          shadowOpacity={0.12}
+                          shadowRadius={6}
+                          elevation={3}>
+                          <Text
+                            color={theme.menuText}
+                            fontSize={15}
+                            fontWeight="700"
+                            style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                             Driver Panel
                           </Text>
                         </YStack>
@@ -908,8 +1087,23 @@ export default function HomeLandingScreen() {
 
                     {isCustomer && (
                       <Pressable onPress={handleDashboardSafe}>
-                        <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.primary}>
-                          <Text color="#FFFFFF" fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                        <YStack
+                          paddingHorizontal={22}
+                          paddingVertical={12}
+                          borderRadius={14}
+                          backgroundColor={theme.menuBg}
+                          borderWidth={1}
+                          borderColor="rgba(255,255,255,0.12)"
+                          shadowColor={theme.shadow}
+                          shadowOffset={{ width: 0, height: 3 }}
+                          shadowOpacity={0.12}
+                          shadowRadius={6}
+                          elevation={3}>
+                          <Text
+                            color={theme.menuText}
+                            fontSize={15}
+                            fontWeight="700"
+                            style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                             My Bookings
                           </Text>
                         </YStack>
@@ -917,8 +1111,23 @@ export default function HomeLandingScreen() {
                     )}
 
                     {Platform.OS !== 'android' && (
-                      <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={14} backgroundColor={theme.bgCardSecondary}>
-                        <Text color={theme.text} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                      <YStack
+                        paddingHorizontal={22}
+                        paddingVertical={12}
+                        borderRadius={14}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor="rgba(255,255,255,0.12)"
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}>
+                        <Text
+                          color={theme.menuText}
+                          fontSize={15}
+                          fontWeight="700"
+                          style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                           Welcome, {welcomeName}
                         </Text>
                       </YStack>
@@ -929,13 +1138,20 @@ export default function HomeLandingScreen() {
                         paddingHorizontal={16}
                         paddingVertical={12}
                         borderRadius={14}
-                        backgroundColor={theme.bgCardSecondary}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor="rgba(255,255,255,0.12)"
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}
                         alignItems="center"
                         justifyContent="center">
                         {MaterialIcons ? (
-                          <MaterialIcons name="logout" size={20} color={theme.text} />
+                          <MaterialIcons name="logout" size={20} color={theme.menuText} />
                         ) : (
-                          <Text color={theme.text} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
                             Logout
                           </Text>
                         )}
@@ -944,8 +1160,23 @@ export default function HomeLandingScreen() {
                   </>
                 ) : (
                   <Pressable onPress={() => router.push('/auth/login')}>
-                    <YStack paddingHorizontal={26} paddingVertical={12} borderRadius={14} backgroundColor={theme.primary}>
-                      <Text color="#FFFFFF" fontSize={15} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                    <YStack
+                      paddingHorizontal={22}
+                      paddingVertical={12}
+                      borderRadius={14}
+                      backgroundColor={theme.menuBg}
+                      borderWidth={1}
+                      borderColor="rgba(255,255,255,0.12)"
+                      shadowColor={theme.shadow}
+                      shadowOffset={{ width: 0, height: 3 }}
+                      shadowOpacity={0.12}
+                      shadowRadius={6}
+                      elevation={3}>
+                      <Text
+                        color={theme.menuText}
+                        fontSize={15}
+                        fontWeight="800"
+                        style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                         Login
                       </Text>
                     </YStack>
@@ -956,14 +1187,85 @@ export default function HomeLandingScreen() {
           ) : (
             <XStack gap="$2" alignItems="center">
               <Pressable onPress={toggleTheme}>
-                <YStack paddingHorizontal={16} paddingVertical={11} borderRadius={12} backgroundColor={theme.menuBg}>
-                  <Text fontSize={20}>{isDarkMode ? '☀️' : '🌙'}</Text>
+                <YStack
+                  paddingHorizontal={16}
+                  paddingVertical={11}
+                  borderRadius={12}
+                  backgroundColor={theme.menuBg}
+                  borderWidth={1}
+                  borderColor="rgba(255,255,255,0.12)"
+                  shadowColor={theme.shadow}
+                  shadowOffset={{ width: 0, height: 3 }}
+                  shadowOpacity={0.12}
+                  shadowRadius={6}
+                  elevation={3}>
+                  <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
+                    {isDarkMode ? '☀️' : '🌙'}
+                  </Text>
                 </YStack>
               </Pressable>
 
+              {session && canManage ? (
+                <Pressable
+                  onPress={() => {
+                    router.push('/notifications' as any);
+                  }}>
+                  <YStack
+                    paddingHorizontal={14}
+                    paddingVertical={11}
+                    borderRadius={12}
+                    backgroundColor={theme.menuBg}
+                    borderWidth={1}
+                    borderColor="rgba(255,255,255,0.12)"
+                    shadowColor={theme.shadow}
+                    shadowOffset={{ width: 0, height: 3 }}
+                    shadowOpacity={0.12}
+                    shadowRadius={6}
+                    elevation={3}
+                    alignItems="center"
+                    justifyContent="center">
+                    <View style={{ position: 'relative', width: 22, height: 22 } as any}>
+                      <FontAwesome name="bell" size={18} color={theme.menuText} />
+                      {unreadCount > 0 ? (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: -6,
+                            right: -8,
+                            minWidth: 16,
+                            height: 16,
+                            borderRadius: 99,
+                            backgroundColor: '#EF4444',
+                            paddingHorizontal: 4,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                            {unreadCount > 99 ? '99+' : String(unreadCount)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </YStack>
+                </Pressable>
+              ) : null}
+
               <Pressable onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                <YStack paddingHorizontal={18} paddingVertical={13} borderRadius={12} backgroundColor={theme.menuBg}>
-                  <Text color={theme.menuText} fontSize={22}>☰</Text>
+                <YStack
+                  paddingHorizontal={16}
+                  paddingVertical={11}
+                  borderRadius={12}
+                  backgroundColor={theme.menuBg}
+                  borderWidth={1}
+                  borderColor="rgba(255,255,255,0.12)"
+                  shadowColor={theme.shadow}
+                  shadowOffset={{ width: 0, height: 3 }}
+                  shadowOpacity={0.12}
+                  shadowRadius={6}
+                  elevation={3}>
+                  <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
+                    ☰
+                  </Text>
                 </YStack>
               </Pressable>
             </XStack>
@@ -975,7 +1277,13 @@ export default function HomeLandingScreen() {
         ref={(ref) => {
           scrollRef.current = ref;
         }}
-        contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 100 : 110 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: isSmallScreen ? 100 : 110,
+            paddingHorizontal: isSmallScreen ? 14 : 24,
+          },
+        ]}
         showsVerticalScrollIndicator={false}>
         <YStack gap="$4">
           {isSmallScreen && mobileMenuOpen && (
@@ -1526,15 +1834,15 @@ export default function HomeLandingScreen() {
               {[
                 {
                   title: 'Household Shifting',
-                  image: require('../assets/images/packers-movers-bg.jpg'),
+                  image: require('../assets/images/HOUSHOLD SHIFT.jpg'),
                 },
                 {
                   title: 'Office Shifting',
-                  image: require('../assets/images/moving-house-service.webp'),
+                  image: require('../assets/images/Office Shifting.jpg'),
                 },
                 {
                   title: 'Car & Bike Transport',
-                  image: require('../assets/images/furniture-packers-moving-helpers-carry.webp'),
+                  image: require('../assets/images/Car Bike Transport SHIFTING.jpg'),
                 },
                 {
                   title: 'Packing and Moving',
@@ -1542,11 +1850,11 @@ export default function HomeLandingScreen() {
                 },
                 {
                   title: 'Warehouse Services',
-                  image: require('../assets/images/packers-movers-bg.jpg'),
+                  image: require('../assets/images/Warehousing And Shifting Services.jpg'),
                 },
                 {
                   title: 'International Relocation',
-                  image: require('../assets/images/moving-house-service.webp'),
+                  image: require('../assets/images/international-moving-services.jpg'),
                 },
               ].map((item) => (
                 <Pressable
@@ -1578,6 +1886,23 @@ export default function HomeLandingScreen() {
                       return;
                     }
                   }}>
+                  {(() => {
+                    const serviceIconName =
+                      item.title === 'Household Shifting'
+                        ? 'cube'
+                        : item.title === 'Office Shifting'
+                          ? 'building'
+                          : item.title === 'Car & Bike Transport'
+                            ? 'car'
+                            : item.title === 'Packing and Moving'
+                              ? 'box-open'
+                              : item.title === 'Warehouse Services'
+                                ? 'warehouse'
+                                : item.title === 'International Relocation'
+                                  ? 'globe'
+                                  : 'info-circle';
+
+                    return (
                   <YStack
                     style={[
                       styles.serviceCard,
@@ -1599,6 +1924,7 @@ export default function HomeLandingScreen() {
                     </ImageBackground>
                     <XStack alignItems="center" justifyContent="space-between" paddingHorizontal={16} paddingVertical={14}>
                       <XStack alignItems="center" gap="$2.5">
+                        <FontAwesome5 name={serviceIconName as any} size={14} color={theme.textSecondary} />
                         <Text
                           color={theme.textSecondary}
                           fontSize={13}
@@ -1612,6 +1938,8 @@ export default function HomeLandingScreen() {
                       </Text>
                     </XStack>
                   </YStack>
+                    );
+                  })()}
                 </Pressable>
               ))}
               </XStack>
@@ -1827,174 +2155,218 @@ export default function HomeLandingScreen() {
             </YStack>
 
             <XStack flexWrap="wrap" justifyContent="space-between" gap="$3.5">
-              {[
-                {
-                  name: 'Rajesh Sharma',
-                  route: 'Mumbai to Ahmedabad',
-                  letter: 'R',
-                  body: 'Excellent service! Very professional team. My entire house was shifted without any damage. Highly recommended!',
-                },
-                {
-                  name: 'Priya Patel',
-                  route: 'Surat to Mumbai',
-                  letter: 'P',
-                  body: 'Best packers and movers in Gujarat. Timely delivery and very careful handling of all items.',
-                },
-                {
-                  name: 'Amit Joshi',
-                  route: 'Vadodara to Pune',
-                  letter: 'A',
-                  body: 'Very happy with the service. Fair pricing and great communication throughout the process.',
-                },
-              ].map((t) => (
-                <YStack
-                  key={t.name}
-                  style={[
-                    styles.testimonialCard,
-                    {
-                      width: isSmallScreen ? '100%' : '32%',
-                      backgroundColor: theme.bgCard,
-                      borderColor: theme.border,
-                    },
-                  ]}>
-                  <Text color="#D97706" fontSize={18} fontWeight="900">
-                    ⭐⭐⭐⭐⭐
-                  </Text>
-                  <Text
-                    color={theme.textMuted}
-                    fontSize={14}
-                    lineHeight={22}
-                    fontWeight="700"
-                    style={{ fontFamily: 'Georgia' }}>
-                    &quot;{t.body}&quot;
-                  </Text>
-                  <XStack alignItems="center" gap="$2.5" marginTop={12}>
-                    <YStack style={styles.avatarCircle}>
-                      <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                        {t.letter}
-                      </Text>
-                    </YStack>
-                    <YStack>
-                      <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                        {t.name}
-                      </Text>
-                      <Text
-                        color={theme.textMuted}
-                        fontSize={12}
-                        fontWeight="700"
-                        style={{ fontFamily: 'Georgia' }}>
-                        {t.route}
-                      </Text>
-                    </YStack>
-                  </XStack>
-                </YStack>
-              ))}
+              {isSmallScreen ? (
+                <ScrollView
+                  ref={(ref) => {
+                    testimonialScrollRef.current = ref;
+                  }}
+                  horizontal
+                  showsHorizontalScrollIndicator
+                  contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'stretch', gap: 18 } as any}>
+                  {testimonials.map((t) => {
+                    const cardWidth = Math.min(windowWidth - 64, 420);
+                    return (
+                      <YStack
+                        key={t.name}
+                        style={[
+                          styles.testimonialCard,
+                          {
+                            width: cardWidth,
+                            backgroundColor: theme.bgCard,
+                            borderColor: theme.border,
+                          },
+                        ]}>
+                        <Text color="#D97706" fontSize={18} fontWeight="900">
+                          ⭐⭐⭐⭐⭐
+                        </Text>
+                        <Text
+                          color={theme.textMuted}
+                          fontSize={14}
+                          lineHeight={22}
+                          fontWeight="700"
+                          style={{ fontFamily: 'Georgia' }}>
+                          &quot;{t.body}&quot;
+                        </Text>
+                        <XStack alignItems="center" gap="$2.5" marginTop={12}>
+                          <YStack style={styles.avatarCircle}>
+                            <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                              {t.letter}
+                            </Text>
+                          </YStack>
+                          <YStack>
+                            <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                              {t.name}
+                            </Text>
+                            <Text
+                              color={theme.textMuted}
+                              fontSize={12}
+                              fontWeight="700"
+                              style={{ fontFamily: 'Georgia' }}>
+                              {t.route}
+                            </Text>
+                          </YStack>
+                        </XStack>
+                      </YStack>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                testimonials.map((t) => (
+                  <YStack
+                    key={t.name}
+                    style={[
+                      styles.testimonialCard,
+                      {
+                        width: '32%',
+                        backgroundColor: theme.bgCard,
+                        borderColor: theme.border,
+                      },
+                    ]}>
+                    <Text color="#D97706" fontSize={18} fontWeight="900">
+                      ⭐⭐⭐⭐⭐
+                    </Text>
+                    <Text
+                      color={theme.textMuted}
+                      fontSize={14}
+                      lineHeight={22}
+                      fontWeight="700"
+                      style={{ fontFamily: 'Georgia' }}>
+                      &quot;{t.body}&quot;
+                    </Text>
+                    <XStack alignItems="center" gap="$2.5" marginTop={12}>
+                      <YStack style={styles.avatarCircle}>
+                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                          {t.letter}
+                        </Text>
+                      </YStack>
+                      <YStack>
+                        <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                          {t.name}
+                        </Text>
+                        <Text
+                          color={theme.textMuted}
+                          fontSize={12}
+                          fontWeight="700"
+                          style={{ fontFamily: 'Georgia' }}>
+                          {t.route}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </YStack>
+                ))
+              )}
             </XStack>
           </YStack>
 
-          <YStack
-            style={[
-              styles.pricingSection,
-              { paddingVertical: pricingPaddingVertical, minHeight: pricingMinHeight, justifyContent: 'center', flex: 1 },
-            ]}
-            marginTop={64}>
-            <YStack style={{ justifyContent: 'center', alignItems: 'center' }} gap="$3.5">
-              <YStack alignItems="center" gap="$2.5">
-                <Text
-                  color="#FFFFFF"
-                  fontSize={28}
-                  fontWeight="900"
-                  textAlign="center"
-                  style={{ fontFamily: 'Georgia' }}>
-                  Transparent Pricing
-                </Text>
-                <Text
-                  color="rgba(255,255,255,0.8)"
-                  fontSize={13}
-                  textAlign="center"
-                  lineHeight={20}
-                  fontWeight="700"
-                  style={{ fontFamily: 'Georgia' }}>
-                  Approximate charges for local shifting. Final price may vary based on actual items and distance.
-                </Text>
-              </YStack>
+          <YStack style={styles.transparentPricingSection} marginTop={64}>
+            <YStack alignItems="center" gap="$2.5" marginBottom={18}>
+              <Text
+                color="#FFFFFF"
+                fontSize={28}
+                fontWeight="900"
+                textAlign="center"
+                style={{ fontFamily: 'Georgia' }}>
+                Transparent Pricing
+              </Text>
+              <Text
+                color="rgba(255,255,255,0.82)"
+                fontSize={13}
+                textAlign="center"
+                lineHeight={20}
+                fontWeight="700"
+                style={{ fontFamily: 'Georgia' }}>
+                Approximate charges for local shifting. Final price may vary based on actual items and distance.
+              </Text>
+            </YStack>
 
-              <ScrollView
-                horizontal={isSmallScreen}
-                showsHorizontalScrollIndicator={isSmallScreen}
-                style={!isSmallScreen ? ({ width: '100%' } as any) : undefined}
-                contentContainerStyle={!isSmallScreen ? ({ alignItems: 'center' } as any) : undefined}>
-                <YStack
-                  style={[
-                    styles.pricingTable,
-                    isSmallScreen && { minWidth: 750 },
-                    !isSmallScreen && { width: '80%', alignSelf: 'center' },
-                  ] as any}>
-                  <XStack style={styles.pricingHeaderRow}>
-                    {['Type of Move', 'Up to 10 km', '11-25 km', '26-40 km'].map((h) => (
+            <ScrollView
+              horizontal={isSmallScreen}
+              showsHorizontalScrollIndicator={isSmallScreen}
+              contentContainerStyle={
+                isSmallScreen
+                  ? ({ paddingHorizontal: 10, alignItems: 'center' } as any)
+                  : ({ alignItems: 'center' } as any)
+              }
+              style={{ width: '100%' } as any}>
+              <YStack
+                style={[
+                  styles.transparentPricingTable,
+                  isSmallScreen ? ({ minWidth: 760, width: 760 } as any) : ({ width: '80%' } as any),
+                ] as any}>
+                <XStack style={styles.transparentPricingHeaderRow}>
+                  {['Type of Move', 'Up to 10 km', '11-25 km', '26-40 km'].map((h) => (
+                    <YStack
+                      key={h}
+                      style={[
+                        styles.transparentPricingCell,
+                        styles.transparentPricingHeaderCell,
+                        h === 'Type of Move' && { flex: 0.75 },
+                      ] as any}>
+                      <Text
+                        color="#FFFFFF"
+                        fontWeight="900"
+                        fontSize={13}
+                        textAlign="center"
+                        style={{ fontFamily: 'Georgia' }}>
+                        {h}
+                      </Text>
+                    </YStack>
+                  ))}
+                </XStack>
+
+                {[ 
+                  ['1 BHK Shifting', '₹3,000 - 5,000', '₹4,000 - 6,500', '₹7,000 - 8,500'],
+                  ['2 BHK Shifting', '₹4,000 - 7,000', '₹6,500 - 9,500', '₹8,500 - 11,000'],
+                  ['3 BHK Shifting', '₹7,000 - 11,000', '₹10,000 - 15,000', '₹14,000 - 18,000'],
+                ].map((row) => (
+                  <XStack key={row[0]} style={styles.transparentPricingBodyRow}>
+                    {row.map((cell, idx) => (
                       <YStack
-                        key={h}
-                        style={[
-                          styles.pricingCell,
-                          styles.pricingHeaderCell,
-                          h === 'Type of Move' && { flex: 0.75 },
-                        ] as any}>
+                        key={`${row[0]}-${idx}`}
+                        style={[styles.transparentPricingCell, idx === 0 && { flex: 0.75 }] as any}>
                         <Text
-                          color="#FFFFFF"
-                          fontWeight="900"
+                          color="#0F172A"
+                          fontWeight={idx === 0 ? '900' : '800'}
                           fontSize={13}
+                          textAlign="center"
+                          lineHeight={22}
                           style={{ fontFamily: 'Georgia' }}>
-                          {h}
+                          {cell}
                         </Text>
                       </YStack>
                     ))}
                   </XStack>
+                ))}
+              </YStack>
+            </ScrollView>
 
-                  {[
-                    ['1 BHK Shifting', '₹3,000 - 5,000', '₹4,000 - 6,500', '₹7,000 - 8,500'],
-                    ['2 BHK Shifting', '₹4,000 - 7,000', '₹6,500 - 9,500', '₹8,500 - 11,000'],
-                    ['3 BHK Shifting', '₹7,000 - 11,000', '₹10,000 - 15,000', '₹14,000 - 18,000'],
-                  ].map((row) => (
-                    <XStack key={row[0]} style={styles.pricingBodyRow}>
-                      {row.map((cell, idx) => (
-                        <YStack
-                          key={`${row[0]}-${idx}`}
-                          style={[styles.pricingCell, idx === 0 && { flex: 0.75 }] as any}>
-                          <Text
-                            color="#1A1A1A"
-                            fontWeight={idx === 0 ? '900' : '800'}
-                            fontSize={13}
-                            style={{ fontFamily: 'Georgia' }}>
-                            {cell}
-                          </Text>
-                        </YStack>
-                      ))}
-                    </XStack>
-                  ))}
+            <XStack
+              justifyContent="center"
+              alignItems="center"
+              gap="$3.5"
+              marginTop={20}
+              marginBottom={6}
+              flexWrap="wrap"
+              width="100%">
+              <Pressable onPress={handleOpenQuote}>
+                <YStack style={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonLight]}>
+                  <XStack alignItems="center" gap="$2.5">
+                    <Text color="#0B1220" fontSize={16} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                      Get Quote
+                    </Text>
+                  </XStack>
                 </YStack>
-              </ScrollView>
-
-              <XStack justifyContent="center" alignItems="center" gap="$3.5" marginTop={2} marginBottom={130} flexWrap="wrap">
-                <Pressable onPress={handleOpenQuote}>
-                  <YStack style={styles.pricingQuoteButton}>
-                    <XStack alignItems="center" gap="$2.5">
-                      <Text color="#1A1A1A" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                        Get Quote
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Pressable>
-                <Pressable onPress={handleBook}>
-                  <YStack style={[styles.pricingQuoteButton, { backgroundColor: '#12b12ce0' }]}>
-                    <XStack alignItems="center" gap="$2.5">
-                      <Text color="#FFFFFF" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                        Book Now
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Pressable>
-              </XStack>
-            </YStack>
+              </Pressable>
+              <Pressable onPress={handleBook}>
+                <YStack style={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonGreen]}>
+                  <XStack alignItems="center" gap="$2.5">
+                    <Text color="#FFFFFF" fontSize={16} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                      Book Now
+                    </Text>
+                  </XStack>
+                </YStack>
+              </Pressable>
+            </XStack>
           </YStack>
 
           <YStack
@@ -2255,48 +2627,52 @@ export default function HomeLandingScreen() {
                   },
                 ]}
                 gap="$2.5">
-                <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                  Gujarat Relocation Packers & Movers
-                </Text>
-                <Text
-                  color={theme.textSecondary}
-                  fontSize={13}
-                  lineHeight={20}
-                  fontWeight="700"
-                  style={{ fontFamily: 'Georgia' }}>
-                  Professional packing and relocation services with careful handling, verified staff, and transparent
-                  pricing across India.
-                </Text>
-                <Text
-                  color={theme.textMuted}
-                  fontSize={13}
-                  fontWeight="900"
-                  marginTop={8}
-                  style={{ fontFamily: 'Georgia' }}>
-                  Follow Us
-                </Text>
-                <XStack gap="$2.5" alignItems="center">
-                  <Pressable onPress={() => Linking.openURL('https://facebook.com/')}> 
-                    <YStack style={styles.socialIcon}>
-                      <FontAwesome name="facebook" size={18} color="#FFFFFF" />
-                    </YStack>
-                  </Pressable>
-                  <Pressable onPress={() => Linking.openURL('https://instagram.com/')}> 
-                    <YStack style={styles.socialIcon}>
-                      <FontAwesome name="instagram" size={18} color="#FFFFFF" />
-                    </YStack>
-                  </Pressable>
-                  <Pressable onPress={() => Linking.openURL('https://linkedin.com/')}> 
-                    <YStack style={styles.socialIcon}>
-                      <FontAwesome name="linkedin" size={18} color="#FFFFFF" />
-                    </YStack>
-                  </Pressable>
-                  <Pressable onPress={() => Linking.openURL('https://youtube.com/')}> 
-                    <YStack style={styles.socialIcon}>
-                      <FontAwesome5 name="youtube" size={18} color="#FFFFFF" />
-                    </YStack>
-                  </Pressable>
-                </XStack>
+                <YStack style={styles.footerHeaderWrap}>
+                  <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                    Gujarat Relocation Packers & Movers
+                  </Text>
+                </YStack>
+                <YStack style={styles.footerBodyWrap}>
+                  <Text
+                    color={theme.textSecondary}
+                    fontSize={13}
+                    lineHeight={20}
+                    fontWeight="700"
+                    style={{ fontFamily: 'Georgia' }}>
+                    Professional packing and relocation services with careful handling, verified staff, and transparent
+                    pricing across India.
+                  </Text>
+                  <Text
+                    color={theme.textMuted}
+                    fontSize={13}
+                    fontWeight="900"
+                    marginTop={8}
+                    style={{ fontFamily: 'Georgia' }}>
+                    Follow Us
+                  </Text>
+                  <XStack gap="$2.5" alignItems="center">
+                    <Pressable onPress={() => Linking.openURL('https://facebook.com/')}> 
+                      <YStack style={styles.socialIcon}>
+                        <FontAwesome name="facebook" size={18} color="#FFFFFF" />
+                      </YStack>
+                    </Pressable>
+                    <Pressable onPress={() => Linking.openURL('https://instagram.com/')}> 
+                      <YStack style={styles.socialIcon}>
+                        <FontAwesome name="instagram" size={18} color="#FFFFFF" />
+                      </YStack>
+                    </Pressable>
+                    <Pressable onPress={() => Linking.openURL('https://linkedin.com/')}> 
+                      <YStack style={styles.socialIcon}>
+                        <FontAwesome name="linkedin" size={18} color="#FFFFFF" />
+                      </YStack>
+                    </Pressable>
+                    <Pressable onPress={() => Linking.openURL('https://youtube.com/')}> 
+                      <YStack style={styles.socialIcon}>
+                        <FontAwesome5 name="youtube" size={18} color="#FFFFFF" />
+                      </YStack>
+                    </Pressable>
+                  </XStack>
+                </YStack>
               </YStack>
               {(() => {
                 const services = [
@@ -2345,10 +2721,12 @@ export default function HomeLandingScreen() {
                         },
                       ]}
                       gap="$2.5">
-                      <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                        Services We Provide
-                      </Text>
-                      {(isSmallScreen ? services : left).map(renderService)}
+                      <YStack style={styles.footerHeaderWrap}>
+                        <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                          Services We Provide
+                        </Text>
+                      </YStack>
+                      <YStack style={styles.footerBodyWrap}>{(isSmallScreen ? services : left).map(renderService)}</YStack>
                     </YStack>
 
                     {!isSmallScreen ? (
@@ -2363,8 +2741,8 @@ export default function HomeLandingScreen() {
                           },
                         ]}
                         gap="$2.5">
-                        <YStack height={22} />
-                        {right.map(renderService)}
+                        <YStack style={styles.footerHeaderWrap} />
+                        <YStack style={styles.footerBodyWrap}>{right.map(renderService)}</YStack>
                       </YStack>
                     ) : null}
                   </>
@@ -2383,26 +2761,30 @@ export default function HomeLandingScreen() {
                   },
                 ]}
                 gap="$2.5">
-                <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                  Quick Links
-                </Text>
-                {[
-                  { label: 'Home', action: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) },
-                  { label: 'Services', action: () => scrollToSection('services') },
-                  { label: 'Track', action: () => router.push('/(tabs)/tracking') },
-                  { label: 'Contact', action: () => scrollToSection('contact') },
-                ].map((l) => (
-                  <Pressable key={l.label} onPress={l.action}>
-                    <Text
-                      color={theme.textSecondary}
-                      fontSize={13}
-                      fontWeight="800"
-                      paddingVertical={7}
-                      style={{ fontFamily: 'Georgia' }}>
-                      {l.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                <YStack style={styles.footerHeaderWrap}>
+                  <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                    Quick Links
+                  </Text>
+                </YStack>
+                <YStack style={styles.footerBodyWrap}>
+                  {[
+                    { label: 'Home', action: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) },
+                    { label: 'Services', action: () => scrollToSection('services') },
+                    { label: 'Track', action: () => router.push('/(tabs)/tracking') },
+                    { label: 'Contact', action: () => scrollToSection('contact') },
+                  ].map((l) => (
+                    <Pressable key={l.label} onPress={l.action}>
+                      <Text
+                        color={theme.textSecondary}
+                        fontSize={13}
+                        fontWeight="800"
+                        paddingVertical={7}
+                        style={{ fontFamily: 'Georgia' }}>
+                        {l.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </YStack>
               </YStack>
             </XStack>
 
@@ -2434,17 +2816,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerPill: {
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerPillIcon: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerPillIconMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
   stickyHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 1000,
+    zIndex: 50,
     borderBottomWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
   },
   content: {
     paddingHorizontal: 24,
@@ -2646,42 +3051,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pricingSection: {
+  transparentPricingSection: {
     borderRadius: 22,
     paddingHorizontal: 20,
-    paddingVertical: 28,
+    paddingTop: 44,
+    paddingBottom: 44,
     backgroundColor: '#1E3A5F',
   },
-  pricingTable: {
+  transparentPricingTable: {
     borderRadius: 16,
-    width: '100%',
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
   },
-  pricingHeaderRow: {
+  transparentPricingHeaderRow: {
     backgroundColor: '#D6B23A',
   },
-  pricingBodyRow: {
+  transparentPricingBodyRow: {
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(15, 23, 42, 0.08)',
   },
-  pricingCell: {
+  transparentPricingCell: {
     flex: 1,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(15,23,42,0.08)',
+    paddingVertical: 34,
+    justifyContent: 'center',
   },
-  pricingHeaderCell: {
+  transparentPricingHeaderCell: {
+    borderRightWidth: 1,
     borderRightColor: 'rgba(255,255,255,0.28)',
   },
-  pricingQuoteButton: {
-    backgroundColor: '#D6B23A',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+  transparentPricingActionButton: {
+    minWidth: 160,
+    height: 52,
     borderRadius: 14,
-    minWidth: 150,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: 'rgba(0,0,0,0.22)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  transparentPricingActionButtonLight: {
+    backgroundColor: '#FFFFFF',
+  },
+  transparentPricingActionButtonGreen: {
+    backgroundColor: '#12b12ce0',
   },
   aboutImage: {
     width: 120,
@@ -2698,9 +3115,16 @@ const styles = StyleSheet.create({
   footerCol: {
     minWidth: 0,
   },
+  footerHeaderWrap: {
+    minHeight: 22,
+    justifyContent: 'flex-start',
+  },
+  footerBodyWrap: {
+    marginTop: 8,
+  },
   footerLogo: {
-    width: 60,
-    height: 60,
+    width: 90,
+    height: 90,
     resizeMode: 'contain',
     marginBottom: 10,
   },
