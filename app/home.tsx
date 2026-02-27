@@ -128,161 +128,159 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
   const { width: cardWindowWidth } = useWindowDimensions();
   const isCardNarrow = cardWindowWidth <= 420;
 
-  return (
-    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%' }}>
-      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>
-        <YStack
-          nativeID={Platform.OS === 'web' ? 'business-card' : undefined}
-          backgroundColor={theme.bgCard}
-          borderRadius={20}
-          padding={isCardNarrow ? 18 : 28}
-          gap="$3"
-          borderWidth={2}
-          borderColor={theme.primary}
-          shadowColor={theme.shadow}
-          shadowOffset={{ width: 0, height: 12 }}
-          shadowOpacity={0.15}
-          shadowRadius={24}
-          elevation={10}
-          width="100%"
-          maxWidth={640}
-          alignSelf="center"
-          minHeight={360}>
-        <XStack justifyContent="space-between" alignItems="flex-start" gap="$4" flexWrap="wrap">
-          <YStack flex={1} gap="$3" minWidth={280}>
-            <XStack alignItems="center" gap="$3">
-              <Image
-                source={require('../assets/images/PackersMoversLogo.png')}
-                resizeMode="contain"
-                style={{ width: 70, height: 70 }}
-              />
-              <YStack>
-                <Text
-                  color={theme.text}
-                  fontSize={22}
-                  fontWeight="900"
-                  lineHeight={26}
-                  style={{ fontFamily: 'Georgia' }}>
-                  Gujarat Relocation
-                </Text>
-                <Text
-                  color={theme.primary}
-                  fontSize={15}
-                  fontWeight="700"
-                  lineHeight={20}
-                  style={{ fontFamily: 'Georgia' }}>
-                  Packers & Movers
-                </Text>
-              </YStack>
-            </XStack>
-
-            <YStack height={2} backgroundColor={theme.primary} width="100%" borderRadius={1} marginVertical={12} />
-
-            <YStack gap="$2.5">
-              <XStack gap="$2.5" alignItems="center">
-                <Text fontSize={18}>📞</Text>
-                <Text
-                  color={theme.text}
-                  fontSize={15}
-                  fontWeight="700"
-                  style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'Georgia' }}>
-                  +91 9987963470
-                </Text>
-              </XStack>
-
-              <XStack gap="$2.5" alignItems="center">
-                <Text fontSize={18}>✉️</Text>
-                <Text
-                  color={theme.text}
-                  fontSize={15}
-                  fontWeight="700"
-                  numberOfLines={1}
-                  style={{ fontFamily: 'Georgia' }}>
-                  info@gujaratrelocation.com
-                </Text>
-              </XStack>
-
-              <XStack gap="$2.5" alignItems="flex-start">
-                <Text fontSize={18}>📍</Text>
-                <Text
-                  color={theme.text}
-                  fontSize={15}
-                  fontWeight="700"
-                  flex={1}
-                  lineHeight={22}
-                  style={{ fontFamily: 'Georgia' }}>
-                  CTS No 19A, Malad East- 400097
-                </Text>
-              </XStack>
-
-              <XStack gap="$2.5" alignItems="center">
-                <Text fontSize={18}>🕐</Text>
-                <Text
-                  color={theme.textMuted}
-                  fontSize={13}
-                  fontWeight="700"
-                  style={{ fontFamily: 'Georgia' }}>
-                  24x7 Service Available
-                </Text>
-              </XStack>
-            </YStack>
-
-            <YStack
-              backgroundColor={theme.bgSecondary}
-              paddingHorizontal={14}
-              paddingVertical={10}
-              borderRadius={10}
-              marginTop={1}
-              alignSelf="center"
-              width="100%"
-              maxWidth={320}
-              alignItems="center"
-              justifyContent="center">
+  const card = (
+    <YStack
+      nativeID={Platform.OS === 'web' ? 'business-card' : undefined}
+      backgroundColor={theme.bgCard}
+      borderRadius={20}
+      padding={isCardNarrow ? 18 : 28}
+      gap="$3"
+      borderWidth={2}
+      borderColor={theme.primary}
+      shadowColor={theme.shadow}
+      shadowOffset={{ width: 0, height: 12 }}
+      shadowOpacity={0.15}
+      shadowRadius={24}
+      elevation={10}
+      width="100%"
+      maxWidth={640}
+      alignSelf="center"
+      minHeight={360}>
+      <XStack justifyContent="space-between" alignItems="flex-start" gap="$4" flexWrap="wrap">
+        <YStack flex={1} gap="$3" minWidth={isCardNarrow ? 0 : 280}>
+          <XStack alignItems="center" gap="$3" flexWrap="nowrap" style={{ minWidth: 0 }}>
+            <Image
+              source={require('../assets/images/PackersMoversLogo.png')}
+              resizeMode="contain"
+              style={{ width: isCardNarrow ? 58 : 70, height: isCardNarrow ? 58 : 70 }}
+            />
+            <YStack style={{ flexShrink: 1, minWidth: 0, flex: 1 }}>
+              <Text
+                color={theme.text}
+                fontSize={22}
+                fontWeight="900"
+                lineHeight={26}
+                numberOfLines={isCardNarrow ? 1 : 2}
+                ellipsizeMode="tail"
+                style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
+                Gujarat Relocation
+              </Text>
               <Text
                 color={theme.primary}
-                fontSize={12}
-                fontWeight="800"
-                textAlign="center"
-                alignSelf="center"
-                //alignSelf="flex-end"
-                style={{ fontFamily: 'Georgia' }}>
-                White-glove relocation • GPS tracking
+                fontSize={15}
+                fontWeight="700"
+                lineHeight={20}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
+                Packers & Movers
               </Text>
             </YStack>
+          </XStack>
+
+          <YStack height={2} backgroundColor={theme.primary} width="100%" borderRadius={1} marginVertical={12} />
+
+          <YStack gap="$2.5">
+            <XStack gap="$2.5" alignItems="center">
+              <Text fontSize={18}>📞</Text>
+              <Text
+                color={theme.text}
+                fontSize={15}
+                fontWeight="700"
+                style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'Georgia' }}>
+                +91 9987963470
+              </Text>
+            </XStack>
+
+            <XStack gap="$2.5" alignItems="center">
+              <Text fontSize={18}>✉️</Text>
+              <Text
+                color={theme.text}
+                fontSize={15}
+                fontWeight="700"
+                numberOfLines={1}
+                style={{ fontFamily: 'Georgia' }}>
+                info@gujaratrelocation.com
+              </Text>
+            </XStack>
+
+            <XStack gap="$2.5" alignItems="flex-start">
+              <Text fontSize={18}>📍</Text>
+              <Text
+                color={theme.text}
+                fontSize={15}
+                fontWeight="700"
+                flex={1}
+                lineHeight={22}
+                style={{ fontFamily: 'Georgia' }}>
+                CTS No 19A, Malad East- 400097
+              </Text>
+            </XStack>
+
+            <XStack gap="$2.5" alignItems="center">
+              <Text fontSize={18}>🕐</Text>
+              <Text color={theme.textMuted} fontSize={13} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                24x7 Service Available
+              </Text>
+            </XStack>
           </YStack>
 
-          <YStack alignItems="center" gap="$2.5">
-            <YStack
-              nativeID={Platform.OS === 'web' ? 'business-card-qr' : undefined}
-              backgroundColor={theme.bgSecondary}
-              padding={14}
-              borderRadius={16}
-              borderWidth={2}
-              borderColor={theme.border}>
-              <QRCode value="tel:+919987963470" size={110} color={theme.text} backgroundColor={theme.bgCard} />
-            </YStack>
+          <YStack
+            backgroundColor={theme.bgSecondary}
+            paddingHorizontal={14}
+            paddingVertical={10}
+            borderRadius={10}
+            marginTop={1}
+            alignSelf="center"
+            width="100%"
+            maxWidth={320}
+            alignItems="center"
+            justifyContent="center">
             <Text
-              color={theme.textMuted}
-              fontSize={11}
-              fontWeight="700"
+              color={theme.primary}
+              fontSize={12}
+              fontWeight="800"
               textAlign="center"
+              alignSelf="center"
+              //alignSelf="flex-end"
               style={{ fontFamily: 'Georgia' }}>
-              Scan to Call
+              White-glove relocation • GPS tracking
             </Text>
           </YStack>
-        </XStack>
+        </YStack>
 
-        <YStack alignItems="center" marginTop={2}>
+        <YStack alignItems="center" gap="$2.5">
+          <YStack
+            nativeID={Platform.OS === 'web' ? 'business-card-qr' : undefined}
+            backgroundColor={theme.bgSecondary}
+            padding={14}
+            borderRadius={16}
+            borderWidth={2}
+            borderColor={theme.border}>
+            <QRCode value="tel:+919987963470" size={110} color={theme.text} backgroundColor={theme.bgCard} />
+          </YStack>
           <Text
             color={theme.textMuted}
             fontSize={11}
-            fontWeight="600"
+            fontWeight="700"
+            textAlign="center"
             style={{ fontFamily: 'Georgia' }}>
-            www.grmoverspackers.com • © 2026 GRMoversPackers
+            Scan to Call
           </Text>
         </YStack>
-        </YStack>
-      </ViewShot>
+      </XStack>
+
+      <YStack alignItems="center" marginTop={2}>
+        <Text color={theme.textMuted} fontSize={11} fontWeight="600" style={{ fontFamily: 'Georgia' }}>
+          www.grmoverspackers.com • 2026 GRMoversPackers
+        </Text>
+      </YStack>
+    </YStack>
+  );
+
+  return (
+    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%' }}>
+      {Platform.OS === 'web' ? card : <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>{card}</ViewShot>}
     </View>
   );
 };
@@ -341,8 +339,8 @@ export default function HomeLandingScreen() {
   const statsMinHeight = windowWidth < 480 ? 210 : windowWidth < 900 ? 245 : 290;
   const bookBannerPaddingLeft = windowWidth < 480 ? 26 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 32 : windowWidth < 900 ? 48 : 60;
-  const bookBannerMinHeight = windowWidth < 480 ? 205 : windowWidth < 900 ? 230 : 255;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 40 : windowWidth < 900 ? 48 : 60;
+  const bookBannerMinHeight = windowWidth < 480 ? 235 : windowWidth < 900 ? 230 : 255;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
@@ -1850,7 +1848,7 @@ export default function HomeLandingScreen() {
                 },
                 {
                   title: 'Warehouse Services',
-                  image: require('../assets/images/Warehousing And Shifting Services.jpg'),
+                  image: require('../assets/images/WAREHOUSE SHIFING.jpg'),
                 },
                 {
                   title: 'International Relocation',
@@ -2510,7 +2508,7 @@ export default function HomeLandingScreen() {
 
                   <Pressable onPress={downloadBusinessCard} style={{ zIndex: 5 }} pointerEvents="auto">
                     <YStack
-                      paddingHorizontal={36}
+                      paddingHorizontal={isSmallScreen ? 22 : 36}
                       paddingVertical={16}
                       borderRadius={16}
                       backgroundColor={theme.primary}
@@ -2521,9 +2519,16 @@ export default function HomeLandingScreen() {
                       elevation={8}
                       alignItems="center"
                       flexDirection="row"
+                      flexWrap="nowrap"
                       gap="$2.5">
                       <Text fontSize={20}>📥</Text>
-                      <Text color="#FFFFFF" fontSize={17} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                      <Text
+                        color="#FFFFFF"
+                        fontSize={isSmallScreen ? 15 : 17}
+                        fontWeight="900"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
                         Download Business Card
                       </Text>
                     </YStack>

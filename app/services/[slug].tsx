@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Alert, Dimensions, ImageBackground, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { supabase } from '@/lib/supabase';
@@ -122,11 +122,11 @@ const SERVICES: Record<ServiceKey, ServiceConfig> = {
   },
   'warehouse-services': {
     title: 'Warehouse Services',
-    heroImage: require('../../assets/images/packers-movers-bg.jpg'),
+    heroImage: require('../../assets/images/WAREHOUSE SHIFING.jpg'),
     rating: '4.8',
     exp: '18+ Years Experience',
-    priceLabel: '₹1,500',
-    priceSub: 'Per month for small storage',
+    priceLabel: '₹2,000 / month',
+    priceSub: 'Safe storage solutions',
     aboutTitle: 'About This Service',
     about: [
       'Need safe storage during a move or long-term? We provide secure warehousing solutions with flexible duration.',
@@ -493,7 +493,8 @@ export default function ServiceDetailScreen() {
           )}
         </YStack>
 
-        <ImageBackground source={service.heroImage} style={styles.hero} imageStyle={styles.heroImage}>
+        <YStack style={styles.hero}>
+          <Image source={service.heroImage} style={styles.heroImage} />
           <View style={styles.heroOverlay} />
           <YStack padding={18} gap="$2">
             <H1 color="#FFFFFF" fontSize={28} fontWeight="900">{service.title}</H1>
@@ -503,7 +504,7 @@ export default function ServiceDetailScreen() {
               <Text color="rgba(255,255,255,0.92)" fontWeight="800">{heroMeta.exp}</Text>
             </XStack>
           </YStack>
-        </ImageBackground>
+        </YStack>
 
         <YStack paddingHorizontal={16} marginTop={14} gap="$3">
           <YStack backgroundColor="#1F3B63" borderRadius={16} padding={16} gap="$2" shadowColor="rgba(0,0,0,0.2)" shadowOffset={{ width: 0, height: 8 }} shadowOpacity={0.2} shadowRadius={16} elevation={6}>
@@ -719,6 +720,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
   },
   heroOverlay: {
