@@ -43,6 +43,12 @@ const roleRouteMap: Record<string, string> = {
   customer: '/(tabs)/bookings',
 };
 
+const glowKeyframes = {
+  '0%': { backgroundPosition: '0 0' },
+  '50%': { backgroundPosition: '400% 0' },
+  '100%': { backgroundPosition: '0 0' },
+} as any;
+
 const resolveRoleRoute = (role?: string | null) => {
   const key = role?.toLowerCase() ?? 'customer';
   return roleRouteMap[key] ?? '/(tabs)';
@@ -74,6 +80,56 @@ const steps = [
     body: 'We unload, unpack, and hand over with care.',
   },
 ];
+
+const AppButton = ({
+  label,
+  onPress,
+  backgroundColor,
+  textColor,
+  containerStyle,
+  labelStyle,
+  glowOnHover,
+  content,
+}: {
+  label: string;
+  onPress: () => void;
+  backgroundColor: string;
+  textColor: string;
+  containerStyle?: any;
+  labelStyle?: any;
+  glowOnHover?: boolean;
+  content?: React.ReactNode;
+}) => {
+  const [hovered, setHovered] = useState(false);
+
+  const resolvedContainerStyle = StyleSheet.flatten(containerStyle);
+
+  const inner = (
+    <YStack style={[resolvedContainerStyle, { backgroundColor }] as any}>
+      {content ?? (
+        <Text color={textColor} style={labelStyle}>
+          {label}
+        </Text>
+      )}
+    </YStack>
+  );
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={Platform.OS === 'web' ? () => setHovered(true) : undefined}
+      onHoverOut={Platform.OS === 'web' ? () => setHovered(false) : undefined}>
+      {Platform.OS === 'web' && glowOnHover ? (
+        <View style={styles.glowWrap as any}>
+          <View style={[styles.glowLayer as any, { opacity: hovered ? 1 : 0 }]} />
+          <View style={styles.glowInner as any}>{inner}</View>
+        </View>
+      ) : (
+        inner
+      )}
+    </Pressable>
+  );
+};
 
 const themes = {
   light: {
@@ -124,6 +180,14 @@ const themes = {
   },
 };
 
+const brandTextKeyframes = {
+  '0%': { color: '#1877F2' },
+  '25%': { color: '#E1306C' },
+  '50%': { color: '#0A66C2' },
+  '75%': { color: '#FF0000' },
+  '100%': { color: '#1877F2' },
+} as any;
+
 const BusinessCard = ({ theme, viewShotRef }: any) => {
   const { width: cardWindowWidth } = useWindowDimensions();
   const isCardNarrow = cardWindowWidth <= 420;
@@ -157,19 +221,19 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             <YStack style={{ flexShrink: 1, minWidth: 0, flex: 1 }}>
               <Text
                 color={theme.text}
-                fontSize={22}
+                fontSize={isCardNarrow ? 19 : 22}
                 fontWeight="900"
-                lineHeight={26}
-                numberOfLines={isCardNarrow ? 1 : 2}
+                lineHeight={isCardNarrow ? 22 : 26}
+                numberOfLines={2}
                 ellipsizeMode="tail"
                 style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
                 Gujarat Relocation
               </Text>
               <Text
                 color={theme.primary}
-                fontSize={15}
+                fontSize={isCardNarrow ? 13 : 15}
                 fontWeight="700"
-                lineHeight={20}
+                lineHeight={isCardNarrow ? 18 : 20}
                 numberOfLines={1}
                 ellipsizeMode="tail"
                 style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
@@ -182,7 +246,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
 
           <YStack gap="$2.5">
             <XStack gap="$2.5" alignItems="center">
-              <Text fontSize={18}>📞</Text>
+              <FontAwesome name="phone" size={18} color="#2563EB" />
               <Text
                 color={theme.text}
                 fontSize={15}
@@ -193,7 +257,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             </XStack>
 
             <XStack gap="$2.5" alignItems="center">
-              <Text fontSize={18}>✉️</Text>
+              <FontAwesome name="envelope" size={18} color="#22C55E" />
               <Text
                 color={theme.text}
                 fontSize={15}
@@ -205,7 +269,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             </XStack>
 
             <XStack gap="$2.5" alignItems="flex-start">
-              <Text fontSize={18}>📍</Text>
+              <FontAwesome name="map-marker" size={20} color="#EF4444" style={{ marginTop: 1 }} />
               <Text
                 color={theme.text}
                 fontSize={15}
@@ -213,7 +277,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 flex={1}
                 lineHeight={22}
                 style={{ fontFamily: 'Georgia' }}>
-                CTS No 19A, Malad East- 400097
+                Sethia Aashray, Mumbai 400101
               </Text>
             </XStack>
 
@@ -272,7 +336,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
 
       <YStack alignItems="center" marginTop={2}>
         <Text color={theme.textMuted} fontSize={11} fontWeight="600" style={{ fontFamily: 'Georgia' }}>
-          www.grmoverspackers.com • 2026 GRMoversPackers
+          www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers
         </Text>
       </YStack>
     </YStack>
@@ -339,8 +403,8 @@ export default function HomeLandingScreen() {
   const statsMinHeight = windowWidth < 480 ? 210 : windowWidth < 900 ? 245 : 290;
   const bookBannerPaddingLeft = windowWidth < 480 ? 26 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 40 : windowWidth < 900 ? 48 : 60;
-  const bookBannerMinHeight = windowWidth < 480 ? 235 : windowWidth < 900 ? 230 : 255;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 48 : windowWidth < 900 ? 48 : 60;
+  const bookBannerMinHeight = windowWidth < 480 ? 265 : windowWidth < 900 ? 230 : 255;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
@@ -792,6 +856,7 @@ export default function HomeLandingScreen() {
   .row { display: flex; gap: 10px; align-items: center; font-size: 16px; font-weight: 700; color: #0F172A; margin: 10px 0; }
   .phone { font-family: 'Times New Roman', Times, serif; }
   .muted { color: #475569; font-size: 14px; font-weight: 700; }
+  .icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; }
   .qrWrap { border: 2px solid #E2E8F0; border-radius: 16px; padding: 10px; width: 200px; box-sizing: border-box; text-align: center; }
   .qr { width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
   .qr svg { width: 180px !important; height: 180px !important; }
@@ -813,9 +878,24 @@ export default function HomeLandingScreen() {
             </div>
           </div>
           <div class="line"></div>
-          <div class="row"><span>📞</span><span class="phone">+91 9987963470</span></div>
-          <div class="row"><span>✉️</span><span>info@gujaratrelocation.com</span></div>
-          <div class="row"><span>📍</span><span>CTS No 19A, Malad East - 400097</span></div>
+          <div class="row">
+            <span class="icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="#2563EB" xmlns="http://www.w3.org/2000/svg"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 011 1V20a1 1 0 01-1 1C10.07 21 3 13.93 3 5a1 1 0 011-1h3.5a1 1 0 011 1c0 1.24.2 2.45.57 3.57a1 1 0 01-.24 1.02l-2.2 2.2z"/></svg>
+            </span>
+            <span class="phone">+91 9987963470</span>
+          </div>
+          <div class="row">
+            <span class="icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </span>
+            <span>info@gujaratrelocation.com</span>
+          </div>
+          <div class="row">
+            <span class="icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="#EF4444" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+            </span>
+            <span>Sethia Aashray, Mumbai 400101</span>
+          </div>
           <div class="row"><span>🕐</span><span class="muted">24x7 Service Available</span></div>
         </div>
         <div class="qrWrap">
@@ -824,7 +904,7 @@ export default function HomeLandingScreen() {
         </div>
       </div>
       <div class="tagWrap"><div class="tag">White-glove relocation • GPS tracking</div></div>
-      <div class="footer">www.grpackersmovers.com • © 2026 GRPackersMovers</div>
+      <div class="footer">www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers</div>
     </div>
   </div>
 </body></html>`;
@@ -1485,34 +1565,42 @@ export default function HomeLandingScreen() {
                   </YStack>
 
                   <XStack flexWrap="wrap" gap="$2.5" justifyContent="center" alignItems="center" marginTop={10}>
-                    <Pressable onPress={handleCallNow}>
-                      <YStack style={[styles.heroCta, { backgroundColor: '#12a3a3ff' }]}>
-                        <Text color="#e4ebecff" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          Call Now
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={handleWhatsApp}>
-                      <YStack style={[styles.heroCta, { backgroundColor: '#22C55E' }]}>
-                        <Text color="#e4ebecff" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          WhatsApp
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={handleOpenQuote}>
-                      <YStack style={[styles.heroCta, { backgroundColor: '#3a53e2ff' }]}>
-                        <Text color="#e4ebecff" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          Get Quote
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={handleBook}>
-                      <YStack style={[styles.heroCta, { backgroundColor: '#03a734ff' }]}>
-                        <Text color="#e4ebecff" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          Book Now
-                        </Text>
-                      </YStack>
-                    </Pressable>
+                    <AppButton
+                      label="Call Now"
+                      onPress={handleCallNow}
+                      backgroundColor="#12a3a3ff"
+                      textColor="#e4ebecff"
+                      containerStyle={styles.heroCta}
+                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                      glowOnHover
+                    />
+                    <AppButton
+                      label="WhatsApp"
+                      onPress={handleWhatsApp}
+                      backgroundColor="#22C55E"
+                      textColor="#e4ebecff"
+                      containerStyle={styles.heroCta}
+                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                      glowOnHover
+                    />
+                    <AppButton
+                      label="Get Quote"
+                      onPress={handleOpenQuote}
+                      backgroundColor="#3a53e2ff"
+                      textColor="#e4ebecff"
+                      containerStyle={styles.heroCta}
+                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                      glowOnHover
+                    />
+                    <AppButton
+                      label="Book Now"
+                      onPress={handleBook}
+                      backgroundColor="#03a734ff"
+                      textColor="#e4ebecff"
+                      containerStyle={styles.heroCta}
+                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                      glowOnHover
+                    />
                   </XStack>
 
                   <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={12}>
@@ -1686,24 +1774,27 @@ export default function HomeLandingScreen() {
 
           <XStack justifyContent="center" alignItems="center" marginTop={40}>
             <Animated.View style={buttonStyle}>
-              <Pressable onPress={handleBook}>
-                <YStack
-                  paddingHorizontal={52}
-                  paddingVertical={20}
-                  borderRadius={18}
-                  backgroundColor={theme.accent}
-                  shadowColor={theme.accent}
-                  shadowOffset={{ width: 0, height: 10 }}
-                  shadowOpacity={0.35}
-                  shadowRadius={20}
-                  elevation={10}
-                  alignItems="center"
-                  justifyContent="center">
-                  <Text color="#FFFFFF" fontSize={20} fontWeight="900" letterSpacing={0.5} style={{ fontFamily: 'Georgia' }}>
-                    Book Now
-                  </Text>
-                </YStack>
-              </Pressable>
+              <AppButton
+                label="Book Now"
+                onPress={handleBook}
+                backgroundColor="#F59E0B"
+                textColor="#FFFFFF"
+                glowOnHover
+                containerStyle={{
+                  height: 50,
+                  minWidth: 300,
+                  paddingHorizontal: 42,
+                  borderRadius: 700,
+                  shadowColor: 'rgba(0,0,0,0.55)',
+                  shadowOffset: { width: 0, height: 14 },
+                  shadowOpacity: 0.28,
+                  shadowRadius: 22,
+                  elevation: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                labelStyle={{ fontFamily: 'Georgia', fontSize: 22, fontWeight: '900', letterSpacing: 0.6 }}
+              />
             </Animated.View>
           </XStack>
 
@@ -2051,8 +2142,14 @@ export default function HomeLandingScreen() {
                   alignItems={isSmallScreen ? 'flex-start' : 'flex-end'}
                   width={isSmallScreen ? '100%' : 'auto'}
                   marginRight={isSmallScreen ? 0 : 8}>
-                  <Pressable onPress={handleBook}>
-                    <YStack style={styles.bookBannerButton}>
+                  <AppButton
+                    label="Start Booking"
+                    onPress={handleBook}
+                    backgroundColor="#1F3B63"
+                    textColor="#FFFFFF"
+                    containerStyle={styles.bookBannerButton}
+                    glowOnHover
+                    content={
                       <XStack alignItems="center" gap="$2.5">
                         <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
                           Start Booking
@@ -2061,8 +2158,8 @@ export default function HomeLandingScreen() {
                           →
                         </Text>
                       </XStack>
-                    </YStack>
-                  </Pressable>
+                    }
+                  />
                 </YStack>
               </XStack>
             </YStack>
@@ -2346,24 +2443,24 @@ export default function HomeLandingScreen() {
               marginBottom={6}
               flexWrap="wrap"
               width="100%">
-              <Pressable onPress={handleOpenQuote}>
-                <YStack style={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonLight]}>
-                  <XStack alignItems="center" gap="$2.5">
-                    <Text color="#0B1220" fontSize={16} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                      Get Quote
-                    </Text>
-                  </XStack>
-                </YStack>
-              </Pressable>
-              <Pressable onPress={handleBook}>
-                <YStack style={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonGreen]}>
-                  <XStack alignItems="center" gap="$2.5">
-                    <Text color="#FFFFFF" fontSize={16} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                      Book Now
-                    </Text>
-                  </XStack>
-                </YStack>
-              </Pressable>
+              <AppButton
+                label="Get Quote"
+                onPress={handleOpenQuote}
+                backgroundColor="#FFFFFF"
+                textColor="#0B1220"
+                glowOnHover
+                containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonLight]}
+                labelStyle={{ fontFamily: 'Georgia', fontSize: 16, fontWeight: '900' }}
+              />
+              <AppButton
+                label="Book Now"
+                onPress={handleBook}
+                backgroundColor="#12b12ce0"
+                textColor="#FFFFFF"
+                glowOnHover
+                containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonGreen]}
+                labelStyle={{ fontFamily: 'Georgia', fontSize: 16, fontWeight: '900' }}
+              />
             </XStack>
           </YStack>
 
@@ -2506,33 +2603,45 @@ export default function HomeLandingScreen() {
                   gap="$4">
                   <BusinessCard theme={theme} viewShotRef={businessCardRef} />
 
-                  <Pressable onPress={downloadBusinessCard} style={{ zIndex: 5 }} pointerEvents="auto">
-                    <YStack
-                      paddingHorizontal={isSmallScreen ? 22 : 36}
-                      paddingVertical={16}
-                      borderRadius={16}
+                  <View style={{ zIndex: 5 } as any} pointerEvents="auto">
+                    <AppButton
+                      label="Download Business Card"
+                      onPress={downloadBusinessCard}
                       backgroundColor={theme.primary}
-                      shadowColor={theme.primary}
-                      shadowOffset={{ width: 0, height: 6 }}
-                      shadowOpacity={0.35}
-                      shadowRadius={14}
-                      elevation={8}
-                      alignItems="center"
-                      flexDirection="row"
-                      flexWrap="nowrap"
-                      gap="$2.5">
-                      <Text fontSize={20}>📥</Text>
-                      <Text
-                        color="#FFFFFF"
-                        fontSize={isSmallScreen ? 15 : 17}
-                        fontWeight="900"
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
-                        Download Business Card
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                      textColor="#FFFFFF"
+                      glowOnHover
+                      containerStyle={{
+                        height: 50,
+                        minWidth: isSmallScreen ? 300 : 340,
+                        paddingHorizontal: isSmallScreen ? 22 : 34,
+                        borderRadius: 700,
+                        shadowColor: 'rgba(0,0,0,0.55)',
+                        shadowOffset: { width: 0, height: 14 },
+                        shadowOpacity: 0.28,
+                        shadowRadius: 22,
+                        elevation: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        flexWrap: 'nowrap',
+                        gap: 12,
+                      }}
+                      content={
+                        <>
+                          <Text fontSize={20}>📥</Text>
+                          <Text
+                            color="#FFFFFF"
+                            fontSize={isSmallScreen ? 16 : 18}
+                            fontWeight="900"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={{ fontFamily: 'Georgia', flexShrink: 1 }}>
+                            Download Business Card
+                          </Text>
+                        </>
+                      }
+                    />
+                  </View>
 
                   {cardDownloadNotice ? (
                     <Text
@@ -2562,7 +2671,7 @@ export default function HomeLandingScreen() {
                   borderColor={theme.border}>
                   {Platform.OS === 'web' ? (
                     <iframe
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12248.981988516303!2d77.22197081543338!3d28.62788988366175!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cfd0000a2b655%3A0x51d7fda1c5d56c7c!2sArunachal%20Building!5e0!3m2!1sen!2sin!4v1769459405893!5m2!1sen!2sin"
+                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin"
                       width="100%"
                       height="300"
                       style={{ border: 'none', borderRadius: 18 } as any}
@@ -2582,7 +2691,7 @@ export default function HomeLandingScreen() {
                       <Pressable
                         onPress={() =>
                           Linking.openURL(
-                            'https://www.google.com/maps/search/?api=1&query=Arunachal%20Building%2C%20New%20Delhi'
+                            'https://www.google.com/maps/search/?api=1&query=19.19345137320862,72.87039928686748'
                           )
                         }>
                         <YStack
@@ -2656,26 +2765,42 @@ export default function HomeLandingScreen() {
                     Follow Us
                   </Text>
                   <XStack gap="$2.5" alignItems="center">
-                    <Pressable onPress={() => Linking.openURL('https://facebook.com/')}> 
-                      <YStack style={styles.socialIcon}>
-                        <FontAwesome name="facebook" size={18} color="#FFFFFF" />
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={() => Linking.openURL('https://instagram.com/')}> 
-                      <YStack style={styles.socialIcon}>
-                        <FontAwesome name="instagram" size={18} color="#FFFFFF" />
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={() => Linking.openURL('https://linkedin.com/')}> 
-                      <YStack style={styles.socialIcon}>
-                        <FontAwesome name="linkedin" size={18} color="#FFFFFF" />
-                      </YStack>
-                    </Pressable>
-                    <Pressable onPress={() => Linking.openURL('https://youtube.com/')}> 
-                      <YStack style={styles.socialIcon}>
-                        <FontAwesome5 name="youtube" size={18} color="#FFFFFF" />
-                      </YStack>
-                    </Pressable>
+                    <AppButton
+                      label="Facebook"
+                      onPress={() => Linking.openURL('https://facebook.com/')}
+                      backgroundColor={'rgba(255,255,255,0.1)'}
+                      textColor="#FFFFFF"
+                      glowOnHover
+                      containerStyle={styles.socialIcon}
+                      content={<FontAwesome name="facebook" size={18} color="#1877F2" />}
+                    />
+                    <AppButton
+                      label="Instagram"
+                      onPress={() => Linking.openURL('https://www.instagram.com/balvant__rajbhar')}
+                      backgroundColor={'rgba(255,255,255,0.1)'}
+                      textColor="#FFFFFF"
+                      glowOnHover
+                      containerStyle={styles.socialIcon}
+                      content={<FontAwesome name="instagram" size={18} color="#E1306C" />}
+                    />
+                    <AppButton
+                      label="LinkedIn"
+                      onPress={() => Linking.openURL('https://www.linkedin.com/in/balvant-rajbhar-0118751b4')}
+                      backgroundColor={'rgba(255,255,255,0.1)'}
+                      textColor="#FFFFFF"
+                      glowOnHover
+                      containerStyle={styles.socialIcon}
+                      content={<FontAwesome name="linkedin" size={18} color="#0A66C2" />}
+                    />
+                    <AppButton
+                      label="YouTube"
+                      onPress={() => Linking.openURL('https://www.youtube.com/@BalvantTrendyTech')}
+                      backgroundColor={'rgba(255,255,255,0.1)'}
+                      textColor="#FFFFFF"
+                      glowOnHover
+                      containerStyle={styles.socialIcon}
+                      content={<FontAwesome5 name="youtube" size={18} color="#FF0000" />}
+                    />
                   </XStack>
                 </YStack>
               </YStack>
@@ -2794,9 +2919,32 @@ export default function HomeLandingScreen() {
             </XStack>
 
             <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2.5" marginTop={20}>
-              <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                © 2026 BT SOFTECH. All Rights Reserved.
-              </Text>
+              <Pressable
+                onPress={() =>
+                  Linking.openURL(
+                    'https://www.google.com/search?q=BT+SOFTECH&sca_esv=1ef01aa32e62b85d&sxsrf=ANbL-n4Qxg11bZze2VYtDUukS4Om-AfTZQ%3A1772388277243&ei=tX-kacnJDrSQseMP5pOl4QU&biw=1366&bih=641&ved=0ahUKEwiJ-KztpP-SAxU0SGwGHeZJKVwQ4dUDCBM&uact=5&oq=BT+SOFTECH&gs_lp=Egxnd3Mtd2l6LXNlcnAiCkJUIFNPRlRFQ0gyDRAuGIAEGMcBGA0YrwEyBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBhAAGA0YHjIGEAAYDRgeMgYQABgNGB4yBhAAGA0YHjIcEC4YgAQYxwEYDRivARiXBRjcBBjeBBjgBNgBAUiZTVD8DliiRHACeAGQAQCYAboBoAGSCaoBAzAuOLgBA8gBAPgBAZgCB6ACtwbCAgoQABiwAxjWBBhHwgIEECMYJ8ICBRAAGO8FwgIIEAAYogQYiQWYAwCIBgGQBgK6BgYIARABGBSSBwMyLjWgB8oesgcDMC41uAefBsIHBzAuMi4zLjLIByuACAA&sclient=gws-wiz-serp'
+                  )
+                }>
+                <Text
+                  color={theme.textMuted}
+                  fontSize={12}
+                  fontWeight="800"
+                  style={
+                    Platform.OS === 'web'
+                      ? ([
+                          { fontFamily: 'Georgia', cursor: 'pointer' },
+                          {
+                            animationDuration: '6s',
+                            animationTimingFunction: 'linear',
+                            animationIterationCount: 'infinite',
+                            animationKeyframes: brandTextKeyframes,
+                          },
+                        ] as any)
+                      : ({ fontFamily: 'Georgia' } as any)
+                  }>
+                  2026 BT SOFTECH. All Rights Reserved.
+                </Text>
+              </Pressable>
               <XStack gap="$3.5" alignItems="center">
                 <Pressable onPress={() => router.push('/privacy-policy')}>
                   <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
@@ -2820,6 +2968,33 @@ export default function HomeLandingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  glowWrap: {
+    position: 'relative',
+    borderRadius: 18,
+  },
+  glowLayer: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 18,
+    backgroundImage:
+      'linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000)',
+    backgroundSize: '400% 400%',
+    filter: 'blur(5px)',
+    transitionDuration: '300ms',
+    transitionProperty: 'opacity',
+    animationDuration: '20s',
+    animationTimingFunction: 'linear',
+    animationIterationCount: 'infinite',
+    animationKeyframes: glowKeyframes,
+    zIndex: 0,
+  },
+  glowInner: {
+    position: 'relative',
+    zIndex: 1,
   },
   headerPill: {
     paddingHorizontal: 22,
@@ -2857,8 +3032,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingBottom: 52,
+    paddingBottom: 72,
   },
   menuRow: {
     gap: 10,
