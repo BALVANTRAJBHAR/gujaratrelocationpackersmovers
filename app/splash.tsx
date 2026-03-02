@@ -8,15 +8,80 @@ const BG_TOP = '#0A1F44';
 const BG_BOTTOM = '#050B18';
 const ORANGE = '#F97316';
 
+const PointSign3D = ({ label, color }: { label: string; color: string }) => {
+  const border = color === '#EF4444' ? '#FCA5A5' : '#86EFAC';
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View
+        style={{
+          marginTop: 0,
+          width: 64,
+          height: 64,
+          borderRadius: 999,
+          backgroundColor: color,
+          borderWidth: 4,
+          borderColor: border,
+          shadowColor: '#000',
+          shadowOpacity: 0.28,
+          shadowOffset: { width: 0, height: 10 },
+          shadowRadius: 18,
+          elevation: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 12,
+            width: 30,
+            height: 14,
+            borderRadius: 10,
+            backgroundColor: 'rgba(255,255,255,0.35)',
+            transform: [{ rotate: '-18deg' }],
+          }}
+        />
+        <Text color="#FFFFFF" fontWeight="900" fontSize={12} textAlign="center" lineHeight={14}>
+          {label}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          marginTop: -6,
+          width: 10,
+          height: 54,
+          borderRadius: 8,
+          backgroundColor: '#0B2A57',
+          opacity: 0.9,
+        }}
+      />
+      <View
+        style={{
+          marginTop: -6,
+          width: 22,
+          height: 6,
+          borderRadius: 6,
+          backgroundColor: '#0B2A57',
+          opacity: 0.85,
+        }}
+      />
+    </View>
+  );
+};
+
 export default function SplashScreen() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
+
+  const [trackWidth, setTrackWidth] = useState(0);
 
   const [phase, setPhase] = useState<'booking' | 'delivered'>('booking');
 
   const fadeAll = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0)).current;
-  const carX = useRef(new Animated.Value(-Math.max(220, width * 0.65))).current;
+  const carWidth = 62;
+  const carX = useRef(new Animated.Value(-carWidth)).current;
   const road = useRef(new Animated.Value(0)).current;
   const deliveredY = useRef(new Animated.Value(14)).current;
   const deliveredOpacity = useRef(new Animated.Value(0)).current;
@@ -31,7 +96,7 @@ export default function SplashScreen() {
     () => () => {
       fadeAll.setValue(0);
       glow.setValue(0);
-      carX.setValue(-Math.max(220, width * 0.65));
+      carX.setValue(-carWidth);
       road.setValue(0);
       deliveredY.setValue(14);
       deliveredOpacity.setValue(0);
@@ -57,9 +122,13 @@ export default function SplashScreen() {
         Animated.timing(road, { toValue: 1, duration: 560, easing: Easing.linear, useNativeDriver })
       ).start();
 
+      const pickupX = 26;
+      const dropX = Math.max(pickupX + 210, (trackWidth || width) - 52);
+      const stopX = dropX - carWidth * 0.55;
+
       Animated.timing(carX, {
-        toValue: width * 0.38,
-        duration: 1200,
+        toValue: stopX,
+        duration: 1250,
         easing: Easing.out(Easing.cubic),
         useNativeDriver,
       }).start(() => {
@@ -98,7 +167,7 @@ export default function SplashScreen() {
 
       return () => clearTimeout(navTimer);
     },
-    [carX, deliveredOpacity, deliveredY, fadeAll, glow, pinOpacity, pinScale, road, router, useNativeDriver, width]
+    [carX, deliveredOpacity, deliveredY, fadeAll, glow, pinOpacity, pinScale, road, router, trackWidth, useNativeDriver, width]
   );
 
   useEffect(() => {
@@ -192,46 +261,11 @@ export default function SplashScreen() {
             </Text>
           </YStack>
 
-          <View style={{ height: 92, width: '100%', justifyContent: 'center' }}>
-            <View
-              style={{
-                position: 'absolute',
-                left: 10,
-                bottom: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <View
-                style={{
-                  width: 7,
-                  height: 18,
-                  borderRadius: 4,
-                  backgroundColor: '#CFE3F4',
-                  opacity: 0.85,
-                }}
-              />
-              <View
-                style={{
-                  marginBottom: 6,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 10,
-                  backgroundColor: '#0B2A57',
-                  borderWidth: 1,
-                  borderColor: '#2B6CA3',
-                  shadowColor: '#000',
-                  shadowOpacity: 0.22,
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowRadius: 12,
-                  elevation: 8,
-                }}>
-                <Text color="#FFFFFF" fontWeight="900" fontSize={10} letterSpacing={0.8}>
-                  START
-                </Text>
-              </View>
-              <View style={{ position: 'absolute', bottom: -12, left: 13 }}>
-                <FontAwesome5 name="map-marker-alt" size={18} color="#22C55E" />
-              </View>
+          <View
+            style={{ height: 120, width: '100%', justifyContent: 'center', marginTop: 10, paddingTop: 6 }}
+            onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+            <View style={{ position: 'absolute', left: 14, bottom: 6 }}>
+              <PointSign3D label={'Pick\nup\nPoint'} color={'#22C55E'} />
             </View>
 
             <Animated.View
@@ -266,32 +300,29 @@ export default function SplashScreen() {
                 position: 'absolute',
                 left: 0,
                 transform: [{ translateX: carX }],
-                width: 220,
+                width: carWidth,
                 height: 64,
                 justifyContent: 'center',
               }}>
-              <FontAwesome5 name="car-side" size={32} color="#FFFFFF" />
+              <FontAwesome5 name="car-side" size={34} color="#FFFFFF" />
             </Animated.View>
 
             <Animated.View
               style={{
                 position: 'absolute',
-                left: width * 0.38 + 150,
-                bottom: 12,
+                right: 10,
+                bottom: 6,
                 opacity: pinOpacity,
                 transform: [{ scale: pinScale }],
               }}>
-              <FontAwesome5 name="map-marker-alt" size={18} color="#EF4444" />
+              <PointSign3D label={'Drop\nPoint'} color={'#EF4444'} />
             </Animated.View>
           </View>
 
           {phase === 'delivered' ? (
             <Animated.View style={{ alignItems: 'center', opacity: deliveredOpacity, transform: [{ translateY: deliveredY }] }}>
               <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
-                Delivered your next move successfully.
-              </Text>
-              <Text color="#CFE3F4" fontWeight="700" fontSize={11}>
-                Thank you for choosing us
+                Delivered your move successfully.
               </Text>
             </Animated.View>
           ) : (
