@@ -3,19 +3,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  ImageBackground,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    ImageBackground,
+    Linking,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
@@ -657,8 +657,9 @@ export default function HomeLandingScreen() {
   const scrollToSection = (key: 'services' | 'contact') => {
     const y = sectionOffsetsRef.current[key];
     if (typeof y !== 'number') return;
-    const headerHeight = 100;
-    scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight, 0), animated: true });
+    const headerHeight = isSmallScreen ? 132 : 104;
+    const extraTopSpacing = 20;
+    scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
   };
 
   useEffect(() => {

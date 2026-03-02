@@ -162,7 +162,7 @@ export default function SplashScreen() {
       <Animated.View style={{ flex: 1, opacity: fadeAll, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <YStack alignItems="center" gap="$1.5">
           <Text fontSize={24} fontWeight="900" color="#FFFFFF" letterSpacing={0.4}>
-            GR Packers & Movers
+            Gujarat Relocation Packers & Movers
           </Text>
           <Text fontSize={12} fontWeight="700" color="#CFE3F4">
             Fast. Safe. Reliable.
@@ -185,7 +185,7 @@ export default function SplashScreen() {
 
           <YStack alignItems="center" gap="$1">
             <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
-              Booking Confirmed ✅
+              Book Your Next Move
             </Text>
             <Text color="#A7C7FF" fontWeight="700" fontSize={11}>
               Secure & fast dispatch
@@ -212,7 +212,7 @@ export default function SplashScreen() {
               />
               <View
                 style={{
-                  marginTop: -2,
+                  marginBottom: 6,
                   paddingHorizontal: 10,
                   paddingVertical: 6,
                   borderRadius: 10,
@@ -228,6 +228,9 @@ export default function SplashScreen() {
                 <Text color="#FFFFFF" fontWeight="900" fontSize={10} letterSpacing={0.8}>
                   START
                 </Text>
+              </View>
+              <View style={{ position: 'absolute', bottom: -12, left: 13 }}>
+                <FontAwesome5 name="map-marker-alt" size={18} color="#22C55E" />
               </View>
             </View>
 
@@ -267,24 +270,7 @@ export default function SplashScreen() {
                 height: 64,
                 justifyContent: 'center',
               }}>
-              <View
-                style={{
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 18,
-                  backgroundColor: '#0B2A57',
-                  borderWidth: 1,
-                  borderColor: '#2B6CA3',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                }}>
-                <FontAwesome5 name="car-side" size={28} color="#FFFFFF" />
-                <Text color="#CFE3F4" fontWeight="900" fontSize={12}>
-                  On the way…
-                </Text>
-              </View>
+              <FontAwesome5 name="car-side" size={32} color="#FFFFFF" />
             </Animated.View>
 
             <Animated.View
@@ -302,7 +288,7 @@ export default function SplashScreen() {
           {phase === 'delivered' ? (
             <Animated.View style={{ alignItems: 'center', opacity: deliveredOpacity, transform: [{ translateY: deliveredY }] }}>
               <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
-                Delivered Successfully 📦
+                Delivered your next move successfully.
               </Text>
               <Text color="#CFE3F4" fontWeight="700" fontSize={11}>
                 Thank you for choosing us
