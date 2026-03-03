@@ -124,7 +124,8 @@ export default function SplashScreen() {
 
       const pickupX = 26;
       const dropX = Math.max(pickupX + 210, (trackWidth || width) - 52);
-      const stopX = dropX - carWidth * 0.55;
+      const stopGap = 12;
+      const stopX = dropX - carWidth * 0.55 - stopGap;
 
       Animated.timing(carX, {
         toValue: stopX,
