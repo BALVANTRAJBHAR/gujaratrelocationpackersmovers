@@ -116,6 +116,16 @@ export default function LoginScreen() {
 
     const { data } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === 'PASSWORD_RECOVERY') {
+        try {
+          const url = new URL(window.location.href);
+          const hashParams = new URLSearchParams((url.hash ?? '').replace(/^#/, ''));
+          const type = (hashParams.get('type') || url.searchParams.get('type') || '').trim();
+          if (type !== 'recovery') {
+            return;
+          }
+        } catch {
+          return;
+        }
         setMode('forgot');
         setForgotStep('set_password');
         setInfo('Set a new password for your account.');
