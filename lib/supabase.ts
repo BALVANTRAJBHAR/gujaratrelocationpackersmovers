@@ -77,9 +77,9 @@ const globalForSupabase = globalThis as any;
 const createSupabaseClient = () =>
   createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storage: (Platform.OS === 'web' ? memoryStorage : nativeStorage) as any,
-      autoRefreshToken: Platform.OS !== 'web',
-      persistSession: Platform.OS !== 'web',
+      storage: (Platform.OS === 'web' ? webStorage : nativeStorage) as any,
+      autoRefreshToken: true,
+      persistSession: true,
       detectSessionInUrl: false,
     },
   });

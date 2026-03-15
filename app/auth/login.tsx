@@ -25,6 +25,11 @@ export default function LoginScreen() {
   const idleBtnText = isDark ? '#E5E7EB' : '#111827';
   const activeBtnBg = '#F97316';
   const activeBtnText = '#0B0B12';
+
+  const activeBtnHoverBg = '#FB923C';
+  const activeBtnPressBg = '#F59E0B';
+  const idleBtnHoverBg = isDark ? '#1F2937' : '#E5E7EB';
+  const idleBtnPressBg = isDark ? '#374151' : '#D1D5DB';
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [forgotStep, setForgotStep] = useState<'request' | 'set_password'>('request');
   const [email, setEmail] = useState('');
@@ -57,46 +62,46 @@ export default function LoginScreen() {
 
     const openRecoveryIfPresent = async () => {
       try {
-        const href = window.location.href;
-        const hasRecovery = href.includes('type=recovery') || href.includes('recovery');
-        const hasAccessToken = href.includes('access_token=');
-        const hasCode = href.includes('code=');
+        const url = new URL(window.location.href);
 
-        if (hasRecovery || hasAccessToken) {
+        const hashParams = new URLSearchParams((url.hash ?? '').replace(/^#/, ''));
+        const searchParams = url.searchParams;
+
+        const type = (hashParams.get('type') || searchParams.get('type') || '').trim();
+        const isRecovery = type === 'recovery';
+        const access_token = (hashParams.get('access_token') ?? '').trim();
+        const refresh_token = (hashParams.get('refresh_token') ?? '').trim();
+        const code = (searchParams.get('code') ?? '').trim();
+
+        if (isRecovery) {
           setMode('forgot');
           setForgotStep('set_password');
           setInfo('Verifying reset link…');
           setError(null);
         }
 
-        if (hasAccessToken && window.location.hash) {
-          const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-          const access_token = params.get('access_token') ?? '';
-          const refresh_token = params.get('refresh_token') ?? '';
-
-          if (access_token && refresh_token) {
-            await supabase.auth.setSession({ access_token, refresh_token });
-          }
-        } else if (hasCode) {
-          const url = new URL(window.location.href);
-          const code = url.searchParams.get('code');
-          if (code) {
-            await supabase.auth.exchangeCodeForSession(code);
-          }
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        } else if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
         }
 
         const { data } = await supabase.auth.getSession();
+        if (data.session?.user?.id) {
+          if (isRecovery) {
+            setMode('forgot');
+            setForgotStep('set_password');
+            setInfo('Set a new password for your account.');
+            setError(null);
+            return;
+          }
 
-        if ((hasRecovery || hasAccessToken) && data.session?.user?.id) {
-          setMode('forgot');
-          setForgotStep('set_password');
-          setInfo('Set a new password for your account.');
-          setError(null);
+          const redirect = String(params.redirectTo ?? '').trim();
+          router.replace(redirect ? (redirect as any) : '/home');
+          if (typeof window !== 'undefined') {
+            window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
+          }
           return;
-        }
-
-        if (hasRecovery || hasAccessToken) {
-          setInfo('Reset link opened. Enter a new password.');
         }
       } catch {
         // ignore
@@ -361,8 +366,8 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'login' ? activeBtnBg : idleBtnBg}
             color={mode === 'login' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'login' ? activeBtnBg : idleBtnBg }}
-            pressStyle={{ backgroundColor: mode === 'login' ? activeBtnBg : idleBtnBg }}
+            hoverStyle={{ backgroundColor: mode === 'login' ? activeBtnHoverBg : idleBtnHoverBg }}
+            pressStyle={{ backgroundColor: mode === 'login' ? activeBtnPressBg : idleBtnPressBg }}
             onPress={() => {
               setMode('login');
               setShowEmailSignup(false);
@@ -375,8 +380,8 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'signup' ? activeBtnBg : idleBtnBg}
             color={mode === 'signup' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnBg : idleBtnBg }}
-            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnBg : idleBtnBg }}
+            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnHoverBg : idleBtnHoverBg }}
+            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnPressBg : idleBtnPressBg }}
             onPress={() => {
               setMode('signup');
               setShowEmailSignup(false);
@@ -389,8 +394,8 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'forgot' ? activeBtnBg : idleBtnBg}
             color={mode === 'forgot' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'forgot' ? activeBtnBg : idleBtnBg }}
-            pressStyle={{ backgroundColor: mode === 'forgot' ? activeBtnBg : idleBtnBg }}
+            hoverStyle={{ backgroundColor: mode === 'forgot' ? activeBtnHoverBg : idleBtnHoverBg }}
+            pressStyle={{ backgroundColor: mode === 'forgot' ? activeBtnPressBg : idleBtnPressBg }}
             onPress={() => {
               setMode('forgot');
               setShowEmailSignup(false);
@@ -411,8 +416,8 @@ export default function LoginScreen() {
               color="#111827"
               borderWidth={1}
               borderColor={border}
-              hoverStyle={{ backgroundColor: '#FFFFFF' }}
-              pressStyle={{ backgroundColor: '#FFFFFF' }}
+              hoverStyle={{ backgroundColor: '#F3F4F6' }}
+              pressStyle={{ backgroundColor: '#E5E7EB' }}
               onPress={() => handleOAuth('google')}
               disabled={loading || oauthLoading !== null}>
               {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
@@ -420,8 +425,8 @@ export default function LoginScreen() {
             <Button
               backgroundColor="#1877F2"
               color="#FFFFFF"
-              hoverStyle={{ backgroundColor: '#1877F2' }}
-              pressStyle={{ backgroundColor: '#1877F2' }}
+              hoverStyle={{ backgroundColor: '#1D4ED8' }}
+              pressStyle={{ backgroundColor: '#1E40AF' }}
               onPress={() => handleOAuth('facebook')}
               disabled={loading || oauthLoading !== null}>
               Continue with Facebook
@@ -431,8 +436,8 @@ export default function LoginScreen() {
               <Button
                 backgroundColor={activeBtnBg}
                 color={activeBtnText}
-                hoverStyle={{ backgroundColor: activeBtnBg }}
-                pressStyle={{ backgroundColor: activeBtnBg }}
+                hoverStyle={{ backgroundColor: activeBtnHoverBg }}
+                pressStyle={{ backgroundColor: activeBtnPressBg }}
                 onPress={() => setShowEmailSignup(true)}
                 disabled={loading || oauthLoading !== null}>
                 Continue with Email
@@ -511,8 +516,8 @@ export default function LoginScreen() {
           <Button
             backgroundColor={activeBtnBg}
             color={activeBtnText}
-            hoverStyle={{ backgroundColor: activeBtnBg }}
-            pressStyle={{ backgroundColor: activeBtnBg }}
+            hoverStyle={{ backgroundColor: activeBtnHoverBg }}
+            pressStyle={{ backgroundColor: activeBtnPressBg }}
             onPress={handleSubmit}
             disabled={loading || (mode === 'signup' && !showEmailSignup)}>
             {loading
