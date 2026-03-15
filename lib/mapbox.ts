@@ -6,6 +6,10 @@ type GeocodeFeature = {
   center: [number, number];
 };
 
+type ReverseGeocodeFeature = {
+  place_name: string;
+};
+
 export async function searchPlaces(query: string): Promise<GeocodeFeature[]> {
   if (!query.trim()) return [];
   const mapboxToken = await getMapboxToken();
@@ -36,4 +40,16 @@ export async function getRouteDistance(
   const data = await response.json();
   const distanceMeters = data.routes?.[0]?.distance ?? 0;
   return distanceMeters / 1000;
+}
+
+export async function reverseGeocode(lng: number, lat: number): Promise<string> {
+  const mapboxToken = await getMapboxToken();
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}&limit=1&country=IN`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to reverse geocode');
+  }
+  const data = (await response.json()) as { features?: ReverseGeocodeFeature[] };
+  return String(data.features?.[0]?.place_name ?? '').trim();
 }

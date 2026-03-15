@@ -1,4 +1,5 @@
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -1001,6 +1002,7 @@ export default function HomeLandingScreen() {
             backgroundColor: theme.headerBg,
             borderBottomColor: theme.border,
             shadowColor: theme.shadow,
+            paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight ?? 0 : 0,
           },
         ]}>
         <XStack
@@ -1021,7 +1023,13 @@ export default function HomeLandingScreen() {
                     onPress={() => {
                       if (item === 'Home') router.push('/home');
                       if (item === 'Services') scrollToSection('services');
-                      if (item === 'Track') router.push('/(tabs)/tracking');
+                      if (item === 'Track') {
+                        if (!session?.user?.id) {
+                          router.push({ pathname: '/auth/login', params: { redirectTo: '/(tabs)/tracking' } } as any);
+                        } else {
+                          router.push('/(tabs)/tracking');
+                        }
+                      }
                       if (item === 'Contact') scrollToSection('contact');
                     }}>
                     <YStack
@@ -1352,20 +1360,9 @@ export default function HomeLandingScreen() {
         </XStack>
       </View>
 
-      <ScrollView
-        ref={(ref) => {
-          scrollRef.current = ref;
-        }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: isSmallScreen ? 100 : 110,
-            paddingHorizontal: isSmallScreen ? 14 : 24,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}>
-        <YStack gap="$4">
-          {isSmallScreen && mobileMenuOpen && (
+      {isSmallScreen && mobileMenuOpen ? (
+        <Pressable style={styles.mobileMenuOverlay} onPress={() => setMobileMenuOpen(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%' } as any}>
             <YStack
               backgroundColor={theme.bgCard}
               borderRadius={18}
@@ -1385,132 +1382,60 @@ export default function HomeLandingScreen() {
                     setMobileMenuOpen(false);
                     if (item === 'Home') router.push('/home');
                     if (item === 'Services') scrollToSection('services');
-                    if (item === 'Track') router.push('/(tabs)/tracking');
+                    if (item === 'Track') {
+                      if (!session?.user?.id) {
+                        router.push({ pathname: '/auth/login', params: { redirectTo: '/(tabs)/tracking' } } as any);
+                      } else {
+                        router.push('/(tabs)/tracking');
+                      }
+                    }
                     if (item === 'Contact') scrollToSection('contact');
                   }}>
-                  <Text
-                    color={theme.text}
-                    fontSize={17}
-                    fontWeight="700"
-                    paddingVertical={10}
-                    style={{ fontFamily: 'Georgia' }}>
+                  <Text color={theme.text} fontSize={17} fontWeight="700" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
                     {item}
                   </Text>
                 </Pressable>
               ))}
+
               {session ? (
-                <>
-                  {Platform.OS !== 'android' && (
-                    <Text
-                      color={theme.textSecondary}
-                      fontSize={17}
-                      fontWeight="700"
-                      paddingVertical={10}
-                      style={{ fontFamily: 'Georgia' }}>
-                      Welcome, {welcomeName}
-                    </Text>
-                  )}
-
-                  {canManage && (
-                    <>
-                      <Pressable
-                        onPress={async () => {
-                          setMobileMenuOpen(false);
-                          await handleDashboardSafe();
-                        }}>
-                        <Text
-                          color={theme.primary}
-                          fontSize={16}
-                          fontWeight="800"
-                          paddingVertical={10}
-                          style={{ fontFamily: 'Georgia' }}>
-                          Admin Panel
-                        </Text>
-                      </Pressable>
-                    </>
-                  )}
-
-                  {isDriver && (
-                    <Pressable
-                      onPress={async () => {
-                        setMobileMenuOpen(false);
-                        await handleDashboardSafe();
-                      }}>
-                      <Text
-                        color={theme.primary}
-                        fontSize={17}
-                        fontWeight="800"
-                        paddingVertical={10}
-                        style={{ fontFamily: 'Georgia' }}>
-                        Driver Panel
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  {isCustomer && (
-                    <Pressable
-                      onPress={async () => {
-                        setMobileMenuOpen(false);
-                        router.push('/(tabs)/bookings');
-                      }}>
-                      <Text
-                        color={theme.primary}
-                        fontSize={17}
-                        fontWeight="800"
-                        paddingVertical={10}
-                        style={{ fontFamily: 'Georgia' }}>
-                        My Bookings
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  <Pressable
-                    onPress={async () => {
-                      setMobileMenuOpen(false);
-                      router.push('/auth/profile');
-                    }}>
-                    <Text
-                      color={theme.text}
-                      fontSize={17}
-                      fontWeight="700"
-                      paddingVertical={10}
-                      style={{ fontFamily: 'Georgia' }}>
-                      Profile
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      setMobileMenuOpen(false);
-                      handleLogout();
-                    }}>
-                    <Text
-                      color={theme.accent}
-                      fontSize={17}
-                      fontWeight="800"
-                      paddingVertical={10}
-                      style={{ fontFamily: 'Georgia' }}>
-                      Logout
-                    </Text>
-                  </Pressable>
-                </>
+                <Pressable
+                  onPress={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}>
+                  <Text color={theme.accent} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
+                    Logout
+                  </Text>
+                </Pressable>
               ) : (
                 <Pressable
                   onPress={() => {
                     setMobileMenuOpen(false);
                     router.push('/auth/login');
                   }}>
-                  <Text
-                    color={theme.primary}
-                    fontSize={17}
-                    fontWeight="800"
-                    paddingVertical={10}
-                    style={{ fontFamily: 'Georgia' }}>
+                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
                     Login
                   </Text>
                 </Pressable>
               )}
             </YStack>
-          )}
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      <ScrollView
+        ref={(ref) => {
+          scrollRef.current = ref;
+        }}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: isSmallScreen ? 100 : 110,
+            paddingHorizontal: isSmallScreen ? 14 : 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <YStack gap="$4">
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 12 : 20}>
             <YStack alignItems="center" gap="$3" width="100%">
@@ -1531,6 +1456,7 @@ export default function HomeLandingScreen() {
                         color="#FBBF24"
                         fontSize={isSmallScreen ? 12 : 13}
                         fontWeight="900"
+                        lineHeight={isSmallScreen ? 16 : 18}
                         style={{ fontFamily: 'Georgia' }}>
                         Since 2006
                       </Text>
@@ -1538,6 +1464,7 @@ export default function HomeLandingScreen() {
                         color="#FFFFFF"
                         fontSize={isSmallScreen ? 12 : 13}
                         fontWeight="800"
+                        lineHeight={isSmallScreen ? 16 : 18}
                         style={{ fontFamily: 'Georgia' }}>
                         18+ Years of Excellence
                       </Text>
@@ -2898,10 +2825,19 @@ export default function HomeLandingScreen() {
                   </Text>
                 </YStack>
                 <YStack style={styles.footerBodyWrap}>
-                  {[
+                  {[ 
                     { label: 'Home', action: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) },
                     { label: 'Services', action: () => scrollToSection('services') },
-                    { label: 'Track', action: () => router.push('/(tabs)/tracking') },
+                    {
+                      label: 'Track',
+                      action: () => {
+                        if (!session?.user?.id) {
+                          router.push({ pathname: '/auth/login', params: { redirectTo: '/(tabs)/tracking' } } as any);
+                        } else {
+                          router.push('/(tabs)/tracking');
+                        }
+                      },
+                    },
                     { label: 'Contact', action: () => scrollToSection('contact') },
                   ].map((l) => (
                     <Pressable key={l.label} onPress={l.action}>
@@ -3031,6 +2967,13 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     borderBottomWidth: 1,
+  },
+  mobileMenuOverlay: {
+    position: 'absolute',
+    top: 92,
+    left: 14,
+    right: 14,
+    zIndex: 80,
   },
   content: {
     flexGrow: 1,

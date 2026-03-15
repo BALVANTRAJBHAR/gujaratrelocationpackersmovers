@@ -1,8 +1,11 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
-import { H2, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
+
+import { useRouter } from 'expo-router';
 
 export default function ExploreScreen() {
+  const router = useRouter();
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} style={{ backgroundColor: '#0B0B12' }}>
       <YStack gap="$4">
@@ -51,6 +54,11 @@ export default function ExploreScreen() {
           <Text color="#9CA3AF" fontSize={12} lineHeight={16}>
             Open the Contact section on Home for call/email support.
           </Text>
+          <XStack paddingTop={8}>
+            <Button backgroundColor="#F97316" color="#0B0B12" onPress={() => router.push('/support' as any)}>
+              Open Support Chat
+            </Button>
+          </XStack>
         </YStack>
       </YStack>
     </ScrollView>

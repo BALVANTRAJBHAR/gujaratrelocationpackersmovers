@@ -11,14 +11,19 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We use your location to share live driver updates."
+        "NSLocationWhenInUseUsageDescription": "We use your location to share live driver updates.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We use your location in the background to share live driver updates during an active trip.",
+        "UIBackgroundModes": ["location"]
       }
     },
     
     "android": {
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

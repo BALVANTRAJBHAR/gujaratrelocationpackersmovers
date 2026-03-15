@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import '@/lib/driver-location-task';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';

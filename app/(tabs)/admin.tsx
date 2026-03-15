@@ -1,6 +1,7 @@
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
@@ -299,11 +300,21 @@ type BookingAdmin = {
   id: string;
   pickup_address: string | null;
   drop_address: string | null;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  drop_lat?: number | null;
+  drop_lng?: number | null;
+  distance_km?: number | null;
+  estimated_price?: number | null;
+  final_price?: number | null;
   status: string | null;
   payment_status: string | null;
+  payment_method?: string | null;
   driver_id?: string | null;
   advance_amount?: number | null;
   remaining_amount?: number | null;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
   scheduled_at: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -312,6 +323,25 @@ type BookingAdmin = {
     | { name: string | null; phone: string | null; email: string | null }
     | null;
   driver: { name: string | null }[] | null;
+};
+
+type PaymentReportRow = {
+  id: string;
+  booking_id: string | null;
+  user_id: string | null;
+  amount: number | null;
+  status: string | null;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  created_at: string;
+  metadata?: any;
+  error?: any;
+  booking?: {
+    payment_method?: string | null;
+    status?: string | null;
+    payment_status?: string | null;
+  } | null;
+  user?: { name: string | null; phone: string | null; email: string | null }[] | null;
 };
 
 type VehicleTypeAdmin = {
@@ -442,7 +472,7 @@ export default function AdminScreen() {
     };
   }, [session?.user?.id]);
 
-  const [activeSection, setActiveSection] = useState<'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings'>('bookings');
+  const [activeSection, setActiveSection] = useState<'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports'>('bookings');
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
@@ -523,6 +553,13 @@ export default function AdminScreen() {
   >(
     'all'
   );
+
+  const [reportsStartDate, setReportsStartDate] = useState('');
+  const [reportsEndDate, setReportsEndDate] = useState('');
+  const [reportsBookings, setReportsBookings] = useState<BookingAdmin[]>([]);
+  const [reportsPayments, setReportsPayments] = useState<PaymentReportRow[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState<string | null>(null);
   const [bookingStartDate, setBookingStartDate] = useState('');
   const [bookingEndDate, setBookingEndDate] = useState('');
   const [bookingUserFilter, setBookingUserFilter] = useState('');
@@ -730,10 +767,230 @@ export default function AdminScreen() {
   useEffect(() => {
     if (!section) return;
     const normalized = section.toString().trim().toLowerCase();
-    if (normalized === 'vehicles' || normalized === 'floors' || normalized === 'coupons' || normalized === 'users') {
+    if (
+      normalized === 'vehicles' ||
+      normalized === 'floors' ||
+      normalized === 'coupons' ||
+      normalized === 'users' ||
+      normalized === 'reports'
+    ) {
       setActiveSection(normalized as typeof activeSection);
     }
   }, [section]);
+
+  const isoDay = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const ensureReportsDefaultDates = () => {
+    if (reportsStartDate && reportsEndDate) return;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 29);
+    if (!reportsStartDate) setReportsStartDate(isoDay(start));
+    if (!reportsEndDate) setReportsEndDate(isoDay(end));
+  };
+
+  const fetchReportsBookings = async () => {
+    if (!canManage) return;
+    ensureReportsDefaultDates();
+    const start = reportsStartDate;
+    const end = reportsEndDate;
+
+    setReportsLoading(true);
+    setReportsError(null);
+    try {
+      let query = supabase
+        .from('bookings')
+        .select(
+          'id, pickup_address, drop_address, pickup_lat, pickup_lng, drop_lat, drop_lng, distance_km, estimated_price, final_price, status, payment_status, payment_method, driver_id, advance_amount, remaining_amount, scheduled_date, scheduled_time, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
+        )
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+      if (start) query = query.gte('created_at', `${start}T00:00:00.000Z`);
+      if (end) query = query.lte('created_at', `${end}T23:59:59.999Z`);
+
+      const { data, error: fetchError } = await query;
+      if (fetchError) {
+        setReportsError(fetchError.message);
+        setReportsBookings([]);
+      } else {
+        setReportsBookings((data ?? []) as BookingAdmin[]);
+      }
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const fetchReportsPayments = async () => {
+    if (!canManage) return;
+    ensureReportsDefaultDates();
+    const start = reportsStartDate;
+    const end = reportsEndDate;
+
+    setReportsLoading(true);
+    setReportsError(null);
+    try {
+      let query = supabase
+        .from('payments')
+        .select(
+          'id, booking_id, user_id, amount, status, razorpay_order_id, razorpay_payment_id, created_at, metadata, error, booking:bookings(payment_method, status, payment_status), user:users!user_id(name, phone, email)'
+        )
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+      if (start) query = query.gte('created_at', `${start}T00:00:00.000Z`);
+      if (end) query = query.lte('created_at', `${end}T23:59:59.999Z`);
+
+      const { data, error: fetchError } = await query;
+      if (fetchError) {
+        setReportsError(fetchError.message);
+        setReportsPayments([]);
+      } else {
+        setReportsPayments((data ?? []) as PaymentReportRow[]);
+      }
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const createReportsBookingsCsv = async () => {
+    const headers = [
+      'id',
+      'created_at',
+      'scheduled_at',
+      'scheduled_date',
+      'scheduled_time',
+      'status',
+      'payment_status',
+      'payment_method',
+      'advance_amount',
+      'remaining_amount',
+      'distance_km',
+      'estimated_price',
+      'final_price',
+      'pickup_address',
+      'drop_address',
+      'pickup_lat',
+      'pickup_lng',
+      'drop_lat',
+      'drop_lng',
+      'customer_name',
+      'customer_phone',
+      'customer_email',
+      'driver_name',
+    ];
+
+    const rows = (reportsBookings ?? []).map((b) => {
+      const user = getBookingUser(b as any);
+      const driver = getBookingDriver(b as any);
+      return [
+        b.id ?? '',
+        b.created_at ?? '',
+        b.scheduled_at ?? '',
+        (b as any).scheduled_date ?? '',
+        (b as any).scheduled_time ?? '',
+        b.status ?? '',
+        b.payment_status ?? '',
+        (b as any).payment_method ?? '',
+        (b as any).advance_amount ?? '',
+        (b as any).remaining_amount ?? '',
+        (b as any).distance_km ?? '',
+        (b as any).estimated_price ?? '',
+        (b as any).final_price ?? '',
+        b.pickup_address ?? '',
+        b.drop_address ?? '',
+        (b as any).pickup_lat ?? '',
+        (b as any).pickup_lng ?? '',
+        (b as any).drop_lat ?? '',
+        (b as any).drop_lng ?? '',
+        user.name ?? '',
+        user.phone ?? '',
+        user.email ?? '',
+        driver.name ?? '',
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+    const uri = `${baseDir}bookings-report-${Date.now()}.csv`;
+    await FileSystem.writeAsStringAsync(uri, csv, { encoding: 'utf8' as any });
+    return uri;
+  };
+
+  const exportReportsBookingsCsv = async () => {
+    const uri = await createReportsBookingsCsv();
+    if (!uri) return;
+    await Share.share({ url: uri, title: 'Bookings report' });
+  };
+
+  const getPaymentUser = (p: PaymentReportRow) => {
+    const u: any = (p as any).user;
+    if (!u) return { name: null, phone: null, email: null };
+    if (Array.isArray(u)) return u[0] ?? { name: null, phone: null, email: null };
+    return u ?? { name: null, phone: null, email: null };
+  };
+
+  const createReportsPaymentsCsv = async () => {
+    const headers = [
+      'id',
+      'created_at',
+      'booking_id',
+      'user_id',
+      'user_name',
+      'user_phone',
+      'user_email',
+      'amount',
+      'status',
+      'payment_method',
+      'razorpay_order_id',
+      'razorpay_payment_id',
+      'error',
+      'metadata',
+    ];
+
+    const rows = (reportsPayments ?? []).map((p) => {
+      const u = getPaymentUser(p as any);
+      return [
+        p.id ?? '',
+        p.created_at ?? '',
+        p.booking_id ?? '',
+        p.user_id ?? '',
+        u.name ?? '',
+        u.phone ?? '',
+        u.email ?? '',
+        (p as any).amount ?? '',
+        p.status ?? '',
+        (p as any)?.booking?.payment_method ?? '',
+        (p as any).razorpay_order_id ?? '',
+        (p as any).razorpay_payment_id ?? '',
+        p.error ? JSON.stringify(p.error) : '',
+        p.metadata ? JSON.stringify(p.metadata) : '',
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+    const uri = `${baseDir}payments-report-${Date.now()}.csv`;
+    await FileSystem.writeAsStringAsync(uri, csv, { encoding: 'utf8' as any });
+    return uri;
+  };
+
+  const exportReportsPaymentsCsv = async () => {
+    const uri = await createReportsPaymentsCsv();
+    if (!uri) return;
+    await Share.share({ url: uri, title: 'Payments report' });
+  };
 
   const fetchManagedUsers = async () => {
     if (!canManage) return;
@@ -1533,6 +1790,7 @@ export default function AdminScreen() {
     if (activeSection === 'floors') fetchFloorOptions();
     if (activeSection === 'coupons') fetchCoupons();
     if (activeSection === 'bookings') fetchBookings();
+    if (activeSection === 'reports') fetchReportsBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, canManage]);
 
@@ -1625,6 +1883,7 @@ export default function AdminScreen() {
                 { label: 'Floors', value: 'floors' },
                 { label: 'Coupons', value: 'coupons' },
                 { label: 'Bookings', value: 'bookings' },
+                { label: 'Reports', value: 'reports' },
               ].map((tab) => (
                 <Button
                   key={tab.value}
@@ -2999,6 +3258,518 @@ export default function AdminScreen() {
                     }}
                   />
                 ) : null}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'reports' ? (
+              <YStack gap="$3">
+                <YStack
+                  backgroundColor={panelBgStrong}
+                  borderRadius={18}
+                  padding={16}
+                  gap="$3"
+                  borderWidth={1}
+                  borderColor={border}>
+                  <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                    <YStack gap={4}>
+                      <Text color={titleColor} fontWeight="800" fontSize={14}>
+                        Reports & analytics
+                      </Text>
+                      <Text color={muted} fontSize={12}>
+                        Bookings summary between selected dates.
+                      </Text>
+                    </YStack>
+                    <XStack gap="$2" flexWrap="wrap">
+                      <Button
+                        size="$2"
+                        backgroundColor={idleBtnBg}
+                        color={idleBtnText}
+                        borderRadius={10}
+                        onPress={() => {
+                          ensureReportsDefaultDates();
+                          fetchReportsBookings();
+                          fetchReportsPayments();
+                        }}>
+                        Refresh
+                      </Button>
+                      <Button
+                        size="$2"
+                        backgroundColor={activeBtnBg}
+                        color={activeBtnText}
+                        borderRadius={10}
+                        onPress={exportReportsBookingsCsv}
+                        disabled={reportsLoading || !reportsBookings.length}>
+                        Export bookings CSV
+                      </Button>
+                      <Button
+                        size="$2"
+                        backgroundColor={activeBtnBg}
+                        color={activeBtnText}
+                        borderRadius={10}
+                        onPress={exportReportsPaymentsCsv}
+                        disabled={reportsLoading || !reportsPayments.length}>
+                        Export payments CSV
+                      </Button>
+                      <Button
+                        size="$2"
+                        backgroundColor={idleBtnBg}
+                        color={idleBtnText}
+                        borderRadius={10}
+                        onPress={() => (router as any).push('/(tabs)/admin-history' as any)}>
+                        Audit logs
+                      </Button>
+                    </XStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    <YStack gap="$1">
+                      <Text color={muted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
+                      <Input
+                        value={reportsStartDate}
+                        onChangeText={setReportsStartDate}
+                        placeholder="2024-01-01"
+                        backgroundColor={inputBg}
+                        borderColor={border}
+                        color={inputText}
+                        width={160}
+                      />
+                    </YStack>
+                    <YStack gap="$1">
+                      <Text color={muted} fontSize={11}>End date (YYYY-MM-DD)</Text>
+                      <Input
+                        value={reportsEndDate}
+                        onChangeText={setReportsEndDate}
+                        placeholder="2024-12-31"
+                        backgroundColor={inputBg}
+                        borderColor={border}
+                        color={inputText}
+                        width={160}
+                      />
+                    </YStack>
+                    <Button
+                      size="$2"
+                      backgroundColor={activeBtnBg}
+                      color={activeBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        fetchReportsBookings();
+                        fetchReportsPayments();
+                      }}
+                      disabled={reportsLoading}>
+                      Apply
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        setReportsStartDate('');
+                        setReportsEndDate('');
+                        setTimeout(() => {
+                          fetchReportsBookings();
+                          fetchReportsPayments();
+                        }, 0);
+                      }}
+                      disabled={reportsLoading}>
+                      Last 30 days
+                    </Button>
+                  </XStack>
+
+                  {reportsLoading ? <Text color={muted}>Loading report...</Text> : null}
+                  {reportsError ? <Text color="#FCA5A5">{reportsError}</Text> : null}
+                </YStack>
+
+                {(() => {
+                  const total = reportsBookings.length;
+                  const byStatus: Record<string, number> = {};
+                  const byDriver: Record<string, number> = {};
+                  let advanceSum = 0;
+                  let remainingSum = 0;
+
+                  const paymentByStatus: Record<string, number> = {};
+                  const paymentByMethod: Record<string, number> = {};
+                  let paidAmountSum = 0;
+                  let paymentCount = 0;
+
+                  const driverStats: Record<
+                    string,
+                    {
+                      delivered: number;
+                      cancelled: number;
+                      total: number;
+                      durationMsSum: number;
+                      durationCount: number;
+                    }
+                  > = {};
+
+                  const monthKey = (iso: string | null | undefined) => {
+                    if (!iso) return '';
+                    const d = new Date(iso);
+                    if (!Number.isFinite(d.getTime())) return '';
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    return `${y}-${m}`;
+                  };
+
+                  const monthlyBookings: Record<string, number> = {};
+                  const monthlyPaidAmount: Record<string, number> = {};
+
+                  for (const b of reportsBookings) {
+                    const status = String((b as any).status ?? 'unknown').trim() || 'unknown';
+                    byStatus[status] = (byStatus[status] ?? 0) + 1;
+
+                    const m = monthKey((b as any).created_at);
+                    if (m) monthlyBookings[m] = (monthlyBookings[m] ?? 0) + 1;
+
+                    const driver = getBookingDriver(b as any);
+                    const driverName = String(driver.name ?? '').trim() || 'Unassigned';
+                    byDriver[driverName] = (byDriver[driverName] ?? 0) + 1;
+
+                    const adv = Number((b as any).advance_amount ?? 0);
+                    const rem = Number((b as any).remaining_amount ?? 0);
+                    if (Number.isFinite(adv)) advanceSum += adv;
+                    if (Number.isFinite(rem)) remainingSum += rem;
+
+                    if (driverName !== 'Unassigned') {
+                      if (!driverStats[driverName]) {
+                        driverStats[driverName] = {
+                          delivered: 0,
+                          cancelled: 0,
+                          total: 0,
+                          durationMsSum: 0,
+                          durationCount: 0,
+                        };
+                      }
+                      driverStats[driverName].total += 1;
+                      if (status === 'delivered') {
+                        driverStats[driverName].delivered += 1;
+                        const started = new Date((b as any).created_at ?? '').getTime();
+                        const ended = new Date((b as any).updated_at ?? '').getTime();
+                        if (Number.isFinite(started) && Number.isFinite(ended) && ended >= started) {
+                          driverStats[driverName].durationMsSum += ended - started;
+                          driverStats[driverName].durationCount += 1;
+                        }
+                      }
+                      if (status === 'cancelled') {
+                        driverStats[driverName].cancelled += 1;
+                      }
+                    }
+                  }
+
+                  for (const p of reportsPayments) {
+                    paymentCount += 1;
+                    const st = String((p as any).status ?? 'unknown').trim() || 'unknown';
+                    paymentByStatus[st] = (paymentByStatus[st] ?? 0) + 1;
+
+                    const method =
+                      String((p as any)?.booking?.payment_method ?? '').trim() ||
+                      String((p as any)?.metadata?.method ?? '').trim() ||
+                      'unknown';
+                    paymentByMethod[method] = (paymentByMethod[method] ?? 0) + 1;
+
+                    const amt = Number((p as any).amount ?? 0);
+                    if (Number.isFinite(amt) && st === 'paid') {
+                      paidAmountSum += amt;
+                      const m = monthKey((p as any).created_at);
+                      if (m) monthlyPaidAmount[m] = (monthlyPaidAmount[m] ?? 0) + amt;
+                    }
+                  }
+
+                  const statusEntries = Object.entries(byStatus).sort((a, b) => b[1] - a[1]);
+                  const maxCount = Math.max(1, ...statusEntries.map((x) => x[1]));
+                  const topDrivers = Object.entries(byDriver)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+
+                  const paymentStatusEntries = Object.entries(paymentByStatus).sort((a, b) => b[1] - a[1]);
+                  const paymentMethodEntries = Object.entries(paymentByMethod).sort((a, b) => b[1] - a[1]);
+                  const paymentMaxCount = Math.max(1, ...paymentStatusEntries.map((x) => x[1]));
+                  const paymentMethodMaxCount = Math.max(1, ...paymentMethodEntries.map((x) => x[1]));
+
+                  const driverPerfEntries = Object.entries(driverStats)
+                    .map(([name, s]) => {
+                      const cancelRate = s.total ? s.cancelled / s.total : 0;
+                      const avgMs = s.durationCount ? s.durationMsSum / s.durationCount : 0;
+                      return { name, ...s, cancelRate, avgMs };
+                    })
+                    .sort((a, b) => b.delivered - a.delivered)
+                    .slice(0, 8);
+
+                  const allMonths = Array.from(
+                    new Set([...Object.keys(monthlyBookings), ...Object.keys(monthlyPaidAmount)])
+                  ).sort();
+                  const monthMaxBookings = Math.max(1, ...Object.values(monthlyBookings));
+                  const monthMaxPaid = Math.max(1, ...Object.values(monthlyPaidAmount));
+
+                  const formatDuration = (ms: number) => {
+                    if (!ms || !Number.isFinite(ms)) return '—';
+                    const minutes = Math.round(ms / (1000 * 60));
+                    const hours = Math.floor(minutes / 60);
+                    const mins = minutes % 60;
+                    if (hours <= 0) return `${mins}m`;
+                    return `${hours}h ${mins}m`;
+                  };
+
+                  return (
+                    <YStack gap="$3">
+                      <XStack gap="$2" flexWrap="wrap">
+                        <YStack
+                          backgroundColor={panelBgStrong}
+                          borderRadius={18}
+                          padding={16}
+                          gap="$1"
+                          borderWidth={1}
+                          borderColor={border}
+                          minWidth={220}
+                          flexGrow={1}
+                          flexBasis={220}>
+                          <Text color={muted} fontSize={12}>Total bookings</Text>
+                          <Text color={titleColor} fontWeight="900" fontSize={22}>{String(total)}</Text>
+                        </YStack>
+
+                        <YStack
+                          backgroundColor={panelBgStrong}
+                          borderRadius={18}
+                          padding={16}
+                          gap="$1"
+                          borderWidth={1}
+                          borderColor={border}
+                          minWidth={220}
+                          flexGrow={1}
+                          flexBasis={220}>
+                          <Text color={muted} fontSize={12}>Advance collected</Text>
+                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(advanceSum).toLocaleString('en-IN')}</Text>
+                        </YStack>
+
+                        <YStack
+                          backgroundColor={panelBgStrong}
+                          borderRadius={18}
+                          padding={16}
+                          gap="$1"
+                          borderWidth={1}
+                          borderColor={border}
+                          minWidth={220}
+                          flexGrow={1}
+                          flexBasis={220}>
+                          <Text color={muted} fontSize={12}>Remaining amount</Text>
+                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(remainingSum).toLocaleString('en-IN')}</Text>
+                        </YStack>
+
+                        <YStack
+                          backgroundColor={panelBgStrong}
+                          borderRadius={18}
+                          padding={16}
+                          gap="$1"
+                          borderWidth={1}
+                          borderColor={border}
+                          minWidth={220}
+                          flexGrow={1}
+                          flexBasis={220}>
+                          <Text color={muted} fontSize={12}>Payments (paid)</Text>
+                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(paidAmountSum).toLocaleString('en-IN')}</Text>
+                          <Text color={muted} fontSize={11}>From {String(paymentCount)} payment record(s)</Text>
+                        </YStack>
+                      </XStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Bookings by status</Text>
+                        {!statusEntries.length ? (
+                          <Text color={muted} fontSize={12}>No data for selected range.</Text>
+                        ) : (
+                          <YStack gap={10}>
+                            {statusEntries.map(([st, count]) => {
+                              const pct = Math.max(0.06, count / maxCount);
+                              return (
+                                <YStack key={st} gap={6}>
+                                  <XStack justifyContent="space-between" alignItems="center">
+                                    <Text color={titleColor} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                  </XStack>
+                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  </YStack>
+                                </YStack>
+                              );
+                            })}
+                          </YStack>
+                        )}
+                      </YStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Payments by status</Text>
+                        {!paymentStatusEntries.length ? (
+                          <Text color={muted} fontSize={12}>No payments for selected range.</Text>
+                        ) : (
+                          <YStack gap={10}>
+                            {paymentStatusEntries.map(([st, count]) => {
+                              const pct = Math.max(0.06, count / paymentMaxCount);
+                              return (
+                                <YStack key={st} gap={6}>
+                                  <XStack justifyContent="space-between" alignItems="center">
+                                    <Text color={titleColor} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                  </XStack>
+                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  </YStack>
+                                </YStack>
+                              );
+                            })}
+                          </YStack>
+                        )}
+                      </YStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Payments by method</Text>
+                        {!paymentMethodEntries.length ? (
+                          <Text color={muted} fontSize={12}>No payment methods found.</Text>
+                        ) : (
+                          <YStack gap={10}>
+                            {paymentMethodEntries.slice(0, 8).map(([method, count]) => {
+                              const pct = Math.max(0.06, count / paymentMethodMaxCount);
+                              return (
+                                <YStack key={method} gap={6}>
+                                  <XStack justifyContent="space-between" alignItems="center">
+                                    <Text color={titleColor} fontSize={12} fontWeight="800">{method.replaceAll('_', ' ')}</Text>
+                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                  </XStack>
+                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  </YStack>
+                                </YStack>
+                              );
+                            })}
+                          </YStack>
+                        )}
+                      </YStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Driver performance (approx.)</Text>
+                        <Text color={muted} fontSize={11}>
+                          Avg completion time uses created_at → updated_at for delivered bookings.
+                        </Text>
+                        {!driverPerfEntries.length ? (
+                          <Text color={muted} fontSize={12}>No driver data found for selected range.</Text>
+                        ) : (
+                          <YStack gap={10}>
+                            {driverPerfEntries.map((d) => (
+                              <YStack key={d.name} gap={6} paddingBottom={6} borderBottomWidth={1} borderColor={border}>
+                                <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                                  <Text color={titleColor} fontSize={12} fontWeight="900">{d.name}</Text>
+                                  <Text color={muted} fontSize={12}>
+                                    Delivered: {String(d.delivered)} | Cancelled: {String(d.cancelled)} | Cancel rate:{' '}
+                                    {`${Math.round(d.cancelRate * 100)}%`}
+                                  </Text>
+                                </XStack>
+                                <Text color={muted} fontSize={12}>Avg completion: {formatDuration(d.avgMs)}</Text>
+                              </YStack>
+                            ))}
+                          </YStack>
+                        )}
+                      </YStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Monthly trends</Text>
+                        {!allMonths.length ? (
+                          <Text color={muted} fontSize={12}>No monthly data for selected range.</Text>
+                        ) : (
+                          <YStack gap={12}>
+                            <YStack gap={10}>
+                              <Text color={muted} fontSize={12}>Bookings per month</Text>
+                              {allMonths.map((m) => {
+                                const count = monthlyBookings[m] ?? 0;
+                                const pct = Math.max(0.06, count / monthMaxBookings);
+                                return (
+                                  <YStack key={`b-${m}`} gap={6}>
+                                    <XStack justifyContent="space-between" alignItems="center">
+                                      <Text color={titleColor} fontSize={12} fontWeight="800">{m}</Text>
+                                      <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                    </XStack>
+                                    <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
+                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                    </YStack>
+                                  </YStack>
+                                );
+                              })}
+                            </YStack>
+
+                            <YStack gap={10}>
+                              <Text color={muted} fontSize={12}>Paid amount per month</Text>
+                              {allMonths.map((m) => {
+                                const amt = monthlyPaidAmount[m] ?? 0;
+                                const pct = Math.max(0.06, amt / monthMaxPaid);
+                                return (
+                                  <YStack key={`p-${m}`} gap={6}>
+                                    <XStack justifyContent="space-between" alignItems="center">
+                                      <Text color={titleColor} fontSize={12} fontWeight="800">{m}</Text>
+                                      <Text color={muted} fontSize={12}>₹{Math.round(amt).toLocaleString('en-IN')}</Text>
+                                    </XStack>
+                                    <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
+                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                    </YStack>
+                                  </YStack>
+                                );
+                              })}
+                            </YStack>
+                          </YStack>
+                        )}
+                      </YStack>
+
+                      <YStack
+                        backgroundColor={panelBgStrong}
+                        borderRadius={18}
+                        padding={16}
+                        gap="$2"
+                        borderWidth={1}
+                        borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">Top drivers (by assigned bookings)</Text>
+                        {!topDrivers.length ? (
+                          <Text color={muted} fontSize={12}>No driver assignments found.</Text>
+                        ) : (
+                          <YStack gap={10}>
+                            {topDrivers.map(([name, count]) => (
+                              <XStack key={name} justifyContent="space-between" alignItems="center">
+                                <Text color={titleColor} fontSize={12} fontWeight="800">{name}</Text>
+                                <Text color={muted} fontSize={12}>{String(count)}</Text>
+                              </XStack>
+                            ))}
+                          </YStack>
+                        )}
+                      </YStack>
+                    </YStack>
+                  );
+                })()}
               </YStack>
             ) : null}
           </>

@@ -1,12 +1,18 @@
-import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+
+import type { AuthChangeEvent } from '@supabase/supabase-js';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ redirectTo?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
@@ -26,6 +32,8 @@ export default function LoginScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
+  const [showEmailSignup, setShowEmailSignup] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -101,7 +109,7 @@ export default function LoginScreen() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    const { data } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === 'PASSWORD_RECOVERY') {
         setMode('forgot');
         setForgotStep('set_password');
@@ -130,6 +138,79 @@ export default function LoginScreen() {
     }
     return 'Sign in to continue booking and tracking.';
   }, [forgotStep, mode]);
+
+  const handleOAuth = async (provider: 'google' | 'facebook') => {
+    setError(null);
+    setInfo(null);
+
+    if (provider === 'facebook') {
+      setInfo('Facebook sign-in is coming soon.');
+      return;
+    }
+
+    setOauthLoading(provider);
+
+    try {
+      const redirectTo =
+        Platform.OS === 'web'
+          ? typeof window === 'undefined'
+            ? ''
+            : `${window.location.origin}/auth/login`
+          : Linking.createURL('/auth/login');
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+        return;
+      }
+
+      const url = (data as any)?.url as string | undefined;
+      if (!url) {
+        setError('Could not start OAuth sign-in.');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') window.location.assign(url);
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
+      if (result.type !== 'success' || !result.url) {
+        return;
+      }
+
+      const parsed = Linking.parse(result.url);
+      const code = String((parsed.queryParams as any)?.code ?? '').trim();
+      if (!code) {
+        setError('Sign-in did not return a code. Please try again.');
+        return;
+      }
+
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) {
+        setError(exchangeError.message);
+        return;
+      }
+
+      const redirect = String(params.redirectTo ?? '').trim();
+      if (redirect) {
+        router.replace(redirect as any);
+      } else {
+        router.replace('/home');
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'OAuth sign-in failed');
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -170,13 +251,18 @@ export default function LoginScreen() {
           return;
         }
 
-        router.replace('/home');
+        const redirectTo = String(params.redirectTo ?? '').trim();
+        if (redirectTo) {
+          router.replace(redirectTo as any);
+        } else {
+          router.replace('/home');
+        }
         return;
       }
 
       if (mode === 'signup') {
         const trimmedName = name.trim();
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password,
           options: {
@@ -186,6 +272,13 @@ export default function LoginScreen() {
 
         if (signUpError) {
           setError(signUpError.message);
+          return;
+        }
+
+        const identities = (signUpData as any)?.user?.identities;
+        if (Array.isArray(identities) && identities.length === 0) {
+          setError('This email is already registered. Please login or use Forgot password.');
+          setMode('login');
           return;
         }
 
@@ -203,7 +296,10 @@ export default function LoginScreen() {
         });
 
         if (resetError) {
-          setError(resetError.message);
+          const anyErr = resetError as any;
+          const status = typeof anyErr?.status === 'number' ? ` (status ${anyErr.status})` : '';
+          const name = typeof anyErr?.name === 'string' ? ` [${anyErr.name}]` : '';
+          setError(`${resetError.message}${status}${name}`);
           return;
         }
 
@@ -265,8 +361,11 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'login' ? activeBtnBg : idleBtnBg}
             color={mode === 'login' ? activeBtnText : idleBtnText}
+            hoverStyle={{ backgroundColor: mode === 'login' ? activeBtnBg : idleBtnBg }}
+            pressStyle={{ backgroundColor: mode === 'login' ? activeBtnBg : idleBtnBg }}
             onPress={() => {
               setMode('login');
+              setShowEmailSignup(false);
               setError(null);
               setInfo(null);
             }}>
@@ -276,8 +375,11 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'signup' ? activeBtnBg : idleBtnBg}
             color={mode === 'signup' ? activeBtnText : idleBtnText}
+            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnBg : idleBtnBg }}
+            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnBg : idleBtnBg }}
             onPress={() => {
               setMode('signup');
+              setShowEmailSignup(false);
               setError(null);
               setInfo(null);
             }}>
@@ -287,8 +389,11 @@ export default function LoginScreen() {
             size="$3"
             backgroundColor={mode === 'forgot' ? activeBtnBg : idleBtnBg}
             color={mode === 'forgot' ? activeBtnText : idleBtnText}
+            hoverStyle={{ backgroundColor: mode === 'forgot' ? activeBtnBg : idleBtnBg }}
+            pressStyle={{ backgroundColor: mode === 'forgot' ? activeBtnBg : idleBtnBg }}
             onPress={() => {
               setMode('forgot');
+              setShowEmailSignup(false);
               setForgotStep('request');
               setError(null);
               setInfo(null);
@@ -299,30 +404,92 @@ export default function LoginScreen() {
           </Button>
         </XStack>
 
+        {mode !== 'forgot' ? (
+          <YStack gap="$2">
+            <Button
+              backgroundColor="#FFFFFF"
+              color="#111827"
+              borderWidth={1}
+              borderColor={border}
+              hoverStyle={{ backgroundColor: '#FFFFFF' }}
+              pressStyle={{ backgroundColor: '#FFFFFF' }}
+              onPress={() => handleOAuth('google')}
+              disabled={loading || oauthLoading !== null}>
+              {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
+            </Button>
+            <Button
+              backgroundColor="#1877F2"
+              color="#FFFFFF"
+              hoverStyle={{ backgroundColor: '#1877F2' }}
+              pressStyle={{ backgroundColor: '#1877F2' }}
+              onPress={() => handleOAuth('facebook')}
+              disabled={loading || oauthLoading !== null}>
+              Continue with Facebook
+            </Button>
+
+            {mode === 'signup' ? (
+              <Button
+                backgroundColor={activeBtnBg}
+                color={activeBtnText}
+                hoverStyle={{ backgroundColor: activeBtnBg }}
+                pressStyle={{ backgroundColor: activeBtnBg }}
+                onPress={() => setShowEmailSignup(true)}
+                disabled={loading || oauthLoading !== null}>
+                Continue with Email
+              </Button>
+            ) : null}
+          </YStack>
+        ) : null}
+
         <YStack gap="$3">
-          {mode === 'signup' ? (
+          {mode === 'signup' && showEmailSignup ? (
             <YStack gap="$2">
               <Text color={label}>Name (optional)</Text>
-              <Input value={name} onChangeText={setName} placeholder="Your name" />
+              <Input
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+              />
             </YStack>
           ) : null}
 
-          <YStack gap="$2">
-            <Text color={label}>Email</Text>
-            <Input
-              value={email}
-              onChangeText={setEmail}
-              editable={!(mode === 'forgot' && forgotStep === 'set_password')}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder="you@example.com"
-            />
-          </YStack>
+          {mode === 'signup' ? (
+            showEmailSignup ? (
+              <YStack gap="$2">
+                <Text color={label}>Email</Text>
+                <Input
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!(mode === 'forgot' && forgotStep === 'set_password')}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholder="you@example.com"
+                />
+              </YStack>
+            ) : null
+          ) : (
+            <YStack gap="$2">
+              <Text color={label}>Email</Text>
+              <Input
+                value={email}
+                onChangeText={setEmail}
+                editable={!(mode === 'forgot' && forgotStep === 'set_password')}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="you@example.com"
+              />
+            </YStack>
+          )}
 
-          {mode !== 'forgot' ? (
+          {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) ? (
             <YStack gap="$2">
               <Text color={label}>Password</Text>
-              <Input value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" />
+              <Input
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder="Password"
+              />
             </YStack>
           ) : null}
 
@@ -341,7 +508,13 @@ export default function LoginScreen() {
           {error ? <Paragraph color="#F87171">{error}</Paragraph> : null}
           {info ? <Paragraph color="#34D399">{info}</Paragraph> : null}
 
-          <Button backgroundColor={activeBtnBg} color={activeBtnText} onPress={handleSubmit} disabled={loading}>
+          <Button
+            backgroundColor={activeBtnBg}
+            color={activeBtnText}
+            hoverStyle={{ backgroundColor: activeBtnBg }}
+            pressStyle={{ backgroundColor: activeBtnBg }}
+            onPress={handleSubmit}
+            disabled={loading || (mode === 'signup' && !showEmailSignup)}>
             {loading
               ? 'Please wait…'
               : mode === 'login'

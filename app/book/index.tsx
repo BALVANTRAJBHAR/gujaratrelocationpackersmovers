@@ -6,8 +6,9 @@ import { Dimensions, Platform, Pressable, ScrollView } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Image, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { getRouteDistance, searchPlaces } from '@/lib/mapbox';
-import { getRazorpayKeyId } from '@/lib/public-config';
+import BookingMapPicker from '@/components/booking-map-picker';
+import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/mapbox';
+import { getMapboxToken, getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
@@ -214,6 +215,12 @@ export default function BookingWizardScreen() {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [mapboxToken, setMapboxToken] = useState('');
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapPickerTarget, setMapPickerTarget] = useState<'pickup' | 'drop'>('pickup');
+  const [mapPickerCoord, setMapPickerCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapPickerBusy, setMapPickerBusy] = useState(false);
+
   const [floorPickerOpen, setFloorPickerOpen] = useState(false);
   const [floorPickerTarget, setFloorPickerTarget] = useState<'pickup' | 'drop'>('pickup');
 
@@ -301,6 +308,61 @@ export default function BookingWizardScreen() {
       return await Promise.race([promise, timeout]);
     } finally {
       clearTimeout(timer);
+    }
+  };
+
+  const pickWheelFromOffset = (target: 'day' | 'month' | 'year', y: number) => {
+    const options = target === 'day' ? dayOptions : target === 'month' ? monthOptions : yearOptions;
+    const idx = Math.round(y / dateItemHeight);
+    const chosen = options[Math.max(0, Math.min(idx, options.length - 1))];
+    if (!chosen) return;
+    if (target === 'day') setWheelDay(chosen as any);
+    if (target === 'month') setWheelMonth(chosen as any);
+    if (target === 'year') setWheelYear(chosen as any);
+  };
+
+  const openMapPicker = (target: 'pickup' | 'drop') => {
+    setError(null);
+    setMapPickerTarget(target);
+    const existing = target === 'pickup' ? form.pickupCoords : form.dropCoords;
+    if (existing?.length === 2) {
+      setMapPickerCoord({ lng: existing[0], lat: existing[1] });
+    } else {
+      setMapPickerCoord({ lng: 72.8777, lat: 19.076 });
+    }
+    setMapPickerOpen(true);
+  };
+
+  const confirmMapPicker = async () => {
+    if (!mapPickerCoord) return;
+    setMapPickerBusy(true);
+    try {
+      const coords: [number, number] = [mapPickerCoord.lng, mapPickerCoord.lat];
+      let address = '';
+      try {
+        address = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat);
+      } catch {
+        address = '';
+      }
+
+      if (mapPickerTarget === 'pickup') {
+        setForm((p) => ({
+          ...p,
+          pickupCoords: coords,
+          pickupAddress: address ? address : p.pickupAddress,
+        }));
+      } else {
+        setForm((p) => ({
+          ...p,
+          dropCoords: coords,
+          dropAddress: address ? address : p.dropAddress,
+        }));
+      }
+      setActiveLocationField(null);
+      setPlaceResults([]);
+      setMapPickerOpen(false);
+    } finally {
+      setMapPickerBusy(false);
     }
   };
 
@@ -555,6 +617,33 @@ export default function BookingWizardScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datePickerOpen]);
 
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    const t = setTimeout(() => {
+      scrollWheelTo('day', wheelDay);
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datePickerOpen, wheelDay, dayOptions.length]);
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    const t = setTimeout(() => {
+      scrollWheelTo('month', wheelMonth);
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datePickerOpen, wheelMonth]);
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    const t = setTimeout(() => {
+      scrollWheelTo('year', wheelYear);
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datePickerOpen, wheelYear]);
+
   const confirmShiftingDate = () => {
     setForm((p) => ({ ...p, shiftingDate: shiftingDatePreview }));
     setDatePickerOpen(false);
@@ -708,7 +797,21 @@ export default function BookingWizardScreen() {
         email: nextEmail,
       };
     });
-  }, [profile?.email, profile?.name]);
+  }, [form.fullName, form.mobile, profile?.email, step]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getMapboxToken()
+      .then((t) => {
+        if (!cancelled) setMapboxToken(t);
+      })
+      .catch(() => {
+        if (!cancelled) setMapboxToken('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const mobileDigits = useMemo(() => form.mobile.replace(/\D/g, ''), [form.mobile]);
   const isMobileValid = mobileDigits.length === 10;
@@ -1120,7 +1223,7 @@ export default function BookingWizardScreen() {
         key: razorpayKeyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'PackersMovers',
+        name: 'Gujarat Relocation PackersMovers',
         description: paymentMode === 'full' ? 'Full Payment' : 'Advance Payment',
         order_id: order.id,
         prefill: {
@@ -1553,17 +1656,30 @@ export default function BookingWizardScreen() {
                 <Text fontSize={13} fontWeight="800" color="#335aadff">
                   Pickup Address
                 </Text>
-                <Input
-                  {...inputUi}
-                  value={form.pickupAddress}
-                  onChangeText={(v) => {
-                    setForm((p) => ({ ...p, pickupAddress: v }));
-                    setActiveLocationField('pickup');
-                  }}
-                  onFocus={() => setActiveLocationField('pickup')}
-                  ref={pickupRef}
-                  placeholder="Enter pickup location"
-                />
+                <XStack gap="$2" alignItems="center">
+                  <YStack flex={1}>
+                    <Input
+                      {...inputUi}
+                      value={form.pickupAddress}
+                      onChangeText={(v) => {
+                        setForm((p) => ({ ...p, pickupAddress: v }));
+                        setActiveLocationField('pickup');
+                      }}
+                      onFocus={() => setActiveLocationField('pickup')}
+                      ref={pickupRef}
+                      placeholder="Enter pickup location"
+                    />
+                  </YStack>
+                  <Button
+                    size="$3"
+                    backgroundColor="#F8FAFC"
+                    borderColor="#E5E7EB"
+                    borderWidth={1}
+                    color="#0F172A"
+                    onPress={() => openMapPicker('pickup')}>
+                    Select on map
+                  </Button>
+                </XStack>
 
                 {activeLocationField === 'pickup' ? renderActiveSuggestions() : null}
 
@@ -1599,11 +1715,11 @@ export default function BookingWizardScreen() {
                       <YStack
                         backgroundColor="#F8FAFC"
                         borderRadius={12}
-                        padding={14}
+                        paddingHorizontal={14}
                         borderWidth={1}
                         borderColor="#E5E7EB"
-                        minHeight={52}
-                        justifyContent="space-between"
+                        height={48}
+                        justifyContent="center"
                         flexDirection="row"
                         alignItems="center">
                         <Text fontWeight="700" color="#3d5ea5ff">
@@ -1634,16 +1750,29 @@ export default function BookingWizardScreen() {
                 <Text fontSize={13} fontWeight="800" color="#4163adff">
                   Drop Address
                 </Text>
-                <Input
-                  {...inputUi}
-                  value={form.dropAddress}
-                  onChangeText={(v) => {
-                    setForm((p) => ({ ...p, dropAddress: v }));
-                    setActiveLocationField('drop');
-                  }}
-                  onFocus={() => setActiveLocationField('drop')}
-                  placeholder="Enter drop location"
-                />
+                <XStack gap="$2" alignItems="center">
+                  <YStack flex={1}>
+                    <Input
+                      {...inputUi}
+                      value={form.dropAddress}
+                      onChangeText={(v) => {
+                        setForm((p) => ({ ...p, dropAddress: v }));
+                        setActiveLocationField('drop');
+                      }}
+                      onFocus={() => setActiveLocationField('drop')}
+                      placeholder="Enter drop location"
+                    />
+                  </YStack>
+                  <Button
+                    size="$3"
+                    backgroundColor="#F8FAFC"
+                    borderColor="#E5E7EB"
+                    borderWidth={1}
+                    color="#0F172A"
+                    onPress={() => openMapPicker('drop')}>
+                    Select on map
+                  </Button>
+                </XStack>
 
                 {activeLocationField === 'drop' ? renderActiveSuggestions() : null}
 
@@ -1674,11 +1803,11 @@ export default function BookingWizardScreen() {
                       <YStack
                         backgroundColor="#F8FAFC"
                         borderRadius={12}
-                        padding={14}
+                        paddingHorizontal={14}
                         borderWidth={1}
                         borderColor="#E5E7EB"
-                        minHeight={52}
-                        justifyContent="space-between"
+                        height={48}
+                        justifyContent="center"
                         flexDirection="row"
                         alignItems="center">
                         <Text fontWeight="700" color="#4163adff">
@@ -1721,6 +1850,18 @@ export default function BookingWizardScreen() {
               </YStack>
             </YStack>
           ) : null}
+
+          <BookingMapPicker
+            open={mapPickerOpen}
+            onOpenChange={setMapPickerOpen}
+            title={`Select ${mapPickerTarget === 'pickup' ? 'Pickup' : 'Drop'} Location`}
+            token={mapboxToken}
+            coord={mapPickerCoord}
+            onCoordChange={setMapPickerCoord}
+            onConfirm={confirmMapPicker}
+            busy={mapPickerBusy}
+            isWide={isWide}
+          />
 
           <Dialog open={floorPickerOpen} onOpenChange={setFloorPickerOpen}>
             <Dialog.Portal>
@@ -2034,11 +2175,11 @@ export default function BookingWizardScreen() {
                         snapToInterval={dateItemHeight}
                         decelerationRate="fast"
                         contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
+                        onScrollEndDrag={(e) => {
+                          pickWheelFromOffset('day', e.nativeEvent.contentOffset.y);
+                        }}
                         onMomentumScrollEnd={(e) => {
-                          const y = e.nativeEvent.contentOffset.y;
-                          const idx = Math.round(y / dateItemHeight);
-                          const chosen = dayOptions[Math.max(0, Math.min(idx, dayOptions.length - 1))];
-                          if (chosen) setWheelDay(chosen);
+                          pickWheelFromOffset('day', e.nativeEvent.contentOffset.y);
                         }}>
                         {dayOptions.map((d) => {
                           const selected = wheelDay === d;
@@ -2092,11 +2233,11 @@ export default function BookingWizardScreen() {
                         snapToInterval={dateItemHeight}
                         decelerationRate="fast"
                         contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
+                        onScrollEndDrag={(e) => {
+                          pickWheelFromOffset('month', e.nativeEvent.contentOffset.y);
+                        }}
                         onMomentumScrollEnd={(e) => {
-                          const y = e.nativeEvent.contentOffset.y;
-                          const idx = Math.round(y / dateItemHeight);
-                          const chosen = monthOptions[Math.max(0, Math.min(idx, monthOptions.length - 1))];
-                          if (chosen) setWheelMonth(chosen);
+                          pickWheelFromOffset('month', e.nativeEvent.contentOffset.y);
                         }}>
                         {monthOptions.map((m) => {
                           const selected = wheelMonth === m;
@@ -2150,11 +2291,11 @@ export default function BookingWizardScreen() {
                         snapToInterval={dateItemHeight}
                         decelerationRate="fast"
                         contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
+                        onScrollEndDrag={(e) => {
+                          pickWheelFromOffset('year', e.nativeEvent.contentOffset.y);
+                        }}
                         onMomentumScrollEnd={(e) => {
-                          const y = e.nativeEvent.contentOffset.y;
-                          const idx = Math.round(y / dateItemHeight);
-                          const chosen = yearOptions[Math.max(0, Math.min(idx, yearOptions.length - 1))];
-                          if (chosen) setWheelYear(chosen);
+                          pickWheelFromOffset('year', e.nativeEvent.contentOffset.y);
                         }}>
                         {yearOptions.map((y) => {
                           const selected = wheelYear === y;

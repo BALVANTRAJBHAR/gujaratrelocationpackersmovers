@@ -399,7 +399,7 @@ export default function BookingsScreen() {
         key: razorpayKeyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'PackersMovers',
+        name: 'Gujarat Relocation PackersMovers',
         description: 'Advance payment',
         order_id: order.id,
         prefill: {
@@ -742,6 +742,23 @@ export default function BookingsScreen() {
                     } as any)
                   }>
                   Track
+                </Button>
+                <Button
+                  size="$2"
+                  backgroundColor={idleBtnBg}
+                  color={idleBtnText}
+                  borderRadius={10}
+                  onPress={async () => {
+                    try {
+                      const msg = `Tracking ID: ${String(item.id)}\n\nOpen the app and go to Track, then paste this ID to see live status and driver location.`;
+                      await Share.share({ message: msg });
+                    } catch {
+                      if (Platform.OS === 'android') {
+                        ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT);
+                      }
+                    }
+                  }}>
+                  Share ID
                 </Button>
                 {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                   <>

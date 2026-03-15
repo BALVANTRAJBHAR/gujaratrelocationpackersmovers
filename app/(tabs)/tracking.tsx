@@ -1,14 +1,13 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
-import { H2, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import TrackingMap from '@/components/tracking-map';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { supabase } from '@/lib/supabase';
-import { useSession } from '@/providers/session-provider';
 
 type DriverLocation = {
   id: string;
@@ -30,8 +29,8 @@ const STATUS_STEPS: Array<{ key: string; label: string }> = [
 ];
 
 export default function TrackingScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ bookingId?: string }>();
-  const { session } = useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
@@ -48,6 +47,7 @@ export default function TrackingScreen() {
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [trackingId, setTrackingId] = useState('');
 
   const maxContentWidth = 1100;
 
@@ -65,12 +65,11 @@ export default function TrackingScreen() {
   const mapLng = latestLocation?.lng ?? 72.877;
 
   useEffect(() => {
-    if (!session?.user?.id) return;
     if (!params.bookingId) return;
 
     const channel = supabase
       .channel(`driver-location-${params.bookingId}`)
-      .on('broadcast', { event: 'location' }, (payload) => {
+      .on('broadcast', { event: 'location' }, (payload: any) => {
         const p: any = (payload as any)?.payload ?? {};
         const next: DriverLocation = {
           id: String(p.updated_at ?? Date.now()),
@@ -89,7 +88,7 @@ export default function TrackingScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.bookingId, session?.user?.id]);
+  }, [params.bookingId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,12 +108,15 @@ export default function TrackingScreen() {
     if (!params.bookingId) return;
 
     const fetchBookingStatus = async () => {
-      const { data } = await supabase
-        .from('bookings')
-        .select('status')
-        .eq('id', params.bookingId)
-        .maybeSingle();
-      setBookingStatus((data as BookingStatusRow | null)?.status ?? null);
+      try {
+        const resp = await supabase.functions.invoke('public-booking-status', {
+          body: { booking_id: params.bookingId },
+        });
+        const status = String((resp as any)?.data?.status ?? '').trim();
+        setBookingStatus(status || null);
+      } catch {
+        setBookingStatus(null);
+      }
     };
 
     fetchBookingStatus();
@@ -124,8 +126,8 @@ export default function TrackingScreen() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${params.bookingId}` },
-        (payload) => {
-          const next = payload.new as { status?: string | null };
+        (payload: any) => {
+          const next = (payload as any).new as { status?: string | null };
           const nextStatus = next.status ?? null;
           if (nextStatus) setBookingStatus(nextStatus);
 
@@ -154,6 +156,41 @@ export default function TrackingScreen() {
         <Paragraph color={muted}>
           Realtime updates will appear here once driver starts the trip.
         </Paragraph>
+
+        {!params.bookingId ? (
+          <YStack
+            backgroundColor={panelBg}
+            borderColor={border}
+            borderWidth={1}
+            borderRadius={18}
+            padding={14}
+            gap="$2">
+            <Text color={label} fontSize={12} fontWeight="700">
+              Enter Tracking ID
+            </Text>
+            <Input
+              value={trackingId}
+              onChangeText={setTrackingId}
+              placeholder="Paste booking / tracking ID"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Button
+              backgroundColor={badgeActiveBg}
+              color={badgeActiveText}
+              onPress={() => {
+                const id = String(trackingId ?? '').trim();
+                if (!id) return;
+                setTrackingId('');
+                router.push({ pathname: '/(tabs)/tracking', params: { bookingId: id } } as any);
+              }}>
+              Track Now
+            </Button>
+            <Text color={muted} fontSize={11}>
+              Customer can share this Tracking ID to view live status and driver location.
+            </Text>
+          </YStack>
+        ) : null}
         {params.bookingId ? (
           <Text color={muted} fontSize={12}>Tracking booking: {params.bookingId}</Text>
         ) : null}
