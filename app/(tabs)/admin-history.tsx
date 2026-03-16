@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Share } from 'react-native';
+import { FlatList, Platform, Share } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -57,32 +57,63 @@ export default function AdminHistoryScreen() {
 
   const logsPageSize = 10;
 
+  const openWebDatePicker = (initial: string, onSelect: (value: string) => void) => {
+    if (Platform.OS !== 'web') return;
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = initial || '';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+    const cleanup = () => {
+      try {
+        document.body.removeChild(input);
+      } catch {
+        // ignore
+      }
+    };
+    input.onchange = () => {
+      const v = String(input.value ?? '').trim();
+      if (v) onSelect(v);
+      cleanup();
+    };
+    input.onblur = () => cleanup();
+    input.click();
+  };
+
   const canManage = ['admin', 'staff'].includes(profile?.role ?? '');
 
   const fetchHistory = async () => {
     if (!canManage) return;
     setLoading(true);
     setError(null);
-    let query = supabase
-      .from('users')
-      .select('id, name, phone, driver_status, driver_verified, approved_at')
-      .eq('role', 'driver')
-      .not('approved_at', 'is', null);
+    try {
+      let query = supabase
+        .from('users')
+        .select('id, name, phone, driver_status, driver_verified, approved_at')
+        .eq('role', 'driver')
+        .not('approved_at', 'is', null);
 
-    if (startDate) {
-      query = query.gte('approved_at', `${startDate}T00:00:00.000Z`);
-    }
+      if (startDate) {
+        query = query.gte('approved_at', `${startDate}T00:00:00.000Z`);
+      }
 
-    if (endDate) {
-      query = query.lte('approved_at', `${endDate}T23:59:59.999Z`);
-    }
+      if (endDate) {
+        query = query.lte('approved_at', `${endDate}T23:59:59.999Z`);
+      }
 
-    const { data, error: fetchError } = await query.order('approved_at', { ascending: false });
+      const { data, error: fetchError } = await query.order('approved_at', { ascending: false });
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setRecords((data ?? []) as ApprovalRecord[]);
+      if (fetchError) {
+        setError(fetchError.message);
+      } else {
+        setRecords((data ?? []) as ApprovalRecord[]);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch approval history.');
     }
     setLoading(false);
   };
@@ -93,37 +124,44 @@ export default function AdminHistoryScreen() {
     if (!canManage) return;
     setLogsError(null);
     setLogsLoading(true);
-    const page = reset ? 0 : logsPage;
-    const effectiveFilter = filter ?? actionFilter;
-    let query = supabase
-      .from('admin_action_logs')
-      .select('id, action_type, created_at, metadata, admin_user:users!admin_id(name), target_user:users!target_user_id(name)')
-      .order('created_at', { ascending: false });
+    try {
+      const page = reset ? 0 : logsPage;
+      const effectiveFilter = filter ?? actionFilter;
+      let query = supabase
+        .from('admin_action_logs')
+        .select(
+          'id, action_type, created_at, metadata, admin_user:users!admin_id(name), target_user:users!target_user_id(name)'
+        )
+        .order('created_at', { ascending: false });
 
-    if (effectiveFilter !== 'all') {
-      query = query.eq('action_type', effectiveFilter);
-    }
+      if (effectiveFilter !== 'all') {
+        query = query.eq('action_type', effectiveFilter);
+      }
 
-    if (logsStartDate) {
-      query = query.gte('created_at', `${logsStartDate}T00:00:00.000Z`);
-    }
+      if (logsStartDate) {
+        query = query.gte('created_at', `${logsStartDate}T00:00:00.000Z`);
+      }
 
-    if (logsEndDate) {
-      query = query.lte('created_at', `${logsEndDate}T23:59:59.999Z`);
-    }
+      if (logsEndDate) {
+        query = query.lte('created_at', `${logsEndDate}T23:59:59.999Z`);
+      }
 
-    const { data, error: fetchError } = await query.range(
-      page * logsPageSize,
-      page * logsPageSize + logsPageSize - 1
-    );
+      const { data, error: fetchError } = await query.range(
+        page * logsPageSize,
+        page * logsPageSize + logsPageSize - 1
+      );
 
-    if (fetchError) {
-      setLogsError(fetchError.message);
-    } else {
-      const nextLogs = (data ?? []) as ActionLog[];
-      setActionLogs((prev) => (reset ? nextLogs : [...prev, ...nextLogs]));
-      setLogsHasMore(nextLogs.length === logsPageSize);
-      setLogsPage(reset ? 1 : page + 1);
+      if (fetchError) {
+        setLogsError(fetchError.message);
+      } else {
+        const nextLogs = (data ?? []) as ActionLog[];
+        setActionLogs((prev) => (reset ? nextLogs : [...prev, ...nextLogs]));
+        setLogsHasMore(nextLogs.length === logsPageSize);
+        setLogsPage(reset ? 1 : page + 1);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setLogsError(message || 'Failed to fetch action logs.');
     }
     setLogsLoading(false);
   };
@@ -219,6 +257,17 @@ export default function AdminHistoryScreen() {
             width={160}
           />
         </YStack>
+        <Button
+          size="$2"
+          backgroundColor={idleBtnBg}
+          color={idleBtnText}
+          borderRadius={10}
+          onPress={() => {
+            openWebDatePicker(startDate, setStartDate);
+          }}
+          disabled={Platform.OS !== 'web'}>
+          Pick
+        </Button>
         <YStack gap="$1">
           <Text color={muted} fontSize={11}>End date (YYYY-MM-DD)</Text>
           <Input
@@ -231,6 +280,17 @@ export default function AdminHistoryScreen() {
             width={160}
           />
         </YStack>
+        <Button
+          size="$2"
+          backgroundColor={idleBtnBg}
+          color={idleBtnText}
+          borderRadius={10}
+          onPress={() => {
+            openWebDatePicker(endDate, setEndDate);
+          }}
+          disabled={Platform.OS !== 'web'}>
+          Pick
+        </Button>
         <Button
           size="$2"
           backgroundColor={activeBtnBg}
@@ -284,6 +344,17 @@ export default function AdminHistoryScreen() {
                       width={150}
                     />
                   </YStack>
+                  <Button
+                    size="$2"
+                    backgroundColor={idleBtnBg}
+                    color={idleBtnText}
+                    borderRadius={10}
+                    onPress={() => {
+                      openWebDatePicker(logsStartDate, setLogsStartDate);
+                    }}
+                    disabled={Platform.OS !== 'web'}>
+                    Pick
+                  </Button>
                   <YStack gap="$1">
                     <Text color={muted} fontSize={11}>Log end (YYYY-MM-DD)</Text>
                     <Input
@@ -296,6 +367,17 @@ export default function AdminHistoryScreen() {
                       width={150}
                     />
                   </YStack>
+                  <Button
+                    size="$2"
+                    backgroundColor={idleBtnBg}
+                    color={idleBtnText}
+                    borderRadius={10}
+                    onPress={() => {
+                      openWebDatePicker(logsEndDate, setLogsEndDate);
+                    }}
+                    disabled={Platform.OS !== 'web'}>
+                    Pick
+                  </Button>
                   <Button
                     size="$2"
                     backgroundColor={activeBtnBg}

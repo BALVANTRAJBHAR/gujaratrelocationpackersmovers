@@ -497,6 +497,11 @@ export default function AdminScreen() {
         .order('created_at', { ascending: false });
       if (error) return;
       setBookingUploads((prev) => ({ ...prev, [bookingId]: ((data as any) ?? []) as BookingUploadRow[] }));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!String(message ?? '').toLowerCase().includes('abort')) {
+        setError(message || 'Failed to fetch booking media.');
+      }
     } finally {
       setBookingUploadsBusyId(null);
     }
@@ -593,6 +598,10 @@ export default function AdminScreen() {
   const [documentBusy, setDocumentBusy] = useState(false);
   const [pendingDocuments, setPendingDocuments] = useState<PendingUserDocument[]>([]);
   const [userMgmtInfo, setUserMgmtInfo] = useState<string | null>(null);
+
+  const [docViewerUrl, setDocViewerUrl] = useState<string | null>(null);
+  const [docViewerVisible, setDocViewerVisible] = useState(false);
+  const [docViewerZoom, setDocViewerZoom] = useState(1);
 
   const [couponForm, setCouponForm] = useState<{
     id: string | null;
@@ -731,11 +740,25 @@ export default function AdminScreen() {
         Platform.OS === 'web' ? await recognizeTextFromWebImage(uri) : await TextRecognition.recognize(uri);
       const extracted = extractDocumentNumber(documentFormType, lines);
       if (extracted) {
-        setDocumentFormNumber((prev) => (prev.trim() ? prev : extracted));
+        setDocumentFormNumber(extracted);
       }
     } catch {
       // ignore
     }
+  };
+
+  const openDocViewer = (url: string) => {
+    const u = String(url ?? '').trim();
+    if (!u) return;
+    setDocViewerUrl(u);
+    setDocViewerZoom(1);
+    setDocViewerVisible(true);
+  };
+
+  const closeDocViewer = () => {
+    setDocViewerVisible(false);
+    setDocViewerUrl(null);
+    setDocViewerZoom(1);
   };
 
   const stageUserDocument = () => {
@@ -785,6 +808,73 @@ export default function AdminScreen() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const openWebDatePicker = (initial: string, onSelect: (value: string) => void) => {
+    if (Platform.OS !== 'web') return;
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = initial || '';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+    const cleanup = () => {
+      try {
+        document.body.removeChild(input);
+      } catch {
+        // ignore
+      }
+    };
+    input.onchange = () => {
+      const v = String(input.value ?? '').trim();
+      if (v) onSelect(v);
+      cleanup();
+    };
+    input.onblur = () => cleanup();
+    input.click();
+  };
+
+  const openWebDateTimePicker = (initialIso: string, onSelectIso: (value: string) => void) => {
+    if (Platform.OS !== 'web') return;
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'datetime-local';
+    if (initialIso) {
+      const d = new Date(initialIso);
+      if (Number.isFinite(d.getTime())) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        input.value = `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+      }
+    }
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    document.body.appendChild(input);
+    const cleanup = () => {
+      try {
+        document.body.removeChild(input);
+      } catch {
+        // ignore
+      }
+    };
+    input.onchange = () => {
+      const v = String(input.value ?? '').trim();
+      if (v) {
+        const d = new Date(v);
+        if (Number.isFinite(d.getTime())) {
+          onSelectIso(d.toISOString());
+        }
+      }
+      cleanup();
+    };
+    input.onblur = () => cleanup();
+    input.click();
+  };
+
   const ensureReportsDefaultDates = () => {
     if (reportsStartDate && reportsEndDate) return;
     const end = new Date();
@@ -821,6 +911,10 @@ export default function AdminScreen() {
       } else {
         setReportsBookings((data ?? []) as BookingAdmin[]);
       }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setReportsError(message || 'Failed to fetch reports.');
+      setReportsBookings([]);
     } finally {
       setReportsLoading(false);
     }
@@ -853,6 +947,10 @@ export default function AdminScreen() {
       } else {
         setReportsPayments((data ?? []) as PaymentReportRow[]);
       }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setReportsError(message || 'Failed to fetch payments report.');
+      setReportsPayments([]);
     } finally {
       setReportsLoading(false);
     }
@@ -1453,16 +1551,85 @@ export default function AdminScreen() {
     }
   };
 
+  const uploadVehicleImageFromWebFileAndSetUrl = async (file: File) => {
+    if (!canManage) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) {
+        setError('Please login again.');
+        return;
+      }
+
+      const name = String((file as any)?.name ?? '').toLowerCase();
+      const inferredExt = (name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/g, '');
+      const fileExt = inferredExt && inferredExt.length <= 5 ? inferredExt : 'jpg';
+      const fileName = `${uid}/${Date.now()}.${fileExt}`;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const contentType = String((file as any)?.type ?? '').trim() || `image/${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage.from('vehicle-images').upload(fileName, bytes, {
+        contentType,
+        upsert: true,
+      });
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+
+      const { data: publicUrl } = supabase.storage.from('vehicle-images').getPublicUrl(fileName);
+      setVehicleForm((p) => ({ ...p, image_url: publicUrl.publicUrl }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Image upload failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickVehicleImage = async () => {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return;
+      const input = window.document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.position = 'fixed';
+      input.style.left = '-10000px';
+      input.style.top = '-10000px';
+      input.onchange = () => {
+        const file = (input.files && input.files[0]) || null;
+        input.remove();
+        if (file) void uploadVehicleImageFromWebFileAndSetUrl(file);
+      };
+      window.document.body.appendChild(input);
+      input.click();
+      return;
+    }
+
+    await uploadVehicleImageAndSetUrl();
+  };
+
   const resetFloorForm = () => {
     setFloorForm({
       id: null,
       label: '',
-      sort_order: '0',
+      sort_order: nextFloorSortOrder,
       charge_with_lift: '0',
       charge_without_lift: '0',
       is_active: true,
     });
   };
+
+  useEffect(() => {
+    if (floorForm.id) return;
+    const current = String(floorForm.sort_order ?? '').trim();
+    if (!current || current === '0') {
+      setFloorForm((p) => ({ ...p, sort_order: nextFloorSortOrder }));
+    }
+  }, [nextFloorSortOrder]);
 
   const parseOptionalNumber = (value: string) => {
     const trimmed = String(value ?? '').trim();
@@ -1699,46 +1866,51 @@ export default function AdminScreen() {
     setLoading(true);
     setError(null);
     const statusFilter = overrides?.status ?? bookingFilter;
-    let query = supabase
-      .from('bookings')
-      .select(
-        'id, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
-      )
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('bookings')
+        .select(
+          'id, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
+        )
+        .order('created_at', { ascending: false });
 
-    if (statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
-    }
-    if (bookingStartDate) {
-      query = query.gte('created_at', `${bookingStartDate}T00:00:00.000Z`);
-    }
-    if (bookingEndDate) {
-      query = query.lte('created_at', `${bookingEndDate}T23:59:59.999Z`);
-    }
-
-    const { data, error: fetchError } = await query;
-    if (fetchError) {
-      if (!String(fetchError.message ?? '').includes('AbortError')) {
-        setError(fetchError.message);
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
       }
-    } else {
-      const items = (data ?? []) as BookingAdmin[];
-      if (bookingUserFilter) {
-        const search = bookingUserFilter.toLowerCase();
-        setBookings(
-          items.filter(
-            (booking) => {
+      if (bookingStartDate) {
+        query = query.gte('created_at', `${bookingStartDate}T00:00:00.000Z`);
+      }
+      if (bookingEndDate) {
+        query = query.lte('created_at', `${bookingEndDate}T23:59:59.999Z`);
+      }
+
+      const { data, error: fetchError } = await query;
+      if (fetchError) {
+        if (!String(fetchError.message ?? '').includes('AbortError')) {
+          setError(fetchError.message);
+        }
+      } else {
+        const items = (data ?? []) as BookingAdmin[];
+        if (bookingUserFilter) {
+          const search = bookingUserFilter.toLowerCase();
+          setBookings(
+            items.filter((booking) => {
               const user = getBookingUser(booking);
               return (
                 user.name?.toLowerCase().includes(search) ||
                 user.phone?.toLowerCase().includes(search) ||
                 user.email?.toLowerCase().includes(search)
               );
-            }
-          )
-        );
-      } else {
-        setBookings(items);
+            })
+          );
+        } else {
+          setBookings(items);
+        }
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!String(message ?? '').includes('AbortError')) {
+        setError(message || 'Failed to fetch bookings.');
       }
     }
     setLoading(false);
@@ -1749,7 +1921,7 @@ export default function AdminScreen() {
     const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     const nextRescheduleDate = rescheduleOverride ?? rescheduleDate;
     if (status === 'rescheduled' && !nextRescheduleDate) {
-      setError('Please provide reschedule date (YYYY-MM-DD).');
+      setError('Please provide reschedule date.');
       setLoading(false);
       return;
     }
@@ -2383,6 +2555,20 @@ export default function AdminScreen() {
                     />
                   </XStack>
 
+                  {vehicleForm.image_url ? (
+                    <Pressable
+                      onPress={() => {
+                        const u = String(vehicleForm.image_url ?? '').trim();
+                        if (u) Linking.openURL(u as any);
+                      }}>
+                      <Image
+                        source={{ uri: vehicleForm.image_url }}
+                        style={{ width: 96, height: 64, borderRadius: 12, backgroundColor: inputBg as any }}
+                        resizeMode="cover"
+                      />
+                    </Pressable>
+                  ) : null}
+
                   <Input
                     value={vehicleForm.image_url}
                     onChangeText={(v) => setVehicleForm((p) => ({ ...p, image_url: v }))}
@@ -2393,6 +2579,15 @@ export default function AdminScreen() {
                   />
 
                   <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$2"
+                      backgroundColor={inputBg}
+                      color={inputText}
+                      borderRadius={10}
+                      onPress={pickVehicleImage}
+                      disabled={loading}>
+                      Select image
+                    </Button>
                     <Button
                       size="$2"
                       backgroundColor={vehicleForm.is_active ? '#22C55E' : '#111827'}
@@ -2450,6 +2645,19 @@ export default function AdminScreen() {
                             {item.description ?? '—'}
                           </Text>
                         </YStack>
+                        {item.image_url ? (
+                          <Pressable
+                            onPress={() => {
+                              const u = String(item.image_url ?? '').trim();
+                              if (u) Linking.openURL(u as any);
+                            }}>
+                            <Image
+                              source={{ uri: item.image_url }}
+                              style={{ width: 72, height: 48, borderRadius: 12, backgroundColor: inputBg as any }}
+                              resizeMode="cover"
+                            />
+                          </Pressable>
+                        ) : null}
                         <Button
                           size="$2"
                           backgroundColor={item.is_active ? '#22C55E' : '#EF4444'}
@@ -2932,6 +3140,19 @@ export default function AdminScreen() {
                       flexGrow={1}
                       flexBasis={180}
                     />
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          openWebDatePicker(bookingStartDate, setBookingStartDate);
+                        }
+                      }}
+                      disabled={Platform.OS !== 'web'}>
+                      Pick start
+                    </Button>
                     <Input
                       value={bookingEndDate}
                       onChangeText={setBookingEndDate}
@@ -2943,6 +3164,19 @@ export default function AdminScreen() {
                       flexGrow={1}
                       flexBasis={180}
                     />
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          openWebDatePicker(bookingEndDate, setBookingEndDate);
+                        }
+                      }}
+                      disabled={Platform.OS !== 'web'}>
+                      Pick end
+                    </Button>
                     <Input
                       value={bookingUserFilter}
                       onChangeText={setBookingUserFilter}
@@ -2957,7 +3191,7 @@ export default function AdminScreen() {
                     <Input
                       value={rescheduleDate}
                       onChangeText={setRescheduleDate}
-                      placeholder="Reschedule date YYYY-MM-DD"
+                      placeholder="Reschedule date/time (ISO)"
                       backgroundColor={inputBg}
                       borderColor={border}
                       color={inputText}
@@ -2965,6 +3199,19 @@ export default function AdminScreen() {
                       flexGrow={1}
                       flexBasis={200}
                     />
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          openWebDateTimePicker(rescheduleDate, setRescheduleDate);
+                        }
+                      }}
+                      disabled={Platform.OS !== 'web'}>
+                      Pick reschedule
+                    </Button>
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
                     {[
@@ -3334,6 +3581,19 @@ export default function AdminScreen() {
                         width={160}
                       />
                     </YStack>
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          openWebDatePicker(reportsStartDate, setReportsStartDate);
+                        }
+                      }}
+                      disabled={Platform.OS !== 'web'}>
+                      Pick
+                    </Button>
                     <YStack gap="$1">
                       <Text color={muted} fontSize={11}>End date (YYYY-MM-DD)</Text>
                       <Input
@@ -3346,6 +3606,19 @@ export default function AdminScreen() {
                         width={160}
                       />
                     </YStack>
+                    <Button
+                      size="$2"
+                      backgroundColor={idleBtnBg}
+                      color={idleBtnText}
+                      borderRadius={10}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          openWebDatePicker(reportsEndDate, setReportsEndDate);
+                        }
+                      }}
+                      disabled={Platform.OS !== 'web'}>
+                      Pick
+                    </Button>
                     <Button
                       size="$2"
                       backgroundColor={activeBtnBg}
