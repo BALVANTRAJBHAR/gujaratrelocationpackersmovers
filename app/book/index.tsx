@@ -147,6 +147,21 @@ const roundMoney = (value: number) => Math.round(Number.isFinite(value) ? value 
 
 const currency = (value: number) => `₹${roundMoney(value).toLocaleString('en-IN')}`;
 
+const MAX_IMAGE_BYTES = 500 * 1024;
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_DURATION_SEC = 30;
+
+const isAllowedJpeg = (value: string) => {
+  const v = String(value ?? '').toLowerCase();
+  return v.endsWith('.jpg') || v.endsWith('.jpeg') || v.includes('image/jpeg');
+};
+
+const isAllowedMp4 = (value: string) => {
+  const v = String(value ?? '').toLowerCase();
+  return v.endsWith('.mp4') || v.includes('video/mp4');
+};
+
 const normalizeToIsoDate = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -659,7 +674,7 @@ export default function BookingWizardScreen() {
 
   const uploadBookingUploads = async (createdBookingId: string) => {
     if (!session?.user?.id) return;
-    const bucket = 'booking-uploads';
+    const rawBucket = 'booking-uploads-raw';
     const items: Array<{ uri: string; kind: 'photo' | 'video' }> = [
       ...form.photos.map((uri) => ({ uri, kind: 'photo' as const })),
       ...form.videos.map((uri) => ({ uri, kind: 'video' as const })),
@@ -667,29 +682,40 @@ export default function BookingWizardScreen() {
     if (!items.length) return;
 
     for (const it of items) {
+      const fileInfo = await FileSystem.getInfoAsync(it.uri, { size: true });
+      const fileSize = typeof (fileInfo as any)?.size === 'number' ? Number((fileInfo as any).size) : null;
+      if (it.kind === 'photo') {
+        if (!isAllowedJpeg(it.uri)) throw new Error('Only JPG/JPEG images are allowed.');
+        if (fileSize !== null && fileSize > MAX_IMAGE_UPLOAD_BYTES) {
+          throw new Error('Image too large. Please select an image up to 10MB.');
+        }
+      }
+      if (it.kind === 'video') {
+        if (!isAllowedMp4(it.uri)) throw new Error('Only MP4 videos are allowed.');
+        if (fileSize !== null && fileSize > MAX_VIDEO_BYTES) {
+          throw new Error('Video must be 5MB or less.');
+        }
+      }
+
       const res = await fetch(it.uri);
       const blob = await res.blob();
       const ext = it.kind === 'video' ? 'mp4' : 'jpg';
-      const filePath = `bookings/${createdBookingId}/${it.kind}s/${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`;
+      const rawPath = `bookings/${createdBookingId}/${it.kind}s/${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`;
       const contentType = it.kind === 'video' ? 'video/mp4' : 'image/jpeg';
 
       const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, blob, { contentType, upsert: true });
+        .from(rawBucket)
+        .upload(rawPath, blob, { contentType, upsert: true });
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-      const fileUrl = data?.publicUrl ?? '';
-      if (!fileUrl) throw new Error('Upload URL missing');
-
-      const { error: insertErr } = await supabase.from('booking_uploads').insert({
-        booking_id: createdBookingId,
-        file_url: fileUrl,
-        file_type: it.kind,
-        file_name: filePath.split('/').pop() ?? null,
-        file_size: blob.size ?? null,
+      const { data: processed, error: processError } = await supabase.functions.invoke('process-booking-upload', {
+        body: { booking_id: createdBookingId, raw_path: rawPath, kind: it.kind },
       });
-      if (insertErr) throw new Error(insertErr.message);
+      if (processError) throw new Error(processError.message);
+      if (!(processed as any)?.ok) {
+        const msg = String((processed as any)?.error ?? '').trim();
+        throw new Error(msg || 'Failed to process upload.');
+      }
     }
   };
 
@@ -1441,14 +1467,35 @@ export default function BookingWizardScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
+      quality: 0.6,
       allowsMultipleSelection: true,
       selectionLimit: remaining,
     });
 
     if (result.canceled) return;
-    const uris = result.assets.map((a) => a.uri).filter(Boolean);
-    setForm((p) => ({ ...p, photos: [...p.photos, ...uris].slice(0, 10) }));
+    const accepted: string[] = [];
+    for (const asset of result.assets) {
+      const uri = asset?.uri;
+      if (!uri) continue;
+
+      if (!isAllowedJpeg(asset?.fileName ?? '') && !isAllowedJpeg(asset?.mimeType ?? '') && !isAllowedJpeg(uri)) {
+        setError('Only JPG/JPEG images are allowed.');
+        continue;
+      }
+
+      const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
+      const info = size === null ? await FileSystem.getInfoAsync(uri, { size: true }) : null;
+      const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
+      if (finalSize !== null && finalSize > MAX_IMAGE_UPLOAD_BYTES) {
+        setError('Image too large. Please select an image up to 10MB.');
+        continue;
+      }
+
+      accepted.push(uri);
+    }
+
+    if (!accepted.length) return;
+    setForm((p) => ({ ...p, photos: [...p.photos, ...accepted].slice(0, 10) }));
   };
 
   const pickVideo = async () => {
@@ -1471,6 +1518,20 @@ export default function BookingWizardScreen() {
       return;
     }
     if (!asset?.uri) return;
+
+    if (!isAllowedMp4(asset?.fileName ?? '') && !isAllowedMp4(asset?.mimeType ?? '') && !isAllowedMp4(asset.uri)) {
+      setError('Only MP4 videos are allowed.');
+      return;
+    }
+
+    const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
+    const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true }) : null;
+    const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
+    if (finalSize !== null && finalSize > MAX_VIDEO_BYTES) {
+      setError('Video must be 5MB or less.');
+      return;
+    }
+
     setForm((p) => ({ ...p, videos: [...p.videos, asset.uri].slice(0, 2) }));
   };
 
