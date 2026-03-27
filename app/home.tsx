@@ -357,6 +357,7 @@ export default function HomeLandingScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const appColorScheme = useAppColorScheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeService, setActiveService] = useState<'shifting' | 'home_services' | 'property'>('shifting');
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponIndex, setCouponIndex] = useState(0);
   const couponTimerRef = useRef<any>(null);
@@ -638,6 +639,15 @@ export default function HomeLandingScreen() {
       return;
     }
     router.push({ pathname: resolveRoleRoute(profile?.role) } as any);
+  };
+
+  const handlePrimaryServiceAction = () => {
+    if (activeService === 'shifting') {
+      handleBook();
+      return;
+    }
+
+    Alert.alert('Coming soon', 'This service will be available soon.');
   };
 
   const handleDashboardSafe = async () => {
@@ -1520,16 +1530,75 @@ export default function HomeLandingScreen() {
                       labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
                       glowOnHover
                     />
-                    <AppButton
-                      label="Book Now"
-                      onPress={handleBook}
-                      backgroundColor="#03a734ff"
-                      textColor="#e4ebecff"
-                      containerStyle={styles.heroCta}
-                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
-                      glowOnHover
-                    />
                   </XStack>
+
+                  <YStack
+                    marginTop={16}
+                    width={isSmallScreen ? '100%' : 720}
+                    maxWidth="100%"
+                    backgroundColor={theme.bgCard}
+                    borderRadius={18}
+                    padding={14}
+                    borderWidth={2}
+                    borderColor={theme.border}
+                    gap="$2.5">
+                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
+                        color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setActiveService('shifting')}>
+                        Shifting
+                      </Button>
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
+                        color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setActiveService('home_services')}>
+                        Home Services
+                      </Button>
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
+                        color={activeService === 'property' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setActiveService('property')}>
+                        Property
+                      </Button>
+                    </XStack>
+
+                    <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
+                      <YStack flex={1} minWidth={isSmallScreen ? '100%' : 420}>
+                        <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                          {activeService === 'shifting'
+                            ? 'Book shifting service in 2 minutes'
+                            : activeService === 'home_services'
+                              ? 'Book a technician / home service'
+                              : 'Search or post a property'}
+                        </Text>
+                      </YStack>
+                      <Button
+                        backgroundColor="#F59E0B"
+                        color="#FFFFFF"
+                        fontWeight="900"
+                        borderRadius={14}
+                        onPress={handlePrimaryServiceAction}>
+                        {activeService === 'shifting'
+                          ? 'Book Shifting'
+                          : activeService === 'home_services'
+                            ? 'Explore'
+                            : 'Search'}
+                      </Button>
+                    </XStack>
+                  </YStack>
 
                   <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={12}>
                     {heroSlides.map((s, i) => (
@@ -1703,8 +1772,8 @@ export default function HomeLandingScreen() {
           <XStack justifyContent="center" alignItems="center" marginTop={40}>
             <Animated.View style={buttonStyle}>
               <AppButton
-                label="Book Now"
-                onPress={handleBook}
+                label={activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
+                onPress={handlePrimaryServiceAction}
                 backgroundColor="#F59E0B"
                 textColor="#FFFFFF"
                 glowOnHover
@@ -2381,8 +2450,8 @@ export default function HomeLandingScreen() {
                 labelStyle={{ fontFamily: 'Georgia', fontSize: 16, fontWeight: '900' }}
               />
               <AppButton
-                label="Book Now"
-                onPress={handleBook}
+                label={activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
+                onPress={handlePrimaryServiceAction}
                 backgroundColor="#12b12ce0"
                 textColor="#FFFFFF"
                 glowOnHover

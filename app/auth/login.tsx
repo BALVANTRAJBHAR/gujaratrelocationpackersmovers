@@ -170,7 +170,7 @@ export default function LoginScreen() {
   const title = useMemo(() => {
     if (mode === 'signup') return 'Create account';
     if (mode === 'forgot') return 'Reset password';
-    return 'Login';
+    return 'Sign In';
   }, [mode]);
 
   const subtitle = useMemo(() => {
@@ -326,7 +326,7 @@ export default function LoginScreen() {
 
         const identities = (signUpData as any)?.user?.identities;
         if (Array.isArray(identities) && identities.length === 0) {
-          setError('This email is already registered. Please login or use Forgot password.');
+          setError('This email is already registered. Please sign in or use Forgot password.');
           setMode('login');
           return;
         }
@@ -441,7 +441,7 @@ export default function LoginScreen() {
               setError(null);
               setInfo(null);
             }}>
-            Login
+            Sign In
           </Button>
           <Button
             size="$3"
@@ -451,11 +451,12 @@ export default function LoginScreen() {
             pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnPressBg : idleBtnPressBg }}
             onPress={() => {
               setMode('signup');
+              setForgotStep('request');
               setShowEmailSignup(false);
               setError(null);
               setInfo(null);
             }}>
-            Sign up
+            Sign Up
           </Button>
           <Button
             size="$3"
@@ -612,23 +613,25 @@ export default function LoginScreen() {
           {error ? <Paragraph color="#F87171">{error}</Paragraph> : null}
           {info ? <Paragraph color="#34D399">{info}</Paragraph> : null}
 
-          <Button
-            backgroundColor={activeBtnBg}
-            color={activeBtnText}
-            hoverStyle={{ backgroundColor: activeBtnHoverBg }}
-            pressStyle={{ backgroundColor: activeBtnPressBg }}
-            onPress={handleSubmit}
-            disabled={loading || (mode === 'signup' && !showEmailSignup)}>
-            {loading
-              ? 'Please wait…'
-              : mode === 'login'
-                ? 'Sign In'
-                : mode === 'signup'
-                  ? 'Create account'
-                  : forgotStep === 'request'
-                    ? 'Send reset link'
-                    : 'Update Password'}
-          </Button>
+          {mode !== 'signup' || showEmailSignup ? (
+            <Button
+              backgroundColor={activeBtnBg}
+              color={activeBtnText}
+              hoverStyle={{ backgroundColor: activeBtnHoverBg }}
+              pressStyle={{ backgroundColor: activeBtnPressBg }}
+              onPress={handleSubmit}
+              disabled={loading}>
+              {loading
+                ? 'Please wait…'
+                : mode === 'login'
+                  ? 'Sign In'
+                  : mode === 'signup'
+                    ? 'Create account'
+                    : forgotStep === 'request'
+                      ? 'Send reset link'
+                      : 'Update Password'}
+            </Button>
+          ) : null}
 
           {mode === 'forgot' && forgotStep !== 'request' ? (
             <Button
