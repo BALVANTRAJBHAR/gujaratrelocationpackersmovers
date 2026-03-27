@@ -41,6 +41,35 @@ export default function LoginScreen() {
   const [showEmailSignup, setShowEmailSignup] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [signupRole, setSignupRole] = useState<'customer' | 'provider'>('customer');
+
+  const resolveDbRole = (intent: 'customer' | 'provider') => {
+    return intent === 'provider' ? 'driver' : 'customer';
+  };
+
+  const maybeRedirectToRegistration = async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      if (!userId) return;
+
+      const { data: row, error: rowError } = await supabase
+        .from('users')
+        .select('id, phone')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (rowError) return;
+
+      if (!row?.phone) {
+        router.replace('/auth/register' as any);
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (mode !== 'forgot') return;
@@ -218,7 +247,8 @@ export default function LoginScreen() {
       if (redirect) {
         router.replace(redirect as any);
       } else {
-        router.replace('/home');
+        const didRedirect = await maybeRedirectToRegistration();
+        if (!didRedirect) router.replace('/home');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'OAuth sign-in failed');
@@ -270,7 +300,8 @@ export default function LoginScreen() {
         if (redirectTo) {
           router.replace(redirectTo as any);
         } else {
-          router.replace('/home');
+          const didRedirect = await maybeRedirectToRegistration();
+          if (!didRedirect) router.replace('/home');
         }
         return;
       }
@@ -281,7 +312,10 @@ export default function LoginScreen() {
           email: trimmedEmail,
           password,
           options: {
-            data: trimmedName ? { name: trimmedName } : undefined,
+            data: {
+              ...(trimmedName ? { name: trimmedName } : {}),
+              role_intent: signupRole,
+            },
           },
         });
 
@@ -294,6 +328,29 @@ export default function LoginScreen() {
         if (Array.isArray(identities) && identities.length === 0) {
           setError('This email is already registered. Please login or use Forgot password.');
           setMode('login');
+          return;
+        }
+
+        const createdUserId = (signUpData as any)?.user?.id as string | undefined;
+        const session = (signUpData as any)?.session ?? null;
+
+        if (createdUserId && session?.user?.id) {
+          try {
+            await supabase
+              .from('users')
+              .upsert(
+                {
+                  id: createdUserId,
+                  email: trimmedEmail,
+                  name: trimmedName || null,
+                  role: resolveDbRole(signupRole),
+                },
+                { onConflict: 'id' }
+              );
+          } catch {
+            // ignore
+          }
+          router.replace('/auth/register' as any);
           return;
         }
 
@@ -468,6 +525,38 @@ export default function LoginScreen() {
             </YStack>
           ) : null}
 
+          {mode === 'signup' && showEmailSignup ? (
+            <YStack gap="$2">
+              <Text color={label}>You are a</Text>
+              <XStack gap="$2">
+                <Button
+                  flex={1}
+                  backgroundColor={signupRole === 'customer' ? activeBtnBg : idleBtnBg}
+                  color={signupRole === 'customer' ? activeBtnText : idleBtnText}
+                  borderWidth={1}
+                  borderColor={signupRole === 'customer' ? activeBtnBg : border}
+                  hoverStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnHoverBg : idleBtnHoverBg }}
+                  pressStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnPressBg : idleBtnPressBg }}
+                  onPress={() => setSignupRole('customer')}
+                  disabled={loading || oauthLoading !== null}>
+                  Customer
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={signupRole === 'provider' ? activeBtnBg : idleBtnBg}
+                  color={signupRole === 'provider' ? activeBtnText : idleBtnText}
+                  borderWidth={1}
+                  borderColor={signupRole === 'provider' ? activeBtnBg : border}
+                  hoverStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnHoverBg : idleBtnHoverBg }}
+                  pressStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnPressBg : idleBtnPressBg }}
+                  onPress={() => setSignupRole('provider')}
+                  disabled={loading || oauthLoading !== null}>
+                  Provider
+                </Button>
+              </XStack>
+            </YStack>
+          ) : null}
+
           {mode === 'signup' ? (
             showEmailSignup ? (
               <YStack gap="$2">
@@ -475,7 +564,7 @@ export default function LoginScreen() {
                 <Input
                   value={email}
                   onChangeText={setEmail}
-                  editable={!(mode === 'forgot' && forgotStep === 'set_password')}
+                  editable={forgotStep !== 'set_password'}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholder="you@example.com"
@@ -488,7 +577,7 @@ export default function LoginScreen() {
               <Input
                 value={email}
                 onChangeText={setEmail}
-                editable={!(mode === 'forgot' && forgotStep === 'set_password')}
+                editable={forgotStep !== 'set_password'}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="you@example.com"

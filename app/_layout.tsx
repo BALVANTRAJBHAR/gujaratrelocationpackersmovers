@@ -34,6 +34,7 @@ function AppLayout() {
               <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
               <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
               <Stack.Screen name="auth/login" options={{ title: 'Login' }} />
+              <Stack.Screen name="auth/register" options={{ title: 'Register' }} />
               <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>

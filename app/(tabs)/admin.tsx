@@ -676,32 +676,55 @@ export default function AdminScreen() {
     void fetchUserDocuments(managedUserForm.id);
   }, [managedUserForm.id]);
 
-  const uploadUserDocumentImageAndGetPublicUrl = async (effectiveUserId: string, uri: string) => {
+  const resolveUserDocumentImageUrl = (value: string | null | undefined) => {
+    const v = String(value ?? '').trim();
+    if (!v) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    const { data } = supabase.storage.from('driver-docs').getPublicUrl(v);
+    return data?.publicUrl ?? '';
+  };
+
+  const uploadUserDocumentImageAndGetStoragePath = async (effectiveUserId: string, uri: string) => {
     const { data: auth } = await supabase.auth.getUser();
     const uploaderId = auth.user?.id;
     if (!uploaderId) throw new Error('Please login again.');
 
     const inferredExt = (uri.split('.').pop() || '').toLowerCase();
     const fileExt = inferredExt && inferredExt.length <= 5 ? inferredExt : 'jpg';
-    const filePath = `${uploaderId}/${effectiveUserId}/user-doc-${Date.now()}.${fileExt}`;
+    const filePath = `${uploaderId}/${effectiveUserId}/user-doc-raw-${Date.now()}.${fileExt}`;
 
     const response = await fetch(uri);
     const contentTypeFromFetch = response.headers.get('content-type');
     const fixedExt = fileExt === 'jpg' && contentTypeFromFetch ? guessDocImageExtFromMime(contentTypeFromFetch) : fileExt;
     const finalPath =
-      fixedExt !== fileExt ? `${uploaderId}/${effectiveUserId}/user-doc-${Date.now()}.${fixedExt}` : filePath;
+      fixedExt !== fileExt ? `${uploaderId}/${effectiveUserId}/user-doc-raw-${Date.now()}.${fixedExt}` : filePath;
     const contentType = guessDocImageContentType(contentTypeFromFetch, fixedExt);
     const arrayBuffer = await response.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
 
-    const { error: uploadError } = await supabase.storage.from('driver-docs').upload(finalPath, bytes, {
+    if (bytes.length > 10 * 1024 * 1024) {
+      throw new Error('Image too large. Max 10MB.');
+    }
+
+    const { error: uploadError } = await supabase.storage.from('user-documents-raw').upload(finalPath, bytes, {
       contentType,
       upsert: true,
     });
 
     if (uploadError) throw new Error(uploadError.message);
-    const { data } = supabase.storage.from('driver-docs').getPublicUrl(finalPath);
-    return data.publicUrl;
+
+    const { data: processed, error: processError } = await supabase.functions.invoke('process-user-document-upload', {
+      body: { effective_user_id: effectiveUserId, raw_path: finalPath },
+    });
+
+    if (processError) throw new Error(processError.message);
+    if (!(processed as any)?.ok) {
+      const msg = String((processed as any)?.error ?? '').trim();
+      throw new Error(msg || 'Failed to process document image.');
+    }
+    const storagePath = String((processed as any)?.storage_path ?? '').trim();
+    if (!storagePath) throw new Error('Processed storage path missing.');
+    return storagePath;
   };
 
   const recognizeTextFromWebImage = async (uri: string) => {
@@ -732,7 +755,15 @@ export default function AdminScreen() {
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
     if (result.canceled || !result.assets?.length) return;
 
-    const uri = result.assets[0].uri;
+    const asset = result.assets[0];
+    const mime = String((asset as any)?.mimeType ?? '').toLowerCase();
+    const uri = String(asset?.uri ?? '');
+    const uriLower = uri.toLowerCase();
+    if (!uri) return;
+    if (!(mime.includes('image/jpeg') || uriLower.endsWith('.jpg') || uriLower.endsWith('.jpeg'))) {
+      setError('Only JPG/JPEG images are allowed.');
+      return;
+    }
     setDocumentFormImageUri(uri);
 
     try {
@@ -1231,7 +1262,7 @@ export default function AdminScreen() {
           for (const doc of pendingDocuments) {
             let image_url: string | null = null;
             if (doc.image_uri) {
-              image_url = await uploadUserDocumentImageAndGetPublicUrl(managedUserForm.id, doc.image_uri);
+              image_url = await uploadUserDocumentImageAndGetStoragePath(managedUserForm.id, doc.image_uri);
             }
             rows.push({
               user_id: managedUserForm.id,
@@ -1514,6 +1545,13 @@ export default function AdminScreen() {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
+    const mime = String((asset as any)?.mimeType ?? '').toLowerCase();
+    const uriLower = String(asset.uri ?? '').toLowerCase();
+    if (!(mime.includes('image/jpeg') || uriLower.endsWith('.jpg') || uriLower.endsWith('.jpeg'))) {
+      setError('Only JPG/JPEG images are allowed.');
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -1542,8 +1580,7 @@ export default function AdminScreen() {
         return;
       }
 
-      const { data: publicUrl } = supabase.storage.from('vehicle-images').getPublicUrl(fileName);
-      setVehicleForm((p) => ({ ...p, image_url: publicUrl.publicUrl }));
+      setVehicleForm((p) => ({ ...p, image_url: fileName }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Image upload failed');
     } finally {
@@ -1564,6 +1601,11 @@ export default function AdminScreen() {
       }
 
       const name = String((file as any)?.name ?? '').toLowerCase();
+      const type = String((file as any)?.type ?? '').toLowerCase();
+      if (!(type.includes('image/jpeg') || name.endsWith('.jpg') || name.endsWith('.jpeg'))) {
+        setError('Only JPG/JPEG images are allowed.');
+        return;
+      }
       const inferredExt = (name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/g, '');
       const fileExt = inferredExt && inferredExt.length <= 5 ? inferredExt : 'jpg';
       const fileName = `${uid}/${Date.now()}.${fileExt}`;
@@ -1581,8 +1623,7 @@ export default function AdminScreen() {
         return;
       }
 
-      const { data: publicUrl } = supabase.storage.from('vehicle-images').getPublicUrl(fileName);
-      setVehicleForm((p) => ({ ...p, image_url: publicUrl.publicUrl }));
+      setVehicleForm((p) => ({ ...p, image_url: fileName }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Image upload failed');
     } finally {
@@ -1590,12 +1631,20 @@ export default function AdminScreen() {
     }
   };
 
+  const resolveVehicleImageUrl = (value: string | null | undefined) => {
+    const v = String(value ?? '').trim();
+    if (!v) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    const { data } = supabase.storage.from('vehicle-images').getPublicUrl(v);
+    return data?.publicUrl ?? '';
+  };
+
   const pickVehicleImage = async () => {
     if (Platform.OS === 'web') {
       if (typeof window === 'undefined') return;
       const input = window.document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/*';
+      input.accept = 'image/jpeg,image/jpg,.jpg,.jpeg';
       input.style.position = 'fixed';
       input.style.left = '-10000px';
       input.style.top = '-10000px';
@@ -2295,7 +2344,10 @@ export default function AdminScreen() {
                                         backgroundColor={inputBg}
                                         color={inputText}
                                         borderRadius={10}
-                                        onPress={() => Linking.openURL(doc.image_url as any)}>
+                                        onPress={() => {
+                                          const u = resolveUserDocumentImageUrl(doc.image_url);
+                                          if (u) openDocViewer(u);
+                                        }}>
                                         Open
                                       </Button>
                                     ) : null}
@@ -2558,25 +2610,16 @@ export default function AdminScreen() {
                   {vehicleForm.image_url ? (
                     <Pressable
                       onPress={() => {
-                        const u = String(vehicleForm.image_url ?? '').trim();
+                        const u = resolveVehicleImageUrl(vehicleForm.image_url);
                         if (u) Linking.openURL(u as any);
                       }}>
                       <Image
-                        source={{ uri: vehicleForm.image_url }}
+                        source={{ uri: resolveVehicleImageUrl(vehicleForm.image_url) }}
                         style={{ width: 96, height: 64, borderRadius: 12, backgroundColor: inputBg as any }}
                         resizeMode="cover"
                       />
                     </Pressable>
                   ) : null}
-
-                  <Input
-                    value={vehicleForm.image_url}
-                    onChangeText={(v) => setVehicleForm((p) => ({ ...p, image_url: v }))}
-                    placeholder="Image URL"
-                    backgroundColor={inputBg}
-                    borderColor={border}
-                    color={inputText}
-                  />
 
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
@@ -2648,11 +2691,11 @@ export default function AdminScreen() {
                         {item.image_url ? (
                           <Pressable
                             onPress={() => {
-                              const u = String(item.image_url ?? '').trim();
+                              const u = resolveVehicleImageUrl(item.image_url);
                               if (u) Linking.openURL(u as any);
                             }}>
                             <Image
-                              source={{ uri: item.image_url }}
+                              source={{ uri: resolveVehicleImageUrl(item.image_url) }}
                               style={{ width: 72, height: 48, borderRadius: 12, backgroundColor: inputBg as any }}
                               resizeMode="cover"
                             />
@@ -2677,7 +2720,6 @@ export default function AdminScreen() {
                       <Text color={muted} fontSize={12}>
                         Base: {item.base_price ?? '—'} • Per km: {item.per_km_price ?? '—'} • Labor: {item.labor_price ?? '—'}
                       </Text>
-                      <Text color={muted} fontSize={12}>Image: {item.image_url ?? '—'}</Text>
                       <XStack gap="$2" flexWrap="wrap">
                         <Button
                           size="$2"
