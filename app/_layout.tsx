@@ -30,6 +30,12 @@ function AppLayout() {
               <Stack.Screen name="notifications" options={{ headerShown: false }} />
               <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
               <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
+              <Stack.Screen name="home-services/request" options={{ headerShown: false }} />
+              <Stack.Screen name="home-services/my-requests" options={{ headerShown: false }} />
+              <Stack.Screen name="properties/index" options={{ headerShown: false }} />
+              <Stack.Screen name="properties/post" options={{ headerShown: false }} />
+              <Stack.Screen name="properties/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="properties/my-properties" options={{ headerShown: false }} />
               <Stack.Screen name="book/index" options={{ headerShown: false }} />
               <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
               <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />

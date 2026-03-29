@@ -11,9 +11,9 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { session, profile, refreshProfile } = useSession();
   const role = (profile?.role ?? 'customer').toString().trim().toLowerCase();
-  const canSeeDriver = ['driver', 'staff', 'admin'].includes(role);
+  const canSeeDriver = ['driver', 'provider', 'staff', 'admin'].includes(role);
   const canSeeAdmin = ['admin', 'staff'].includes(role);
-  const canSeeBookings = role !== 'driver';
+  const canSeeBookings = !['driver', 'provider'].includes(role);
 
   useEffect(() => {
     if (!session?.user?.id) return;

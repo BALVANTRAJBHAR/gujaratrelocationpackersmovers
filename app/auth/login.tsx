@@ -44,7 +44,7 @@ export default function LoginScreen() {
   const [signupRole, setSignupRole] = useState<'customer' | 'provider'>('customer');
 
   const resolveDbRole = (intent: 'customer' | 'provider') => {
-    return intent === 'provider' ? 'driver' : 'customer';
+    return intent === 'provider' ? 'provider' : 'customer';
   };
 
   const maybeRedirectToRegistration = async () => {

@@ -1,6 +1,6 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { supabase } from '@/lib/supabase';
@@ -15,9 +15,15 @@ export default function RegisterDetailsScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<string>('customer');
+  const [providerServices, setProviderServices] = useState<string[]>([]);
 
   const labelColor = useMemo(() => '#9CA3AF', []);
   const border = useMemo(() => '#374151', []);
+
+  const providerServiceOptions = useMemo(
+    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting', 'Property Owner'],
+    []
+  );
 
   const normalizePhone = (value: string) => {
     const v = String(value ?? '').replace(/\s+/g, '');
@@ -42,7 +48,7 @@ export default function RegisterDetailsScreen() {
 
         const { data: row, error: rowError } = await supabase
           .from('users')
-          .select('id, name, phone, role')
+          .select('id, name, phone, role, provider_services')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -51,11 +57,20 @@ export default function RegisterDetailsScreen() {
             setName(String(row.name ?? (user.user_metadata as any)?.name ?? '').trim());
             setPhone(String(row.phone ?? '').trim());
             setRole(String(row.role ?? 'customer'));
+            const rawServices = (row as any)?.provider_services;
+            if (Array.isArray(rawServices)) {
+              setProviderServices(rawServices.map((x: any) => String(x)));
+            } else {
+              const metaServices = (user.user_metadata as any)?.provider_services;
+              if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
+            }
           }
         } else {
           if (isMounted) {
             setName(String((user.user_metadata as any)?.name ?? '').trim());
             setRole(String((user.user_metadata as any)?.role_intent ?? 'customer'));
+            const metaServices = (user.user_metadata as any)?.provider_services;
+            if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
           }
         }
       } catch (e) {
@@ -101,6 +116,8 @@ export default function RegisterDetailsScreen() {
 
       const nextRole = String(role ?? 'customer').toLowerCase();
 
+      const nextProviderServices = nextRole === 'provider' ? providerServices : [];
+
       const { error: upsertError } = await supabase
         .from('users')
         .upsert(
@@ -110,6 +127,7 @@ export default function RegisterDetailsScreen() {
             name: trimmedName || null,
             phone: normalizedPhone,
             role: nextRole,
+            provider_services: nextProviderServices,
           },
           { onConflict: 'id' }
         );
@@ -125,6 +143,7 @@ export default function RegisterDetailsScreen() {
           ...(user.user_metadata as any),
           name: trimmedName || (user.user_metadata as any)?.name,
           role_intent: nextRole,
+          provider_services: nextProviderServices,
         },
       });
 
@@ -187,19 +206,54 @@ export default function RegisterDetailsScreen() {
             <Button
               flex={1}
               borderWidth={1}
-              borderColor={role === 'driver' ? '#10B981' : border}
-              backgroundColor={role === 'driver' ? '#065F46' : '#1F2937'}
+              borderColor={role === 'provider' ? '#10B981' : border}
+              backgroundColor={role === 'provider' ? '#065F46' : '#1F2937'}
               color="#FFFFFF"
-              onPress={() => setRole('driver')}>
+              onPress={() => setRole('provider')}>
               Provider
             </Button>
           </XStack>
         </YStack>
 
+        {String(role ?? '').toLowerCase() === 'provider' ? (
+          <YStack gap="$2">
+            <Text color={labelColor}>Services you provide</Text>
+            <XStack flexWrap="wrap" gap="$2">
+              {providerServiceOptions.map((opt) => {
+                const selected = providerServices.includes(opt);
+                return (
+                  <Button
+                    key={opt}
+                    size="$3"
+                    borderWidth={1}
+                    borderColor={selected ? '#10B981' : border}
+                    backgroundColor={selected ? '#065F46' : '#1F2937'}
+                    color="#FFFFFF"
+                    onPress={() => {
+                      setProviderServices((prev) => {
+                        if (prev.includes(opt)) return prev.filter((x) => x !== opt);
+                        return [...prev, opt];
+                      });
+                    }}>
+                    {opt}
+                  </Button>
+                );
+              })}
+            </XStack>
+            {providerServices.length === 0 ? (
+              <Paragraph color="#FBBF24">Select at least 1 service.</Paragraph>
+            ) : null}
+          </YStack>
+        ) : null}
+
         {error ? <Paragraph color="#F87171">{error}</Paragraph> : null}
         {info ? <Paragraph color="#34D399">{info}</Paragraph> : null}
 
-        <Button backgroundColor="#10B981" color="#111827" onPress={handleSave} disabled={saving}>
+        <Button
+          backgroundColor="#10B981"
+          color="#111827"
+          onPress={handleSave}
+          disabled={saving || (String(role ?? '').toLowerCase() === 'provider' && providerServices.length === 0)}>
           {saving ? 'Saving…' : 'Save & Continue'}
         </Button>
 

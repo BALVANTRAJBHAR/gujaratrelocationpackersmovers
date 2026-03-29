@@ -11,6 +11,7 @@ type UserProfile = {
   name: string | null;
   email: string | null;
   role: string | null;
+  provider_services?: string[] | null;
   license_number: string | null;
   vehicle_type: string | null;
   vehicle_number: string | null;
@@ -93,9 +94,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
 
     activeProfileUserIdRef.current = userId;
-    const baseSelect = 'id, name, email, role';
+    const baseSelect = 'id, name, email, role, provider_services';
     const extendedSelect =
-      'id, name, email, role, license_number, vehicle_type, vehicle_number, vehicle_model, license_doc_url, id_doc_url';
+      'id, name, email, role, provider_services, license_number, vehicle_type, vehicle_number, vehicle_model, license_doc_url, id_doc_url';
 
     const promise = (async () => {
       const { data: baseData, error: baseError } = await supabase

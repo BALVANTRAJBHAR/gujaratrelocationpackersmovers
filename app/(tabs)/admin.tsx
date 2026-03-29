@@ -405,6 +405,63 @@ type CouponAdmin = {
   updated_at?: string | null;
 };
 
+type HomeServiceRequestAdmin = {
+  id: string;
+  user_id: string;
+  service_key: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  state: string | null;
+  city: string | null;
+  locality: string | null;
+  notes: string | null;
+  preferred_date: string | null;
+  preferred_time: string | null;
+  status: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+type HomeServiceUploadAdmin = {
+  id: string;
+  request_id: string;
+  user_id: string;
+  file_url: string;
+  file_type: string;
+  file_name: string | null;
+  file_size: number | null;
+  created_at: string;
+  uploaded_at?: string | null;
+};
+
+type PropertyAdmin = {
+  id: string;
+  owner_user_id: string;
+  listing_type: string;
+  property_type: string | null;
+  title: string | null;
+  price: number | null;
+  state: string | null;
+  city: string | null;
+  locality: string | null;
+  status: string | null;
+  created_at: string;
+};
+
+type PropertyUploadAdmin = {
+  id: string;
+  property_id: string;
+  user_id: string;
+  file_url: string;
+  file_type: string;
+  file_name: string | null;
+  file_size: number | null;
+  created_at: string;
+  uploaded_at?: string | null;
+};
+
 export default function AdminScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string }>();
@@ -472,7 +529,9 @@ export default function AdminScreen() {
     };
   }, [session?.user?.id]);
 
-  const [activeSection, setActiveSection] = useState<'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports'>('bookings');
+  const [activeSection, setActiveSection] = useState<
+    'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports' | 'home_services' | 'properties'
+  >('bookings');
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
@@ -481,6 +540,19 @@ export default function AdminScreen() {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeAdmin[]>([]);
   const [floorOptions, setFloorOptions] = useState<FloorOptionAdmin[]>([]);
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
+
+  const [homeServiceRequests, setHomeServiceRequests] = useState<HomeServiceRequestAdmin[]>([]);
+  const [homeServiceUploadsOpenId, setHomeServiceUploadsOpenId] = useState<string | null>(null);
+  const [homeServiceUploadsBusyId, setHomeServiceUploadsBusyId] = useState<string | null>(null);
+  const [homeServiceUploads, setHomeServiceUploads] = useState<Record<string, HomeServiceUploadAdmin[]>>({});
+  const [homeServiceStatusBusyId, setHomeServiceStatusBusyId] = useState<string | null>(null);
+
+  const [properties, setProperties] = useState<PropertyAdmin[]>([]);
+  const [propertyStatusBusyId, setPropertyStatusBusyId] = useState<string | null>(null);
+
+  const [propertyUploadsOpenId, setPropertyUploadsOpenId] = useState<string | null>(null);
+  const [propertyUploadsBusyId, setPropertyUploadsBusyId] = useState<string | null>(null);
+  const [propertyUploads, setPropertyUploads] = useState<Record<string, PropertyUploadAdmin[]>>({});
 
   const [bookingUploadsOpenId, setBookingUploadsOpenId] = useState<string | null>(null);
   const [bookingUploadsBusyId, setBookingUploadsBusyId] = useState<string | null>(null);
@@ -507,7 +579,30 @@ export default function AdminScreen() {
     }
   };
 
-  const [assignDriverBusy, setAssignDriverBusy] = useState(false);
+  const fetchPropertyUploads = async (propertyId: string) => {
+    if (!canManage) return;
+    if (!propertyId) return;
+    setPropertyUploadsBusyId(propertyId);
+    try {
+      const { data, error } = await supabase
+        .from('property_uploads')
+        .select('id,property_id,user_id,file_url,file_type,file_name,file_size,created_at,uploaded_at')
+        .eq('property_id', propertyId)
+        .order('created_at', { ascending: true });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setPropertyUploads((p) => ({ ...p, [propertyId]: ((data as any) ?? []) as PropertyUploadAdmin[] }));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch property uploads.');
+    } finally {
+      setPropertyUploadsBusyId(null);
+    }
+  };
+
+  const [assignDriverBusy, setAssignDriverBusy] = useState<string | null>(null);
   const [assigningBookingId, setAssigningBookingId] = useState<string | null>(null);
 
   const [vehicleForm, setVehicleForm] = useState<{
@@ -826,11 +921,148 @@ export default function AdminScreen() {
       normalized === 'floors' ||
       normalized === 'coupons' ||
       normalized === 'users' ||
-      normalized === 'reports'
+      normalized === 'reports' ||
+      normalized === 'home_services' ||
+      normalized === 'properties'
     ) {
       setActiveSection(normalized as typeof activeSection);
     }
   }, [section]);
+
+  const fetchProperties = async () => {
+    if (!canManage) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('properties')
+        .select('id,owner_user_id,listing_type,property_type,title,price,state,city,locality,status,created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setProperties(((data as any) ?? []) as PropertyAdmin[]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch properties.');
+    }
+  };
+
+  const updatePropertyStatus = async (propertyId: string, nextStatus: string) => {
+    if (!canManage) return;
+    if (!propertyId) return;
+    setPropertyStatusBusyId(propertyId);
+    try {
+      const { error: updateError } = await supabase.from('properties').update({ status: nextStatus }).eq('id', propertyId);
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      await fetchProperties();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to update status.');
+    } finally {
+      setPropertyStatusBusyId(null);
+    }
+  };
+
+  const deleteProperty = async (propertyId: string) => {
+    if (!canManage) return;
+    if (!propertyId) return;
+    setPropertyStatusBusyId(propertyId);
+    try {
+      const { error: deleteError } = await supabase.from('properties').delete().eq('id', propertyId);
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+      await fetchProperties();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to delete property.');
+    } finally {
+      setPropertyStatusBusyId(null);
+    }
+  };
+
+  const homeServiceLabel = (key: string) => {
+    const k = String(key ?? '').trim().toLowerCase();
+    if (k === 'ac') return 'AC';
+    if (k === 'carpenter') return 'Carpenter';
+    if (k === 'electrician') return 'Electrician';
+    if (k === 'plumber') return 'Plumber';
+    if (k === 'pest') return 'Pest Control';
+    if (k === 'cleaning') return 'Deep Cleaning';
+    if (k === 'painting') return 'Painting';
+    return key;
+  };
+
+  const fetchHomeServiceRequests = async () => {
+    if (!canManage) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('home_service_requests')
+        .select(
+          'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at'
+        )
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setHomeServiceRequests(((data as any) ?? []) as HomeServiceRequestAdmin[]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch home service requests.');
+    }
+  };
+
+  const fetchHomeServiceUploads = async (requestId: string) => {
+    if (!requestId) return;
+    setHomeServiceUploadsBusyId(requestId);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('home_service_uploads')
+        .select('id,request_id,user_id,file_url,file_type,file_name,file_size,created_at,uploaded_at')
+        .eq('request_id', requestId)
+        .order('created_at', { ascending: false });
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setHomeServiceUploads((prev) => ({ ...prev, [requestId]: ((data as any) ?? []) as HomeServiceUploadAdmin[] }));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch home service uploads.');
+    } finally {
+      setHomeServiceUploadsBusyId(null);
+    }
+  };
+
+  const updateHomeServiceStatus = async (requestId: string, status: string) => {
+    if (!canManage) return;
+    if (!requestId) return;
+    setHomeServiceStatusBusyId(requestId);
+    try {
+      setError(null);
+      const { error: updateError } = await supabase
+        .from('home_service_requests')
+        .update({ status })
+        .eq('id', requestId);
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      await fetchHomeServiceRequests();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to update status.');
+    } finally {
+      setHomeServiceStatusBusyId(null);
+    }
+  };
 
   const isoDay = (d: Date) => {
     const yyyy = d.getFullYear();
@@ -2012,6 +2244,8 @@ export default function AdminScreen() {
     if (activeSection === 'coupons') fetchCoupons();
     if (activeSection === 'bookings') fetchBookings();
     if (activeSection === 'reports') fetchReportsBookings();
+    if (activeSection === 'home_services') fetchHomeServiceRequests();
+    if (activeSection === 'properties') fetchProperties();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, canManage]);
 
@@ -2079,6 +2313,8 @@ export default function AdminScreen() {
                 fetchVehicleTypes();
                 fetchFloorOptions();
                 fetchCoupons();
+                fetchHomeServiceRequests();
+                fetchProperties();
               }}>
               Refresh
             </Button>
@@ -2094,33 +2330,6 @@ export default function AdminScreen() {
           </YStack>
         ) : (
           <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingVertical: 2 } as any}>
-              {[
-                { label: 'User Management', value: 'users' },
-                { label: 'Vehicle Types', value: 'vehicles' },
-                { label: 'Floors', value: 'floors' },
-                { label: 'Coupons', value: 'coupons' },
-                { label: 'Bookings', value: 'bookings' },
-                { label: 'Reports', value: 'reports' },
-              ].map((tab) => (
-                <Button
-                  key={tab.value}
-                  size="$2"
-                  backgroundColor={activeSection === tab.value ? activeBtnBg : idleBtnBg}
-                  color={activeSection === tab.value ? activeBtnText : idleBtnText}
-                  borderRadius={999}
-                  onPress={() => setActiveSection(tab.value as typeof activeSection)}>
-                  {tab.label}
-                </Button>
-              ))}
-            </ScrollView>
-
-            {loading ? <Text color={muted}>Loading...</Text> : null}
-            {error ? <Text color="#FCA5A5">{error}</Text> : null}
-
             {activeSection === 'users' ? (
               <YStack gap="$3">
                 <YStack
@@ -2479,6 +2688,202 @@ export default function AdminScreen() {
                     </YStack>
                   );
                 })}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'properties' ? (
+              <YStack gap="$3">
+                <YStack
+                  backgroundColor={panelBgStrong}
+                  borderRadius={18}
+                  padding={16}
+                  gap="$2"
+                  borderWidth={1}
+                  borderColor={border}>
+                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                    Properties moderation
+                  </Text>
+                  <Text color={muted} fontSize={12}>
+                    View, publish/unpublish, or delete properties.
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$2"
+                      backgroundColor={activeBtnBg}
+                      color={activeBtnText}
+                      borderRadius={10}
+                      onPress={fetchProperties}
+                      disabled={loading}>
+                      Refresh
+                    </Button>
+                  </XStack>
+                </YStack>
+
+                {properties.map((p) => {
+                  const statusText = String(p.status ?? 'draft').replaceAll('_', ' ');
+                  const statusColor =
+                    p.status === 'published'
+                      ? '#10B981'
+                      : p.status === 'draft'
+                        ? '#F59E0B'
+                        : '#94A3B8';
+                  const location = `${p.locality ?? ''}${p.locality ? ', ' : ''}${p.city ?? ''}${p.city ? ', ' : ''}${p.state ?? ''}`;
+                  const busy = propertyStatusBusyId === p.id;
+                  const open = propertyUploadsOpenId === p.id;
+
+                  return (
+                    <YStack
+                      key={p.id}
+                      backgroundColor={panelBgStrong}
+                      borderRadius={18}
+                      padding={16}
+                      gap="$2"
+                      borderColor={border}
+                      borderWidth={1}>
+                      <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                        <YStack flex={1} gap={4}>
+                          <Text color={titleColor} fontWeight="800" fontSize={14} numberOfLines={1}>
+                            {p.title ?? 'Property'}
+                          </Text>
+                          <Text color={muted} fontSize={12} numberOfLines={1}>
+                            {location.trim() || '—'}
+                          </Text>
+                          <Text color={muted} fontSize={12}>
+                            Owner: {p.owner_user_id}
+                          </Text>
+                        </YStack>
+
+                        <YStack alignItems="flex-end" gap={6}>
+                          <Text color={statusColor} fontSize={12} fontWeight="700">
+                            Status: {statusText}
+                          </Text>
+                          <Text color={muted} fontSize={12}>
+                            {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
+                          </Text>
+                          <Button
+                            size="$2"
+                            backgroundColor={inputBg}
+                            color={inputText}
+                            borderRadius={10}
+                            disabled={propertyUploadsBusyId === p.id}
+                            onPress={async () => {
+                              const nextOpen = open ? null : p.id;
+                              setPropertyUploadsOpenId(nextOpen);
+                              if (nextOpen) await fetchPropertyUploads(p.id);
+                            }}>
+                            {open ? 'Hide media' : 'Media'}
+                          </Button>
+                        </YStack>
+                      </XStack>
+
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['draft', 'published'].map((s) => (
+                          <Button
+                            key={s}
+                            size="$2"
+                            backgroundColor={String(p.status ?? 'draft') === s ? activeBtnBg : idleBtnBg}
+                            color={String(p.status ?? 'draft') === s ? activeBtnText : idleBtnText}
+                            borderRadius={999}
+                            disabled={busy}
+                            onPress={() => updatePropertyStatus(p.id, s)}>
+                            {s}
+                          </Button>
+                        ))}
+
+                        <Button
+                          size="$2"
+                          backgroundColor={inputBg}
+                          color={inputText}
+                          borderRadius={999}
+                          disabled={busy}
+                          onPress={() =>
+                            router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any)
+                          }>
+                          Open
+                        </Button>
+
+                        <Button
+                          size="$2"
+                          backgroundColor="#EF4444"
+                          color="#0B0B12"
+                          borderRadius={999}
+                          disabled={busy}
+                          onPress={() => {
+                            Alert.alert('Delete property?', 'This will permanently delete the property and its uploads.', [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Delete', style: 'destructive', onPress: () => void deleteProperty(p.id) },
+                            ]);
+                          }}>
+                          Delete
+                        </Button>
+                      </XStack>
+
+                      {open ? (
+                        <YStack
+                          backgroundColor={panelBg}
+                          borderRadius={14}
+                          padding={12}
+                          gap="$2"
+                          borderWidth={1}
+                          borderColor={border}>
+                          <Text color={muted} fontSize={12}>
+                            Uploaded files
+                          </Text>
+                          {(propertyUploads[p.id] ?? []).length ? (
+                            (propertyUploads[p.id] ?? []).map((u) => {
+                              const url = String(u.file_url ?? '').trim();
+                              const label = u.file_name || (u.file_type?.includes('video') ? 'Video' : 'Photo');
+                              return (
+                                <Pressable
+                                  key={u.id}
+                                  onPress={() => {
+                                    if (!url) return;
+                                    Linking.openURL(url);
+                                  }}>
+                                  <XStack
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    paddingVertical={8}
+                                    paddingHorizontal={10}
+                                    borderRadius={10}
+                                    backgroundColor={panelBgStrong}
+                                    borderWidth={1}
+                                    borderColor={border}
+                                    gap="$2">
+                                    <YStack flex={1} gap="$1">
+                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                        {label}
+                                      </Text>
+                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                        {u.file_type || '—'}
+                                      </Text>
+                                    </YStack>
+                                    <Text color={muted} fontSize={11}>
+                                      Open
+                                    </Text>
+                                  </XStack>
+                                </Pressable>
+                              );
+                            })
+                          ) : (
+                            <Text color={muted} fontSize={12}>
+                              No uploads.
+                            </Text>
+                          )}
+                        </YStack>
+                      ) : null}
+                    </YStack>
+                  );
+                })}
+
+                {!properties.length ? (
+                  <YStack backgroundColor={panelBgStrong} borderRadius={18} padding={16} borderWidth={1} borderColor={border} gap="$1">
+                    <Text color={titleColor} fontWeight="800">No properties found</Text>
+                    <Text color={muted} fontSize={12}>
+                      Post a property as customer, then come back here to publish.
+                    </Text>
+                  </YStack>
+                ) : null}
               </YStack>
             ) : null}
 
@@ -3546,6 +3951,183 @@ export default function AdminScreen() {
                       void updateBookingStatus(bookingId, 'rescheduled', iso);
                     }}
                   />
+                ) : null}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'home_services' ? (
+              <YStack gap="$3">
+                <YStack
+                  backgroundColor={panelBgStrong}
+                  borderRadius={18}
+                  padding={16}
+                  gap="$2"
+                  borderWidth={1}
+                  borderColor={border}>
+                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                    Home Services requests
+                  </Text>
+                  <Text color={muted} fontSize={12}>
+                    View and manage home service requests.
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$2"
+                      backgroundColor={activeBtnBg}
+                      color={activeBtnText}
+                      borderRadius={10}
+                      onPress={fetchHomeServiceRequests}
+                      disabled={loading}>
+                      Refresh
+                    </Button>
+                  </XStack>
+                </YStack>
+
+                {homeServiceRequests.map((r) => {
+                  const statusText = String(r.status ?? 'pending').replaceAll('_', ' ');
+                  const statusColor =
+                    r.status === 'completed'
+                      ? '#10B981'
+                      : r.status === 'cancelled'
+                        ? '#EF4444'
+                        : r.status === 'assigned'
+                          ? '#3B82F6'
+                          : '#F59E0B';
+                  const open = homeServiceUploadsOpenId === r.id;
+                  const slot = `${r.preferred_date ?? '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
+
+                  return (
+                    <YStack
+                      key={r.id}
+                      backgroundColor={panelBgStrong}
+                      borderRadius={18}
+                      padding={16}
+                      gap="$2"
+                      borderColor={border}
+                      borderWidth={1}>
+                      <YStack gap="$1">
+                        <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                          <YStack flex={1} gap={4}>
+                            <Text color={titleColor} fontWeight="800" fontSize={14}>
+                              {homeServiceLabel(r.service_key)}
+                            </Text>
+                            <Text color={muted} fontSize={12}>
+                              Customer: {r.customer_name ?? '—'} • {r.customer_phone ?? '—'}
+                            </Text>
+                            <Text color={muted} fontSize={12}>
+                              {r.locality || r.city || r.state
+                                ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}`
+                                : 'Location not provided'}
+                            </Text>
+                            <Text color={muted} fontSize={12}>
+                              Slot: {slot}
+                            </Text>
+                          </YStack>
+
+                          <YStack alignItems="flex-end" gap={6}>
+                            <Text color={statusColor} fontSize={12} fontWeight="700">
+                              Status: {statusText}
+                            </Text>
+                            <Button
+                              size="$2"
+                              backgroundColor={inputBg}
+                              color={inputText}
+                              borderRadius={10}
+                              disabled={homeServiceUploadsBusyId === r.id}
+                              onPress={async () => {
+                                const nextOpen = open ? null : r.id;
+                                setHomeServiceUploadsOpenId(nextOpen);
+                                if (nextOpen) await fetchHomeServiceUploads(r.id);
+                              }}>
+                              {open ? 'Hide media' : 'Media'}
+                            </Button>
+                          </YStack>
+                        </XStack>
+
+                        {r.notes ? (
+                          <Text color={muted} fontSize={12}>
+                            Notes: {r.notes}
+                          </Text>
+                        ) : null}
+                      </YStack>
+
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['pending', 'assigned', 'completed', 'cancelled'].map((s) => (
+                          <Button
+                            key={s}
+                            size="$2"
+                            backgroundColor={String(r.status ?? 'pending') === s ? activeBtnBg : idleBtnBg}
+                            color={String(r.status ?? 'pending') === s ? activeBtnText : idleBtnText}
+                            borderRadius={999}
+                            disabled={homeServiceStatusBusyId === r.id}
+                            onPress={() => updateHomeServiceStatus(r.id, s)}>
+                            {s.replaceAll('_', ' ')}
+                          </Button>
+                        ))}
+                      </XStack>
+
+                      {open ? (
+                        <YStack
+                          backgroundColor={panelBg}
+                          borderRadius={14}
+                          padding={12}
+                          gap="$2"
+                          borderWidth={1}
+                          borderColor={border}>
+                          <Text color={muted} fontSize={12}>
+                            Uploaded files
+                          </Text>
+                          {(homeServiceUploads[r.id] ?? []).length ? (
+                            (homeServiceUploads[r.id] ?? []).map((u) => {
+                              const url = String(u.file_url ?? '').trim();
+                              const label = u.file_name || (u.file_type?.includes('video') ? 'Video' : 'Photo');
+                              return (
+                                <Pressable
+                                  key={u.id}
+                                  onPress={() => {
+                                    if (!url) return;
+                                    Linking.openURL(url);
+                                  }}>
+                                  <XStack
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    paddingVertical={8}
+                                    paddingHorizontal={10}
+                                    borderRadius={10}
+                                    backgroundColor={panelBgStrong}
+                                    borderWidth={1}
+                                    borderColor={border}
+                                    gap="$2">
+                                    <YStack flex={1} gap="$1">
+                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                        {label}
+                                      </Text>
+                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                        {u.file_type ?? 'file'}
+                                      </Text>
+                                    </YStack>
+                                    <Text color={muted} fontSize={11}>
+                                      Open
+                                    </Text>
+                                  </XStack>
+                                </Pressable>
+                              );
+                            })
+                          ) : (
+                            <Text color={muted} fontSize={12}>
+                              No uploads.
+                            </Text>
+                          )}
+                        </YStack>
+                      ) : null}
+                    </YStack>
+                  );
+                })}
+
+                {!homeServiceRequests.length ? (
+                  <Text color={muted} fontSize={12}>
+                    No home service requests.
+                  </Text>
                 ) : null}
               </YStack>
             ) : null}

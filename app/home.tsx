@@ -41,6 +41,7 @@ const roleRouteMap: Record<string, string> = {
   admin: '/(tabs)/admin',
   staff: '/(tabs)/admin',
   driver: '/(tabs)/driver',
+  provider: '/(tabs)/driver',
   customer: '/(tabs)/bookings',
 };
 
@@ -358,6 +359,12 @@ export default function HomeLandingScreen() {
   const appColorScheme = useAppColorScheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeService, setActiveService] = useState<'shifting' | 'home_services' | 'property'>('shifting');
+  const [topSearch, setTopSearch] = useState('');
+  const [propertyMode, setPropertyMode] = useState<'buy' | 'rent' | 'commercial'>('rent');
+  const [propertyState, setPropertyState] = useState<string>('Gujarat');
+  const [propertyCity, setPropertyCity] = useState<string>('Ahmedabad');
+  const [propertyStatePickerOpen, setPropertyStatePickerOpen] = useState(false);
+  const [propertyCityPickerOpen, setPropertyCityPickerOpen] = useState(false);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponIndex, setCouponIndex] = useState(0);
   const couponTimerRef = useRef<any>(null);
@@ -399,6 +406,100 @@ export default function HomeLandingScreen() {
     []
   );
 
+  type StateRow = { id: string; name: string };
+  type CityRow = { id: string; state_id: string; name: string };
+
+  const propertyFallbackCityByState = useMemo(() => {
+    return {
+      Gujarat: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot'],
+      Maharashtra: ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
+      Rajasthan: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota'],
+      'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior'],
+    } as Record<string, string[]>;
+  }, []);
+
+  const [propertyStates, setPropertyStates] = useState<StateRow[]>([]);
+  const [propertyCities, setPropertyCities] = useState<CityRow[]>([]);
+
+  const selectedPropertyStateId = useMemo(() => {
+    const s = propertyStates.find((x) => x.name.toLowerCase() === propertyState.trim().toLowerCase());
+    return s?.id ?? null;
+  }, [propertyState, propertyStates]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const { data, error } = await supabase.from('states').select('id,name').order('name');
+        if (!active) return;
+        if (error) throw new Error(error.message);
+        setPropertyStates(((data as any) ?? []) as StateRow[]);
+      } catch {
+        if (!active) return;
+        setPropertyStates([]);
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!selectedPropertyStateId) {
+        setPropertyCities([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('cities')
+          .select('id,state_id,name')
+          .eq('state_id', selectedPropertyStateId)
+          .order('name');
+        if (!active) return;
+        if (error) throw new Error(error.message);
+        setPropertyCities(((data as any) ?? []) as CityRow[]);
+      } catch {
+        if (!active) return;
+        setPropertyCities([]);
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [selectedPropertyStateId]);
+
+  const propertyStateOptions = useMemo(() => {
+    if (propertyStates.length) return propertyStates.map((s) => s.name);
+    return Object.keys(propertyFallbackCityByState);
+  }, [propertyFallbackCityByState, propertyStates]);
+
+  const propertyCityOptions = useMemo(() => {
+    if (propertyCities.length) return propertyCities.map((c) => c.name);
+    const list = propertyFallbackCityByState[propertyState] ?? [];
+    return list.length ? list : ['Select city'];
+  }, [propertyCities, propertyFallbackCityByState, propertyState]);
+
+  const homeServiceOptions = useMemo(
+    () =>
+      [
+        { key: 'ac', label: 'AC' },
+        { key: 'carpenter', label: 'Carpenter' },
+        { key: 'electrician', label: 'Electrician' },
+        { key: 'plumber', label: 'Plumber' },
+        { key: 'pest', label: 'Pest Control' },
+        { key: 'cleaning', label: 'Deep Cleaning' },
+        { key: 'painting', label: 'Painting' },
+      ] as const,
+    []
+  );
+
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
   const statsPaddingVertical = windowWidth < 480 ? 72 : windowWidth < 900 ? 96 : 124;
@@ -414,8 +515,8 @@ export default function HomeLandingScreen() {
 
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
-  const isDriver = roleKey === 'driver';
-  const isCustomer = !canManage && !isDriver;
+  const isProvider = roleKey === 'provider' || roleKey === 'driver';
+  const isCustomer = !canManage && !isProvider;
 
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -481,11 +582,11 @@ export default function HomeLandingScreen() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    if (!isDriver) return;
+    if (!isProvider) return;
     if (didRedirectRef.current) return;
     didRedirectRef.current = true;
     router.replace('/(tabs)/driver');
-  }, [isDriver, router, session?.user?.id]);
+  }, [isProvider, router, session?.user?.id]);
 
   const welcomeName =
     profile?.name?.trim() ||
@@ -647,6 +748,16 @@ export default function HomeLandingScreen() {
       return;
     }
 
+    if (activeService === 'home_services') {
+      router.push({ pathname: '/home-services/request' } as any);
+      return;
+    }
+
+    if (activeService === 'property') {
+      router.push({ pathname: '/properties' } as any);
+      return;
+    }
+
     Alert.alert('Coming soon', 'This service will be available soon.');
   };
 
@@ -708,6 +819,14 @@ export default function HomeLandingScreen() {
 
   const handleWhatsApp = () => {
     Linking.openURL('https://wa.me/919987963470');
+  };
+
+  const handleTopSearch = () => {
+    if (activeService === 'shifting') {
+      handlePrimaryServiceAction();
+      return;
+    }
+    Alert.alert('Coming soon', 'Search will be available soon.');
   };
 
   const handleOpenQuote = () => {
@@ -1274,7 +1393,7 @@ export default function HomeLandingScreen() {
                         fontSize={15}
                         fontWeight="800"
                         style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
-                        Login
+                        Sign In
                       </Text>
                     </YStack>
                   </Pressable>
@@ -1532,6 +1651,55 @@ export default function HomeLandingScreen() {
                     />
                   </XStack>
 
+                  <XStack
+                    marginTop={16}
+                    width={isSmallScreen ? '100%' : 720}
+                    maxWidth="100%"
+                    backgroundColor={theme.bgCard}
+                    borderRadius={18}
+                    padding={12}
+                    borderWidth={2}
+                    borderColor={theme.border}
+                    alignItems="center"
+                    gap="$2">
+                    <TextInput
+                      value={topSearch}
+                      onChangeText={setTopSearch}
+                      placeholder={
+                        activeService === 'property'
+                          ? 'Search locality / landmark'
+                          : activeService === 'home_services'
+                            ? 'Search service (AC, Electrician, …)'
+                            : 'Book shifting in 2 minutes'
+                      }
+                      placeholderTextColor="#9CA3AF"
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderRadius: 12,
+                        paddingHorizontal: 14,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        color: theme.text,
+                        fontFamily: 'Georgia',
+                        backgroundColor: theme.bgSecondary,
+                      }}
+                    />
+                    <Pressable onPress={handleTopSearch}>
+                      <YStack
+                        height={44}
+                        paddingHorizontal={18}
+                        borderRadius={12}
+                        backgroundColor="#EF4444"
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                          Search
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </XStack>
+
                   <YStack
                     marginTop={16}
                     width={isSmallScreen ? '100%' : 720}
@@ -1575,6 +1743,207 @@ export default function HomeLandingScreen() {
                       </Button>
                     </XStack>
 
+                    {activeService === 'property' ? (
+                      <YStack
+                        backgroundColor={theme.bgSecondary}
+                        borderRadius={16}
+                        padding={12}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        gap="$2">
+                        <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                          <Pressable
+                            onPress={() => setPropertyStatePickerOpen(true)}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack
+                              backgroundColor={theme.bgCard}
+                              borderRadius={14}
+                              padding={12}
+                              borderWidth={1}
+                              borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                State
+                              </Text>
+                              <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                {propertyState}
+                              </Text>
+                            </YStack>
+                          </Pressable>
+
+                          <Pressable
+                            onPress={() => setPropertyCityPickerOpen(true)}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack
+                              backgroundColor={theme.bgCard}
+                              borderRadius={14}
+                              padding={12}
+                              borderWidth={1}
+                              borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                City
+                              </Text>
+                              <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                {propertyCity}
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        </XStack>
+
+                        <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                          <Button
+                            flex={1}
+                            minWidth={isSmallScreen ? '30%' : 160}
+                            backgroundColor={propertyMode === 'buy' ? theme.primary : theme.bgCard}
+                            color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            onPress={() => setPropertyMode('buy')}>
+                            Buy
+                          </Button>
+                          <Button
+                            flex={1}
+                            minWidth={isSmallScreen ? '30%' : 160}
+                            backgroundColor={propertyMode === 'rent' ? theme.primary : theme.bgCard}
+                            color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            onPress={() => setPropertyMode('rent')}>
+                            Rent
+                          </Button>
+                          <Button
+                            flex={1}
+                            minWidth={isSmallScreen ? '30%' : 160}
+                            backgroundColor={propertyMode === 'commercial' ? theme.primary : theme.bgCard}
+                            color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            onPress={() => setPropertyMode('commercial')}>
+                            Commercial
+                          </Button>
+                        </XStack>
+                        <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                          {propertyMode === 'commercial' ? 'Commercial listings search' : propertyMode === 'buy' ? 'Buy property search' : 'Rent property search'}
+                        </Text>
+
+                        <Modal
+                          visible={propertyStatePickerOpen}
+                          transparent
+                          animationType="fade"
+                          onRequestClose={() => setPropertyStatePickerOpen(false)}>
+                          <Pressable style={styles.modalBackdrop} onPress={() => setPropertyStatePickerOpen(false)}>
+                            <Pressable
+                              onPress={() => {}}
+                              style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
+                              <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
+                                Select State
+                              </Text>
+                              <ScrollView showsVerticalScrollIndicator={false}>
+                                {propertyStateOptions.map((st) => (
+                                  <Pressable
+                                    key={st}
+                                    onPress={() => {
+                                      setPropertyState(String(st));
+                                      const cities = propertyFallbackCityByState[String(st)] ?? [];
+                                      if (cities.length) setPropertyCity(cities[0]);
+                                      setPropertyStatePickerOpen(false);
+                                    }}>
+                                    <XStack
+                                      alignItems="center"
+                                      justifyContent="space-between"
+                                      paddingVertical={12}
+                                      paddingHorizontal={12}
+                                      borderRadius={12}
+                                      backgroundColor={String(st) === propertyState ? theme.bgSecondary : 'transparent'}>
+                                      <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                        {st}
+                                      </Text>
+                                      <Text color={theme.textMuted} fontWeight="900">
+                                        {String(st) === propertyState ? '✓' : ''}
+                                      </Text>
+                                    </XStack>
+                                  </Pressable>
+                                ))}
+                              </ScrollView>
+                            </Pressable>
+                          </Pressable>
+                        </Modal>
+
+                        <Modal
+                          visible={propertyCityPickerOpen}
+                          transparent
+                          animationType="fade"
+                          onRequestClose={() => setPropertyCityPickerOpen(false)}>
+                          <Pressable style={styles.modalBackdrop} onPress={() => setPropertyCityPickerOpen(false)}>
+                            <Pressable
+                              onPress={() => {}}
+                              style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
+                              <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
+                                Select City
+                              </Text>
+                              <ScrollView showsVerticalScrollIndicator={false}>
+                                {propertyCityOptions.map((ct) => (
+                                  <Pressable
+                                    key={ct}
+                                    onPress={() => {
+                                      setPropertyCity(String(ct));
+                                      setPropertyCityPickerOpen(false);
+                                    }}>
+                                    <XStack
+                                      alignItems="center"
+                                      justifyContent="space-between"
+                                      paddingVertical={12}
+                                      paddingHorizontal={12}
+                                      borderRadius={12}
+                                      backgroundColor={String(ct) === propertyCity ? theme.bgSecondary : 'transparent'}>
+                                      <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                        {ct}
+                                      </Text>
+                                      <Text color={theme.textMuted} fontWeight="900">
+                                        {String(ct) === propertyCity ? '✓' : ''}
+                                      </Text>
+                                    </XStack>
+                                  </Pressable>
+                                ))}
+                              </ScrollView>
+                            </Pressable>
+                          </Pressable>
+                        </Modal>
+                      </YStack>
+                    ) : null}
+
+                    {activeService === 'home_services' ? (
+                      <XStack
+                        width="100%"
+                        flexWrap="wrap"
+                        gap="$2.5"
+                        justifyContent="space-between"
+                        marginTop={10}>
+                        {homeServiceOptions.map((s) => (
+                          <Pressable
+                            key={s.key}
+                            onPress={() => router.push({ pathname: '/home-services/request', params: { service: s.key } } as any)}
+                            style={{ flexBasis: isSmallScreen ? '48%' : '23%' } as any}>
+                            <YStack
+                              backgroundColor={theme.bgCard}
+                              borderRadius={16}
+                              padding={12}
+                              borderWidth={1}
+                              borderColor={theme.border}
+                              alignItems="center"
+                              justifyContent="center"
+                              gap="$1.5">
+                              <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                                {s.label}
+                              </Text>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                                Book now
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        ))}
+                      </XStack>
+                    ) : null}
+
                     <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
                       <YStack flex={1} minWidth={isSmallScreen ? '100%' : 420}>
                         <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
@@ -1599,6 +1968,81 @@ export default function HomeLandingScreen() {
                       </Button>
                     </XStack>
                   </YStack>
+
+                  <XStack
+                    width={isSmallScreen ? '100%' : 720}
+                    maxWidth="100%"
+                    marginTop={14}
+                    gap="$2.5"
+                    flexWrap="wrap"
+                    justifyContent="space-between">
+                    <Pressable onPress={() => setActiveService('shifting')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                      <YStack
+                        backgroundColor={theme.bgCard}
+                        borderRadius={18}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        overflow="hidden">
+                        <Image source={require('../assets/images/HOUSHOLD SHIFT.jpg')} style={{ width: '100%', height: 120 } as any} />
+                        <YStack padding={12} gap="$1.5">
+                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            Shifting
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                            Book household/office shifting
+                          </Text>
+                        </YStack>
+                      </YStack>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => {
+                        setActiveService('home_services');
+                        router.push({ pathname: '/home-services/request' } as any);
+                      }}
+                      style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                      <YStack
+                        backgroundColor={theme.bgCard}
+                        borderRadius={18}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        overflow="hidden">
+                        <Image source={require('../assets/images/truckpackers.jpg')} style={{ width: '100%', height: 120 } as any} />
+                        <YStack padding={12} gap="$1.5">
+                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            Home Services
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                            AC, Electrician, Plumber, …
+                          </Text>
+                        </YStack>
+                      </YStack>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => {
+                        setActiveService('property');
+                        router.push({ pathname: '/properties' } as any);
+                      }}
+                      style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                      <YStack
+                        backgroundColor={theme.bgCard}
+                        borderRadius={18}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        overflow="hidden">
+                        <Image source={require('../assets/images/packers-movers-bg.jpg')} style={{ width: '100%', height: 120 } as any} />
+                        <YStack padding={12} gap="$1.5">
+                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            Properties
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                            Buy / Rent / Commercial
+                          </Text>
+                        </YStack>
+                      </YStack>
+                    </Pressable>
+                  </XStack>
 
                   <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={12}>
                     {heroSlides.map((s, i) => (
