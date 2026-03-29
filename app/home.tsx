@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
-import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
@@ -1700,275 +1700,6 @@ export default function HomeLandingScreen() {
                     </Pressable>
                   </XStack>
 
-                  <YStack
-                    marginTop={16}
-                    width={isSmallScreen ? '100%' : 720}
-                    maxWidth="100%"
-                    backgroundColor={theme.bgCard}
-                    borderRadius={18}
-                    padding={14}
-                    borderWidth={2}
-                    borderColor={theme.border}
-                    gap="$2.5">
-                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
-                        color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        onPress={() => setActiveService('shifting')}>
-                        Shifting
-                      </Button>
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
-                        color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        onPress={() => setActiveService('home_services')}>
-                        Home Services
-                      </Button>
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
-                        color={activeService === 'property' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        onPress={() => setActiveService('property')}>
-                        Property
-                      </Button>
-                    </XStack>
-
-                    {activeService === 'property' ? (
-                      <YStack
-                        backgroundColor={theme.bgSecondary}
-                        borderRadius={16}
-                        padding={12}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        gap="$2">
-                        <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                          <Pressable
-                            onPress={() => setPropertyStatePickerOpen(true)}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                            <YStack
-                              backgroundColor={theme.bgCard}
-                              borderRadius={14}
-                              padding={12}
-                              borderWidth={1}
-                              borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                State
-                              </Text>
-                              <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                {propertyState}
-                              </Text>
-                            </YStack>
-                          </Pressable>
-
-                          <Pressable
-                            onPress={() => setPropertyCityPickerOpen(true)}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                            <YStack
-                              backgroundColor={theme.bgCard}
-                              borderRadius={14}
-                              padding={12}
-                              borderWidth={1}
-                              borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                City
-                              </Text>
-                              <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                {propertyCity}
-                              </Text>
-                            </YStack>
-                          </Pressable>
-                        </XStack>
-
-                        <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                          <Button
-                            flex={1}
-                            minWidth={isSmallScreen ? '30%' : 160}
-                            backgroundColor={propertyMode === 'buy' ? theme.primary : theme.bgCard}
-                            color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
-                            borderWidth={1}
-                            borderColor={theme.border}
-                            onPress={() => setPropertyMode('buy')}>
-                            Buy
-                          </Button>
-                          <Button
-                            flex={1}
-                            minWidth={isSmallScreen ? '30%' : 160}
-                            backgroundColor={propertyMode === 'rent' ? theme.primary : theme.bgCard}
-                            color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
-                            borderWidth={1}
-                            borderColor={theme.border}
-                            onPress={() => setPropertyMode('rent')}>
-                            Rent
-                          </Button>
-                          <Button
-                            flex={1}
-                            minWidth={isSmallScreen ? '30%' : 160}
-                            backgroundColor={propertyMode === 'commercial' ? theme.primary : theme.bgCard}
-                            color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
-                            borderWidth={1}
-                            borderColor={theme.border}
-                            onPress={() => setPropertyMode('commercial')}>
-                            Commercial
-                          </Button>
-                        </XStack>
-                        <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                          {propertyMode === 'commercial' ? 'Commercial listings search' : propertyMode === 'buy' ? 'Buy property search' : 'Rent property search'}
-                        </Text>
-
-                        <Modal
-                          visible={propertyStatePickerOpen}
-                          transparent
-                          animationType="fade"
-                          onRequestClose={() => setPropertyStatePickerOpen(false)}>
-                          <Pressable style={styles.modalBackdrop} onPress={() => setPropertyStatePickerOpen(false)}>
-                            <Pressable
-                              onPress={() => {}}
-                              style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
-                              <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
-                                Select State
-                              </Text>
-                              <ScrollView showsVerticalScrollIndicator={false}>
-                                {propertyStateOptions.map((st) => (
-                                  <Pressable
-                                    key={st}
-                                    onPress={() => {
-                                      setPropertyState(String(st));
-                                      const cities = propertyFallbackCityByState[String(st)] ?? [];
-                                      if (cities.length) setPropertyCity(cities[0]);
-                                      setPropertyStatePickerOpen(false);
-                                    }}>
-                                    <XStack
-                                      alignItems="center"
-                                      justifyContent="space-between"
-                                      paddingVertical={12}
-                                      paddingHorizontal={12}
-                                      borderRadius={12}
-                                      backgroundColor={String(st) === propertyState ? theme.bgSecondary : 'transparent'}>
-                                      <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                        {st}
-                                      </Text>
-                                      <Text color={theme.textMuted} fontWeight="900">
-                                        {String(st) === propertyState ? '✓' : ''}
-                                      </Text>
-                                    </XStack>
-                                  </Pressable>
-                                ))}
-                              </ScrollView>
-                            </Pressable>
-                          </Pressable>
-                        </Modal>
-
-                        <Modal
-                          visible={propertyCityPickerOpen}
-                          transparent
-                          animationType="fade"
-                          onRequestClose={() => setPropertyCityPickerOpen(false)}>
-                          <Pressable style={styles.modalBackdrop} onPress={() => setPropertyCityPickerOpen(false)}>
-                            <Pressable
-                              onPress={() => {}}
-                              style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
-                              <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
-                                Select City
-                              </Text>
-                              <ScrollView showsVerticalScrollIndicator={false}>
-                                {propertyCityOptions.map((ct) => (
-                                  <Pressable
-                                    key={ct}
-                                    onPress={() => {
-                                      setPropertyCity(String(ct));
-                                      setPropertyCityPickerOpen(false);
-                                    }}>
-                                    <XStack
-                                      alignItems="center"
-                                      justifyContent="space-between"
-                                      paddingVertical={12}
-                                      paddingHorizontal={12}
-                                      borderRadius={12}
-                                      backgroundColor={String(ct) === propertyCity ? theme.bgSecondary : 'transparent'}>
-                                      <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                        {ct}
-                                      </Text>
-                                      <Text color={theme.textMuted} fontWeight="900">
-                                        {String(ct) === propertyCity ? '✓' : ''}
-                                      </Text>
-                                    </XStack>
-                                  </Pressable>
-                                ))}
-                              </ScrollView>
-                            </Pressable>
-                          </Pressable>
-                        </Modal>
-                      </YStack>
-                    ) : null}
-
-                    {activeService === 'home_services' ? (
-                      <XStack
-                        width="100%"
-                        flexWrap="wrap"
-                        gap="$2.5"
-                        justifyContent="space-between"
-                        marginTop={10}>
-                        {homeServiceOptions.map((s) => (
-                          <Pressable
-                            key={s.key}
-                            onPress={() => router.push({ pathname: '/home-services/request', params: { service: s.key } } as any)}
-                            style={{ flexBasis: isSmallScreen ? '48%' : '23%' } as any}>
-                            <YStack
-                              backgroundColor={theme.bgCard}
-                              borderRadius={16}
-                              padding={12}
-                              borderWidth={1}
-                              borderColor={theme.border}
-                              alignItems="center"
-                              justifyContent="center"
-                              gap="$1.5">
-                              <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
-                                {s.label}
-                              </Text>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
-                                Book now
-                              </Text>
-                            </YStack>
-                          </Pressable>
-                        ))}
-                      </XStack>
-                    ) : null}
-
-                    <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
-                      <YStack flex={1} minWidth={isSmallScreen ? '100%' : 420}>
-                        <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                          {activeService === 'shifting'
-                            ? 'Book shifting service in 2 minutes'
-                            : activeService === 'home_services'
-                              ? 'Book a technician / home service'
-                              : 'Search or post a property'}
-                        </Text>
-                      </YStack>
-                      <Button
-                        backgroundColor="#F59E0B"
-                        color="#FFFFFF"
-                        fontWeight="900"
-                        borderRadius={14}
-                        onPress={handlePrimaryServiceAction}>
-                        {activeService === 'shifting'
-                          ? 'Book Shifting'
-                          : activeService === 'home_services'
-                            ? 'Explore'
-                            : 'Search'}
-                      </Button>
-                    </XStack>
-                  </YStack>
-
                   <XStack
                     width={isSmallScreen ? '100%' : 720}
                     maxWidth="100%"
@@ -2053,6 +1784,269 @@ export default function HomeLandingScreen() {
                   </XStack>
                 </YStack>
               </ImageBackground>
+
+              <YStack
+                marginTop={16}
+                width={isSmallScreen ? '100%' : 720}
+                maxWidth="100%"
+                backgroundColor={theme.bgCard}
+                borderRadius={18}
+                padding={14}
+                borderWidth={2}
+                borderColor={theme.border}
+                gap="$2.5">
+                <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                  <Button
+                    flex={1}
+                    minWidth={isSmallScreen ? '30%' : 160}
+                    backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
+                    color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    onPress={() => setActiveService('shifting')}>
+                    Shifting
+                  </Button>
+                  <Button
+                    flex={1}
+                    minWidth={isSmallScreen ? '30%' : 160}
+                    backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
+                    color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    onPress={() => setActiveService('home_services')}>
+                    Home Services
+                  </Button>
+                  <Button
+                    flex={1}
+                    minWidth={isSmallScreen ? '30%' : 160}
+                    backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
+                    color={activeService === 'property' ? '#FFFFFF' : theme.text}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    onPress={() => setActiveService('property')}>
+                    Property
+                  </Button>
+                </XStack>
+
+                {activeService === 'property' ? (
+                  <YStack
+                    backgroundColor={theme.bgSecondary}
+                    borderRadius={16}
+                    padding={12}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    gap="$2">
+                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                      <Pressable
+                        onPress={() => setPropertyStatePickerOpen(true)}
+                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                        <YStack
+                          backgroundColor={theme.bgCard}
+                          borderRadius={14}
+                          padding={12}
+                          borderWidth={1}
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                            State
+                          </Text>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            {propertyState}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => setPropertyCityPickerOpen(true)}
+                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                        <YStack
+                          backgroundColor={theme.bgCard}
+                          borderRadius={14}
+                          padding={12}
+                          borderWidth={1}
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                            City
+                          </Text>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            {propertyCity}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </XStack>
+
+                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={propertyMode === 'buy' ? theme.primary : theme.bgCard}
+                        color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setPropertyMode('buy')}>
+                        Buy
+                      </Button>
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={propertyMode === 'rent' ? theme.primary : theme.bgCard}
+                        color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setPropertyMode('rent')}>
+                        Rent
+                      </Button>
+                      <Button
+                        flex={1}
+                        minWidth={isSmallScreen ? '30%' : 160}
+                        backgroundColor={propertyMode === 'commercial' ? theme.primary : theme.bgCard}
+                        color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
+                        borderWidth={1}
+                        borderColor={theme.border}
+                        onPress={() => setPropertyMode('commercial')}>
+                        Commercial
+                      </Button>
+                    </XStack>
+                    <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                      {propertyMode === 'commercial' ? 'Commercial listings search' : propertyMode === 'buy' ? 'Buy property search' : 'Rent property search'}
+                    </Text>
+
+                    <Modal
+                      visible={propertyStatePickerOpen}
+                      transparent
+                      animationType="fade"
+                      onRequestClose={() => setPropertyStatePickerOpen(false)}>
+                      <Pressable style={styles.modalBackdrop} onPress={() => setPropertyStatePickerOpen(false)}>
+                        <Pressable
+                          onPress={() => {}}
+                          style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
+                          <Text
+                            color={theme.text}
+                            fontSize={18}
+                            fontWeight="900"
+                            style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
+                            Select State
+                          </Text>
+                          <ScrollView showsVerticalScrollIndicator={false}>
+                            {propertyStateOptions.map((st) => (
+                              <Pressable
+                                key={st}
+                                onPress={() => {
+                                  setPropertyState(String(st));
+                                  const cities = propertyFallbackCityByState[String(st)] ?? [];
+                                  if (cities.length) setPropertyCity(cities[0]);
+                                  setPropertyStatePickerOpen(false);
+                                }}>
+                                <XStack
+                                  alignItems="center"
+                                  justifyContent="space-between"
+                                  paddingVertical={12}
+                                  paddingHorizontal={12}
+                                  borderRadius={12}
+                                  backgroundColor={String(st) === propertyState ? theme.bgSecondary : 'transparent'}>
+                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                    {st}
+                                  </Text>
+                                  <Text color={theme.textMuted} fontWeight="900">
+                                    {String(st) === propertyState ? '✓' : ''}
+                                  </Text>
+                                </XStack>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </Pressable>
+                      </Pressable>
+                    </Modal>
+
+                    <Modal
+                      visible={propertyCityPickerOpen}
+                      transparent
+                      animationType="fade"
+                      onRequestClose={() => setPropertyCityPickerOpen(false)}>
+                      <Pressable style={styles.modalBackdrop} onPress={() => setPropertyCityPickerOpen(false)}>
+                        <Pressable
+                          onPress={() => {}}
+                          style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
+                          <Text
+                            color={theme.text}
+                            fontSize={18}
+                            fontWeight="900"
+                            style={{ fontFamily: 'Georgia', marginBottom: 10 } as any}>
+                            Select City
+                          </Text>
+                          <ScrollView showsVerticalScrollIndicator={false}>
+                            {propertyCityOptions.map((ct) => (
+                              <Pressable
+                                key={ct}
+                                onPress={() => {
+                                  setPropertyCity(String(ct));
+                                  setPropertyCityPickerOpen(false);
+                                }}>
+                                <XStack
+                                  alignItems="center"
+                                  justifyContent="space-between"
+                                  paddingVertical={12}
+                                  paddingHorizontal={12}
+                                  borderRadius={12}
+                                  backgroundColor={String(ct) === propertyCity ? theme.bgSecondary : 'transparent'}>
+                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                    {ct}
+                                  </Text>
+                                  <Text color={theme.textMuted} fontWeight="900">
+                                    {String(ct) === propertyCity ? '✓' : ''}
+                                  </Text>
+                                </XStack>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </Pressable>
+                      </Pressable>
+                    </Modal>
+                  </YStack>
+                ) : null}
+
+                {activeService === 'home_services' ? (
+                  <XStack width="100%" flexWrap="wrap" gap="$2.5" justifyContent="space-between" marginTop={10}>
+                    {homeServiceOptions.map((s) => (
+                      <Pressable
+                        key={s.key}
+                        onPress={() => router.push({ pathname: '/home-services/request', params: { service: s.key } } as any)}
+                        style={{ flexBasis: isSmallScreen ? '48%' : '23%' } as any}>
+                        <YStack
+                          backgroundColor={theme.bgCard}
+                          borderRadius={16}
+                          padding={12}
+                          borderWidth={1}
+                          borderColor={theme.border}
+                          alignItems="center"
+                          justifyContent="center"
+                          gap="$1.5">
+                          <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                            {s.label}
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={11} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                            Book now
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    ))}
+                  </XStack>
+                ) : null}
+
+                <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
+                  <YStack flex={1} minWidth={isSmallScreen ? '100%' : 420}>
+                    <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                      {activeService === 'shifting'
+                        ? 'Book shifting service in 2 minutes'
+                        : activeService === 'home_services'
+                          ? 'Book a technician / home service'
+                          : 'Search or post a property'}
+                    </Text>
+                  </YStack>
+                  <Button backgroundColor="#F59E0B" color="#FFFFFF" fontWeight="900" borderRadius={14} onPress={handlePrimaryServiceAction}>
+                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
+                  </Button>
+                </XStack>
+              </YStack>
             </YStack>
           </XStack>
 

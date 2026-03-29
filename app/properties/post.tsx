@@ -29,6 +29,7 @@ type UploadItem = {
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
+type LocalityRow = { id: string; city_id: string; name: string };
 
 type WizardStep = 'basic' | 'location' | 'pricing' | 'uploads' | 'review';
 
@@ -87,10 +88,16 @@ export default function PostPropertyScreen() {
 
   const [states, setStates] = useState<StateRow[]>([]);
   const [cities, setCities] = useState<CityRow[]>([]);
+  const [localities, setLocalities] = useState<LocalityRow[]>([]);
   const selectedStateId = useMemo(() => {
     const s = states.find((x) => x.name.toLowerCase() === stateValue.trim().toLowerCase());
     return s?.id ?? null;
   }, [stateValue, states]);
+
+  const selectedCityId = useMemo(() => {
+    const c = cities.find((x) => x.name.toLowerCase() === cityValue.trim().toLowerCase());
+    return c?.id ?? null;
+  }, [cities, cityValue]);
 
   React.useEffect(() => {
     let active = true;
@@ -117,9 +124,9 @@ export default function PostPropertyScreen() {
     const load = async () => {
       if (!selectedStateId) {
         setCities([]);
+        setLocalities([]);
         return;
       }
-
       try {
         const { data, error: fetchError } = await supabase
           .from('cities')
@@ -132,14 +139,41 @@ export default function PostPropertyScreen() {
       } catch {
         if (!active) return;
         setCities([]);
+        setLocalities([]);
       }
     };
-
     void load();
     return () => {
       active = false;
     };
   }, [selectedStateId]);
+
+  React.useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!selectedCityId) {
+        setLocalities([]);
+        return;
+      }
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('localities')
+          .select('id,city_id,name')
+          .eq('city_id', selectedCityId)
+          .order('name');
+        if (!active) return;
+        if (fetchError) throw new Error(fetchError.message);
+        setLocalities(((data as any) ?? []) as LocalityRow[]);
+      } catch {
+        if (!active) return;
+        setLocalities([]);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [selectedCityId]);
 
   const stateOptions = useMemo(() => {
     if (states.length) return states.map((s) => s.name);
@@ -150,6 +184,11 @@ export default function PostPropertyScreen() {
     if (cities.length) return cities.map((c) => c.name);
     return fallbackCityByState[stateValue] ?? [];
   }, [cities, fallbackCityByState, stateValue]);
+
+  const localityOptions = useMemo(() => {
+    if (localities.length) return localities.map((l) => l.name);
+    return [] as string[];
+  }, [localities]);
 
   const next = () => {
     if (step === 'basic') {
@@ -488,6 +527,20 @@ export default function PostPropertyScreen() {
               <Input value={stateValue} onChangeText={setStateValue} placeholder="State" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
               <Input value={cityValue} onChangeText={setCityValue} placeholder="City" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
               <Input value={localityValue} onChangeText={setLocalityValue} placeholder="Locality" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
+              {localityOptions.length ? (
+                <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                  <Text color={muted} fontSize={11}>
+                    Locality suggestions:
+                  </Text>
+                  {localityOptions.slice(0, 6).map((l) => (
+                    <Pressable key={l} onPress={() => setLocalityValue(l)}>
+                      <Text color="#2563EB" fontSize={11} fontWeight="900">
+                        {l}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </XStack>
+              ) : null}
               <Input value={address1} onChangeText={setAddress1} placeholder="Address line 1" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
               <Input value={address2} onChangeText={setAddress2} placeholder="Address line 2" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
               <Input value={pincode} onChangeText={setPincode} placeholder="Pincode" keyboardType="number-pad" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />

@@ -44,6 +44,7 @@ type UploadItem = {
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
+type LocalityRow = { id: string; city_id: string; name: string };
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -99,11 +100,17 @@ export default function HomeServiceRequestScreen() {
 
   const [states, setStates] = useState<StateRow[]>([]);
   const [cities, setCities] = useState<CityRow[]>([]);
+  const [localities, setLocalities] = useState<LocalityRow[]>([]);
 
   const selectedStateId = useMemo(() => {
     const s = states.find((x) => x.name.toLowerCase() === state.trim().toLowerCase());
     return s?.id ?? null;
   }, [state, states]);
+
+  const selectedCityId = useMemo(() => {
+    const c = cities.find((x) => x.name.toLowerCase() === city.trim().toLowerCase());
+    return c?.id ?? null;
+  }, [cities, city]);
 
   React.useEffect(() => {
     let active = true;
@@ -130,6 +137,7 @@ export default function HomeServiceRequestScreen() {
     const load = async () => {
       if (!selectedStateId) {
         setCities([]);
+        setLocalities([]);
         return;
       }
 
@@ -145,6 +153,7 @@ export default function HomeServiceRequestScreen() {
       } catch {
         if (!active) return;
         setCities([]);
+        setLocalities([]);
       }
     };
 
@@ -153,6 +162,35 @@ export default function HomeServiceRequestScreen() {
       active = false;
     };
   }, [selectedStateId]);
+
+  React.useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!selectedCityId) {
+        setLocalities([]);
+        return;
+      }
+
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('localities')
+          .select('id,city_id,name')
+          .eq('city_id', selectedCityId)
+          .order('name');
+        if (!active) return;
+        if (fetchError) throw new Error(fetchError.message);
+        setLocalities(((data as any) ?? []) as LocalityRow[]);
+      } catch {
+        if (!active) return;
+        setLocalities([]);
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [selectedCityId]);
 
   const stateOptions = useMemo(() => {
     if (states.length) return states.map((s) => s.name);
@@ -163,6 +201,11 @@ export default function HomeServiceRequestScreen() {
     if (cities.length) return cities.map((c) => c.name);
     return fallbackCityByState[state] ?? [];
   }, [cities, fallbackCityByState, state]);
+
+  const localityOptions = useMemo(() => {
+    if (localities.length) return localities.map((l) => l.name);
+    return [] as string[];
+  }, [localities]);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
@@ -561,6 +604,21 @@ export default function HomeServiceRequestScreen() {
                 </Text>
                 <Input value={locality} onChangeText={setLocality} placeholder="Area / locality" />
               </YStack>
+
+              {localityOptions.length ? (
+                <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                  <Text fontSize={11} fontWeight="700" color="#64748B">
+                    Locality suggestions:
+                  </Text>
+                  {localityOptions.slice(0, 6).map((l) => (
+                    <Pressable key={l} onPress={() => setLocality(l)}>
+                      <Text fontSize={11} fontWeight="900" color="#2563EB">
+                        {l}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </XStack>
+              ) : null}
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
