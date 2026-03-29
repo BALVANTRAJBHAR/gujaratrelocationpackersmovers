@@ -361,6 +361,9 @@ export default function HomeLandingScreen() {
   const [activeService, setActiveService] = useState<'shifting' | 'home_services' | 'property'>('shifting');
   const [topSearch, setTopSearch] = useState('');
   const [propertyMode, setPropertyMode] = useState<'buy' | 'rent' | 'commercial'>('rent');
+  const [propertyBuyType, setPropertyBuyType] = useState<'full_house' | 'land_plot'>('full_house');
+  const [propertyRentType, setPropertyRentType] = useState<'full_house' | 'pg_hostel' | 'flatmates'>('full_house');
+  const [propertyCommercialTxn, setPropertyCommercialTxn] = useState<'rent' | 'buy'>('rent');
   const [propertyState, setPropertyState] = useState<string>('Gujarat');
   const [propertyCity, setPropertyCity] = useState<string>('Ahmedabad');
   const [propertyStatePickerOpen, setPropertyStatePickerOpen] = useState(false);
@@ -516,6 +519,7 @@ export default function HomeLandingScreen() {
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
   const isProvider = roleKey === 'provider' || roleKey === 'driver';
+  const isDriver = roleKey === 'driver';
   const isCustomer = !canManage && !isProvider;
 
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1651,130 +1655,6 @@ export default function HomeLandingScreen() {
                     />
                   </XStack>
 
-                  <XStack
-                    marginTop={16}
-                    width={isSmallScreen ? '100%' : 720}
-                    maxWidth="100%"
-                    backgroundColor={theme.bgCard}
-                    borderRadius={18}
-                    padding={12}
-                    borderWidth={2}
-                    borderColor={theme.border}
-                    alignItems="center"
-                    gap="$2">
-                    <TextInput
-                      value={topSearch}
-                      onChangeText={setTopSearch}
-                      placeholder={
-                        activeService === 'property'
-                          ? 'Search locality / landmark'
-                          : activeService === 'home_services'
-                            ? 'Search service (AC, Electrician, …)'
-                            : 'Book shifting in 2 minutes'
-                      }
-                      placeholderTextColor="#9CA3AF"
-                      style={{
-                        flex: 1,
-                        height: 44,
-                        borderRadius: 12,
-                        paddingHorizontal: 14,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        color: theme.text,
-                        fontFamily: 'Georgia',
-                        backgroundColor: theme.bgSecondary,
-                      }}
-                    />
-                    <Pressable onPress={handleTopSearch}>
-                      <YStack
-                        height={44}
-                        paddingHorizontal={18}
-                        borderRadius={12}
-                        backgroundColor="#EF4444"
-                        alignItems="center"
-                        justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          Search
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                  </XStack>
-
-                  <XStack
-                    width={isSmallScreen ? '100%' : 720}
-                    maxWidth="100%"
-                    marginTop={14}
-                    gap="$2.5"
-                    flexWrap="wrap"
-                    justifyContent="space-between">
-                    <Pressable onPress={() => setActiveService('shifting')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                      <YStack
-                        backgroundColor={theme.bgCard}
-                        borderRadius={18}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        overflow="hidden">
-                        <Image source={require('../assets/images/HOUSHOLD SHIFT.jpg')} style={{ width: '100%', height: 120 } as any} />
-                        <YStack padding={12} gap="$1.5">
-                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                            Shifting
-                          </Text>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                            Book household/office shifting
-                          </Text>
-                        </YStack>
-                      </YStack>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => {
-                        setActiveService('home_services');
-                        router.push({ pathname: '/home-services/request' } as any);
-                      }}
-                      style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                      <YStack
-                        backgroundColor={theme.bgCard}
-                        borderRadius={18}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        overflow="hidden">
-                        <Image source={require('../assets/images/truckpackers.jpg')} style={{ width: '100%', height: 120 } as any} />
-                        <YStack padding={12} gap="$1.5">
-                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                            Home Services
-                          </Text>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                            AC, Electrician, Plumber, …
-                          </Text>
-                        </YStack>
-                      </YStack>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => {
-                        setActiveService('property');
-                        router.push({ pathname: '/properties' } as any);
-                      }}
-                      style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                      <YStack
-                        backgroundColor={theme.bgCard}
-                        borderRadius={18}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        overflow="hidden">
-                        <Image source={require('../assets/images/packers-movers-bg.jpg')} style={{ width: '100%', height: 120 } as any} />
-                        <YStack padding={12} gap="$1.5">
-                          <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                            Properties
-                          </Text>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                            Buy / Rent / Commercial
-                          </Text>
-                        </YStack>
-                      </YStack>
-                    </Pressable>
-                  </XStack>
-
                   <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={12}>
                     {heroSlides.map((s, i) => (
                       <Pressable key={s.key} onPress={() => setHeroIndex(i)}>
@@ -1827,6 +1707,49 @@ export default function HomeLandingScreen() {
                     Property
                   </Button>
                 </XStack>
+
+                {activeService !== 'shifting' ? (
+                  <XStack
+                    width="100%"
+                    backgroundColor={theme.bgSecondary}
+                    borderRadius={16}
+                    padding={12}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    alignItems="center"
+                    gap="$2">
+                    <TextInput
+                      value={topSearch}
+                      onChangeText={setTopSearch}
+                      placeholder={activeService === 'property' ? 'Search upto 3 localities or landmarks' : 'Search service (AC, Electrician, …)'}
+                      placeholderTextColor="#9CA3AF"
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderRadius: 12,
+                        paddingHorizontal: 14,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        color: theme.text,
+                        fontFamily: 'Georgia',
+                        backgroundColor: theme.bgCard,
+                      }}
+                    />
+                    <Pressable onPress={handleTopSearch}>
+                      <YStack
+                        height={44}
+                        paddingHorizontal={18}
+                        borderRadius={12}
+                        backgroundColor="#EF4444"
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                          Search
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </XStack>
+                ) : null}
 
                 {activeService === 'property' ? (
                   <YStack
@@ -1906,9 +1829,192 @@ export default function HomeLandingScreen() {
                         Commercial
                       </Button>
                     </XStack>
-                    <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                      {propertyMode === 'commercial' ? 'Commercial listings search' : propertyMode === 'buy' ? 'Buy property search' : 'Rent property search'}
-                    </Text>
+
+                    {propertyMode === 'buy' ? (
+                      <YStack gap="$2">
+                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                          <Pressable onPress={() => setPropertyBuyType('full_house')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyBuyType === 'full_house' && styles.radioOuterActive]}>
+                                {propertyBuyType === 'full_house' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Full House
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                          <Pressable onPress={() => setPropertyBuyType('land_plot')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyBuyType === 'land_plot' && styles.radioOuterActive]}>
+                                {propertyBuyType === 'land_plot' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Land/Plot
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        </XStack>
+
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'BHK Type filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                BHK Type
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'Property Status filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Property Status
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'New Builder Projects filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                New Builder Projects
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        </XStack>
+                      </YStack>
+                    ) : null}
+
+                    {propertyMode === 'rent' ? (
+                      <YStack gap="$2">
+                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                          <Pressable onPress={() => setPropertyRentType('full_house')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyRentType === 'full_house' && styles.radioOuterActive]}>
+                                {propertyRentType === 'full_house' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Full House
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                          <Pressable onPress={() => setPropertyRentType('pg_hostel')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyRentType === 'pg_hostel' && styles.radioOuterActive]}>
+                                {propertyRentType === 'pg_hostel' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                PG/Hostel
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                          <Pressable onPress={() => setPropertyRentType('flatmates')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyRentType === 'flatmates' && styles.radioOuterActive]}>
+                                {propertyRentType === 'flatmates' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Flatmates
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        </XStack>
+
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'Tenant Type filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Tenant Type
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'Room Type filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Room Type
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        </XStack>
+                      </YStack>
+                    ) : null}
+
+                    {propertyMode === 'commercial' ? (
+                      <YStack gap="$2">
+                        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                          <Pressable onPress={() => setPropertyCommercialTxn('rent')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyCommercialTxn === 'rent' && styles.radioOuterActive]}>
+                                {propertyCommercialTxn === 'rent' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Rent
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                          <Pressable onPress={() => setPropertyCommercialTxn('buy')}>
+                            <XStack gap="$2" alignItems="center">
+                              <View style={[styles.radioOuter, propertyCommercialTxn === 'buy' && styles.radioOuterActive]}>
+                                {propertyCommercialTxn === 'buy' ? <View style={styles.radioInner} /> : null}
+                              </View>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Buy
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        </XStack>
+
+                        <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'Property Type filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Property Type
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => Alert.alert('Coming soon', 'Availability filter will be available soon.')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                Availability
+                              </Text>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                Select
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        </XStack>
+                      </YStack>
+                    ) : null}
 
                     <Modal
                       visible={propertyStatePickerOpen}
@@ -3537,6 +3643,25 @@ const styles = StyleSheet.create({
   heroDotActive: {
     width: 26,
     backgroundColor: '#FBBF24',
+  },
+  radioOuter: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  radioOuterActive: {
+    borderColor: '#2563EB',
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
   },
   modalBackdrop: {
     flex: 1,
