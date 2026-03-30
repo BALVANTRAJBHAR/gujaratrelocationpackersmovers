@@ -528,7 +528,14 @@ export default function HomeServiceRequestScreen() {
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Name
                 </Text>
-                <Input value={customerName} onChangeText={setCustomerName} placeholder="Your name" />
+                <Input
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  placeholder="Your name"
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                />
               </YStack>
 
               <YStack gap="$2">
@@ -540,6 +547,9 @@ export default function HomeServiceRequestScreen() {
                   onChangeText={(v) => setCustomerPhone(v)}
                   placeholder={Platform.OS === 'web' ? '+91XXXXXXXXXX' : 'Phone number'}
                   keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
                 />
               </YStack>
 
@@ -547,14 +557,28 @@ export default function HomeServiceRequestScreen() {
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Address line 1
                 </Text>
-                <Input value={addressLine1} onChangeText={setAddressLine1} placeholder="House no / society" />
+                <Input
+                  value={addressLine1}
+                  onChangeText={setAddressLine1}
+                  placeholder="House no / society"
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                />
               </YStack>
 
               <YStack gap="$2">
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Address line 2
                 </Text>
-                <Input value={addressLine2} onChangeText={setAddressLine2} placeholder="Street / landmark" />
+                <Input
+                  value={addressLine2}
+                  onChangeText={setAddressLine2}
+                  placeholder="Street / landmark"
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                />
               </YStack>
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
@@ -562,13 +586,27 @@ export default function HomeServiceRequestScreen() {
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     State
                   </Text>
-                  <Input value={state} onChangeText={setState} placeholder="State" />
+                  <Input
+                    value={state}
+                    onChangeText={setState}
+                    placeholder="State"
+                    backgroundColor="#FFFFFF"
+                    borderColor="#E5E7EB"
+                    color="#111827"
+                  />
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     City
                   </Text>
-                  <Input value={city} onChangeText={setCity} placeholder="City" />
+                  <Input
+                    value={city}
+                    onChangeText={setCity}
+                    placeholder="City"
+                    backgroundColor="#FFFFFF"
+                    borderColor="#E5E7EB"
+                    color="#111827"
+                  />
                 </YStack>
               </XStack>
 
@@ -602,7 +640,14 @@ export default function HomeServiceRequestScreen() {
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Locality
                 </Text>
-                <Input value={locality} onChangeText={setLocality} placeholder="Area / locality" />
+                <Input
+                  value={locality}
+                  onChangeText={setLocality}
+                  placeholder="Area / locality"
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                />
               </YStack>
 
               {localityOptions.length ? (
@@ -625,13 +670,27 @@ export default function HomeServiceRequestScreen() {
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred date
                   </Text>
-                  <Input value={preferredDate} onChangeText={setPreferredDate} placeholder="YYYY-MM-DD" />
+                  <Input
+                    value={preferredDate}
+                    onChangeText={setPreferredDate}
+                    placeholder="YYYY-MM-DD"
+                    backgroundColor="#FFFFFF"
+                    borderColor="#E5E7EB"
+                    color="#111827"
+                  />
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred time
                   </Text>
-                  <Input value={preferredTime} onChangeText={setPreferredTime} placeholder="e.g. 10:00 AM" />
+                  <Input
+                    value={preferredTime}
+                    onChangeText={setPreferredTime}
+                    placeholder="e.g. 10:00 AM"
+                    backgroundColor="#FFFFFF"
+                    borderColor="#E5E7EB"
+                    color="#111827"
+                  />
                 </YStack>
               </XStack>
 

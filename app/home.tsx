@@ -364,6 +364,28 @@ export default function HomeLandingScreen() {
   const [propertyBuyType, setPropertyBuyType] = useState<'full_house' | 'land_plot'>('full_house');
   const [propertyRentType, setPropertyRentType] = useState<'full_house' | 'pg_hostel' | 'flatmates'>('full_house');
   const [propertyCommercialTxn, setPropertyCommercialTxn] = useState<'rent' | 'buy'>('rent');
+  const [buyBhkSelected, setBuyBhkSelected] = useState<string[]>([]);
+  const [buyPropertyStatus, setBuyPropertyStatus] = useState<'under_construction' | 'ready' | ''>('');
+  const [buyNewBuilderProjects, setBuyNewBuilderProjects] = useState(false);
+  const [rentFullHouseBhkSelected, setRentFullHouseBhkSelected] = useState<string[]>([]);
+  const [rentPgTenantType, setRentPgTenantType] = useState<'male' | 'female' | 'anyone' | ''>('');
+  const [rentPgRoomType, setRentPgRoomType] = useState<'single_room' | 'double_sharing' | 'triple_sharing' | 'four_sharing' | ''>('');
+  const [rentFlatmatesTenantTypes, setRentFlatmatesTenantTypes] = useState<Array<'male' | 'female'>>([]);
+  const [rentFlatmatesRoomType, setRentFlatmatesRoomType] = useState<'single_room' | 'shared_room' | ''>('');
+  const [commercialPropertyTypes, setCommercialPropertyTypes] = useState<string[]>([]);
+  const [commercialAvailability, setCommercialAvailability] = useState<'immediate' | 'within_15_days' | 'within_30_days' | 'after_30_days' | ''>('');
+  const [pickerOpen, setPickerOpen] = useState<
+    | null
+    | 'buy_bhk'
+    | 'buy_status'
+    | 'rent_fullhouse_bhk'
+    | 'rent_pg_tenant'
+    | 'rent_pg_room'
+    | 'rent_flatmates_tenant'
+    | 'rent_flatmates_room'
+    | 'commercial_property_type'
+    | 'commercial_availability'
+  >(null);
   const [propertyState, setPropertyState] = useState<string>('Gujarat');
   const [propertyCity, setPropertyCity] = useState<string>('Ahmedabad');
   const [propertyStatePickerOpen, setPropertyStatePickerOpen] = useState(false);
@@ -832,6 +854,155 @@ export default function HomeLandingScreen() {
     }
     Alert.alert('Coming soon', 'Search will be available soon.');
   };
+
+  const buyBhkOptions = React.useMemo(() => ['1 RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK'] as const, []);
+  const rentBhkOptions = React.useMemo(() => ['1 RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'] as const, []);
+  const commercialPropertyTypeOptions = React.useMemo(
+    () =>
+      [
+        'Office Space',
+        'Co-Working',
+        'Shop',
+        'Showroom',
+        'Industrial Building',
+        'Industrial Shed',
+        'Godown/Warehouse',
+        'Other Business',
+        'Restaurant',
+        'Cafe',
+      ] as const,
+    []
+  );
+
+  const formatSelection = (values: string[], emptyLabel = 'Select') => {
+    if (!values.length) return emptyLabel;
+    if (values.length <= 2) return values.join(', ');
+    return `${values.slice(0, 2).join(', ')} +${values.length - 2}`;
+  };
+
+  const toggleMultiValue = (current: string[], value: string) => {
+    if (current.includes(value)) return current.filter((x) => x !== value);
+    return [...current, value];
+  };
+
+  const pickerConfig = React.useMemo(() => {
+    if (!pickerOpen) return null;
+    switch (pickerOpen) {
+      case 'buy_bhk':
+        return {
+          title: 'Select BHK Type',
+          mode: 'multi' as const,
+          options: [...buyBhkOptions],
+          selected: buyBhkSelected,
+          onToggle: (v: string) => setBuyBhkSelected((cur) => toggleMultiValue(cur, v)),
+        };
+      case 'buy_status':
+        return {
+          title: 'Select Property Status',
+          mode: 'single' as const,
+          options: [
+            { label: 'Under Construction', value: 'under_construction' },
+            { label: 'Ready', value: 'ready' },
+          ],
+          selected: buyPropertyStatus,
+          onSelect: (v: 'under_construction' | 'ready') => setBuyPropertyStatus(v),
+        };
+      case 'rent_fullhouse_bhk':
+        return {
+          title: 'Select BHK Type',
+          mode: 'multi' as const,
+          options: [...rentBhkOptions],
+          selected: rentFullHouseBhkSelected,
+          onToggle: (v: string) => setRentFullHouseBhkSelected((cur) => toggleMultiValue(cur, v)),
+        };
+      case 'rent_pg_tenant':
+        return {
+          title: 'Select Tenant Type',
+          mode: 'single' as const,
+          options: [
+            { label: 'Male', value: 'male' },
+            { label: 'Female', value: 'female' },
+            { label: 'Anyone', value: 'anyone' },
+          ],
+          selected: rentPgTenantType,
+          onSelect: (v: 'male' | 'female' | 'anyone') => setRentPgTenantType(v),
+        };
+      case 'rent_pg_room':
+        return {
+          title: 'Select Room Type',
+          mode: 'single' as const,
+          options: [
+            { label: 'Single Room', value: 'single_room' },
+            { label: 'Double Sharing', value: 'double_sharing' },
+            { label: 'Triple Sharing', value: 'triple_sharing' },
+            { label: 'Four Sharing', value: 'four_sharing' },
+          ],
+          selected: rentPgRoomType,
+          onSelect: (v: 'single_room' | 'double_sharing' | 'triple_sharing' | 'four_sharing') => setRentPgRoomType(v),
+        };
+      case 'rent_flatmates_tenant':
+        return {
+          title: 'Select Tenant Type',
+          mode: 'multi' as const,
+          options: ['Male', 'Female'],
+          selected: rentFlatmatesTenantTypes.map((x) => (x === 'male' ? 'Male' : 'Female')),
+          onToggle: (label: string) =>
+            setRentFlatmatesTenantTypes((cur) => {
+              const value = label === 'Male' ? 'male' : 'female';
+              if (cur.includes(value)) return cur.filter((x) => x !== value);
+              return [...cur, value];
+            }),
+        };
+      case 'rent_flatmates_room':
+        return {
+          title: 'Select Room Type',
+          mode: 'single' as const,
+          options: [
+            { label: 'Single Room', value: 'single_room' },
+            { label: 'Shared Room', value: 'shared_room' },
+          ],
+          selected: rentFlatmatesRoomType,
+          onSelect: (v: 'single_room' | 'shared_room') => setRentFlatmatesRoomType(v),
+        };
+      case 'commercial_property_type':
+        return {
+          title: 'Select Property Type',
+          mode: 'multi' as const,
+          options: [...commercialPropertyTypeOptions],
+          selected: commercialPropertyTypes,
+          onToggle: (v: string) => setCommercialPropertyTypes((cur) => toggleMultiValue(cur, v)),
+        };
+      case 'commercial_availability':
+        return {
+          title: 'Select Availability',
+          mode: 'single' as const,
+          options: [
+            { label: 'Immediate', value: 'immediate' },
+            { label: 'Within 15 Days', value: 'within_15_days' },
+            { label: 'Within 30 Days', value: 'within_30_days' },
+            { label: 'After 30 Days', value: 'after_30_days' },
+          ],
+          selected: commercialAvailability,
+          onSelect: (v: 'immediate' | 'within_15_days' | 'within_30_days' | 'after_30_days') => setCommercialAvailability(v),
+        };
+      default:
+        return null;
+    }
+  }, [
+    pickerOpen,
+    buyBhkOptions,
+    rentBhkOptions,
+    commercialPropertyTypeOptions,
+    buyBhkSelected,
+    buyPropertyStatus,
+    rentFullHouseBhkSelected,
+    rentPgTenantType,
+    rentPgRoomType,
+    rentFlatmatesTenantTypes,
+    rentFlatmatesRoomType,
+    commercialPropertyTypes,
+    commercialAvailability,
+  ]);
 
   const handleOpenQuote = () => {
     setQuoteName('');
@@ -1683,6 +1854,9 @@ export default function HomeLandingScreen() {
                     color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={theme.border}
+                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                     onPress={() => setActiveService('shifting')}>
                     Shifting
                   </Button>
@@ -1693,6 +1867,9 @@ export default function HomeLandingScreen() {
                     color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={theme.border}
+                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                     onPress={() => setActiveService('home_services')}>
                     Home Services
                   </Button>
@@ -1703,53 +1880,13 @@ export default function HomeLandingScreen() {
                     color={activeService === 'property' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={theme.border}
+                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                     onPress={() => setActiveService('property')}>
                     Property
                   </Button>
                 </XStack>
-
-                {activeService !== 'shifting' ? (
-                  <XStack
-                    width="100%"
-                    backgroundColor={theme.bgSecondary}
-                    borderRadius={16}
-                    padding={12}
-                    borderWidth={1}
-                    borderColor={theme.border}
-                    alignItems="center"
-                    gap="$2">
-                    <TextInput
-                      value={topSearch}
-                      onChangeText={setTopSearch}
-                      placeholder={activeService === 'property' ? 'Search upto 3 localities or landmarks' : 'Search service (AC, Electrician, …)'}
-                      placeholderTextColor="#9CA3AF"
-                      style={{
-                        flex: 1,
-                        height: 44,
-                        borderRadius: 12,
-                        paddingHorizontal: 14,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        color: theme.text,
-                        fontFamily: 'Georgia',
-                        backgroundColor: theme.bgCard,
-                      }}
-                    />
-                    <Pressable onPress={handleTopSearch}>
-                      <YStack
-                        height={44}
-                        paddingHorizontal={18}
-                        borderRadius={12}
-                        backgroundColor="#EF4444"
-                        alignItems="center"
-                        justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                          Search
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                  </XStack>
-                ) : null}
 
                 {activeService === 'property' ? (
                   <YStack
@@ -1760,44 +1897,6 @@ export default function HomeLandingScreen() {
                     borderColor={theme.border}
                     gap="$2">
                     <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                      <Pressable
-                        onPress={() => setPropertyStatePickerOpen(true)}
-                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                        <YStack
-                          backgroundColor={theme.bgCard}
-                          borderRadius={14}
-                          padding={12}
-                          borderWidth={1}
-                          borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                            State
-                          </Text>
-                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                            {propertyState}
-                          </Text>
-                        </YStack>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => setPropertyCityPickerOpen(true)}
-                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                        <YStack
-                          backgroundColor={theme.bgCard}
-                          borderRadius={14}
-                          padding={12}
-                          borderWidth={1}
-                          borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                            City
-                          </Text>
-                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                            {propertyCity}
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                    </XStack>
-
-                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
                       <Button
                         flex={1}
                         minWidth={isSmallScreen ? '30%' : 160}
@@ -1805,6 +1904,9 @@ export default function HomeLandingScreen() {
                         color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
                         borderWidth={1}
                         borderColor={theme.border}
+                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                         onPress={() => setPropertyMode('buy')}>
                         Buy
                       </Button>
@@ -1815,6 +1917,9 @@ export default function HomeLandingScreen() {
                         color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
                         borderWidth={1}
                         borderColor={theme.border}
+                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                         onPress={() => setPropertyMode('rent')}>
                         Rent
                       </Button>
@@ -1825,6 +1930,9 @@ export default function HomeLandingScreen() {
                         color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
                         borderWidth={1}
                         borderColor={theme.border}
+                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                         onPress={() => setPropertyMode('commercial')}>
                         Commercial
                       </Button>
@@ -1855,46 +1963,67 @@ export default function HomeLandingScreen() {
                           </Pressable>
                         </XStack>
 
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'BHK Type filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                BHK Type
-                              </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
-                              </Text>
-                            </YStack>
-                          </Pressable>
+                        {propertyBuyType === 'full_house' ? (
+                          <YStack gap="$2">
+                            <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                              <Pressable onPress={() => setPickerOpen('buy_bhk')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                                <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                    BHK Type
+                                  </Text>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                    {formatSelection(buyBhkSelected)}
+                                  </Text>
+                                </YStack>
+                              </Pressable>
 
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'Property Status filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Property Status
-                              </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
-                              </Text>
-                            </YStack>
-                          </Pressable>
+                              <Pressable onPress={() => setPickerOpen('buy_status')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                                <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                    Property Status
+                                  </Text>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                    {buyPropertyStatus === 'under_construction' ? 'Under Construction' : buyPropertyStatus === 'ready' ? 'Ready' : 'Select'}
+                                  </Text>
+                                </YStack>
+                              </Pressable>
 
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'New Builder Projects filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
-                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                New Builder Projects
-                              </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
-                              </Text>
-                            </YStack>
-                          </Pressable>
-                        </XStack>
+                              <Pressable
+                                onPress={() => setBuyNewBuilderProjects((v) => !v)}
+                                style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
+                                <YStack
+                                  backgroundColor={theme.bgCard}
+                                  borderRadius={12}
+                                  padding={12}
+                                  borderWidth={1}
+                                  borderColor={theme.border}
+                                  gap={8}>
+                                  <XStack alignItems="center" justifyContent="space-between" gap="$2">
+                                    <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                      New Builder Projects
+                                    </Text>
+                                    <View
+                                      style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 4,
+                                        borderWidth: 1.5,
+                                        borderColor: buyNewBuilderProjects ? '#10B981' : theme.border,
+                                        backgroundColor: buyNewBuilderProjects ? '#10B981' : 'transparent',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}>
+                                      {buyNewBuilderProjects ? <Text color="#FFFFFF" fontSize={12} fontWeight="900">✓</Text> : null}
+                                    </View>
+                                  </XStack>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                    {buyNewBuilderProjects ? 'Yes' : 'No'}
+                                  </Text>
+                                </YStack>
+                              </Pressable>
+                            </XStack>
+                          </YStack>
+                        ) : null}
                       </YStack>
                     ) : null}
 
@@ -1933,32 +2062,76 @@ export default function HomeLandingScreen() {
                           </Pressable>
                         </XStack>
 
-                        <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'Tenant Type filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                        {propertyRentType === 'full_house' ? (
+                          <Pressable onPress={() => setPickerOpen('rent_fullhouse_bhk')}>
                             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
                               <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Tenant Type
+                                BHK Type
                               </Text>
                               <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
+                                {formatSelection(rentFullHouseBhkSelected)}
                               </Text>
                             </YStack>
                           </Pressable>
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'Room Type filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Room Type
-                              </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
-                              </Text>
-                            </YStack>
-                          </Pressable>
-                        </XStack>
+                        ) : null}
+
+                        {propertyRentType === 'pg_hostel' ? (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                            <Pressable onPress={() => setPickerOpen('rent_pg_tenant')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                              <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                  Tenant Type
+                                </Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                  {rentPgTenantType ? rentPgTenantType[0].toUpperCase() + rentPgTenantType.slice(1) : 'Select'}
+                                </Text>
+                              </YStack>
+                            </Pressable>
+                            <Pressable onPress={() => setPickerOpen('rent_pg_room')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                              <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                  Room Type
+                                </Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                  {rentPgRoomType === 'single_room'
+                                    ? 'Single Room'
+                                    : rentPgRoomType === 'double_sharing'
+                                      ? 'Double Sharing'
+                                      : rentPgRoomType === 'triple_sharing'
+                                        ? 'Triple Sharing'
+                                        : rentPgRoomType === 'four_sharing'
+                                          ? 'Four Sharing'
+                                          : 'Select'}
+                                </Text>
+                              </YStack>
+                            </Pressable>
+                          </XStack>
+                        ) : null}
+
+                        {propertyRentType === 'flatmates' ? (
+                          <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                            <Pressable onPress={() => setPickerOpen('rent_flatmates_tenant')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                              <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                  Tenant Type
+                                </Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                  {rentFlatmatesTenantTypes.length ? rentFlatmatesTenantTypes.map((t) => t[0].toUpperCase() + t.slice(1)).join(', ') : 'Select'}
+                                </Text>
+                              </YStack>
+                            </Pressable>
+                            <Pressable onPress={() => setPickerOpen('rent_flatmates_room')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                              <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                  Room Type
+                                </Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                  {rentFlatmatesRoomType === 'single_room' ? 'Single Room' : rentFlatmatesRoomType === 'shared_room' ? 'Shared Room' : 'Select'}
+                                </Text>
+                              </YStack>
+                            </Pressable>
+                          </XStack>
+                        ) : null}
                       </YStack>
                     ) : null}
 
@@ -1989,32 +2162,120 @@ export default function HomeLandingScreen() {
 
                         <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                           <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'Property Type filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                            onPress={() => setPickerOpen('commercial_property_type')}
+                            style={{ flexBasis: isSmallScreen ? '100%' : propertyCommercialTxn === 'buy' ? '49%' : '100%' } as any}>
                             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
                               <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
                                 Property Type
                               </Text>
                               <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
+                                {formatSelection(commercialPropertyTypes)}
                               </Text>
                             </YStack>
                           </Pressable>
-                          <Pressable
-                            onPress={() => Alert.alert('Coming soon', 'Availability filter will be available soon.')}
-                            style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
-                            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Availability
-                              </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
-                                Select
-                              </Text>
-                            </YStack>
-                          </Pressable>
+
+                          {propertyCommercialTxn === 'buy' ? (
+                            <Pressable onPress={() => setPickerOpen('commercial_availability')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                              <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                  Availability
+                                </Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                                  {commercialAvailability === 'immediate'
+                                    ? 'Immediate'
+                                    : commercialAvailability === 'within_15_days'
+                                      ? 'Within 15 Days'
+                                      : commercialAvailability === 'within_30_days'
+                                        ? 'Within 30 Days'
+                                        : commercialAvailability === 'after_30_days'
+                                          ? 'After 30 Days'
+                                          : 'Select'}
+                                </Text>
+                              </YStack>
+                            </Pressable>
+                          ) : null}
                         </XStack>
                       </YStack>
                     ) : null}
+
+                    <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                      <Pressable
+                        onPress={() => setPropertyStatePickerOpen(true)}
+                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                        <YStack
+                          backgroundColor={theme.bgCard}
+                          borderRadius={14}
+                          padding={12}
+                          borderWidth={1}
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                            State
+                          </Text>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            {propertyState}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => setPropertyCityPickerOpen(true)}
+                        style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
+                        <YStack
+                          backgroundColor={theme.bgCard}
+                          borderRadius={14}
+                          padding={12}
+                          borderWidth={1}
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                            City
+                          </Text>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                            {propertyCity}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </XStack>
+
+                    <XStack
+                      width="100%"
+                      backgroundColor={theme.bgCard}
+                      borderRadius={16}
+                      padding={12}
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      alignItems="center"
+                      gap="$2">
+                      <TextInput
+                        value={topSearch}
+                        onChangeText={setTopSearch}
+                        placeholder="Search upto 3 localities or landmarks"
+                        placeholderTextColor="#9CA3AF"
+                        style={{
+                          flex: 1,
+                          height: 44,
+                          borderRadius: 12,
+                          paddingHorizontal: 14,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                          color: theme.text,
+                          fontFamily: 'Georgia',
+                          backgroundColor: theme.bgSecondary,
+                        }}
+                      />
+                      <Button
+                        height={44}
+                        paddingHorizontal={18}
+                        borderRadius={12}
+                        backgroundColor="#EF4444"
+                        color="#FFFFFF"
+                        fontWeight="900"
+                        hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                        pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
+                        focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                        onPress={handleTopSearch}>
+                        Search
+                      </Button>
+                    </XStack>
 
                     <Modal
                       visible={propertyStatePickerOpen}
@@ -2107,6 +2368,104 @@ export default function HomeLandingScreen() {
                         </Pressable>
                       </Pressable>
                     </Modal>
+
+                    <Modal visible={!!pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(null)}>
+                      <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(null)}>
+                        <Pressable
+                          onPress={() => {}}
+                          style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 420 }]}>
+                          <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+                            <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
+                              {pickerConfig?.title ?? 'Select'}
+                            </Text>
+                            <Pressable onPress={() => setPickerOpen(null)}>
+                              <Text color={theme.textMuted} fontSize={24} fontWeight="900">
+                                ×
+                              </Text>
+                            </Pressable>
+                          </XStack>
+
+                          <ScrollView showsVerticalScrollIndicator={false}>
+                            {pickerConfig?.mode === 'multi'
+                              ? pickerConfig.options.map((opt: string) => {
+                                  const checked = (pickerConfig.selected as string[]).includes(opt);
+                                  return (
+                                    <Pressable key={opt} onPress={() => pickerConfig.onToggle(opt)}>
+                                      <XStack
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        paddingVertical={12}
+                                        paddingHorizontal={12}
+                                        borderRadius={12}
+                                        backgroundColor={checked ? theme.bgSecondary : 'transparent'}>
+                                        <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                          {opt}
+                                        </Text>
+                                        <View
+                                          style={{
+                                            width: 18,
+                                            height: 18,
+                                            borderRadius: 4,
+                                            borderWidth: 1.5,
+                                            borderColor: checked ? '#10B981' : theme.border,
+                                            backgroundColor: checked ? '#10B981' : 'transparent',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                          }}>
+                                          {checked ? <Text color="#FFFFFF" fontSize={12} fontWeight="900">✓</Text> : null}
+                                        </View>
+                                      </XStack>
+                                    </Pressable>
+                                  );
+                                })
+                              : pickerConfig?.mode === 'single'
+                                ? pickerConfig.options.map((opt: { label: string; value: any }) => {
+                                    const checked = opt.value === pickerConfig.selected;
+                                    return (
+                                      <Pressable
+                                        key={String(opt.value)}
+                                        onPress={() => {
+                                          pickerConfig.onSelect(opt.value);
+                                          setPickerOpen(null);
+                                        }}>
+                                        <XStack
+                                          alignItems="center"
+                                          justifyContent="space-between"
+                                          paddingVertical={12}
+                                          paddingHorizontal={12}
+                                          borderRadius={12}
+                                          backgroundColor={checked ? theme.bgSecondary : 'transparent'}>
+                                          <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                                            {opt.label}
+                                          </Text>
+                                          <Text color={theme.textMuted} fontWeight="900">
+                                            {checked ? '✓' : ''}
+                                          </Text>
+                                        </XStack>
+                                      </Pressable>
+                                    );
+                                  })
+                                : null}
+                          </ScrollView>
+
+                          {pickerConfig?.mode === 'multi' ? (
+                            <XStack gap="$2" justifyContent="flex-end" marginTop={12}>
+                              <Button
+                                backgroundColor="#F59E0B"
+                                color="#FFFFFF"
+                                fontWeight="900"
+                                borderRadius={12}
+                                hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                                pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
+                                focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                                onPress={() => setPickerOpen(null)}>
+                                Done
+                              </Button>
+                            </XStack>
+                          ) : null}
+                        </Pressable>
+                      </Pressable>
+                    </Modal>
                   </YStack>
                 ) : null}
 
@@ -2148,7 +2507,15 @@ export default function HomeLandingScreen() {
                           : 'Search or post a property'}
                     </Text>
                   </YStack>
-                  <Button backgroundColor="#F59E0B" color="#FFFFFF" fontWeight="900" borderRadius={14} onPress={handlePrimaryServiceAction}>
+                  <Button
+                    backgroundColor="#F59E0B"
+                    color="#FFFFFF"
+                    fontWeight="900"
+                    borderRadius={14}
+                    hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                    pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
+                    focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                    onPress={handlePrimaryServiceAction}>
                     {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
                   </Button>
                 </XStack>
