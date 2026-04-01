@@ -1,7 +1,9 @@
+import * as Location from 'expo-location';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
+import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
@@ -48,6 +50,8 @@ export default function PropertiesIndexScreen() {
   const [stateValue, setStateValue] = useState('Gujarat');
   const [cityValue, setCityValue] = useState('Ahmedabad');
   const [localityValue, setLocalityValue] = useState('');
+  const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [localityLoading, setLocalityLoading] = useState(false);
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -123,6 +127,50 @@ export default function PropertiesIndexScreen() {
     if (cities.length) return cities.map((c) => c.name);
     return fallbackCityByState[stateValue] ?? [];
   }, [cities, fallbackCityByState, stateValue]);
+
+  useEffect(() => {
+    let active = true;
+    const q = localityValue.trim();
+    if (!q || q.length < 2) {
+      setLocalitySuggestions([]);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      void (async () => {
+        try {
+          setLocalityLoading(true);
+          const results = await searchPlaces(`${q}, ${cityValue || ''} ${stateValue || ''}`.trim());
+          if (!active) return;
+          const filtered = results
+            .filter((x) => {
+              const name = String((x as any)?.place_name ?? '').toLowerCase();
+              if (stateValue && !name.includes(stateValue.trim().toLowerCase())) return false;
+              if (cityValue && !name.includes(cityValue.trim().toLowerCase())) return false;
+              return true;
+            })
+            .map((x) => {
+              const place = String((x as any)?.place_name ?? '').trim();
+              const label = place.split(',')[0]?.trim() || place;
+              return { id: String((x as any)?.id ?? place), label, full: place };
+            })
+            .slice(0, 6);
+          setLocalitySuggestions(filtered);
+        } catch {
+          if (!active) return;
+          setLocalitySuggestions([]);
+        } finally {
+          if (!active) return;
+          setLocalityLoading(false);
+        }
+      })();
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [localityValue, stateValue, cityValue]);
 
   const uploadsRef = useRef<Record<string, PropertyUploadRow[]>>({});
 
@@ -251,6 +299,65 @@ export default function PropertiesIndexScreen() {
               borderColor={border}
               color={titleColor}
             />
+
+            <Pressable
+              onPress={() =>
+                void (async () => {
+                  try {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status !== 'granted') {
+                      setError('Location permission denied.');
+                      return;
+                    }
+                    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
+                    const parts = String(place)
+                      .split(',')
+                      .map((x) => x.trim())
+                      .filter(Boolean);
+                    if (!parts.length) return;
+                    const nextState = parts.length >= 2 ? parts[parts.length - 2] : '';
+                    const nextCity = parts.length >= 3 ? parts[parts.length - 3] : '';
+                    const nextLocality = parts.length >= 4 ? parts[parts.length - 4] : '';
+                    if (nextState) setStateValue(nextState);
+                    if (nextCity) setCityValue(nextCity);
+                    if (nextLocality) setLocalityValue(nextLocality);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Failed to detect current location.');
+                  }
+                })()
+              }
+              style={{ alignSelf: 'flex-start' } as any}>
+              <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
+                Use Current Location
+              </Text>
+            </Pressable>
+
+            {localitySuggestions.length ? (
+              <YStack gap="$2">
+                {localitySuggestions.map((s) => (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => {
+                      setLocalityValue(s.label);
+                      setLocalitySuggestions([]);
+                    }}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={10} backgroundColor="#F8FAFC">
+                      <Text color={titleColor} fontWeight="900" numberOfLines={1}>
+                        {s.label}
+                      </Text>
+                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                        {s.full}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                ))}
+              </YStack>
+            ) : localityLoading ? (
+              <Text color={muted} fontSize={11}>
+                Searching...
+              </Text>
+            ) : null}
 
             <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
               <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => void search()} disabled={loading}>

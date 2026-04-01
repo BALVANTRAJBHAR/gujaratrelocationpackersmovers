@@ -13,6 +13,16 @@ type TrackingMapProps = {
 export default function TrackingMap({ token, latitude, longitude, hasLiveLocation }: TrackingMapProps) {
   const googleMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
+  const initialRegion = useMemo(
+    () => ({
+      latitude,
+      longitude,
+      latitudeDelta: hasLiveLocation ? 0.02 : 0.05,
+      longitudeDelta: hasLiveLocation ? 0.02 : 0.05,
+    }),
+    [hasLiveLocation, latitude, longitude]
+  );
+
   if (!token) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center">
@@ -30,16 +40,6 @@ export default function TrackingMap({ token, latitude, longitude, hasLiveLocatio
       </YStack>
     );
   }
-
-  const initialRegion = useMemo(
-    () => ({
-      latitude,
-      longitude,
-      latitudeDelta: hasLiveLocation ? 0.02 : 0.05,
-      longitudeDelta: hasLiveLocation ? 0.02 : 0.05,
-    }),
-    [hasLiveLocation, latitude, longitude]
-  );
 
   return (
     <MapView

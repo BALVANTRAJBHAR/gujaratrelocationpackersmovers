@@ -1,27 +1,29 @@
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    ImageBackground,
-    Linking,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  ImageBackground,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
@@ -390,6 +392,8 @@ export default function HomeLandingScreen() {
   const [propertyCity, setPropertyCity] = useState<string>('Ahmedabad');
   const [propertyStatePickerOpen, setPropertyStatePickerOpen] = useState(false);
   const [propertyCityPickerOpen, setPropertyCityPickerOpen] = useState(false);
+  const [propertyLocalitySuggestions, setPropertyLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [propertyLocalityLoading, setPropertyLocalityLoading] = useState(false);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponIndex, setCouponIndex] = useState(0);
   const couponTimerRef = useRef<any>(null);
@@ -854,6 +858,54 @@ export default function HomeLandingScreen() {
     }
     Alert.alert('Coming soon', 'Search will be available soon.');
   };
+
+  React.useEffect(() => {
+    let active = true;
+    if (activeService !== 'property') {
+      setPropertyLocalitySuggestions([]);
+      return;
+    }
+    const q = topSearch.trim();
+    if (!q || q.length < 2) {
+      setPropertyLocalitySuggestions([]);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      void (async () => {
+        try {
+          setPropertyLocalityLoading(true);
+          const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim());
+          if (!active) return;
+          const filtered = results
+            .filter((x) => {
+              const name = String((x as any)?.place_name ?? '').toLowerCase();
+              if (propertyState && !name.includes(propertyState.trim().toLowerCase())) return false;
+              if (propertyCity && !name.includes(propertyCity.trim().toLowerCase())) return false;
+              return true;
+            })
+            .map((x) => {
+              const place = String((x as any)?.place_name ?? '').trim();
+              const label = place.split(',')[0]?.trim() || place;
+              return { id: String((x as any)?.id ?? place), label, full: place };
+            })
+            .slice(0, 6);
+          setPropertyLocalitySuggestions(filtered);
+        } catch {
+          if (!active) return;
+          setPropertyLocalitySuggestions([]);
+        } finally {
+          if (!active) return;
+          setPropertyLocalityLoading(false);
+        }
+      })();
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [topSearch, propertyState, propertyCity, activeService]);
 
   const buyBhkOptions = React.useMemo(() => ['1 RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK'] as const, []);
   const rentBhkOptions = React.useMemo(() => ['1 RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'] as const, []);
@@ -2277,6 +2329,61 @@ export default function HomeLandingScreen() {
                       </Button>
                     </XStack>
 
+                    <Pressable
+                      onPress={() =>
+                        void (async () => {
+                          try {
+                            const { status } = await Location.requestForegroundPermissionsAsync();
+                            if (status !== 'granted') return;
+                            const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                            const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
+                            const parts = String(place)
+                              .split(',')
+                              .map((x) => x.trim())
+                              .filter(Boolean);
+                            if (!parts.length) return;
+                            const nextState = parts.length >= 2 ? parts[parts.length - 2] : '';
+                            const nextCity = parts.length >= 3 ? parts[parts.length - 3] : '';
+                            const nextLocality = parts.length >= 4 ? parts[parts.length - 4] : '';
+                            if (nextState) setPropertyState(nextState);
+                            if (nextCity) setPropertyCity(nextCity);
+                            if (nextLocality) setTopSearch(nextLocality);
+                          } catch {
+                          }
+                        })()
+                      }
+                      style={{ alignSelf: 'flex-start' } as any}>
+                      <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
+                        Use Current Location
+                      </Text>
+                    </Pressable>
+
+                    {propertyLocalitySuggestions.length ? (
+                      <YStack gap="$2">
+                        {propertyLocalitySuggestions.map((s) => (
+                          <Pressable
+                            key={s.id}
+                            onPress={() => {
+                              setTopSearch(s.label);
+                              setPropertyLocalitySuggestions([]);
+                            }}>
+                            <YStack borderWidth={1} borderColor={theme.border} borderRadius={12} padding={10} backgroundColor={theme.bgSecondary}>
+                              <Text color={theme.text} fontWeight="900" numberOfLines={1} style={{ fontFamily: 'Georgia' }}>
+                                {s.label}
+                              </Text>
+                              <Text color={theme.textMuted} fontSize={11} numberOfLines={1} style={{ fontFamily: 'Georgia' }}>
+                                {s.full}
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        ))}
+                      </YStack>
+                    ) : propertyLocalityLoading && topSearch.trim().length >= 2 ? (
+                      <Text color={theme.textMuted} fontSize={11} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                        Searching...
+                      </Text>
+                    ) : null}
+
                     <Modal
                       visible={propertyStatePickerOpen}
                       transparent
@@ -2387,7 +2494,7 @@ export default function HomeLandingScreen() {
 
                           <ScrollView showsVerticalScrollIndicator={false}>
                             {pickerConfig?.mode === 'multi'
-                              ? pickerConfig.options.map((opt: string) => {
+                              ? (pickerConfig as any).options.map((opt: string) => {
                                   const checked = (pickerConfig.selected as string[]).includes(opt);
                                   return (
                                     <Pressable key={opt} onPress={() => pickerConfig.onToggle(opt)}>
@@ -2419,13 +2526,13 @@ export default function HomeLandingScreen() {
                                   );
                                 })
                               : pickerConfig?.mode === 'single'
-                                ? pickerConfig.options.map((opt: { label: string; value: any }) => {
+                                ? (pickerConfig as any).options.map((opt: { label: string; value: any }) => {
                                     const checked = opt.value === pickerConfig.selected;
                                     return (
                                       <Pressable
                                         key={String(opt.value)}
                                         onPress={() => {
-                                          pickerConfig.onSelect(opt.value);
+                                          (pickerConfig as any).onSelect(opt.value as any);
                                           setPickerOpen(null);
                                         }}>
                                         <XStack
@@ -2814,7 +2921,7 @@ export default function HomeLandingScreen() {
                 textAlign="center"
                 fontSize={isSmallScreen ? 26 : 34}
                 style={{ fontFamily: 'Georgia' }}>
-                We're Quick, Friendly & Professional
+                We&apos;re Quick, Friendly & Professional
               </H2>
               <Text
                 color={theme.textMuted}
@@ -3423,7 +3530,7 @@ export default function HomeLandingScreen() {
                     lineHeight={24}
                     fontWeight="700"
                     style={{ fontFamily: 'Georgia' }}>
-                    With over 10 years of excellence, we've redefined relocation with precision tracking and
+                    With over 10 years of excellence, we&apos;ve redefined relocation with precision tracking and
                     white-glove service.
                   </Text>
                 </YStack>
@@ -3456,7 +3563,7 @@ export default function HomeLandingScreen() {
                     textAlign="center"
                     fontWeight="700"
                     style={{ fontFamily: 'Georgia' }}>
-                    With over 10 years of excellence, we've redefined relocation with precision tracking and
+                    With over 10 years of excellence, we&apos;ve redefined relocation with precision tracking and
                     white-glove service.
                   </Text>
                 </YStack>
@@ -4253,16 +4360,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   socialIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
-});
-
-
-
+} as any);
 
 

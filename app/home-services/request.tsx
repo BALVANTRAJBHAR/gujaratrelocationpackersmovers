@@ -1,15 +1,19 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { ResizeMode, Video } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Dimensions, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
 
 const isAllowedJpeg = (value: string) => {
@@ -22,10 +26,30 @@ const isAllowedMp4 = (value: string) => {
   return v.endsWith('.mp4') || v.includes('video/mp4');
 };
 
-const normalizePhone = (value: string) => {
+const normalizePhoneDigits = (value: string) => {
   const v = String(value ?? '').replace(/\s+/g, '');
   if (!v) return '';
-  return v.replace(/[^0-9+]/g, '');
+  return v.replace(/[^0-9]/g, '');
+};
+
+const formatDateDDMMYYYY = (value: Date) => {
+  const dd = String(value.getDate()).padStart(2, '0');
+  const mm = String(value.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(value.getFullYear());
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const parseDateDDMMYYYY = (value: string) => {
+  const v = String(value ?? '').trim();
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+  const d = new Date(yyyy, mm - 1, dd);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return null;
+  return d;
 };
 
 const isIsoDate = (value: string) => {
@@ -47,6 +71,17 @@ type CityRow = { id: string; state_id: string; name: string };
 type LocalityRow = { id: string; city_id: string; name: string };
 
 const { width: screenWidth } = Dimensions.get('window');
+
+const normalizeMatchKey = (value: string) => String(value ?? '').trim().toLowerCase();
+
+const matchFromOptions = (value: string, options: string[]) => {
+  const key = normalizeMatchKey(value);
+  if (!key) return '';
+  const exact = options.find((o) => normalizeMatchKey(o) === key);
+  if (exact) return exact;
+  const contains = options.find((o) => normalizeMatchKey(o).includes(key) || key.includes(normalizeMatchKey(o)));
+  return contains ?? '';
+};
 
 export default function HomeServiceRequestScreen() {
   const router = useRouter();
@@ -79,6 +114,8 @@ export default function HomeServiceRequestScreen() {
   const [serviceKey, setServiceKey] = useState<string>(initialServiceValid ? initialService : '');
 
   const [customerName, setCustomerName] = useState<string>(String(profile?.name ?? '').trim());
+  const [countryCode, setCountryCode] = useState<string>('+91');
+  const [countryCodePickerOpen, setCountryCodePickerOpen] = useState(false);
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [addressLine1, setAddressLine1] = useState<string>('');
   const [addressLine2, setAddressLine2] = useState<string>('');
@@ -88,6 +125,34 @@ export default function HomeServiceRequestScreen() {
   const [preferredDate, setPreferredDate] = useState<string>('');
   const [preferredTime, setPreferredTime] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+
+  const [statePickerOpen, setStatePickerOpen] = useState(false);
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [uploadsPreviewOpen, setUploadsPreviewOpen] = useState(false);
+  const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
+  const [mediaViewerKind, setMediaViewerKind] = useState<'photo' | 'video'>('photo');
+  const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+  const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [localityLoading, setLocalityLoading] = useState(false);
+
+  const countryCodeOptions = useMemo(
+    () =>
+      [
+        { label: 'India (+91)', value: '+91' },
+        { label: 'Pakistan (+92)', value: '+92' },
+        { label: 'Bangladesh (+880)', value: '+880' },
+        { label: 'Nepal (+977)', value: '+977' },
+        { label: 'Sri Lanka (+94)', value: '+94' },
+        { label: 'UAE (+971)', value: '+971' },
+        { label: 'Saudi Arabia (+966)', value: '+966' },
+        { label: 'UK (+44)', value: '+44' },
+        { label: 'USA (+1)', value: '+1' },
+        { label: 'Canada (+1)', value: '+1' },
+      ] as const,
+    []
+  );
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -202,16 +267,84 @@ export default function HomeServiceRequestScreen() {
     return fallbackCityByState[state] ?? [];
   }, [cities, fallbackCityByState, state]);
 
+  React.useEffect(() => {
+    if (!state.trim()) return;
+    if (city.trim()) return;
+    const next = (cityOptions ?? [])[0] ?? '';
+    if (next) setCity(next);
+  }, [state, city, cityOptions]);
+
   const localityOptions = useMemo(() => {
     if (localities.length) return localities.map((l) => l.name);
     return [] as string[];
   }, [localities]);
+
+  React.useEffect(() => {
+    let active = true;
+    const q = locality.trim();
+    if (!q || q.length < 2) {
+      setLocalitySuggestions([]);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      void (async () => {
+        try {
+          setLocalityLoading(true);
+          const results = await searchPlaces(`${q}, ${city || ''} ${state || ''}`.trim());
+          if (!active) return;
+
+          const filtered = results
+            .filter((x) => {
+              const name = String((x as any)?.place_name ?? '').toLowerCase();
+              if (state && !name.includes(state.trim().toLowerCase())) return false;
+              if (city && !name.includes(city.trim().toLowerCase())) return false;
+              return true;
+            })
+            .map((x) => {
+              const place = String((x as any)?.place_name ?? '').trim();
+              const label = place.split(',')[0]?.trim() || place;
+              return { id: String((x as any)?.id ?? place), label, full: place };
+            })
+            .slice(0, 6);
+
+          setLocalitySuggestions(filtered);
+        } catch {
+          if (!active) return;
+          setLocalitySuggestions([]);
+        } finally {
+          if (!active) return;
+          setLocalityLoading(false);
+        }
+      })();
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [locality, state, city]);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
 
   const createdRequestIdRef = useRef<string | null>(null);
   const processedUploadsRef = useRef<any[]>([]);
+
+  const detailsBlocker = useMemo(() => {
+    if (!customerName.trim()) return 'Name is required.';
+    const digits = normalizePhoneDigits(customerPhone);
+    if (!digits) return 'Phone number is required.';
+    if (digits.length !== 10) return 'Please enter a valid 10-digit phone number.';
+    if (!state.trim()) return 'State is required.';
+    if (!city.trim()) return 'City is required.';
+    if (!locality.trim()) return 'Locality is required.';
+    if (!preferredDate.trim()) return 'Preferred date is required.';
+    const parsed = parseDateDDMMYYYY(preferredDate);
+    if (!parsed) return 'Preferred date must be DD/MM/YYYY.';
+    if (!preferredTime.trim()) return 'Preferred time is required.';
+    return '';
+  }, [city, customerName, customerPhone, locality, preferredDate, preferredTime, state]);
 
   const requireSession = () => {
     if (session?.user?.id) return true;
@@ -230,18 +363,8 @@ export default function HomeServiceRequestScreen() {
       return;
     }
     if (step === 'details') {
-      const phone = normalizePhone(customerPhone);
-      if (!phone) {
-        setError('Phone number is required.');
-        return;
-      }
-      const digits = phone.replace(/[^0-9]/g, '');
-      if (digits.length < 10) {
-        setError('Please enter a valid phone number.');
-        return;
-      }
-      if (preferredDate && !isIsoDate(preferredDate)) {
-        setError('Preferred date must be YYYY-MM-DD.');
+      if (detailsBlocker) {
+        setError(detailsBlocker);
         return;
       }
       setError(null);
@@ -350,7 +473,7 @@ export default function HomeServiceRequestScreen() {
     const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true }) : null;
     const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
     if (finalSize !== null && finalSize > MAX_VIDEO_BYTES) {
-      setError('Video must be 5MB or less.');
+      setError('Video must be 10MB or less.');
       return;
     }
 
@@ -365,7 +488,7 @@ export default function HomeServiceRequestScreen() {
     const userId = session?.user?.id ?? '';
     if (!userId) return null;
 
-    const phone = normalizePhone(customerPhone);
+    const phone = `${countryCode}${normalizePhoneDigits(customerPhone)}`;
 
     const { data, error: insertError } = await supabase
       .from('home_service_requests')
@@ -414,7 +537,7 @@ export default function HomeServiceRequestScreen() {
 
       if (it.kind === 'video') {
         if (!isAllowedMp4(it.uri)) throw new Error('Only MP4 videos are allowed.');
-        if (fileSize !== null && fileSize > MAX_VIDEO_BYTES) throw new Error('Video must be 5MB or less.');
+        if (fileSize !== null && fileSize > MAX_VIDEO_BYTES) throw new Error('Video must be 10MB or less.');
       }
 
       const res = await fetch(it.uri);
@@ -524,6 +647,14 @@ export default function HomeServiceRequestScreen() {
                 Your Details
               </Text>
 
+              {error ? (
+                <YStack backgroundColor="#FEF2F2" borderRadius={12} padding={12} borderWidth={1} borderColor="#FECACA">
+                  <Text color="#991B1B" fontWeight="800">
+                    {error}
+                  </Text>
+                </YStack>
+              ) : null}
+
               <YStack gap="$2">
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Name
@@ -542,15 +673,36 @@ export default function HomeServiceRequestScreen() {
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Phone *
                 </Text>
-                <Input
-                  value={customerPhone}
-                  onChangeText={(v) => setCustomerPhone(v)}
-                  placeholder={Platform.OS === 'web' ? '+91XXXXXXXXXX' : 'Phone number'}
-                  keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                  backgroundColor="#FFFFFF"
-                  borderColor="#E5E7EB"
-                  color="#111827"
-                />
+                <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                  <Pressable onPress={() => setCountryCodePickerOpen(true)} style={{ flexBasis: '32%' } as any}>
+                    <YStack
+                      backgroundColor="#FFFFFF"
+                      borderRadius={12}
+                      padding={12}
+                      borderWidth={1}
+                      borderColor="#E5E7EB">
+                      <Text fontSize={11} fontWeight="800" color="#64748B">
+                        Code
+                      </Text>
+                      <Text fontSize={13} fontWeight="900" color="#111827">
+                        {countryCode}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                  <YStack style={{ flexBasis: '66%' } as any}>
+                    <Input
+                      value={customerPhone}
+                      onChangeText={(v) => setCustomerPhone(normalizePhoneDigits(v).slice(0, 10))}
+                      placeholder="10-digit mobile"
+                      keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+                      inputMode={Platform.OS === 'web' ? ('numeric' as any) : undefined}
+                      maxLength={10}
+                      backgroundColor="#FFFFFF"
+                      borderColor="#E5E7EB"
+                      color="#111827"
+                    />
+                  </YStack>
+                </XStack>
               </YStack>
 
               <YStack gap="$2">
@@ -586,55 +738,114 @@ export default function HomeServiceRequestScreen() {
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     State
                   </Text>
-                  <Input
-                    value={state}
-                    onChangeText={setState}
-                    placeholder="State"
-                    backgroundColor="#FFFFFF"
-                    borderColor="#E5E7EB"
-                    color="#111827"
-                  />
+                  <Pressable onPress={() => setStatePickerOpen(true)}>
+                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
+                      <Text fontSize={11} fontWeight="800" color="#64748B">
+                        Select
+                      </Text>
+                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
+                        {state || 'State'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     City
                   </Text>
-                  <Input
-                    value={city}
-                    onChangeText={setCity}
-                    placeholder="City"
-                    backgroundColor="#FFFFFF"
-                    borderColor="#E5E7EB"
-                    color="#111827"
-                  />
+                  <Pressable onPress={() => setCityPickerOpen(true)}>
+                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
+                      <Text fontSize={11} fontWeight="800" color="#64748B">
+                        Select
+                      </Text>
+                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
+                        {city || 'City'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
                 </YStack>
               </XStack>
 
-              <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                <Text fontSize={11} fontWeight="700" color="#64748B">
-                  Suggestions:
-                </Text>
-                {stateOptions.slice(0, 2).map((st) => (
-                  <Pressable
-                    key={st}
-                    onPress={() => {
-                      setState(st);
-                      const nextCity = (fallbackCityByState[st] ?? [])[0] ?? '';
-                      if (nextCity) setCity(nextCity);
+              <Pressable
+                onPress={() => void (async () => {
+                  try {
+                    setError(null);
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status !== 'granted') {
+                      setError('Location permission denied.');
+                      return;
+                    }
+                    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
+                    const parts = String(place)
+                      .split(',')
+                      .map((x) => x.trim())
+                      .filter(Boolean);
+
+                    if (!parts.length) return;
+
+                    const nextState = matchFromOptions(parts.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
+                    const nextStateForCityOptions = nextState || state;
+                    const nextCityOptions = cities.length
+                      ? cities
+                          .filter((c) => normalizeMatchKey(c.state_id) === normalizeMatchKey(states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextStateForCityOptions))?.id ?? ''))
+                          .map((c) => c.name)
+                      : fallbackCityByState[nextStateForCityOptions] ?? cityOptions;
+
+                    const nextCity = matchFromOptions(
+                      parts.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? '',
+                      nextCityOptions
+                    );
+
+                    const localityCandidates = parts.filter((p) => ![nextState, nextCity].map(normalizeMatchKey).includes(normalizeMatchKey(p)));
+                    const nextLocality = localityCandidates.length ? localityCandidates[Math.max(localityCandidates.length - 3, 0)] : '';
+
+                    let addressLine1Next = '';
+                    let addressLine2Next = '';
+                    const localityIndex = nextLocality ? parts.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextLocality)) : -1;
+                    const addressParts = (localityIndex > 0 ? parts.slice(0, localityIndex) : parts.slice(0, Math.min(parts.length, 2))).filter(Boolean);
+                    if (addressParts.length >= 2) {
+                      addressLine1Next = addressParts[0];
+                      addressLine2Next = addressParts.slice(1).join(', ');
+                    } else if (addressParts.length === 1) {
+                      addressLine2Next = addressParts[0];
+                    }
+
+                    if (addressLine1Next) setAddressLine1(addressLine1Next);
+                    if (addressLine2Next) setAddressLine2(addressLine2Next);
+                    if (nextState) {
+                      setState(nextState);
+                      setCity('');
+                      setLocality('');
+                    }
+                    if (nextCity) setCity(nextCity);
+                    if (nextLocality) setLocality(nextLocality);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Failed to detect current location.');
+                  }
+                })()}
+                style={{ alignSelf: 'flex-start' } as any}>
+                <XStack alignItems="center" gap="$2" paddingVertical={4}>
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: '#0EA5E9',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
                     }}>
-                    <Text fontSize={11} fontWeight="900" color="#2563EB">
-                      {st}
-                    </Text>
-                  </Pressable>
-                ))}
-                {(cityOptions ?? []).slice(0, 3).map((ct) => (
-                  <Pressable key={ct} onPress={() => setCity(ct)}>
-                    <Text fontSize={11} fontWeight="900" color="#2563EB">
-                      {ct}
-                    </Text>
-                  </Pressable>
-                ))}
-              </XStack>
+                    <View style={{ width: 6, height: 6, borderRadius: 6, backgroundColor: '#0EA5E9' }} />
+                    <View style={{ position: 'absolute', width: 16, height: 2, backgroundColor: '#0EA5E9' }} />
+                    <View style={{ position: 'absolute', width: 2, height: 16, backgroundColor: '#0EA5E9' }} />
+                  </View>
+                  <Text fontSize={12} fontWeight="900" color="#0EA5E9">
+                    Use Current Location
+                  </Text>
+                </XStack>
+              </Pressable>
 
               <YStack gap="$2">
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
@@ -643,26 +854,55 @@ export default function HomeServiceRequestScreen() {
                 <Input
                   value={locality}
                   onChangeText={setLocality}
-                  placeholder="Area / locality"
+                  placeholder="Search locality"
                   backgroundColor="#FFFFFF"
                   borderColor="#E5E7EB"
                   color="#111827"
                 />
               </YStack>
 
-              {localityOptions.length ? (
+              {localityOptions.length && locality.trim() ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
                   <Text fontSize={11} fontWeight="700" color="#64748B">
                     Locality suggestions:
                   </Text>
-                  {localityOptions.slice(0, 6).map((l) => (
-                    <Pressable key={l} onPress={() => setLocality(l)}>
-                      <Text fontSize={11} fontWeight="900" color="#2563EB">
-                        {l}
-                      </Text>
+                  {localityOptions
+                    .filter((x) => x.toLowerCase().includes(locality.trim().toLowerCase()))
+                    .slice(0, 6)
+                    .map((l) => (
+                      <Pressable key={l} onPress={() => setLocality(l)}>
+                        <Text fontSize={11} fontWeight="900" color="#2563EB">
+                          {l}
+                        </Text>
+                      </Pressable>
+                    ))}
+                </XStack>
+              ) : null}
+
+              {localitySuggestions.length ? (
+                <YStack gap="$2">
+                  {localitySuggestions.map((s) => (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => {
+                        setLocality(s.label);
+                        setLocalitySuggestions([]);
+                      }}>
+                      <YStack borderWidth={1} borderColor="#E5E7EB" borderRadius={12} padding={10} backgroundColor="#F8FAFC">
+                        <Text color="#111827" fontWeight="900" numberOfLines={1}>
+                          {s.label}
+                        </Text>
+                        <Text color="#64748B" fontSize={11} numberOfLines={1}>
+                          {s.full}
+                        </Text>
+                      </YStack>
                     </Pressable>
                   ))}
-                </XStack>
+                </YStack>
+              ) : localityLoading ? (
+                <Text color="#64748B" fontSize={11}>
+                  Searching...
+                </Text>
               ) : null}
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
@@ -670,27 +910,31 @@ export default function HomeServiceRequestScreen() {
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred date
                   </Text>
-                  <Input
-                    value={preferredDate}
-                    onChangeText={setPreferredDate}
-                    placeholder="YYYY-MM-DD"
-                    backgroundColor="#FFFFFF"
-                    borderColor="#E5E7EB"
-                    color="#111827"
-                  />
+                  <Pressable onPress={() => setDatePickerOpen(true)}>
+                    <Input
+                      value={preferredDate}
+                      editable={false}
+                      placeholder="DD/MM/YYYY"
+                      backgroundColor="#FFFFFF"
+                      borderColor="#E5E7EB"
+                      color="#111827"
+                    />
+                  </Pressable>
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred time
                   </Text>
-                  <Input
-                    value={preferredTime}
-                    onChangeText={setPreferredTime}
-                    placeholder="e.g. 10:00 AM"
-                    backgroundColor="#FFFFFF"
-                    borderColor="#E5E7EB"
-                    color="#111827"
-                  />
+                  <Pressable onPress={() => setTimePickerOpen(true)}>
+                    <Input
+                      value={preferredTime}
+                      editable={false}
+                      placeholder="Select time"
+                      backgroundColor="#FFFFFF"
+                      borderColor="#E5E7EB"
+                      color="#111827"
+                    />
+                  </Pressable>
                 </YStack>
               </XStack>
 
@@ -726,7 +970,7 @@ export default function HomeServiceRequestScreen() {
                 Upload Photos / Videos
               </Text>
               <Paragraph color="#64748B">
-                JPG/JPEG only. Videos: MP4 only (max 30s, 5MB). Images max 10MB upload; will be compressed server-side.
+                JPG/JPEG only. Videos: MP4 only (max 30s, 10MB). Images max 10MB upload; will be compressed server-side.
               </Paragraph>
 
               <XStack gap="$2" flexWrap="wrap">
@@ -745,9 +989,22 @@ export default function HomeServiceRequestScreen() {
                   </Text>
                   {photos.map((u) => (
                     <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
-                      <Text flex={1} numberOfLines={1} color="#64748B">
-                        Photo
-                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setMediaViewerKind('photo');
+                          setMediaViewerIndex(Math.max(0, photos.findIndex((x) => x === u)));
+                          setMediaViewerOpen(true);
+                        }}
+                        style={{ flex: 1 } as any}>
+                        <XStack flex={1} alignItems="center" gap="$2">
+                          <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: '#F1F5F9' }}>
+                            <Image source={{ uri: u }} style={{ width: 44, height: 34 }} resizeMode="cover" />
+                          </View>
+                          <Text numberOfLines={1} color="#64748B">
+                            Photo
+                          </Text>
+                        </XStack>
+                      </Pressable>
                       <Button
                         size="$2"
                         backgroundColor="#EF4444"
@@ -759,9 +1016,28 @@ export default function HomeServiceRequestScreen() {
                   ))}
                   {videos.map((u) => (
                     <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
-                      <Text flex={1} numberOfLines={1} color="#64748B">
-                        Video
-                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setMediaViewerKind('video');
+                          setMediaViewerIndex(Math.max(0, videos.findIndex((x) => x === u)));
+                          setMediaViewerOpen(true);
+                        }}
+                        style={{ flex: 1 } as any}>
+                        <XStack flex={1} alignItems="center" gap="$2">
+                          <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: '#0B1220' }}>
+                            <Video
+                              source={{ uri: u }}
+                              style={{ width: 44, height: 34 }}
+                              resizeMode={ResizeMode.COVER}
+                              isMuted
+                              shouldPlay={false}
+                            />
+                          </View>
+                          <Text numberOfLines={1} color="#64748B">
+                            Video
+                          </Text>
+                        </XStack>
+                      </Pressable>
                       <Button
                         size="$2"
                         backgroundColor="#EF4444"
@@ -795,8 +1071,8 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Phone
                 </Text>
-                <Text color="#111827" fontWeight="900">
-                  {customerPhone}
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                  {countryCode}{normalizePhoneDigits(customerPhone)}
                 </Text>
               </YStack>
 
@@ -804,8 +1080,19 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Location
                 </Text>
-                <Text color="#111827" fontWeight="900">
-                  {locality || city || state ? `${locality}${locality ? ', ' : ''}${city}${city ? ', ' : ''}${state}` : 'Not provided'}
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                  {addressLine1 || addressLine2 || locality || city || state
+                    ? `${addressLine1}${addressLine1 ? ', ' : ''}${addressLine2}${addressLine2 ? ', ' : ''}${locality}${locality ? ', ' : ''}${city}${city ? ', ' : ''}${state}`
+                    : 'Not provided'}
+                </Text>
+              </YStack>
+
+              <YStack gap="$1">
+                <Text color="#64748B" fontWeight="700">
+                  Preferred date & time
+                </Text>
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                  {preferredDate && preferredTime ? `${preferredDate}, ${preferredTime}` : 'Not provided'}
                 </Text>
               </YStack>
 
@@ -813,14 +1100,16 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Uploads
                 </Text>
-                <Text color="#111827" fontWeight="900">
-                  {photos.length} photos, {videos.length} videos
-                </Text>
+                <Pressable onPress={() => setUploadsPreviewOpen(true)}>
+                  <Text color="#111827" fontWeight="900" style={{ textDecorationLine: 'underline', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                    {photos.length} photos, {videos.length} videos (Preview)
+                  </Text>
+                </Pressable>
               </YStack>
             </YStack>
           ) : null}
 
-          {error ? (
+          {error && step !== 'details' ? (
             <YStack backgroundColor="#FEF2F2" borderRadius={12} padding={12} borderWidth={1} borderColor="#FECACA">
               <Text color="#991B1B" fontWeight="800">
                 {error}
@@ -832,21 +1121,338 @@ export default function HomeServiceRequestScreen() {
 
       <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor="#FFFFFF" padding={14} borderTopWidth={1} borderTopColor="#E5E7EB">
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
-          <Button disabled={saving} backgroundColor="#E5E7EB" color="#111827" onPress={goBack}>
+          <Button
+            disabled={saving}
+            backgroundColor="#6B7280"
+            color="#FFFFFF"
+            hoverStyle={{ backgroundColor: '#4B5563', color: '#FFFFFF' } as any}
+            pressStyle={{ backgroundColor: '#374151', color: '#FFFFFF' } as any}
+            focusStyle={{ backgroundColor: '#4B5563', color: '#FFFFFF' } as any}
+            onPress={goBack}>
             Back
           </Button>
 
+          {step === 'details' && detailsBlocker ? (
+            <Text color="#EF4444" fontSize={11} fontWeight="800" style={{ flex: 1, textAlign: 'center' } as any} numberOfLines={2}>
+              {detailsBlocker}
+            </Text>
+          ) : (
+            <View style={{ flex: 1 }} />
+          )}
+
           {step !== 'review' ? (
-            <Button disabled={saving} backgroundColor="#10B981" color="#111827" onPress={goNext}>
+            <Button
+              disabled={saving || (step === 'details' && !!detailsBlocker)}
+              backgroundColor="#10B981"
+              color="#FFFFFF"
+              hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+              pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
+              focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+              onPress={goNext}>
               Next
             </Button>
           ) : (
-            <Button disabled={saving} backgroundColor="#10B981" color="#111827" onPress={() => void handleSubmit()}>
+            <Button
+              disabled={saving}
+              backgroundColor="#10B981"
+              color="#FFFFFF"
+              hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+              pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
+              focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+              onPress={() => void handleSubmit()}>
               {saving ? 'Submitting…' : 'Submit Request'}
             </Button>
           )}
         </XStack>
       </YStack>
+
+      <Modal visible={countryCodePickerOpen} transparent animationType="fade" onRequestClose={() => setCountryCodePickerOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setCountryCodePickerOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: 420 }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+              <Text color="#111827" fontSize={16} fontWeight="900">
+                Select Country Code
+              </Text>
+              <Pressable onPress={() => setCountryCodePickerOpen(false)}>
+                <Text color="#64748B" fontSize={24} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {countryCodeOptions.map((c) => (
+                <Pressable
+                  key={c.label}
+                  onPress={() => {
+                    setCountryCode(c.value);
+                    setCountryCodePickerOpen(false);
+                  }}>
+                  <XStack
+                    alignItems="center"
+                    justifyContent="space-between"
+                    paddingVertical={12}
+                    paddingHorizontal={12}
+                    borderRadius={12}
+                    backgroundColor={c.value === countryCode ? '#F1F5F9' : 'transparent'}>
+                    <Text color="#111827" fontWeight="800">
+                      {c.label}
+                    </Text>
+                    <Text color="#64748B" fontWeight="900">
+                      {c.value === countryCode ? '✓' : ''}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={statePickerOpen} transparent animationType="fade" onRequestClose={() => setStatePickerOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setStatePickerOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: 420 }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+              <Text color="#111827" fontSize={16} fontWeight="900">
+                Select State
+              </Text>
+              <Pressable onPress={() => setStatePickerOpen(false)}>
+                <Text color="#64748B" fontSize={24} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {stateOptions.map((st) => (
+                <Pressable
+                  key={st}
+                  onPress={() => {
+                    setState(st);
+                    setCity('');
+                    setLocality('');
+                    setStatePickerOpen(false);
+                  }}>
+                  <XStack
+                    alignItems="center"
+                    justifyContent="space-between"
+                    paddingVertical={12}
+                    paddingHorizontal={12}
+                    borderRadius={12}
+                    backgroundColor={st === state ? '#F1F5F9' : 'transparent'}>
+                    <Text color="#111827" fontWeight="800">
+                      {st}
+                    </Text>
+                    <Text color="#64748B" fontWeight="900">
+                      {st === state ? '✓' : ''}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={cityPickerOpen} transparent animationType="fade" onRequestClose={() => setCityPickerOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setCityPickerOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: 420 }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+              <Text color="#111827" fontSize={16} fontWeight="900">
+                Select City
+              </Text>
+              <Pressable onPress={() => setCityPickerOpen(false)}>
+                <Text color="#64748B" fontSize={24} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {!state ? (
+                <Text color="#64748B" paddingHorizontal={12} paddingVertical={8}>
+                  Select a state first.
+                </Text>
+              ) : null}
+              {(cityOptions ?? []).map((ct) => (
+                <Pressable
+                  key={ct}
+                  onPress={() => {
+                    setCity(ct);
+                    setLocality('');
+                    setCityPickerOpen(false);
+                  }}>
+                  <XStack
+                    alignItems="center"
+                    justifyContent="space-between"
+                    paddingVertical={12}
+                    paddingHorizontal={12}
+                    borderRadius={12}
+                    backgroundColor={ct === city ? '#F1F5F9' : 'transparent'}>
+                    <Text color="#111827" fontWeight="800">
+                      {ct}
+                    </Text>
+                    <Text color="#64748B" fontWeight="900">
+                      {ct === city ? '✓' : ''}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {Platform.OS !== 'web' && datePickerOpen ? (
+        <DateTimePicker
+          value={parseDateDDMMYYYY(preferredDate) ?? new Date()}
+          mode="date"
+          display="default"
+          onChange={(_, date) => {
+            setDatePickerOpen(false);
+            if (date) setPreferredDate(formatDateDDMMYYYY(date));
+          }}
+        />
+      ) : null}
+
+      {Platform.OS !== 'web' && timePickerOpen ? (
+        <DateTimePicker
+          value={new Date()}
+          mode="time"
+          display="default"
+          onChange={(_, date) => {
+            setTimePickerOpen(false);
+            if (!date) return;
+            const t = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            setPreferredTime(t);
+          }}
+        />
+      ) : null}
+
+      {Platform.OS === 'web' && datePickerOpen ? (
+        <DateTimePicker
+          value={parseDateDDMMYYYY(preferredDate) ?? new Date()}
+          mode="date"
+          display="default"
+          onChange={(_, date) => {
+            setDatePickerOpen(false);
+            if (date) setPreferredDate(formatDateDDMMYYYY(date));
+          }}
+        />
+      ) : null}
+
+      {Platform.OS === 'web' && timePickerOpen ? (
+        <DateTimePicker
+          value={new Date()}
+          mode="time"
+          display="default"
+          onChange={(_, date) => {
+            setTimePickerOpen(false);
+            if (!date) return;
+            const t = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            setPreferredTime(t);
+          }}
+        />
+      ) : null}
+
+      <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.92)', padding: 16, justifyContent: 'center' }}>
+          <XStack alignItems="center" justifyContent="space-between" marginBottom={12}>
+            <Text color="#FFFFFF" fontSize={16} fontWeight="900">
+              {mediaViewerKind === 'photo' ? 'Photo' : 'Video'} {mediaViewerIndex + 1}/
+              {mediaViewerKind === 'photo' ? photos.length : videos.length}
+            </Text>
+            <Pressable onPress={() => setMediaViewerOpen(false)}>
+              <Text color="#E5E7EB" fontSize={26} fontWeight="900">
+                ×
+              </Text>
+            </Pressable>
+          </XStack>
+
+          <View style={{ backgroundColor: '#0B1220', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.35)' }}>
+            {mediaViewerKind === 'photo' ? (
+              <Image
+                source={{ uri: photos[mediaViewerIndex] }}
+                style={{ width: '100%', height: Math.min(520, Math.max(260, screenWidth * 0.5)) }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Video
+                source={{ uri: videos[mediaViewerIndex] }}
+                style={{ width: '100%', height: Math.min(520, Math.max(260, screenWidth * 0.5)) }}
+                resizeMode={ResizeMode.CONTAIN}
+                useNativeControls
+                shouldPlay={false}
+              />
+            )}
+          </View>
+
+          <XStack marginTop={12} gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+            <Button
+              backgroundColor="#334155"
+              color="#FFFFFF"
+              disabled={mediaViewerIndex <= 0}
+              onPress={() => setMediaViewerIndex((i) => Math.max(0, i - 1))}>
+              Prev
+            </Button>
+            <Button
+              backgroundColor="#334155"
+              color="#FFFFFF"
+              disabled={mediaViewerIndex >= (mediaViewerKind === 'photo' ? photos.length - 1 : videos.length - 1)}
+              onPress={() =>
+                setMediaViewerIndex((i) =>
+                  Math.min(mediaViewerKind === 'photo' ? photos.length - 1 : videos.length - 1, i + 1)
+                )
+              }>
+              Next
+            </Button>
+          </XStack>
+        </View>
+      </Modal>
+
+      <Modal visible={uploadsPreviewOpen} transparent animationType="fade" onRequestClose={() => setUploadsPreviewOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setUploadsPreviewOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: 520 }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+              <Text color="#111827" fontSize={16} fontWeight="900">
+                Uploads Preview
+              </Text>
+              <Pressable onPress={() => setUploadsPreviewOpen(false)}>
+                <Text color="#64748B" fontSize={24} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {photos.map((u) => (
+                <Pressable
+                  key={u}
+                  onPress={() => {
+                    setMediaViewerKind('photo');
+                    setMediaViewerIndex(Math.max(0, photos.findIndex((x) => x === u)));
+                    setMediaViewerOpen(true);
+                  }}>
+                  <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' }}>
+                    <Image source={{ uri: u }} style={{ width: '100%', height: 220 }} resizeMode="cover" />
+                  </View>
+                </Pressable>
+              ))}
+              {videos.map((u) => (
+                <Pressable
+                  key={u}
+                  onPress={() => {
+                    setMediaViewerKind('video');
+                    setMediaViewerIndex(Math.max(0, videos.findIndex((x) => x === u)));
+                    setMediaViewerOpen(true);
+                  }}>
+                  <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' }}>
+                    <Video source={{ uri: u }} style={{ width: '100%', height: 220 }} resizeMode={ResizeMode.CONTAIN} useNativeControls />
+                  </View>
+                </Pressable>
+              ))}
+              {!photos.length && !videos.length ? <Text color="#64748B">No uploads.</Text> : null}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
