@@ -108,6 +108,21 @@ const fromISOToDDMMYYYY = (iso: string) => {
   return `${m[3]}/${m[2]}/${m[1]}`;
 };
 
+const stripIndianPin = (value: string) => {
+  const v = String(value ?? '').trim();
+  if (!v) return '';
+  return v
+    .replace(/\b\d{6}\b/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s+/g, ', ')
+    .replace(/^,\s*/g, '')
+    .replace(/,\s*$/g, '')
+    .trim();
+};
+
+const cleanParts = (parts: string[]) => parts.map((p) => stripIndianPin(p)).map((p) => p.trim()).filter(Boolean);
+
 export default function HomeServiceRequestScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ service?: string }>();
@@ -135,6 +150,7 @@ export default function HomeServiceRequestScreen() {
   const [step, setStep] = useState<WizardStep>(initialServiceValid ? 'details' : 'service');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailsAttempted, setDetailsAttempted] = useState(false);
 
   const [serviceKey, setServiceKey] = useState<string>(initialServiceValid ? initialService : '');
 
@@ -159,6 +175,8 @@ export default function HomeServiceRequestScreen() {
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerKind, setMediaViewerKind] = useState<'photo' | 'video'>('photo');
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+  const webDateInputRef = useRef<any>(null);
+  const webTimeInputRef = useRef<any>(null);
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
 
@@ -388,6 +406,7 @@ export default function HomeServiceRequestScreen() {
       return;
     }
     if (step === 'details') {
+      setDetailsAttempted(true);
       if (detailsBlocker) {
         setError(detailsBlocker);
         return;
@@ -410,6 +429,7 @@ export default function HomeServiceRequestScreen() {
       return;
     }
     if (step === 'details') {
+      setDetailsAttempted(false);
       setStep('service');
       return;
     }
@@ -451,7 +471,7 @@ export default function HomeServiceRequestScreen() {
       }
 
       const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
-      const info = size === null ? await FileSystem.getInfoAsync(uri, { size: true }) : null;
+      const info = size === null ? await FileSystem.getInfoAsync(uri, ({ size: true } as any)) : null;
       const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
       if (finalSize !== null && finalSize > MAX_IMAGE_UPLOAD_BYTES) {
         setError('Image too large. Please select an image up to 10MB.');
@@ -495,7 +515,7 @@ export default function HomeServiceRequestScreen() {
     }
 
     const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
-    const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true }) : null;
+    const info = size === null ? await FileSystem.getInfoAsync(asset.uri, ({ size: true } as any)) : null;
     const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
     if (finalSize !== null && finalSize > MAX_VIDEO_BYTES) {
       setError('Video must be 10MB or less.');
@@ -552,7 +572,7 @@ export default function HomeServiceRequestScreen() {
     ];
 
     for (const it of items) {
-      const fileInfo = await FileSystem.getInfoAsync(it.uri, { size: true });
+      const fileInfo = await FileSystem.getInfoAsync(it.uri, ({ size: true } as any));
       const fileSize = typeof (fileInfo as any)?.size === 'number' ? Number((fileInfo as any).size) : null;
 
       if (it.kind === 'photo') {
@@ -672,7 +692,7 @@ export default function HomeServiceRequestScreen() {
                 Your Details
               </Text>
 
-              {error ? (
+              {detailsAttempted && error ? (
                 <YStack backgroundColor="#FEF2F2" borderRadius={12} padding={12} borderWidth={1} borderColor="#FECACA">
                   <Text color="#991B1B" fontWeight="800">
                     {error}
@@ -800,18 +820,24 @@ export default function HomeServiceRequestScreen() {
                       setError('Location permission denied.');
                       return;
                     }
-                    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    const current = await Location.getCurrentPositionAsync({
+                      accuracy: Location.Accuracy.Highest,
+                      maximumAge: 5_000,
+                      timeout: 12_000,
+                      mayShowUserSettingsDialog: true,
+                    } as any);
                     const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
-                    const parts = String(place)
+                    const partsRaw = String(place)
                       .split(',')
                       .map((x) => x.trim())
                       .filter(Boolean);
 
+                    const parts = cleanParts(partsRaw);
+
                     if (!parts.length) return;
 
-                    const normalizedParts = parts.map((p) => p.trim()).filter(Boolean);
-                    const country = normalizedParts.length ? normalizedParts[normalizedParts.length - 1] : '';
-                    const partsNoCountry = normalizeMatchKey(country) === 'india' ? normalizedParts.slice(0, -1) : normalizedParts;
+                    const country = parts.length ? parts[parts.length - 1] : '';
+                    const partsNoCountry = normalizeMatchKey(country) === 'india' ? parts.slice(0, -1) : parts;
 
                     const nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
                     const nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
@@ -828,17 +854,37 @@ export default function HomeServiceRequestScreen() {
                     const fallbackLocality = (() => {
                       const ignore = [nextState, nextCity].map(normalizeMatchKey);
                       const pool = partsNoCountry.filter((p) => !ignore.includes(normalizeMatchKey(p)));
-                      const idxFromEnd = Math.max(pool.length - 1, 0);
-                      return pool[idxFromEnd] ?? '';
+                      if (!pool.length) return '';
+                      const byCity = nextCity
+                        ? pool.find((p, idx) => {
+                            const cityIdx = partsNoCountry.findIndex((x) => normalizeMatchKey(x) === normalizeMatchKey(nextCity));
+                            if (cityIdx <= 0) return false;
+                            return idx === pool.length - 1 && cityIdx > 0;
+                          })
+                        : '';
+                      return byCity || pool[pool.length - 1] || '';
                     })();
 
-                    const nextLocality = nextLocalityMatched || fallbackLocality;
+                    let nextLocality = nextLocalityMatched || fallbackLocality;
+                    if (normalizeMatchKey(nextLocality) === normalizeMatchKey(nextCity)) nextLocality = '';
+                    if (normalizeMatchKey(nextLocality) === normalizeMatchKey(nextState)) nextLocality = '';
+
+                    if (!nextLocality && nextCity) {
+                      const cityIdx = partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextCity));
+                      const candidate = cityIdx > 0 ? partsNoCountry[cityIdx - 1] : '';
+                      const cleaned = stripIndianPin(candidate);
+                      if (cleaned && normalizeMatchKey(cleaned) !== normalizeMatchKey(nextState)) nextLocality = cleaned;
+                    }
 
                     const stateIndex = nextState ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextState)) : -1;
                     const cityIndex = nextCity ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextCity)) : -1;
                     const localityIndex = nextLocality ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextLocality)) : -1;
 
-                    const stopIndex = Math.max(0, [localityIndex, cityIndex, stateIndex].filter((x) => x > 0)[0] ?? 0);
+                    const stopIndex = (() => {
+                      const candidates = [localityIndex, cityIndex, stateIndex].filter((x) => x > 0);
+                      if (!candidates.length) return 0;
+                      return Math.min(...candidates);
+                    })();
                     const addressPartsRaw = (stopIndex > 0 ? partsNoCountry.slice(0, stopIndex) : partsNoCountry.slice(0, 2)).filter(Boolean);
 
                     let addressLine1Next = '';
@@ -1180,7 +1226,7 @@ export default function HomeServiceRequestScreen() {
             Back
           </Button>
 
-          {step === 'details' && detailsBlocker ? (
+          {step === 'details' && detailsAttempted && detailsBlocker ? (
             <Text color="#EF4444" fontSize={11} fontWeight="800" style={{ flex: 1, textAlign: 'center' } as any} numberOfLines={2}>
               {detailsBlocker}
             </Text>
@@ -1190,7 +1236,7 @@ export default function HomeServiceRequestScreen() {
 
           {step !== 'review' ? (
             <Button
-              disabled={saving || (step === 'details' && !!detailsBlocker)}
+              disabled={saving}
               backgroundColor="#10B981"
               color="#FFFFFF"
               hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
@@ -1394,7 +1440,13 @@ export default function HomeServiceRequestScreen() {
               </XStack>
               {React.createElement('input', {
                 type: 'date',
-                autoFocus: true,
+                ref: (el: any) => {
+                  webDateInputRef.current = el;
+                  try {
+                    if (el?.showPicker) el.showPicker();
+                    else el?.click?.();
+                  } catch {}
+                },
                 value: toISODateFromDDMMYYYY(preferredDate) || undefined,
                 style: {
                   width: '100%',
@@ -1437,7 +1489,13 @@ export default function HomeServiceRequestScreen() {
               </XStack>
               {React.createElement('input', {
                 type: 'time',
-                autoFocus: true,
+                ref: (el: any) => {
+                  webTimeInputRef.current = el;
+                  try {
+                    if (el?.showPicker) el.showPicker();
+                    else el?.click?.();
+                  } catch {}
+                },
                 value: preferredTime ? preferredTime : undefined,
                 style: {
                   width: '100%',
