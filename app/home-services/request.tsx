@@ -83,6 +83,31 @@ const matchFromOptions = (value: string, options: string[]) => {
   return contains ?? '';
 };
 
+const looksLikeHouse = (value: string) => {
+  const v = normalizeMatchKey(value);
+  if (!v) return false;
+  if (/[0-9]/.test(v)) return true;
+  if (v.includes('flat') || v.includes('apt') || v.includes('apartment') || v.includes('society') || v.includes('tower')) return true;
+  if (v.includes('house') || v.includes('plot') || v.includes('bungalow') || v.includes('building')) return true;
+  return false;
+};
+
+const toISODateFromDDMMYYYY = (value: string) => {
+  const d = parseDateDDMMYYYY(value);
+  if (!d) return '';
+  const yyyy = String(d.getFullYear());
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const fromISOToDDMMYYYY = (iso: string) => {
+  const v = String(iso ?? '').trim();
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  return `${m[3]}/${m[2]}/${m[1]}`;
+};
+
 export default function HomeServiceRequestScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ service?: string }>();
@@ -784,35 +809,58 @@ export default function HomeServiceRequestScreen() {
 
                     if (!parts.length) return;
 
-                    const nextState = matchFromOptions(parts.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
-                    const nextStateForCityOptions = nextState || state;
-                    const nextCityOptions = cities.length
-                      ? cities
-                          .filter((c) => normalizeMatchKey(c.state_id) === normalizeMatchKey(states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextStateForCityOptions))?.id ?? ''))
-                          .map((c) => c.name)
-                      : fallbackCityByState[nextStateForCityOptions] ?? cityOptions;
+                    const normalizedParts = parts.map((p) => p.trim()).filter(Boolean);
+                    const country = normalizedParts.length ? normalizedParts[normalizedParts.length - 1] : '';
+                    const partsNoCountry = normalizeMatchKey(country) === 'india' ? normalizedParts.slice(0, -1) : normalizedParts;
 
-                    const nextCity = matchFromOptions(
-                      parts.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? '',
-                      nextCityOptions
+                    const nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
+                    const nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+                    const nextCityOptions = cities.length && nextStateId
+                      ? cities.filter((c) => c.state_id === nextStateId).map((c) => c.name)
+                      : fallbackCityByState[nextState] ?? cityOptions;
+
+                    const nextCity = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? '', nextCityOptions);
+                    const nextLocalityMatched = matchFromOptions(
+                      partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, localityOptions)) ?? '',
+                      localityOptions
                     );
 
-                    const localityCandidates = parts.filter((p) => ![nextState, nextCity].map(normalizeMatchKey).includes(normalizeMatchKey(p)));
-                    const nextLocality = localityCandidates.length ? localityCandidates[Math.max(localityCandidates.length - 3, 0)] : '';
+                    const fallbackLocality = (() => {
+                      const ignore = [nextState, nextCity].map(normalizeMatchKey);
+                      const pool = partsNoCountry.filter((p) => !ignore.includes(normalizeMatchKey(p)));
+                      const idxFromEnd = Math.max(pool.length - 1, 0);
+                      return pool[idxFromEnd] ?? '';
+                    })();
+
+                    const nextLocality = nextLocalityMatched || fallbackLocality;
+
+                    const stateIndex = nextState ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextState)) : -1;
+                    const cityIndex = nextCity ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextCity)) : -1;
+                    const localityIndex = nextLocality ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextLocality)) : -1;
+
+                    const stopIndex = Math.max(0, [localityIndex, cityIndex, stateIndex].filter((x) => x > 0)[0] ?? 0);
+                    const addressPartsRaw = (stopIndex > 0 ? partsNoCountry.slice(0, stopIndex) : partsNoCountry.slice(0, 2)).filter(Boolean);
 
                     let addressLine1Next = '';
                     let addressLine2Next = '';
-                    const localityIndex = nextLocality ? parts.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextLocality)) : -1;
-                    const addressParts = (localityIndex > 0 ? parts.slice(0, localityIndex) : parts.slice(0, Math.min(parts.length, 2))).filter(Boolean);
-                    if (addressParts.length >= 2) {
-                      addressLine1Next = addressParts[0];
-                      addressLine2Next = addressParts.slice(1).join(', ');
-                    } else if (addressParts.length === 1) {
-                      addressLine2Next = addressParts[0];
+                    if (addressPartsRaw.length >= 2) {
+                      const first = addressPartsRaw[0];
+                      const second = addressPartsRaw[1];
+                      if (!looksLikeHouse(first) && looksLikeHouse(second)) {
+                        addressLine1Next = second;
+                        addressLine2Next = [first, ...addressPartsRaw.slice(2)].filter(Boolean).join(', ');
+                      } else {
+                        addressLine1Next = first;
+                        addressLine2Next = addressPartsRaw.slice(1).join(', ');
+                      }
+                    } else if (addressPartsRaw.length === 1) {
+                      if (looksLikeHouse(addressPartsRaw[0])) addressLine1Next = addressPartsRaw[0];
+                      else addressLine2Next = addressPartsRaw[0];
                     }
 
                     if (addressLine1Next) setAddressLine1(addressLine1Next);
                     if (addressLine2Next) setAddressLine2(addressLine2Next);
+
                     if (nextState) {
                       setState(nextState);
                       setCity('');
@@ -1327,29 +1375,88 @@ export default function HomeServiceRequestScreen() {
       ) : null}
 
       {Platform.OS === 'web' && datePickerOpen ? (
-        <DateTimePicker
-          value={parseDateDDMMYYYY(preferredDate) ?? new Date()}
-          mode="date"
-          display="default"
-          onChange={(_, date) => {
-            setDatePickerOpen(false);
-            if (date) setPreferredDate(formatDateDDMMYYYY(date));
-          }}
-        />
+        <Modal transparent animationType="fade" visible onRequestClose={() => setDatePickerOpen(false)}>
+          <Pressable
+            onPress={() => setDatePickerOpen(false)}
+            style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }}>
+            <Pressable
+              onPress={() => {}}
+              style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxWidth: 520, width: '100%', alignSelf: 'center' } as any}>
+              <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+                <Text color="#111827" fontSize={16} fontWeight="900">
+                  Select Date
+                </Text>
+                <Pressable onPress={() => setDatePickerOpen(false)}>
+                  <Text color="#64748B" fontSize={24} fontWeight="900">
+                    ×
+                  </Text>
+                </Pressable>
+              </XStack>
+              {React.createElement('input', {
+                type: 'date',
+                autoFocus: true,
+                value: toISODateFromDDMMYYYY(preferredDate) || undefined,
+                style: {
+                  width: '100%',
+                  height: 46,
+                  fontSize: 16,
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: '1px solid #E5E7EB',
+                  outline: 'none',
+                },
+                onChange: (e: any) => {
+                  const iso = String(e?.target?.value ?? '');
+                  const next = fromISOToDDMMYYYY(iso);
+                  if (next) setPreferredDate(next);
+                  setDatePickerOpen(false);
+                },
+              } as any)}
+            </Pressable>
+          </Pressable>
+        </Modal>
       ) : null}
 
       {Platform.OS === 'web' && timePickerOpen ? (
-        <DateTimePicker
-          value={new Date()}
-          mode="time"
-          display="default"
-          onChange={(_, date) => {
-            setTimePickerOpen(false);
-            if (!date) return;
-            const t = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            setPreferredTime(t);
-          }}
-        />
+        <Modal transparent animationType="fade" visible onRequestClose={() => setTimePickerOpen(false)}>
+          <Pressable
+            onPress={() => setTimePickerOpen(false)}
+            style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }}>
+            <Pressable
+              onPress={() => {}}
+              style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxWidth: 520, width: '100%', alignSelf: 'center' } as any}>
+              <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+                <Text color="#111827" fontSize={16} fontWeight="900">
+                  Select Time
+                </Text>
+                <Pressable onPress={() => setTimePickerOpen(false)}>
+                  <Text color="#64748B" fontSize={24} fontWeight="900">
+                    ×
+                  </Text>
+                </Pressable>
+              </XStack>
+              {React.createElement('input', {
+                type: 'time',
+                autoFocus: true,
+                value: preferredTime ? preferredTime : undefined,
+                style: {
+                  width: '100%',
+                  height: 46,
+                  fontSize: 16,
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: '1px solid #E5E7EB',
+                  outline: 'none',
+                },
+                onChange: (e: any) => {
+                  const t = String(e?.target?.value ?? '').trim();
+                  if (t) setPreferredTime(t);
+                  setTimePickerOpen(false);
+                },
+              } as any)}
+            </Pressable>
+          </Pressable>
+        </Modal>
       ) : null}
 
       <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
