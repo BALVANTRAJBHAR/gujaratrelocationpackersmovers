@@ -10,6 +10,22 @@ type ReverseGeocodeFeature = {
   place_name: string;
 };
 
+export type MapboxContextItem = {
+  id?: string;
+  text?: string;
+  short_code?: string;
+};
+
+export type MapboxReverseGeocodeFeature = {
+  id?: string;
+  type?: string;
+  place_type?: string[];
+  text?: string;
+  place_name?: string;
+  address?: string;
+  context?: MapboxContextItem[];
+};
+
 export async function searchPlaces(query: string): Promise<GeocodeFeature[]> {
   if (!query.trim()) return [];
   const mapboxToken = await getMapboxToken();
@@ -52,4 +68,16 @@ export async function reverseGeocode(lng: number, lat: number): Promise<string> 
   }
   const data = (await response.json()) as { features?: ReverseGeocodeFeature[] };
   return String(data.features?.[0]?.place_name ?? '').trim();
+}
+
+export async function reverseGeocodeDetails(lng: number, lat: number): Promise<MapboxReverseGeocodeFeature | null> {
+  const mapboxToken = await getMapboxToken();
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}&limit=1&country=IN&types=address,poi,place,locality,neighborhood`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to reverse geocode');
+  }
+  const data = (await response.json()) as { features?: MapboxReverseGeocodeFeature[] };
+  return (data.features?.[0] ?? null) as any;
 }

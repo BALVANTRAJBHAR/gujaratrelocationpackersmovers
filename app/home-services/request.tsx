@@ -21,6 +21,11 @@ const isAllowedJpeg = (value: string) => {
   return v.endsWith('.jpg') || v.endsWith('.jpeg') || v.includes('image/jpeg');
 };
 
+const pickContextText = (ctx: Array<{ id?: string; text?: string }> | undefined, prefix: string) => {
+  const it = (ctx ?? []).find((c) => String(c.id ?? '').startsWith(prefix));
+  return String(it?.text ?? '').trim();
+};
+
 const isAllowedMp4 = (value: string) => {
   const v = String(value ?? '').toLowerCase();
   return v.endsWith('.mp4') || v.includes('video/mp4');
@@ -785,23 +790,37 @@ export default function HomeServiceRequestScreen() {
                       timeout: 12_000,
                       mayShowUserSettingsDialog: true,
                     } as any);
-                    const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
-                    const partsRaw = String(place)
+                    const details = await reverseGeocodeDetails(current.coords.longitude, current.coords.latitude);
+                    const placeName = String(details?.place_name ?? (await reverseGeocode(current.coords.longitude, current.coords.latitude)) ?? '').trim();
+
+                    const rawRegion = pickContextText(details?.context, 'region.');
+                    const rawPlace = pickContextText(details?.context, 'place.');
+                    const rawNeighborhood = pickContextText(details?.context, 'neighborhood.');
+                    const rawLocality = pickContextText(details?.context, 'locality.');
+                    const rawLocalityValue = rawNeighborhood || rawLocality;
+
+                    const houseNumber = String(details?.address ?? '').trim();
+                    const streetText = String(details?.text ?? '').trim();
+
+                    const partsRaw = String(placeName)
                       .split(',')
                       .map((x) => x.trim())
                       .filter(Boolean);
 
                     const parts = cleanParts(partsRaw);
 
-                    if (!parts.length) return;
+                    if (!parts.length && !rawRegion && !rawPlace && !rawLocalityValue && !houseNumber && !streetText) return;
 
                     const country = parts.length ? parts[parts.length - 1] : '';
                     const partsNoCountry = normalizeMatchKey(country) === 'india' ? parts.slice(0, -1) : parts;
 
-                    let nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
+                    let nextState = matchFromOptions(rawRegion, stateOptions);
+                    if (!nextState) {
+                      nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
+                    }
                     let nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
 
-                    const likelyCityToken = stripIndianPin(partsNoCountry[partsNoCountry.length - 1] ?? '');
+                    const likelyCityToken = stripIndianPin(rawPlace || partsNoCountry[partsNoCountry.length - 1] ?? '');
 
                     if (!nextState && likelyCityToken) {
                       try {
@@ -829,13 +848,10 @@ export default function HomeServiceRequestScreen() {
                         : cityOptions;
 
                     const nextCity = matchFromOptions(
-                      partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? likelyCityToken,
+                      rawPlace || partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? likelyCityToken,
                       nextCityOptions
                     );
-                    const nextLocalityMatched = matchFromOptions(
-                      partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, localityOptions)) ?? '',
-                      localityOptions
-                    );
+                    const nextLocalityMatched = matchFromOptions(rawLocalityValue, localityOptions);
 
                     let nextLocality = nextLocalityMatched;
                     if (normalizeMatchKey(nextLocality) === normalizeMatchKey(nextCity)) nextLocality = '';
@@ -868,19 +884,30 @@ export default function HomeServiceRequestScreen() {
 
                     let addressLine1Next = '';
                     let addressLine2Next = '';
-                    if (addressPartsRaw.length >= 2) {
-                      const first = addressPartsRaw[0];
-                      const second = addressPartsRaw[1];
-                      if (!looksLikeHouse(first) && looksLikeHouse(second)) {
-                        addressLine1Next = second;
-                        addressLine2Next = [first, ...addressPartsRaw.slice(2)].filter(Boolean).join(', ');
-                      } else {
-                        addressLine1Next = first;
-                        addressLine2Next = addressPartsRaw.slice(1).join(', ');
+
+                    // Preferred: Mapbox structured fields
+                    if (houseNumber) addressLine1Next = houseNumber;
+                    if (streetText) {
+                      if (addressLine1Next) addressLine2Next = streetText;
+                      else addressLine2Next = streetText;
+                    }
+
+                    // Fallback: parse from place_name parts
+                    if (!addressLine1Next && !addressLine2Next) {
+                      if (addressPartsRaw.length >= 2) {
+                        const first = addressPartsRaw[0];
+                        const second = addressPartsRaw[1];
+                        if (!looksLikeHouse(first) && looksLikeHouse(second)) {
+                          addressLine1Next = second;
+                          addressLine2Next = [first, ...addressPartsRaw.slice(2)].filter(Boolean).join(', ');
+                        } else {
+                          addressLine1Next = first;
+                          addressLine2Next = addressPartsRaw.slice(1).join(', ');
+                        }
+                      } else if (addressPartsRaw.length === 1) {
+                        if (looksLikeHouse(addressPartsRaw[0])) addressLine1Next = addressPartsRaw[0];
+                        else addressLine2Next = addressPartsRaw[0];
                       }
-                    } else if (addressPartsRaw.length === 1) {
-                      if (looksLikeHouse(addressPartsRaw[0])) addressLine1Next = addressPartsRaw[0];
-                      else addressLine2Next = addressPartsRaw[0];
                     }
 
                     setAddressLine1(addressLine1Next || '');
@@ -896,7 +923,10 @@ export default function HomeServiceRequestScreen() {
                     // IMPORTANT: programmatic fill should NOT trigger Mapbox suggestions
                     setLocalityTyped(false);
                     setLocalitySuggestions([]);
-                    if (nextLocality) setLocality(nextLocality);
+
+                    // Preferred: Mapbox neighborhood/locality token, then DB/local fallback logic
+                    const localityCandidate = nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
+                    if (localityCandidate) setLocality(localityCandidate);
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
                   }
