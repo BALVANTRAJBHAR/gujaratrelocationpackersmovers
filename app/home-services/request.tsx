@@ -839,33 +839,46 @@ export default function HomeServiceRequestScreen() {
                     const country = parts.length ? parts[parts.length - 1] : '';
                     const partsNoCountry = normalizeMatchKey(country) === 'india' ? parts.slice(0, -1) : parts;
 
-                    const nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
-                    const nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+                    let nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
+                    let nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+
+                    const likelyCityToken = stripIndianPin(partsNoCountry[partsNoCountry.length - 1] ?? '');
+
+                    if (!nextState && likelyCityToken) {
+                      try {
+                        const { data } = await supabase
+                          .from('cities')
+                          .select('name,state_id')
+                          .ilike('name', likelyCityToken)
+                          .limit(1);
+                        const hit = ((data as any) ?? [])[0] as { name?: string; state_id?: string } | undefined;
+                        const stId = hit?.state_id ?? null;
+                        const stName = stId ? states.find((s) => String(s.id) === String(stId))?.name ?? '' : '';
+                        const stateMatched = stName ? matchFromOptions(stName, stateOptions) : '';
+                        if (stateMatched) {
+                          nextState = stateMatched;
+                          nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+                        }
+                      } catch {
+                      }
+                    }
+
                     const nextCityOptions = cities.length && nextStateId
                       ? cities.filter((c) => c.state_id === nextStateId).map((c) => c.name)
-                      : fallbackCityByState[nextState] ?? cityOptions;
+                      : nextState
+                        ? fallbackCityByState[nextState] ?? []
+                        : cityOptions;
 
-                    const nextCity = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? '', nextCityOptions);
+                    const nextCity = matchFromOptions(
+                      partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? likelyCityToken,
+                      nextCityOptions
+                    );
                     const nextLocalityMatched = matchFromOptions(
                       partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, localityOptions)) ?? '',
                       localityOptions
                     );
 
-                    const fallbackLocality = (() => {
-                      const ignore = [nextState, nextCity].map(normalizeMatchKey);
-                      const pool = partsNoCountry.filter((p) => !ignore.includes(normalizeMatchKey(p)));
-                      if (!pool.length) return '';
-                      const byCity = nextCity
-                        ? pool.find((p, idx) => {
-                            const cityIdx = partsNoCountry.findIndex((x) => normalizeMatchKey(x) === normalizeMatchKey(nextCity));
-                            if (cityIdx <= 0) return false;
-                            return idx === pool.length - 1 && cityIdx > 0;
-                          })
-                        : '';
-                      return byCity || pool[pool.length - 1] || '';
-                    })();
-
-                    let nextLocality = nextLocalityMatched || fallbackLocality;
+                    let nextLocality = nextLocalityMatched;
                     if (normalizeMatchKey(nextLocality) === normalizeMatchKey(nextCity)) nextLocality = '';
                     if (normalizeMatchKey(nextLocality) === normalizeMatchKey(nextState)) nextLocality = '';
 
@@ -873,7 +886,14 @@ export default function HomeServiceRequestScreen() {
                       const cityIdx = partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextCity));
                       const candidate = cityIdx > 0 ? partsNoCountry[cityIdx - 1] : '';
                       const cleaned = stripIndianPin(candidate);
-                      if (cleaned && normalizeMatchKey(cleaned) !== normalizeMatchKey(nextState)) nextLocality = cleaned;
+                      if (
+                        cleaned &&
+                        normalizeMatchKey(cleaned) !== normalizeMatchKey(nextState) &&
+                        normalizeMatchKey(cleaned) !== normalizeMatchKey(nextCity) &&
+                        !looksLikeHouse(cleaned)
+                      ) {
+                        nextLocality = cleaned;
+                      }
                     }
 
                     const stateIndex = nextState ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextState)) : -1;
@@ -881,8 +901,8 @@ export default function HomeServiceRequestScreen() {
                     const localityIndex = nextLocality ? partsNoCountry.findIndex((p) => normalizeMatchKey(p) === normalizeMatchKey(nextLocality)) : -1;
 
                     const stopIndex = (() => {
-                      const candidates = [localityIndex, cityIndex, stateIndex].filter((x) => x > 0);
-                      if (!candidates.length) return 0;
+                      const candidates = [localityIndex, cityIndex, stateIndex].filter((x) => x >= 0);
+                      if (!candidates.length) return -1;
                       return Math.min(...candidates);
                     })();
                     const addressPartsRaw = (stopIndex > 0 ? partsNoCountry.slice(0, stopIndex) : partsNoCountry.slice(0, 2)).filter(Boolean);
@@ -904,8 +924,8 @@ export default function HomeServiceRequestScreen() {
                       else addressLine2Next = addressPartsRaw[0];
                     }
 
-                    if (addressLine1Next) setAddressLine1(addressLine1Next);
-                    if (addressLine2Next) setAddressLine2(addressLine2Next);
+                    setAddressLine1(addressLine1Next || '');
+                    setAddressLine2(addressLine2Next || '');
 
                     if (nextState) {
                       setState(nextState);
@@ -1004,31 +1024,96 @@ export default function HomeServiceRequestScreen() {
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred date
                   </Text>
-                  <Pressable onPress={() => setDatePickerOpen(true)}>
-                    <Input
-                      value={preferredDate}
-                      editable={false}
-                      placeholder="DD/MM/YYYY"
-                      backgroundColor="#FFFFFF"
-                      borderColor="#E5E7EB"
-                      color="#111827"
-                    />
-                  </Pressable>
+                  {Platform.OS === 'web'
+                    ? React.createElement('input', {
+                        type: 'date',
+                        value: toISODateFromDDMMYYYY(preferredDate) || '',
+                        style: {
+                          width: '100%',
+                          height: 46,
+                          fontSize: 14,
+                          padding: '10px 12px',
+                          borderRadius: 12,
+                          border: '1px solid #E5E7EB',
+                          outline: 'none',
+                          background: '#FFFFFF',
+                          color: '#111827',
+                        },
+                        onFocus: (e: any) => {
+                          try {
+                            e?.target?.showPicker?.();
+                          } catch {}
+                        },
+                        onClick: (e: any) => {
+                          try {
+                            e?.target?.showPicker?.();
+                          } catch {}
+                        },
+                        onChange: (e: any) => {
+                          const iso = String(e?.target?.value ?? '');
+                          const next = fromISOToDDMMYYYY(iso);
+                          if (next) setPreferredDate(next);
+                        },
+                      } as any)
+                    : (
+                        <Pressable onPress={() => setDatePickerOpen(true)}>
+                          <Input
+                            value={preferredDate}
+                            editable={false}
+                            placeholder="DD/MM/YYYY"
+                            backgroundColor="#FFFFFF"
+                            borderColor="#E5E7EB"
+                            color="#111827"
+                          />
+                        </Pressable>
+                      )}
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
                   <Text fontSize={12} fontWeight="700" color="#456bbeff">
                     Preferred time
                   </Text>
-                  <Pressable onPress={() => setTimePickerOpen(true)}>
-                    <Input
-                      value={preferredTime}
-                      editable={false}
-                      placeholder="Select time"
-                      backgroundColor="#FFFFFF"
-                      borderColor="#E5E7EB"
-                      color="#111827"
-                    />
-                  </Pressable>
+                  {Platform.OS === 'web'
+                    ? React.createElement('input', {
+                        type: 'time',
+                        value: preferredTime || '',
+                        style: {
+                          width: '100%',
+                          height: 46,
+                          fontSize: 14,
+                          padding: '10px 12px',
+                          borderRadius: 12,
+                          border: '1px solid #E5E7EB',
+                          outline: 'none',
+                          background: '#FFFFFF',
+                          color: '#111827',
+                        },
+                        onFocus: (e: any) => {
+                          try {
+                            e?.target?.showPicker?.();
+                          } catch {}
+                        },
+                        onClick: (e: any) => {
+                          try {
+                            e?.target?.showPicker?.();
+                          } catch {}
+                        },
+                        onChange: (e: any) => {
+                          const t = String(e?.target?.value ?? '').trim();
+                          if (t) setPreferredTime(t);
+                        },
+                      } as any)
+                    : (
+                        <Pressable onPress={() => setTimePickerOpen(true)}>
+                          <Input
+                            value={preferredTime}
+                            editable={false}
+                            placeholder="Select time"
+                            backgroundColor="#FFFFFF"
+                            borderColor="#E5E7EB"
+                            color="#111827"
+                          />
+                        </Pressable>
+                      )}
                 </YStack>
               </XStack>
 
@@ -1420,102 +1505,9 @@ export default function HomeServiceRequestScreen() {
         />
       ) : null}
 
-      {Platform.OS === 'web' && datePickerOpen ? (
-        <Modal transparent animationType="fade" visible onRequestClose={() => setDatePickerOpen(false)}>
-          <Pressable
-            onPress={() => setDatePickerOpen(false)}
-            style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }}>
-            <Pressable
-              onPress={() => {}}
-              style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxWidth: 520, width: '100%', alignSelf: 'center' } as any}>
-              <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-                <Text color="#111827" fontSize={16} fontWeight="900">
-                  Select Date
-                </Text>
-                <Pressable onPress={() => setDatePickerOpen(false)}>
-                  <Text color="#64748B" fontSize={24} fontWeight="900">
-                    ×
-                  </Text>
-                </Pressable>
-              </XStack>
-              {React.createElement('input', {
-                type: 'date',
-                ref: (el: any) => {
-                  webDateInputRef.current = el;
-                  try {
-                    if (el?.showPicker) el.showPicker();
-                    else el?.click?.();
-                  } catch {}
-                },
-                value: toISODateFromDDMMYYYY(preferredDate) || undefined,
-                style: {
-                  width: '100%',
-                  height: 46,
-                  fontSize: 16,
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: '1px solid #E5E7EB',
-                  outline: 'none',
-                },
-                onChange: (e: any) => {
-                  const iso = String(e?.target?.value ?? '');
-                  const next = fromISOToDDMMYYYY(iso);
-                  if (next) setPreferredDate(next);
-                  setDatePickerOpen(false);
-                },
-              } as any)}
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
+      {Platform.OS === 'web' && datePickerOpen ? null : null}
 
-      {Platform.OS === 'web' && timePickerOpen ? (
-        <Modal transparent animationType="fade" visible onRequestClose={() => setTimePickerOpen(false)}>
-          <Pressable
-            onPress={() => setTimePickerOpen(false)}
-            style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }}>
-            <Pressable
-              onPress={() => {}}
-              style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxWidth: 520, width: '100%', alignSelf: 'center' } as any}>
-              <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-                <Text color="#111827" fontSize={16} fontWeight="900">
-                  Select Time
-                </Text>
-                <Pressable onPress={() => setTimePickerOpen(false)}>
-                  <Text color="#64748B" fontSize={24} fontWeight="900">
-                    ×
-                  </Text>
-                </Pressable>
-              </XStack>
-              {React.createElement('input', {
-                type: 'time',
-                ref: (el: any) => {
-                  webTimeInputRef.current = el;
-                  try {
-                    if (el?.showPicker) el.showPicker();
-                    else el?.click?.();
-                  } catch {}
-                },
-                value: preferredTime ? preferredTime : undefined,
-                style: {
-                  width: '100%',
-                  height: 46,
-                  fontSize: 16,
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: '1px solid #E5E7EB',
-                  outline: 'none',
-                },
-                onChange: (e: any) => {
-                  const t = String(e?.target?.value ?? '').trim();
-                  if (t) setPreferredTime(t);
-                  setTimePickerOpen(false);
-                },
-              } as any)}
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
+      {Platform.OS === 'web' && timePickerOpen ? null : null}
 
       <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.92)', padding: 16, justifyContent: 'center' }}>

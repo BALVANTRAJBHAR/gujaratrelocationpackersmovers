@@ -784,7 +784,7 @@ export default function HomeLandingScreen() {
     }
 
     if (activeService === 'property') {
-      router.push({ pathname: '/properties' } as any);
+      router.push({ pathname: '/properties/post' } as any);
       return;
     }
 
@@ -2353,9 +2353,26 @@ export default function HomeLandingScreen() {
                         })()
                       }
                       style={{ alignSelf: 'flex-start' } as any}>
-                      <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
-                        Use Current Location
-                      </Text>
+                      <XStack alignItems="center" gap="$2" paddingVertical={4}>
+                        <View
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 10,
+                            borderWidth: 2,
+                            borderColor: '#0EA5E9',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative',
+                          }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 6, backgroundColor: '#0EA5E9' }} />
+                          <View style={{ position: 'absolute', width: 16, height: 2, backgroundColor: '#0EA5E9' }} />
+                          <View style={{ position: 'absolute', width: 2, height: 16, backgroundColor: '#0EA5E9' }} />
+                        </View>
+                        <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
+                          Use Current Location
+                        </Text>
+                      </XStack>
                     </Pressable>
 
                     {propertyLocalitySuggestions.length ? (
@@ -2611,7 +2628,7 @@ export default function HomeLandingScreen() {
                         ? 'Book shifting service in 2 minutes'
                         : activeService === 'home_services'
                           ? 'Book a technician / home service'
-                          : 'Search or post a property'}
+                          : 'Are you a property owner'}
                     </Text>
                   </YStack>
                   <Button
@@ -2623,7 +2640,7 @@ export default function HomeLandingScreen() {
                     pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
                     focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
                     onPress={handlePrimaryServiceAction}>
-                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
+                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Post Property'}
                   </Button>
                 </XStack>
               </YStack>
