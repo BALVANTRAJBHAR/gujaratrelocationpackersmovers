@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
@@ -180,6 +180,12 @@ export default function HomeServiceRequestScreen() {
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerKind, setMediaViewerKind] = useState<'photo' | 'video'>('photo');
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const otpRefs = useRef<Array<any>>([]);
+  const submitAfterOtpRef = useRef(false);
   const webDateInputRef = useRef<any>(null);
   const webTimeInputRef = useRef<any>(null);
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
@@ -406,6 +412,117 @@ export default function HomeServiceRequestScreen() {
     return false;
   };
 
+  const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> => {
+    const extra = (Constants as any)?.expoConfig?.extra ?? (Constants as any)?.manifest?.extra ?? {};
+    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? '';
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra?.supabaseAnonKey ?? '';
+    if (!baseUrl || !anonKey) {
+      throw new Error('Supabase env vars missing. Check EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = setTimeout(() => ctrl?.abort(), 25000);
+
+    try {
+      const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
+        method: 'POST',
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body ?? {}),
+        signal: ctrl?.signal,
+      } as any);
+
+      const text = await res.text();
+      let parsed: any = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = null;
+        }
+      }
+
+      if (!res.ok) {
+        const msg = parsed?.error || parsed?.message || text || `Edge Function error (${res.status})`;
+        throw new Error(`(${res.status}) ${msg}`);
+      }
+
+      return (parsed ?? {}) as T;
+    } catch (e: any) {
+      const msg = e?.name === 'AbortError' ? 'Timeout calling OTP service. Please try again.' : e?.message;
+      throw new Error(msg || 'OTP service failed.');
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const sendOtp = async () => {
+    setError(null);
+    const digits = normalizePhoneDigits(customerPhone);
+    if (!digits || digits.length !== 10) {
+      setError('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
+    setOtpSending(true);
+    try {
+      const phone = `${countryCode}${digits}`;
+      if (session?.user?.id) {
+        await supabase.from('users').update({ phone: digits }).eq('id', session.user.id);
+      }
+      const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', { phone });
+      if (data?.error) setError(String(data.error));
+    } catch (e: any) {
+      setError(e?.message ? String(e.message) : 'Failed to send OTP.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!otpOpen) return;
+    void sendOtp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otpOpen]);
+
+  const verifyOtpAndSubmit = async () => {
+    setError(null);
+    const code = otpDigits.join('');
+    if (code.length !== 6) {
+      setError('Enter 6-digit OTP.');
+      return;
+    }
+
+    setOtpVerifying(true);
+    try {
+      const digits = normalizePhoneDigits(customerPhone);
+      const phone = `${countryCode}${digits}`;
+      const data = await invokeEdgeFunction<{ valid?: boolean; error?: string }>('verify-booking-otp', { phone, code });
+      if (!data?.valid) {
+        setError(data?.error ? String(data.error) : 'Invalid OTP.');
+        return;
+      }
+
+      const requestId = await createRequestIfNeeded();
+      if (!requestId) return;
+
+      await uploadMedia(requestId);
+      await supabase.from('home_service_requests').update({ status: 'pending' }).eq('id', requestId);
+
+      setOtpOpen(false);
+      submitAfterOtpRef.current = false;
+      Alert.alert('Booking confirmed', `Your request has been submitted.\nPreferred: ${preferredDate || '-'} ${preferredTime || ''}`.trim());
+      router.replace('/home-services/my-requests');
+    } catch (e: any) {
+      setError(e?.message ? String(e.message) : 'Failed to verify OTP.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
   const goNext = () => {
     if (step === 'service') {
       if (!serviceKey) {
@@ -630,15 +747,9 @@ export default function HomeServiceRequestScreen() {
       const requestId = await createRequestIfNeeded();
       if (!requestId) return;
 
-      await uploadMedia(requestId);
-
-      await supabase
-        .from('home_service_requests')
-        .update({ status: 'pending' })
-        .eq('id', requestId);
-
-      Alert.alert('Request submitted', 'We have received your request. A provider will contact you shortly.');
-      router.replace('/home-services/my-requests');
+      submitAfterOtpRef.current = true;
+      setOtpDigits(['', '', '', '', '', '']);
+      setOtpOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to submit request.');
     } finally {
@@ -1080,6 +1191,10 @@ export default function HomeServiceRequestScreen() {
                         value: toISODateFromDDMMYYYY(preferredDate) || '',
                         style: {
                           width: '100%',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          display: 'block',
                           height: 46,
                           fontSize: 14,
                           padding: '10px 12px',
@@ -1128,6 +1243,10 @@ export default function HomeServiceRequestScreen() {
                         value: preferredTime || '',
                         style: {
                           width: '100%',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          display: 'block',
                           height: 46,
                           fontSize: 14,
                           padding: '10px 12px',
@@ -1289,6 +1408,15 @@ export default function HomeServiceRequestScreen() {
 
               <YStack gap="$1">
                 <Text color="#64748B" fontWeight="700">
+                  Name
+                </Text>
+                <Text color="#111827" fontWeight="900">
+                  {customerName.trim() || 'Not provided'}
+                </Text>
+              </YStack>
+
+              <YStack gap="$1">
+                <Text color="#64748B" fontWeight="700">
                   Service
                 </Text>
                 <Text color="#111827" fontWeight="900">
@@ -1327,13 +1455,56 @@ export default function HomeServiceRequestScreen() {
 
               <YStack gap="$1">
                 <Text color="#64748B" fontWeight="700">
+                  Remark
+                </Text>
+                <Text color="#111827" fontWeight="900">
+                  {notes.trim() || 'Not provided'}
+                </Text>
+              </YStack>
+
+              <YStack gap="$1">
+                <Text color="#64748B" fontWeight="700">
                   Uploads
                 </Text>
-                <Pressable onPress={() => setUploadsPreviewOpen(true)}>
-                  <Text color="#111827" fontWeight="900" style={{ textDecorationLine: 'underline', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
-                    {photos.length} photos, {videos.length} videos (Preview)
-                  </Text>
-                </Pressable>
+                <XStack gap="$3" flexWrap="wrap" alignItems="center">
+                  <Pressable
+                    disabled={!photos.length}
+                    onPress={() => {
+                      if (!photos.length) return;
+                      setMediaViewerKind('photo');
+                      setMediaViewerIndex(0);
+                      setMediaViewerOpen(true);
+                    }}>
+                    <Text
+                      color={photos.length ? '#111827' : '#9CA3AF'}
+                      fontWeight="900"
+                      style={{ textDecorationLine: photos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                      {photos.length} photos (View)
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    disabled={!videos.length}
+                    onPress={() => {
+                      if (!videos.length) return;
+                      setMediaViewerKind('video');
+                      setMediaViewerIndex(0);
+                      setMediaViewerOpen(true);
+                    }}>
+                    <Text
+                      color={videos.length ? '#111827' : '#9CA3AF'}
+                      fontWeight="900"
+                      style={{ textDecorationLine: videos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                      {videos.length} videos (View)
+                    </Text>
+                  </Pressable>
+
+                  <Pressable onPress={() => setUploadsPreviewOpen(true)}>
+                    <Text color="#2563EB" fontWeight="900" style={{ textDecorationLine: 'underline' } as any}>
+                      Preview
+                    </Text>
+                  </Pressable>
+                </XStack>
               </YStack>
             </YStack>
           ) : null}
@@ -1657,6 +1828,113 @@ export default function HomeServiceRequestScreen() {
               ))}
               {!photos.length && !videos.length ? <Text color="#64748B">No uploads.</Text> : null}
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={otpOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (otpVerifying) return;
+          setOtpOpen(false);
+        }}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', padding: 16 }}
+          onPress={() => {
+            if (otpVerifying) return;
+            setOtpOpen(false);
+          }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14 }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={8}>
+              <Text color="#111827" fontSize={16} fontWeight="900">
+                Verify OTP
+              </Text>
+              <Pressable
+                onPress={() => {
+                  if (otpVerifying) return;
+                  setOtpOpen(false);
+                }}>
+                <Text color="#64748B" fontSize={24} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+
+            <Paragraph color="#475569" fontWeight="700" marginBottom={10}>
+              Enter the 6-digit code sent to {countryCode}
+              {normalizePhoneDigits(customerPhone)}
+            </Paragraph>
+
+            <XStack gap="$2" justifyContent="space-between" marginBottom={12}>
+              {otpDigits.map((d, idx) => (
+                <TextInput
+                  key={idx}
+                  ref={(r) => {
+                    otpRefs.current[idx] = r;
+                  }}
+                  value={d}
+                  onChangeText={(v) => {
+                    const digit = String(v ?? '').replace(/\D/g, '').slice(-1);
+                    setOtpDigits((prev) => {
+                      const next = [...prev];
+                      next[idx] = digit;
+                      return next;
+                    });
+                    if (digit && idx < 5) {
+                      try {
+                        otpRefs.current[idx + 1]?.focus?.();
+                      } catch {
+                        // ignore
+                      }
+                    }
+                  }}
+                  onKeyPress={(e: any) => {
+                    if (e?.nativeEvent?.key !== 'Backspace') return;
+                    if (otpDigits[idx]) return;
+                    if (idx <= 0) return;
+                    try {
+                      otpRefs.current[idx - 1]?.focus?.();
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+                  inputMode={Platform.OS === 'web' ? ('numeric' as any) : undefined}
+                  maxLength={1}
+                  style={{
+                    width: 46,
+                    height: 52,
+                    borderWidth: 1,
+                    borderColor: '#E5E7EB',
+                    borderRadius: 12,
+                    textAlign: 'center',
+                    fontSize: 18,
+                    fontWeight: '900',
+                    color: '#111827',
+                    backgroundColor: '#FFFFFF',
+                  }}
+                />
+              ))}
+            </XStack>
+
+            {error ? (
+              <YStack backgroundColor="#FEF2F2" borderRadius={12} padding={10} borderWidth={1} borderColor="#FECACA" marginBottom={10}>
+                <Text color="#991B1B" fontWeight="800">
+                  {error}
+                </Text>
+              </YStack>
+            ) : null}
+
+            <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+              <Button backgroundColor="#E2E8F0" color="#0F172A" disabled={otpSending || otpVerifying} onPress={() => void sendOtp()}>
+                {otpSending ? 'Sending...' : 'Resend OTP'}
+              </Button>
+              <Button backgroundColor="#1F4E79" color="#FFFFFF" disabled={otpVerifying} onPress={() => void verifyOtpAndSubmit()}>
+                {otpVerifying ? 'Verifying...' : 'Verify & Submit'}
+              </Button>
+            </XStack>
           </Pressable>
         </Pressable>
       </Modal>
