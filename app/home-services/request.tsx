@@ -179,6 +179,7 @@ export default function HomeServiceRequestScreen() {
   const webTimeInputRef = useRef<any>(null);
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
+  const [localityTyped, setLocalityTyped] = useState(false);
 
   const countryCodeOptions = useMemo(
     () =>
@@ -325,6 +326,11 @@ export default function HomeServiceRequestScreen() {
   React.useEffect(() => {
     let active = true;
     const q = locality.trim();
+    if (!localityTyped) {
+      setLocalitySuggestions([]);
+      return;
+    }
+
     if (!q || q.length < 2) {
       setLocalitySuggestions([]);
       return;
@@ -764,53 +770,6 @@ export default function HomeServiceRequestScreen() {
                 />
               </YStack>
 
-              <YStack gap="$2">
-                <Text fontSize={12} fontWeight="700" color="#456bbeff">
-                  Address line 2
-                </Text>
-                <Input
-                  value={addressLine2}
-                  onChangeText={setAddressLine2}
-                  placeholder="Street / landmark"
-                  backgroundColor="#FFFFFF"
-                  borderColor="#E5E7EB"
-                  color="#111827"
-                />
-              </YStack>
-
-              <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={12} fontWeight="700" color="#456bbeff">
-                    State
-                  </Text>
-                  <Pressable onPress={() => setStatePickerOpen(true)}>
-                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
-                      <Text fontSize={11} fontWeight="800" color="#64748B">
-                        Select
-                      </Text>
-                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
-                        {state || 'State'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={12} fontWeight="700" color="#456bbeff">
-                    City
-                  </Text>
-                  <Pressable onPress={() => setCityPickerOpen(true)}>
-                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
-                      <Text fontSize={11} fontWeight="800" color="#64748B">
-                        Select
-                      </Text>
-                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
-                        {city || 'City'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-              </XStack>
-
               <Pressable
                 onPress={() => void (async () => {
                   try {
@@ -933,6 +892,10 @@ export default function HomeServiceRequestScreen() {
                       setLocality('');
                     }
                     if (nextCity) setCity(nextCity);
+
+                    // IMPORTANT: programmatic fill should NOT trigger Mapbox suggestions
+                    setLocalityTyped(false);
+                    setLocalitySuggestions([]);
                     if (nextLocality) setLocality(nextLocality);
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
@@ -963,11 +926,28 @@ export default function HomeServiceRequestScreen() {
 
               <YStack gap="$2">
                 <Text fontSize={12} fontWeight="700" color="#456bbeff">
+                  Address line 2
+                </Text>
+                <Input
+                  value={addressLine2}
+                  onChangeText={setAddressLine2}
+                  placeholder="Street / landmark"
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <Text fontSize={12} fontWeight="700" color="#456bbeff">
                   Locality
                 </Text>
                 <Input
                   value={locality}
-                  onChangeText={setLocality}
+                  onChangeText={(v) => {
+                    setLocality(v);
+                    setLocalityTyped(true);
+                  }}
                   placeholder="Search locality"
                   backgroundColor="#FFFFFF"
                   borderColor="#E5E7EB"
@@ -975,7 +955,7 @@ export default function HomeServiceRequestScreen() {
                 />
               </YStack>
 
-              {localityOptions.length && locality.trim() ? (
+              {localityTyped && localityOptions.length && locality.trim() ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
                   <Text fontSize={11} fontWeight="700" color="#64748B">
                     Locality suggestions:
@@ -984,7 +964,13 @@ export default function HomeServiceRequestScreen() {
                     .filter((x) => x.toLowerCase().includes(locality.trim().toLowerCase()))
                     .slice(0, 6)
                     .map((l) => (
-                      <Pressable key={l} onPress={() => setLocality(l)}>
+                      <Pressable
+                        key={l}
+                        onPress={() => {
+                          setLocalityTyped(false);
+                          setLocality(l);
+                          setLocalitySuggestions([]);
+                        }}>
                         <Text fontSize={11} fontWeight="900" color="#2563EB">
                           {l}
                         </Text>
@@ -993,12 +979,13 @@ export default function HomeServiceRequestScreen() {
                 </XStack>
               ) : null}
 
-              {localitySuggestions.length ? (
+              {localityTyped && localitySuggestions.length ? (
                 <YStack gap="$2">
                   {localitySuggestions.map((s) => (
                     <Pressable
                       key={s.id}
                       onPress={() => {
+                        setLocalityTyped(false);
                         setLocality(s.label);
                         setLocalitySuggestions([]);
                       }}>
@@ -1013,11 +1000,44 @@ export default function HomeServiceRequestScreen() {
                     </Pressable>
                   ))}
                 </YStack>
-              ) : localityLoading ? (
+              ) : localityTyped && localityLoading ? (
                 <Text color="#64748B" fontSize={11}>
                   Searching...
                 </Text>
               ) : null}
+
+              <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
+                  <Text fontSize={12} fontWeight="700" color="#456bbeff">
+                    State
+                  </Text>
+                  <Pressable onPress={() => setStatePickerOpen(true)}>
+                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
+                      <Text fontSize={11} fontWeight="800" color="#64748B">
+                        Select
+                      </Text>
+                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
+                        {state || 'State'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
+                  <Text fontSize={12} fontWeight="700" color="#456bbeff">
+                    City
+                  </Text>
+                  <Pressable onPress={() => setCityPickerOpen(true)}>
+                    <YStack backgroundColor="#FFFFFF" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
+                      <Text fontSize={11} fontWeight="800" color="#64748B">
+                        Select
+                      </Text>
+                      <Text fontSize={13} fontWeight="900" color="#111827" numberOfLines={1}>
+                        {city || 'City'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+              </XStack>
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>

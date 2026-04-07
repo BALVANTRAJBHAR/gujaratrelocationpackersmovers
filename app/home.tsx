@@ -1904,6 +1904,8 @@ export default function HomeLandingScreen() {
                     minWidth={isSmallScreen ? '30%' : 160}
                     backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
                     color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
+                    fontFamily="Courier New"
+                    fontWeight="900"
                     borderWidth={1}
                     borderColor={theme.border}
                     hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
@@ -1917,6 +1919,8 @@ export default function HomeLandingScreen() {
                     minWidth={isSmallScreen ? '30%' : 160}
                     backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
                     color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
+                    fontFamily="Courier New"
+                    fontWeight="900"
                     borderWidth={1}
                     borderColor={theme.border}
                     hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
@@ -1930,6 +1934,8 @@ export default function HomeLandingScreen() {
                     minWidth={isSmallScreen ? '30%' : 160}
                     backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
                     color={activeService === 'property' ? '#FFFFFF' : theme.text}
+                    fontFamily="Courier New"
+                    fontWeight="900"
                     borderWidth={1}
                     borderColor={theme.border}
                     hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
