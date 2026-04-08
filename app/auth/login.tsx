@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, ScrollView } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -42,6 +42,14 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [signupRole, setSignupRole] = useState<'customer' | 'provider'>('customer');
+  const [signupProviderSubtype, setSignupProviderSubtype] = useState<'home_service' | 'property_owner'>('home_service');
+  const [signupProviderServices, setSignupProviderServices] = useState<string[]>([]);
+  const [servicesPickerOpen, setServicesPickerOpen] = useState(false);
+
+  const providerServiceOptions = useMemo(
+    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting'],
+    []
+  );
 
   const resolveDbRole = (intent: 'customer' | 'provider') => {
     return intent === 'provider' ? 'provider' : 'customer';
@@ -308,6 +316,17 @@ export default function LoginScreen() {
 
       if (mode === 'signup') {
         const trimmedName = name.trim();
+        const nextProviderServices =
+          signupRole === 'provider'
+            ? signupProviderSubtype === 'property_owner'
+              ? ['Property Owner']
+              : signupProviderServices
+            : [];
+
+        if (signupRole === 'provider' && signupProviderSubtype === 'home_service' && nextProviderServices.length === 0) {
+          setError('Please select at least 1 service.');
+          return;
+        }
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password,
@@ -315,6 +334,8 @@ export default function LoginScreen() {
             data: {
               ...(trimmedName ? { name: trimmedName } : {}),
               role_intent: signupRole,
+              provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
+              provider_services: nextProviderServices,
             },
           },
         });
@@ -344,6 +365,7 @@ export default function LoginScreen() {
                   email: trimmedEmail,
                   name: trimmedName || null,
                   role: resolveDbRole(signupRole),
+                  provider_services: nextProviderServices,
                 },
                 { onConflict: 'id' }
               );
@@ -541,7 +563,11 @@ export default function LoginScreen() {
                   borderColor={signupRole === 'customer' ? activeBtnBg : border}
                   hoverStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => setSignupRole('customer')}
+                  onPress={() => {
+                    setSignupRole('customer');
+                    setSignupProviderSubtype('home_service');
+                    setSignupProviderServices([]);
+                  }}
                   disabled={loading || oauthLoading !== null}>
                   Customer
                 </Button>
@@ -553,11 +579,86 @@ export default function LoginScreen() {
                   borderColor={signupRole === 'provider' ? activeBtnBg : border}
                   hoverStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => setSignupRole('provider')}
+                  onPress={() => {
+                    setSignupRole('provider');
+                    setSignupProviderSubtype('home_service');
+                    setSignupProviderServices([]);
+                  }}
                   disabled={loading || oauthLoading !== null}>
                   Provider
                 </Button>
               </XStack>
+            </YStack>
+          ) : null}
+
+          {mode === 'signup' && showEmailSignup && signupRole === 'provider' ? (
+            <YStack gap="$2">
+              <Text color={label}>Provider type</Text>
+              <XStack gap="$2" flexWrap="wrap">
+                <Button
+                  flex={1}
+                  backgroundColor={signupProviderSubtype === 'home_service' ? activeBtnBg : idleBtnBg}
+                  color={signupProviderSubtype === 'home_service' ? activeBtnText : idleBtnText}
+                  borderWidth={1}
+                  borderColor={signupProviderSubtype === 'home_service' ? activeBtnBg : border}
+                  hoverStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnHoverBg : idleBtnHoverBg }}
+                  pressStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnPressBg : idleBtnPressBg }}
+                  onPress={() => {
+                    setSignupProviderSubtype('home_service');
+                    setSignupProviderServices([]);
+                  }}
+                  disabled={loading || oauthLoading !== null}>
+                  Home Service Provider
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : idleBtnBg}
+                  color={signupProviderSubtype === 'property_owner' ? activeBtnText : idleBtnText}
+                  borderWidth={1}
+                  borderColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : border}
+                  hoverStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnHoverBg : idleBtnHoverBg }}
+                  pressStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnPressBg : idleBtnPressBg }}
+                  onPress={() => {
+                    setSignupProviderSubtype('property_owner');
+                    setSignupProviderServices([]);
+                  }}
+                  disabled={loading || oauthLoading !== null}>
+                  Property Owner
+                </Button>
+              </XStack>
+
+              {signupProviderSubtype === 'home_service' ? (
+                <YStack gap="$2">
+                  <Text color={label}>Services</Text>
+                  <Pressable
+                    onPress={() => setServicesPickerOpen(true)}
+                    style={{ width: '100%' } as any}
+                    disabled={loading || oauthLoading !== null}>
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                        backgroundColor: isDark ? '#0B1220' : '#FFFFFF',
+                      } as any}>
+                      <Text color={titleColor} fontWeight="700">
+                        {signupProviderServices.length
+                          ? signupProviderServices.join(', ')
+                          : 'Select services (AC, Carpenter, ...)'}
+                      </Text>
+                      <Text color={muted} fontSize={12} marginTop={2}>
+                        Tap to open list
+                      </Text>
+                    </View>
+                  </Pressable>
+                </YStack>
+              ) : (
+                <Paragraph color={muted}>
+                  Property Owner will be saved in your profile.
+                </Paragraph>
+              )}
             </YStack>
           ) : null}
 
@@ -623,7 +724,14 @@ export default function LoginScreen() {
               hoverStyle={{ backgroundColor: activeBtnHoverBg }}
               pressStyle={{ backgroundColor: activeBtnPressBg }}
               onPress={handleSubmit}
-              disabled={loading}>
+              disabled={
+                loading ||
+                (mode === 'signup' &&
+                  showEmailSignup &&
+                  signupRole === 'provider' &&
+                  signupProviderSubtype === 'home_service' &&
+                  signupProviderServices.length === 0)
+              }>
               {loading
                 ? 'Please wait…'
                 : mode === 'login'
@@ -660,6 +768,66 @@ export default function LoginScreen() {
           </Button>
         </YStack>
       </YStack>
+
+      <Modal visible={servicesPickerOpen} transparent animationType="fade" onRequestClose={() => setServicesPickerOpen(false)}>
+        <Pressable
+          onPress={() => setServicesPickerOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 } as any}>
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              alignSelf: 'center',
+              backgroundColor: cardBg,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: border,
+              padding: 16,
+            } as any}>
+            <YStack gap="$3">
+              <Text color={titleColor} fontWeight="800" fontSize={16}>
+                Select services
+              </Text>
+
+              <XStack flexWrap="wrap" gap="$2">
+                {providerServiceOptions.map((opt) => {
+                  const selected = signupProviderServices.includes(opt);
+                  return (
+                    <Button
+                      key={opt}
+                      size="$3"
+                      backgroundColor={selected ? '#10B981' : idleBtnBg}
+                      color={selected ? '#0B0B12' : idleBtnText}
+                      borderWidth={1}
+                      borderColor={selected ? '#10B981' : border}
+                      onPress={() => {
+                        setSignupProviderServices((prev) => {
+                          if (prev.includes(opt)) return prev.filter((x) => x !== opt);
+                          return [...prev, opt];
+                        });
+                      }}>
+                      {opt}
+                    </Button>
+                  );
+                })}
+              </XStack>
+
+              <XStack gap="$2" justifyContent="flex-end">
+                <Button chromeless color={muted} onPress={() => setSignupProviderServices([])}>
+                  Clear
+                </Button>
+                <Button
+                  backgroundColor={activeBtnBg}
+                  color={activeBtnText}
+                  onPress={() => setServicesPickerOpen(false)}>
+                  Done
+                </Button>
+              </XStack>
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
