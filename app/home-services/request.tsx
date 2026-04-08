@@ -898,13 +898,19 @@ export default function HomeServiceRequestScreen() {
                     }
                     const current = await Location.getCurrentPositionAsync({
                       accuracy: Location.Accuracy.Highest,
-                      maximumAge: 5_000,
+                      maximumAge: 0,
                       timeout: 12_000,
                       mayShowUserSettingsDialog: true,
+                      enableHighAccuracy: true,
                     } as any);
                     const features = await reverseGeocodeFeatures(current.coords.longitude, current.coords.latitude, 8).catch(() => []);
                     const details = (features.find((f) => (f.place_type ?? []).includes('address')) ?? features[0] ?? (await reverseGeocodeDetails(current.coords.longitude, current.coords.latitude))) as any;
                     const placeName = String(details?.place_name ?? (await reverseGeocode(current.coords.longitude, current.coords.latitude)) ?? '').trim();
+
+                    if (__DEV__) {
+                      console.log('[HomeServices] current coords:', current.coords.latitude, current.coords.longitude);
+                      console.log('[HomeServices] mapbox place:', placeName);
+                    }
 
                     const placeFeature = features.find((f) => (f.place_type ?? []).includes('place')) ?? null;
                     const poiPolice =
@@ -948,6 +954,11 @@ export default function HomeServiceRequestScreen() {
                       nextState = matchFromOptions(partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, stateOptions)) ?? '', stateOptions);
                     }
                     let nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+
+                    if (!nextState && rawRegion) {
+                      nextState = rawRegion;
+                      nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
+                    }
 
                     const likelyCityToken = stripIndianPin(rawPlace || partsNoCountry[partsNoCountry.length - 1] || '');
 
@@ -1045,14 +1056,16 @@ export default function HomeServiceRequestScreen() {
                       setCity('');
                       setLocality('');
                     }
-                    if (nextCity) setCity(nextCity);
+
+                    const finalCity = nextCity || rawPlace;
+                    if (finalCity) setCity(finalCity);
 
                     // IMPORTANT: programmatic fill should NOT trigger Mapbox suggestions
                     setLocalityTyped(false);
                     setLocalitySuggestions([]);
 
                     // Preferred: Mapbox neighborhood/locality token, then DB/local fallback logic
-                    const localityCandidate = rawPolice || nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
+                    const localityCandidate = rawPolice || rawNeighborhood || rawLocality || nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
                     if (localityCandidate) setLocality(localityCandidate);
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
