@@ -70,6 +70,19 @@ export async function reverseGeocode(lng: number, lat: number): Promise<string> 
   return String(data.features?.[0]?.place_name ?? '').trim();
 }
 
+export async function reverseGeocodeFeatures(lng: number, lat: number, limit = 6): Promise<MapboxReverseGeocodeFeature[]> {
+  const mapboxToken = await getMapboxToken();
+  const lim = Math.max(1, Math.min(10, Number(limit) || 6));
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}&limit=${lim}&country=IN&types=address,poi,place,locality,neighborhood`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to reverse geocode');
+  }
+  const data = (await response.json()) as { features?: MapboxReverseGeocodeFeature[] };
+  return (data.features ?? []) as any;
+}
+
 export async function reverseGeocodeDetails(lng: number, lat: number): Promise<MapboxReverseGeocodeFeature | null> {
   const mapboxToken = await getMapboxToken();
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}&limit=1&country=IN&types=address,poi,place,locality,neighborhood`;

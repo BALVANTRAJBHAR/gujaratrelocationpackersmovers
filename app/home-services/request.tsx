@@ -1,14 +1,15 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ResizeMode, Video } from 'expo-av';
+import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
+import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -901,14 +902,31 @@ export default function HomeServiceRequestScreen() {
                       timeout: 12_000,
                       mayShowUserSettingsDialog: true,
                     } as any);
-                    const details = await reverseGeocodeDetails(current.coords.longitude, current.coords.latitude);
+                    const features = await reverseGeocodeFeatures(current.coords.longitude, current.coords.latitude, 8).catch(() => []);
+                    const details = (features.find((f) => (f.place_type ?? []).includes('address')) ?? features[0] ?? (await reverseGeocodeDetails(current.coords.longitude, current.coords.latitude))) as any;
                     const placeName = String(details?.place_name ?? (await reverseGeocode(current.coords.longitude, current.coords.latitude)) ?? '').trim();
 
+                    const placeFeature = features.find((f) => (f.place_type ?? []).includes('place')) ?? null;
+                    const poiPolice =
+                      features.find((f) => {
+                        if (!(f.place_type ?? []).includes('poi')) return false;
+                        const txt = `${String(f.text ?? '')} ${String(f.place_name ?? '')}`.toLowerCase();
+                        if (!txt.trim()) return false;
+                        if (txt.includes('police station')) return true;
+                        if (txt.includes('policestation')) return true;
+                        if (txt.includes('police stn')) return true;
+                        if (txt.includes('police')) return true;
+                        if (txt.includes('thana')) return true;
+                        if (txt.match(/\bps\b/)) return true;
+                        return false;
+                      }) ?? null;
+
                     const rawRegion = pickContextText(details?.context, 'region.');
-                    const rawPlace = pickContextText(details?.context, 'place.');
+                    const rawPlace = pickContextText(details?.context, 'place.') || String(placeFeature?.text ?? '').trim();
                     const rawNeighborhood = pickContextText(details?.context, 'neighborhood.');
                     const rawLocality = pickContextText(details?.context, 'locality.');
-                    const rawLocalityValue = rawNeighborhood || rawLocality;
+                    const rawPolice = String(poiPolice?.text ?? '').trim();
+                    const rawLocalityValue = rawPolice || rawNeighborhood || rawLocality;
 
                     const houseNumber = String(details?.address ?? '').trim();
                     const streetText = String(details?.text ?? '').trim();
@@ -931,7 +949,7 @@ export default function HomeServiceRequestScreen() {
                     }
                     let nextStateId = states.find((s) => normalizeMatchKey(s.name) === normalizeMatchKey(nextState))?.id ?? null;
 
-                    const likelyCityToken = stripIndianPin(rawPlace || partsNoCountry[partsNoCountry.length - 1] ?? '');
+                    const likelyCityToken = stripIndianPin(rawPlace || partsNoCountry[partsNoCountry.length - 1] || '');
 
                     if (!nextState && likelyCityToken) {
                       try {
@@ -958,10 +976,8 @@ export default function HomeServiceRequestScreen() {
                         ? fallbackCityByState[nextState] ?? []
                         : cityOptions;
 
-                    const nextCity = matchFromOptions(
-                      rawPlace || partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) ?? likelyCityToken,
-                      nextCityOptions
-                    );
+                    const nextCityCandidate = rawPlace || partsNoCountry.slice().reverse().find((p) => matchFromOptions(p, nextCityOptions)) || likelyCityToken;
+                    const nextCity = matchFromOptions(nextCityCandidate, nextCityOptions);
                     const nextLocalityMatched = matchFromOptions(rawLocalityValue, localityOptions);
 
                     let nextLocality = nextLocalityMatched;
@@ -1036,7 +1052,7 @@ export default function HomeServiceRequestScreen() {
                     setLocalitySuggestions([]);
 
                     // Preferred: Mapbox neighborhood/locality token, then DB/local fallback logic
-                    const localityCandidate = nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
+                    const localityCandidate = rawPolice || nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
                     if (localityCandidate) setLocality(localityCandidate);
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
