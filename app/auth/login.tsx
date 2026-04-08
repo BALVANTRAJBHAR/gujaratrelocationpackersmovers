@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -409,7 +409,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <YStack flex={1} justifyContent="center" alignItems="center" padding="$4" backgroundColor={pageBg}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: pageBg } as any}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 } as any}
+      keyboardShouldPersistTaps="handled">
       <YStack
         width="100%"
         maxWidth={420}
@@ -657,6 +660,6 @@ export default function LoginScreen() {
           </Button>
         </YStack>
       </YStack>
-    </YStack>
+    </ScrollView>
   );
 }

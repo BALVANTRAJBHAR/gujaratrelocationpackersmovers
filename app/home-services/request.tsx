@@ -177,7 +177,6 @@ export default function HomeServiceRequestScreen() {
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const [uploadsPreviewOpen, setUploadsPreviewOpen] = useState(false);
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerKind, setMediaViewerKind] = useState<'photo' | 'video'>('photo');
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
@@ -1439,7 +1438,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Name
                 </Text>
-                <Text color="#111827" fontWeight="900">
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {customerName.trim() || 'Not provided'}
                 </Text>
               </YStack>
@@ -1448,7 +1447,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Service
                 </Text>
-                <Text color="#111827" fontWeight="900">
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {serviceOptions.find((x) => x.key === serviceKey)?.label ?? serviceKey}
                 </Text>
               </YStack>
@@ -1457,7 +1456,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Phone
                 </Text>
-                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {countryCode}{normalizePhoneDigits(customerPhone)}
                 </Text>
               </YStack>
@@ -1466,7 +1465,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Location
                 </Text>
-                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {addressLine1 || addressLine2 || locality || city || state
                     ? `${addressLine1}${addressLine1 ? ', ' : ''}${addressLine2}${addressLine2 ? ', ' : ''}${locality}${locality ? ', ' : ''}${city}${city ? ', ' : ''}${state}`
                     : 'Not provided'}
@@ -1477,7 +1476,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Preferred date & time
                 </Text>
-                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {preferredDate && preferredTime ? `${preferredDate}, ${preferredTime}` : 'Not provided'}
                 </Text>
               </YStack>
@@ -1486,7 +1485,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color="#64748B" fontWeight="700">
                   Remark
                 </Text>
-                <Text color="#111827" fontWeight="900">
+                <Text color="#111827" fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: '#334155' } as any}>
                   {notes.trim() || 'Not provided'}
                 </Text>
               </YStack>
@@ -1505,7 +1504,7 @@ export default function HomeServiceRequestScreen() {
                       setMediaViewerOpen(true);
                     }}>
                     <Text
-                      color={photos.length ? '#111827' : '#9CA3AF'}
+                      color={photos.length ? '#2563EB' : '#9CA3AF'}
                       fontWeight="900"
                       style={{ textDecorationLine: photos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
                       {photos.length} photos (View)
@@ -1521,16 +1520,10 @@ export default function HomeServiceRequestScreen() {
                       setMediaViewerOpen(true);
                     }}>
                     <Text
-                      color={videos.length ? '#111827' : '#9CA3AF'}
+                      color={videos.length ? '#2563EB' : '#9CA3AF'}
                       fontWeight="900"
                       style={{ textDecorationLine: videos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
                       {videos.length} videos (View)
-                    </Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => setUploadsPreviewOpen(true)}>
-                    <Text color="#2563EB" fontWeight="900" style={{ textDecorationLine: 'underline' } as any}>
-                      Preview
                     </Text>
                   </Pressable>
                 </XStack>
@@ -1812,53 +1805,6 @@ export default function HomeServiceRequestScreen() {
             </Button>
           </XStack>
         </View>
-      </Modal>
-
-      <Modal visible={uploadsPreviewOpen} transparent animationType="fade" onRequestClose={() => setUploadsPreviewOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setUploadsPreviewOpen(false)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: 520 }}>
-            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color="#111827" fontSize={16} fontWeight="900">
-                Uploads Preview
-              </Text>
-              <Pressable onPress={() => setUploadsPreviewOpen(false)}>
-                <Text color="#64748B" fontSize={24} fontWeight="900">
-                  ×
-                </Text>
-              </Pressable>
-            </XStack>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {photos.map((u) => (
-                <Pressable
-                  key={u}
-                  onPress={() => {
-                    setMediaViewerKind('photo');
-                    setMediaViewerIndex(Math.max(0, photos.findIndex((x) => x === u)));
-                    setMediaViewerOpen(true);
-                  }}>
-                  <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' }}>
-                    <Image source={{ uri: u }} style={{ width: '100%', height: 220 }} resizeMode="cover" />
-                  </View>
-                </Pressable>
-              ))}
-              {videos.map((u) => (
-                <Pressable
-                  key={u}
-                  onPress={() => {
-                    setMediaViewerKind('video');
-                    setMediaViewerIndex(Math.max(0, videos.findIndex((x) => x === u)));
-                    setMediaViewerOpen(true);
-                  }}>
-                  <View style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' }}>
-                    <Video source={{ uri: u }} style={{ width: '100%', height: 220 }} resizeMode={ResizeMode.CONTAIN} useNativeControls />
-                  </View>
-                </Pressable>
-              ))}
-              {!photos.length && !videos.length ? <Text color="#64748B">No uploads.</Text> : null}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
       </Modal>
 
       <Modal

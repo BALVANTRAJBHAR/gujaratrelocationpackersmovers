@@ -15,13 +15,14 @@ export default function RegisterDetailsScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<string>('customer');
+  const [providerSubtype, setProviderSubtype] = useState<'home_service' | 'property_owner'>('home_service');
   const [providerServices, setProviderServices] = useState<string[]>([]);
 
   const labelColor = useMemo(() => '#9CA3AF', []);
   const border = useMemo(() => '#374151', []);
 
   const providerServiceOptions = useMemo(
-    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting', 'Property Owner'],
+    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting'],
     []
   );
 
@@ -64,6 +65,9 @@ export default function RegisterDetailsScreen() {
               const metaServices = (user.user_metadata as any)?.provider_services;
               if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
             }
+
+            const savedSubtype = (row as any)?.provider_services?.includes?.('Property Owner') ? 'property_owner' : 'home_service';
+            setProviderSubtype(savedSubtype);
           }
         } else {
           if (isMounted) {
@@ -71,6 +75,9 @@ export default function RegisterDetailsScreen() {
             setRole(String((user.user_metadata as any)?.role_intent ?? 'customer'));
             const metaServices = (user.user_metadata as any)?.provider_services;
             if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
+
+            const metaSubtype = Array.isArray(metaServices) && metaServices.includes('Property Owner') ? 'property_owner' : 'home_service';
+            setProviderSubtype(metaSubtype);
           }
         }
       } catch (e) {
@@ -116,7 +123,12 @@ export default function RegisterDetailsScreen() {
 
       const nextRole = String(role ?? 'customer').toLowerCase();
 
-      const nextProviderServices = nextRole === 'provider' ? providerServices : [];
+      const nextProviderServices =
+        nextRole === 'provider'
+          ? providerSubtype === 'property_owner'
+            ? ['Property Owner']
+            : providerServices
+          : [];
 
       const { error: upsertError } = await supabase
         .from('users')
@@ -217,32 +229,68 @@ export default function RegisterDetailsScreen() {
 
         {String(role ?? '').toLowerCase() === 'provider' ? (
           <YStack gap="$2">
-            <Text color={labelColor}>Services you provide</Text>
-            <XStack flexWrap="wrap" gap="$2">
-              {providerServiceOptions.map((opt) => {
-                const selected = providerServices.includes(opt);
-                return (
-                  <Button
-                    key={opt}
-                    size="$3"
-                    borderWidth={1}
-                    borderColor={selected ? '#10B981' : border}
-                    backgroundColor={selected ? '#065F46' : '#1F2937'}
-                    color="#FFFFFF"
-                    onPress={() => {
-                      setProviderServices((prev) => {
-                        if (prev.includes(opt)) return prev.filter((x) => x !== opt);
-                        return [...prev, opt];
-                      });
-                    }}>
-                    {opt}
-                  </Button>
-                );
-              })}
+            <Text color={labelColor}>Provider type</Text>
+            <XStack gap="$2" flexWrap="wrap">
+              <Button
+                flex={1}
+                borderWidth={1}
+                borderColor={providerSubtype === 'home_service' ? '#10B981' : border}
+                backgroundColor={providerSubtype === 'home_service' ? '#065F46' : '#1F2937'}
+                color="#FFFFFF"
+                onPress={() => {
+                  setProviderSubtype('home_service');
+                  setProviderServices([]);
+                }}>
+                Home Service Provider
+              </Button>
+              <Button
+                flex={1}
+                borderWidth={1}
+                borderColor={providerSubtype === 'property_owner' ? '#10B981' : border}
+                backgroundColor={providerSubtype === 'property_owner' ? '#065F46' : '#1F2937'}
+                color="#FFFFFF"
+                onPress={() => {
+                  setProviderSubtype('property_owner');
+                  setProviderServices([]);
+                }}>
+                Property Owner
+              </Button>
             </XStack>
-            {providerServices.length === 0 ? (
-              <Paragraph color="#FBBF24">Select at least 1 service.</Paragraph>
-            ) : null}
+
+            {providerSubtype === 'home_service' ? (
+              <YStack gap="$2" marginTop="$2">
+                <Text color={labelColor}>Services you provide</Text>
+                <XStack flexWrap="wrap" gap="$2">
+                  {providerServiceOptions.map((opt) => {
+                    const selected = providerServices.includes(opt);
+                    return (
+                      <Button
+                        key={opt}
+                        size="$3"
+                        borderWidth={1}
+                        borderColor={selected ? '#10B981' : border}
+                        backgroundColor={selected ? '#065F46' : '#1F2937'}
+                        color="#FFFFFF"
+                        onPress={() => {
+                          setProviderServices((prev) => {
+                            if (prev.includes(opt)) return prev.filter((x) => x !== opt);
+                            return [...prev, opt];
+                          });
+                        }}>
+                        {opt}
+                      </Button>
+                    );
+                  })}
+                </XStack>
+                {providerServices.length === 0 ? (
+                  <Paragraph color="#FBBF24">Select at least 1 service.</Paragraph>
+                ) : null}
+              </YStack>
+            ) : (
+              <Paragraph color="#9CA3AF" marginTop="$2">
+                Property Owner will be saved in your profile.
+              </Paragraph>
+            )}
           </YStack>
         ) : null}
 
@@ -253,7 +301,10 @@ export default function RegisterDetailsScreen() {
           backgroundColor="#10B981"
           color="#111827"
           onPress={handleSave}
-          disabled={saving || (String(role ?? '').toLowerCase() === 'provider' && providerServices.length === 0)}>
+          disabled={
+            saving ||
+            (String(role ?? '').toLowerCase() === 'provider' && providerSubtype === 'home_service' && providerServices.length === 0)
+          }>
           {saving ? 'Saving…' : 'Save & Continue'}
         </Button>
 
