@@ -38,7 +38,23 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
+  const [pendingOAuthUser, setPendingOAuthUser] = useState<{ email: string; name?: string } | null>(null);
   const [showEmailSignup, setShowEmailSignup] = useState(false);
+
+  // Pre-fill name and email when pendingOAuthUser changes
+  useEffect(() => {
+    if (pendingOAuthUser) {
+      setName(pendingOAuthUser.name ?? '');
+      setEmail(pendingOAuthUser.email);
+    }
+  }, [pendingOAuthUser]);
+
+  // Reset pendingOAuthUser when mode changes away from signup or when canceling
+  useEffect(() => {
+    if (mode !== 'signup') {
+      setPendingOAuthUser(null);
+    }
+  }, [mode]);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [signupRole, setSignupRole] = useState<'customer' | 'provider'>('customer');
@@ -187,14 +203,17 @@ export default function LoginScreen() {
   }, [mode]);
 
   const subtitle = useMemo(() => {
-    if (mode === 'signup') return 'Create your account to book and track moves.';
+    if (mode === 'signup') {
+      if (pendingOAuthUser) return 'Complete your Google profile to continue.';
+      return 'Create your account to book and track moves.';
+    }
     if (mode === 'forgot') {
       return forgotStep === 'request'
         ? 'We will send a password reset link to your email.'
         : 'Set a new password for your account.';
     }
     return 'Sign in to continue booking and tracking.';
-  }, [forgotStep, mode]);
+  }, [forgotStep, mode, pendingOAuthUser]);
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
     setError(null);
@@ -254,6 +273,23 @@ export default function LoginScreen() {
       if (exchangeError) {
         setError(exchangeError.message);
         return;
+      }
+
+      // After successful OAuth, check if user is new and needs role selection
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (!profile?.role) {
+          // New user: show role selection UI
+          setPendingOAuthUser({ email: user.email ?? '', name: user.user_metadata?.name });
+          setShowEmailSignup(true);
+          setMode('signup');
+          return;
+        }
       }
 
       const redirect = String(params.redirectTo ?? '').trim();
@@ -320,7 +356,8 @@ export default function LoginScreen() {
       }
 
       if (mode === 'signup') {
-        const trimmedName = name.trim();
+        const trimmedName = pendingOAuthUser?.name?.trim() ?? name.trim();
+        const trimmedEmail = pendingOAuthUser?.email?.trim() ?? email.trim();
         const nextProviderServices =
           signupRole === 'provider'
             ? signupProviderSubtype === 'property_owner'
@@ -332,6 +369,43 @@ export default function LoginScreen() {
           setError('Please select at least 1 service.');
           return;
         }
+
+        // If we have a pending OAuth user, just update metadata and DB; no auth.signUp needed
+        if (pendingOAuthUser) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.auth.updateUser({
+              data: {
+                ...(trimmedName ? { name: trimmedName } : {}),
+                role_intent: signupRole,
+                provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
+                provider_services: nextProviderServices,
+              },
+            });
+            // Update users table
+            await supabase
+              .from('users')
+              .upsert(
+                {
+                  id: user.id,
+                  email: trimmedEmail,
+                  name: trimmedName || null,
+                  role: resolveDbRole(signupRole),
+                  provider_services: nextProviderServices,
+                },
+                { onConflict: 'id' }
+              );
+            // Redirect based on role
+            if (signupRole === 'provider') {
+              router.replace('/auth/register' as any);
+            } else {
+              router.replace('/home');
+            }
+            return;
+          }
+        }
+
+        // Normal email signup
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password,
@@ -473,25 +547,12 @@ export default function LoginScreen() {
             onPress={() => {
               setMode('login');
               setShowEmailSignup(false);
+              setPendingOAuthUser(null);
               setError(null);
               setInfo(null);
-            }}>
+            }}
+            fontFamily="Times New Roman">
             Sign In
-          </Button>
-          <Button
-            size="$3"
-            backgroundColor={mode === 'signup' ? activeBtnBg : idleBtnBg}
-            color={mode === 'signup' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnHoverBg : idleBtnHoverBg }}
-            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnPressBg : idleBtnPressBg }}
-            onPress={() => {
-              setMode('signup');
-              setForgotStep('request');
-              setShowEmailSignup(false);
-              setError(null);
-              setInfo(null);
-            }}>
-            Sign Up
           </Button>
           <Button
             size="$3"
@@ -502,12 +563,14 @@ export default function LoginScreen() {
             onPress={() => {
               setMode('forgot');
               setShowEmailSignup(false);
+              setPendingOAuthUser(null);
               setForgotStep('request');
               setError(null);
               setInfo(null);
               setPassword('');
               setNewPassword('');
-            }}>
+            }}
+            fontFamily="Times New Roman">
             Forgot password
           </Button>
         </XStack>
@@ -557,6 +620,7 @@ export default function LoginScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
+                editable={!pendingOAuthUser}
               />
             </YStack>
           ) : null}
@@ -617,7 +681,8 @@ export default function LoginScreen() {
                     setSignupProviderSubtype('home_service');
                     setSignupProviderServices([]);
                   }}
-                  disabled={loading || oauthLoading !== null}>
+                  disabled={loading || oauthLoading !== null}
+                  fontFamily="Times New Roman">
                   Home Service Provider
                 </Button>
                 <Button
@@ -632,7 +697,8 @@ export default function LoginScreen() {
                     setSignupProviderSubtype('property_owner');
                     setSignupProviderServices([]);
                   }}
-                  disabled={loading || oauthLoading !== null}>
+                  disabled={loading || oauthLoading !== null}
+                  fontFamily="Times New Roman">
                   Property Owner
                 </Button>
               </XStack>
@@ -672,21 +738,7 @@ export default function LoginScreen() {
             </YStack>
           ) : null}
 
-          {mode === 'signup' ? (
-            showEmailSignup ? (
-              <YStack gap="$2">
-                <Text color={label}>Email</Text>
-                <Input
-                  value={email}
-                  onChangeText={setEmail}
-                  editable={forgotStep !== 'set_password'}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholder="you@example.com"
-                />
-              </YStack>
-            ) : null
-          ) : (
+          {mode === 'signup' && showEmailSignup && !pendingOAuthUser ? (
             <YStack gap="$2">
               <Text color={label}>Email</Text>
               <Input
@@ -698,9 +750,22 @@ export default function LoginScreen() {
                 placeholder="you@example.com"
               />
             </YStack>
-          )}
+          ) : null}
+          {mode !== 'signup' ? (
+            <YStack gap="$2">
+              <Text color={label}>Email</Text>
+              <Input
+                value={email}
+                onChangeText={setEmail}
+                editable={forgotStep !== 'set_password'}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="you@example.com"
+              />
+            </YStack>
+          ) : null}
 
-          {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) ? (
+          {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
             <YStack gap="$2">
               <Text color={label}>Password</Text>
               <Input
@@ -708,6 +773,7 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 placeholder="Password"
+                fontFamily="Times New Roman"
               />
             </YStack>
           ) : null}
@@ -720,6 +786,7 @@ export default function LoginScreen() {
                 onChangeText={setNewPassword}
                 secureTextEntry
                 placeholder="Enter new password"
+                fontFamily="Times New Roman"
               />
             </YStack>
           ) : null}
@@ -741,13 +808,15 @@ export default function LoginScreen() {
                   signupRole === 'provider' &&
                   signupProviderSubtype === 'home_service' &&
                   signupProviderServices.length === 0)
-              }>
+              }
+              fontFamily="Times New Roman"
+              fontWeight="bold">
               {loading
                 ? 'Please wait…'
                 : mode === 'login'
                   ? 'Sign In'
                   : mode === 'signup'
-                    ? 'Create account'
+                    ? pendingOAuthUser ? 'Complete Google Sign‑up' : 'Create account'
                     : forgotStep === 'request'
                       ? 'Send reset link'
                       : 'Update Password'}
@@ -772,6 +841,7 @@ export default function LoginScreen() {
             chromeless
             color={muted}
             onPress={() => {
+              setPendingOAuthUser(null);
               router.back();
             }}>
             Back
