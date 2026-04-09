@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { supabase } from '@/lib/supabase';
@@ -14,17 +14,47 @@ export default function RegisterDetailsScreen() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<string>('customer');
-  const [providerSubtype, setProviderSubtype] = useState<'home_service' | 'property_owner'>('home_service');
-  const [providerServices, setProviderServices] = useState<string[]>([]);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [aadhaarImageUri, setAadhaarImageUri] = useState<string | null>(null);
+  const [aadhaarUploading, setAadhaarUploading] = useState(false);
 
   const labelColor = useMemo(() => '#9CA3AF', []);
   const border = useMemo(() => '#374151', []);
 
-  const providerServiceOptions = useMemo(
-    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting'],
-    []
-  );
+  const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> => {
+    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    if (!baseUrl || !anonKey) {
+      throw new Error('Supabase env vars missing.');
+    }
+    const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body ?? {}),
+    } as any);
+    const text = await res.text();
+    let parsed: any = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+    }
+    if (!res.ok) {
+      const msg = parsed?.error || parsed?.message || text || `Edge Function error (${res.status})`;
+      throw new Error(`(${res.status}) ${msg}`);
+    }
+    return parsed as T;
+  };
 
   const normalizePhone = (value: string) => {
     const v = String(value ?? '').replace(/\s+/g, '');
@@ -49,7 +79,7 @@ export default function RegisterDetailsScreen() {
 
         const { data: row, error: rowError } = await supabase
           .from('users')
-          .select('id, name, phone, role, provider_services')
+          .select('id, name, phone, role, document_type, document_number, document_image_url')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -57,27 +87,27 @@ export default function RegisterDetailsScreen() {
           if (isMounted) {
             setName(String(row.name ?? (user.user_metadata as any)?.name ?? '').trim());
             setPhone(String(row.phone ?? '').trim());
-            setRole(String(row.role ?? 'customer'));
-            const rawServices = (row as any)?.provider_services;
-            if (Array.isArray(rawServices)) {
-              setProviderServices(rawServices.map((x: any) => String(x)));
-            } else {
-              const metaServices = (user.user_metadata as any)?.provider_services;
-              if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
-            }
+            setAadhaarNumber(String((row as any)?.document_number ?? '').trim());
+            setOtpVerified(Boolean((user.user_metadata as any)?.phone_verified) || Boolean((row as any)?.is_verified));
 
-            const savedSubtype = (row as any)?.provider_services?.includes?.('Property Owner') ? 'property_owner' : 'home_service';
-            setProviderSubtype(savedSubtype);
+            const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();
+            const roleIntent = String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+            const isProvider = dbRole === 'provider' || roleIntent === 'provider';
+            if (!isProvider) {
+              router.replace('/home');
+              return;
+            }
           }
         } else {
           if (isMounted) {
             setName(String((user.user_metadata as any)?.name ?? '').trim());
-            setRole(String((user.user_metadata as any)?.role_intent ?? 'customer'));
-            const metaServices = (user.user_metadata as any)?.provider_services;
-            if (Array.isArray(metaServices)) setProviderServices(metaServices.map((x: any) => String(x)));
+            setOtpVerified(Boolean((user.user_metadata as any)?.phone_verified));
 
-            const metaSubtype = Array.isArray(metaServices) && metaServices.includes('Property Owner') ? 'property_owner' : 'home_service';
-            setProviderSubtype(metaSubtype);
+            const roleIntent = String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+            if (roleIntent !== 'provider') {
+              router.replace('/home');
+              return;
+            }
           }
         }
       } catch (e) {
@@ -92,43 +122,61 @@ export default function RegisterDetailsScreen() {
     };
   }, [router]);
 
-  const handleSave = async () => {
+  const sendOtp = async () => {
     setError(null);
     setInfo(null);
 
-    const trimmedName = name.trim();
     const normalizedPhone = normalizePhone(phone);
-
     if (!normalizedPhone) {
       setError('Phone number is required.');
       return;
     }
-
-    // basic validation for Indian numbers; still allows + prefix
     const phoneDigits = normalizedPhone.replace(/[^0-9]/g, '');
     if (phoneDigits.length < 10) {
       setError('Please enter a valid phone number.');
       return;
     }
 
-    setSaving(true);
+    setOtpSending(true);
     try {
-      const { data: userResp } = await supabase.auth.getUser();
-      const user = userResp.user;
-      if (!user?.id) {
-        setError('Session expired. Please sign in again.');
-        router.replace('/auth/login' as any);
+      await invokeEdgeFunction('send-booking-otp', { phone: normalizedPhone });
+      setInfo('OTP sent.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send OTP.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    setError(null);
+    setInfo(null);
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      setError('Phone number is required.');
+      return;
+    }
+    const code = String(otpCode ?? '').replace(/\D/g, '').slice(0, 6);
+    if (code.length !== 6) {
+      setError('Enter 6-digit OTP.');
+      return;
+    }
+
+    setOtpVerifying(true);
+    try {
+      const resp = await invokeEdgeFunction<{ valid?: boolean; error?: string }>('verify-booking-otp', {
+        phone: normalizedPhone,
+        code,
+      });
+      if (!resp?.valid) {
+        setError(String((resp as any)?.error ?? 'Invalid OTP.'));
         return;
       }
 
-      const nextRole = String(role ?? 'customer').toLowerCase();
-
-      const nextProviderServices =
-        nextRole === 'provider'
-          ? providerSubtype === 'property_owner'
-            ? ['Property Owner']
-            : providerServices
-          : [];
+      const { data: userResp } = await supabase.auth.getUser();
+      const user = userResp.user;
+      if (!user?.id) throw new Error('Please login again.');
 
       const { error: upsertError } = await supabase
         .from('users')
@@ -136,34 +184,116 @@ export default function RegisterDetailsScreen() {
           {
             id: user.id,
             email: user.email ?? null,
-            name: trimmedName || null,
+            name: name.trim() || null,
             phone: normalizedPhone,
-            role: nextRole,
-            provider_services: nextProviderServices,
+            role: 'provider',
+            is_verified: true,
           },
           { onConflict: 'id' }
         );
+      if (upsertError) throw new Error(upsertError.message);
 
-      if (upsertError) {
-        setError(upsertError.message);
-        return;
-      }
-
-      // Keep auth metadata roughly in sync for future
       await supabase.auth.updateUser({
         data: {
           ...(user.user_metadata as any),
-          name: trimmedName || (user.user_metadata as any)?.name,
-          role_intent: nextRole,
-          provider_services: nextProviderServices,
+          phone: normalizedPhone,
+          phone_verified: true,
         },
       });
 
+      setOtpVerified(true);
+      setInfo('Phone verified.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'OTP verification failed.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const pickAadhaarImage = async () => {
+    setError(null);
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError('Permission required to pick image.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+      if ((result as any).canceled || !(result as any).assets?.length) return;
+      const asset = (result as any).assets[0];
+      const uri = String(asset?.uri ?? '').trim();
+      if (!uri) return;
+      setAadhaarImageUri(uri);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to pick image.');
+    }
+  };
+
+  const uploadAadhaarAndSave = async () => {
+    setError(null);
+    setInfo(null);
+
+    if (!otpVerified) {
+      setError('Please verify phone first.');
+      return;
+    }
+
+    const aadhaarDigits = String(aadhaarNumber ?? '').replace(/\D/g, '').slice(0, 12);
+    if (aadhaarDigits.length !== 12) {
+      setError('Enter valid 12-digit Aadhaar number.');
+      return;
+    }
+    if (!aadhaarImageUri) {
+      setError('Please upload Aadhaar photo.');
+      return;
+    }
+
+    setSaving(true);
+    setAadhaarUploading(true);
+    try {
+      const { data: userResp } = await supabase.auth.getUser();
+      const user = userResp.user;
+      if (!user?.id) throw new Error('Please login again.');
+
+      const response = await fetch(aadhaarImageUri);
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      if (!bytes.length) throw new Error('Empty image.');
+      if (bytes.length > 10 * 1024 * 1024) throw new Error('Image too large. Max 10MB.');
+
+      const ext = contentType.includes('png') ? 'png' : 'jpg';
+      const path = `${user.id}/aadhaar-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage.from('driver-docs').upload(path, bytes, {
+        contentType,
+        upsert: true,
+      } as any);
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          document_type: 'Aadhaar',
+          document_number: aadhaarDigits,
+          document_image_url: path,
+        })
+        .eq('id', user.id);
+      if (updateError) throw new Error(updateError.message);
+
       setInfo('Saved.');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Success', 'Verification saved successfully.');
+      }
       router.replace('/home');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save.');
     } finally {
+      setAadhaarUploading(false);
       setSaving(false);
     }
   };
@@ -177,13 +307,15 @@ export default function RegisterDetailsScreen() {
   }
 
   return (
-    <YStack flex={1} backgroundColor="#111827" padding="$4" gap="$4">
+    <View style={{ flex: 1, backgroundColor: '#111827' } as any}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 } as any} keyboardShouldPersistTaps="handled">
+        <YStack gap="$4">
       <YStack gap="$2">
         <Paragraph color="#FFFFFF" fontSize={22} fontWeight="700">
-          Complete your registration
+          Provider verification
         </Paragraph>
         <Paragraph color="#9CA3AF">
-          Please provide the details below to continue.
+          Verify phone with OTP and upload Aadhaar details.
         </Paragraph>
       </YStack>
 
@@ -200,97 +332,78 @@ export default function RegisterDetailsScreen() {
             onChangeText={setPhone}
             placeholder={Platform.OS === 'web' ? '+91XXXXXXXXXX' : 'Phone number'}
             keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
+            editable={!otpVerified}
           />
         </YStack>
 
-        <YStack gap="$2">
-          <Text color={labelColor}>Account type</Text>
-          <XStack gap="$2">
-            <Button
-              flex={1}
-              borderWidth={1}
-              borderColor={role === 'customer' ? '#10B981' : border}
-              backgroundColor={role === 'customer' ? '#065F46' : '#1F2937'}
-              color="#FFFFFF"
-              onPress={() => setRole('customer')}>
-              Customer
-            </Button>
-            <Button
-              flex={1}
-              borderWidth={1}
-              borderColor={role === 'provider' ? '#10B981' : border}
-              backgroundColor={role === 'provider' ? '#065F46' : '#1F2937'}
-              color="#FFFFFF"
-              onPress={() => setRole('provider')}>
-              Provider
-            </Button>
-          </XStack>
-        </YStack>
+        <XStack gap="$2" flexWrap="wrap">
+          <Button
+            flex={1}
+            backgroundColor="#1F4E79"
+            color="#FFFFFF"
+            onPress={sendOtp}
+            disabled={otpSending || otpVerified}>
+            {otpVerified ? 'OTP Verified' : otpSending ? 'Sending…' : 'Send OTP'}
+          </Button>
+          <Button
+            flex={1}
+            backgroundColor="#10B981"
+            color="#111827"
+            onPress={verifyOtp}
+            disabled={otpVerifying || otpVerified}>
+            {otpVerified ? 'Verified' : otpVerifying ? 'Verifying…' : 'Verify OTP'}
+          </Button>
+        </XStack>
 
-        {String(role ?? '').toLowerCase() === 'provider' ? (
+        {!otpVerified ? (
           <YStack gap="$2">
-            <Text color={labelColor}>Provider type</Text>
-            <XStack gap="$2" flexWrap="wrap">
-              <Button
-                flex={1}
-                borderWidth={1}
-                borderColor={providerSubtype === 'home_service' ? '#10B981' : border}
-                backgroundColor={providerSubtype === 'home_service' ? '#065F46' : '#1F2937'}
-                color="#FFFFFF"
-                onPress={() => {
-                  setProviderSubtype('home_service');
-                  setProviderServices([]);
-                }}>
-                Home Service Provider
-              </Button>
-              <Button
-                flex={1}
-                borderWidth={1}
-                borderColor={providerSubtype === 'property_owner' ? '#10B981' : border}
-                backgroundColor={providerSubtype === 'property_owner' ? '#065F46' : '#1F2937'}
-                color="#FFFFFF"
-                onPress={() => {
-                  setProviderSubtype('property_owner');
-                  setProviderServices([]);
-                }}>
-                Property Owner
-              </Button>
-            </XStack>
+            <Text color={labelColor}>OTP Code</Text>
+            <Input
+              value={otpCode}
+              onChangeText={setOtpCode}
+              placeholder="6-digit OTP"
+              keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+              maxLength={6}
+            />
+          </YStack>
+        ) : null}
 
-            {providerSubtype === 'home_service' ? (
-              <YStack gap="$2" marginTop="$2">
-                <Text color={labelColor}>Services you provide</Text>
-                <XStack flexWrap="wrap" gap="$2">
-                  {providerServiceOptions.map((opt) => {
-                    const selected = providerServices.includes(opt);
-                    return (
-                      <Button
-                        key={opt}
-                        size="$3"
-                        borderWidth={1}
-                        borderColor={selected ? '#10B981' : border}
-                        backgroundColor={selected ? '#065F46' : '#1F2937'}
-                        color="#FFFFFF"
-                        onPress={() => {
-                          setProviderServices((prev) => {
-                            if (prev.includes(opt)) return prev.filter((x) => x !== opt);
-                            return [...prev, opt];
-                          });
-                        }}>
-                        {opt}
-                      </Button>
-                    );
-                  })}
-                </XStack>
-                {providerServices.length === 0 ? (
-                  <Paragraph color="#FBBF24">Select at least 1 service.</Paragraph>
-                ) : null}
-              </YStack>
-            ) : (
-              <Paragraph color="#9CA3AF" marginTop="$2">
-                Property Owner will be saved in your profile.
-              </Paragraph>
-            )}
+        {otpVerified ? (
+          <YStack gap="$3">
+            <YStack gap="$2">
+              <Text color={labelColor}>Aadhaar Number</Text>
+              <Input
+                value={aadhaarNumber}
+                onChangeText={(v) => setAadhaarNumber(String(v ?? '').replace(/\D/g, '').slice(0, 12))}
+                placeholder="12-digit Aadhaar"
+                keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+                maxLength={12}
+              />
+            </YStack>
+
+            <YStack gap="$2">
+              <Text color={labelColor}>Aadhaar Photo</Text>
+              <Pressable onPress={() => void pickAadhaarImage()} style={{ width: '100%' } as any}>
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                    backgroundColor: '#1F2937',
+                  } as any}>
+                  <Text color="#FFFFFF" fontWeight="700">
+                    {aadhaarImageUri ? 'Photo selected' : 'Upload Aadhaar Photo'}
+                  </Text>
+                  {aadhaarImageUri ? (
+                    <Text color="#9CA3AF" fontSize={12} marginTop={2} numberOfLines={1}>
+                      {aadhaarImageUri}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            </YStack>
           </YStack>
         ) : null}
 
@@ -300,18 +413,17 @@ export default function RegisterDetailsScreen() {
         <Button
           backgroundColor="#10B981"
           color="#111827"
-          onPress={handleSave}
-          disabled={
-            saving ||
-            (String(role ?? '').toLowerCase() === 'provider' && providerSubtype === 'home_service' && providerServices.length === 0)
-          }>
-          {saving ? 'Saving…' : 'Save & Continue'}
+          onPress={() => void uploadAadhaarAndSave()}
+          disabled={saving || aadhaarUploading || !otpVerified}>
+          {aadhaarUploading ? 'Saving…' : 'Save & Continue'}
         </Button>
 
         <Button chromeless color="#9CA3AF" onPress={() => router.replace('/home')}>
           Skip for now
         </Button>
       </YStack>
-    </YStack>
+        </YStack>
+      </ScrollView>
+    </View>
   );
 }

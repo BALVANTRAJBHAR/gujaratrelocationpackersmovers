@@ -61,15 +61,20 @@ export default function LoginScreen() {
       const userId = data.user?.id;
       if (!userId) return;
 
+      const roleIntent = String((data.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+
       const { data: row, error: rowError } = await supabase
         .from('users')
-        .select('id, phone')
+        .select('id, phone, role')
         .eq('id', userId)
         .maybeSingle();
 
       if (rowError) return;
 
-      if (!row?.phone) {
+      const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();
+      const isProvider = dbRole === 'provider' || roleIntent === 'provider';
+
+      if (!row?.phone && isProvider) {
         router.replace('/auth/register' as any);
         return true;
       }
@@ -372,7 +377,12 @@ export default function LoginScreen() {
           } catch {
             // ignore
           }
-          router.replace('/auth/register' as any);
+
+          if (signupRole === 'provider') {
+            router.replace('/auth/register' as any);
+          } else {
+            router.replace('/home');
+          }
           return;
         }
 
