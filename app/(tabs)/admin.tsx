@@ -2305,6 +2305,14 @@ export default function AdminScreen() {
               backgroundColor={idleBtnBg}
               color={idleBtnText}
               borderRadius={10}
+              onPress={() => router.push('/admin/locations' as any)}>
+              Manage Locations
+            </Button>
+            <Button
+              size="$2"
+              backgroundColor={idleBtnBg}
+              color={idleBtnText}
+              borderRadius={10}
               onPress={() => {
                 fetchDrivers();
                 fetchStaff();

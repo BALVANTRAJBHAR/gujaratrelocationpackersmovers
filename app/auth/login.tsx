@@ -21,15 +21,14 @@ export default function LoginScreen() {
   const titleColor = isDark ? '#F9FAFB' : '#111827';
   const muted = isDark ? '#94A3B8' : '#6B7280';
   const label = isDark ? '#E5E7EB' : '#111827';
-  const idleBtnBg = isDark ? '#111827' : '#F3F4F6';
-  const idleBtnText = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#F97316';
-  const activeBtnText = '#0B0B12';
-
-  const activeBtnHoverBg = '#FB923C';
-  const activeBtnPressBg = '#F59E0B';
-  const idleBtnHoverBg = isDark ? '#1F2937' : '#E5E7EB';
-  const idleBtnPressBg = isDark ? '#374151' : '#D1D5DB';
+  const activeBtnBg = '#3B82F6'; // Light blue
+  const activeBtnText = '#FFFFFF';
+  const activeBtnHoverBg = '#2563EB';
+  const activeBtnPressBg = '#1D4ED8';
+  const idleBtnBg = isDark ? '#1F2937' : '#F9FAFB';
+  const idleBtnText = isDark ? '#D1D5DB' : '#6B7280';
+  const idleBtnHoverBg = isDark ? '#374151' : '#F3F4F6';
+  const idleBtnPressBg = isDark ? '#4B5563' : '#E5E7EB';
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [forgotStep, setForgotStep] = useState<'request' | 'set_password'>('request');
   const [email, setEmail] = useState('');
