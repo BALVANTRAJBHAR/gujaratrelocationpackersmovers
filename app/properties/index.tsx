@@ -1,9 +1,8 @@
-import * as Location from 'expo-location';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
-import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
+import { searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
@@ -140,6 +139,7 @@ export default function PropertiesIndexScreen() {
     const q = localityValue.trim();
     if (!q || q.length < 2) {
       setLocalitySuggestions([]);
+      setLocalityLoading(false);
       return;
     }
 
@@ -302,109 +302,73 @@ export default function PropertiesIndexScreen() {
               />
             </XStack>
 
-            <Input
-              value={localityValue}
-              onChangeText={setLocalityValue}
-              placeholder="Locality (optional)"
-              backgroundColor="#FFFFFF"
-              borderColor={border}
-              color={titleColor}
-            />
-
-            <Pressable
-              onPress={() =>
-                void (async () => {
-                  try {
-                    const { status } = await Location.requestForegroundPermissionsAsync();
-                    if (status !== 'granted') {
-                      setError('Location permission denied.');
-                      return;
-                    }
-                    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                    const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
-                    const parts = String(place)
-                      .split(',')
-                      .map((x) => x.trim())
-                      .filter(Boolean);
-                    if (!parts.length) return;
-                    const nextState = parts.length >= 2 ? parts[parts.length - 2] : '';
-                    const nextCity = parts.length >= 3 ? parts[parts.length - 3] : '';
-                    if (nextState) setStateValue(nextState);
-                    if (nextCity) setCityValue(nextCity);
-                    // Fetch up to 3 locality suggestions around current location
-                    if (nextCity && nextState) {
-                      try {
-                        const results = await searchPlaces(`${nextCity}, ${nextState}`);
-                        const localities = results
-                          .slice(0, 3)
-                          .map((x) => {
-                            const place = String((x as any)?.place_name ?? '').trim();
-                            const label = place.split(',')[0]?.trim() || place;
-                            return { id: String((x as any)?.id ?? place), label, full: place };
-                          });
-                        setLocalitySuggestions(localities);
-                      } catch {
-                        // ignore if suggestions fail
-                      }
-                    }
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Failed to detect current location.');
-                  }
-                })()
-              }
-              style={{ alignSelf: 'flex-start' } as any}>
-              <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
-                Use Current Location
-              </Text>
-            </Pressable>
-
-            {selectedLocalities.length > 0 && (
-              <XStack gap="$2" flexWrap="wrap">
-                {selectedLocalities.map((loc) => (
-                  <Pressable
-                    key={loc}
-                    onPress={() => {
-                      setSelectedLocalities((prev) => prev.filter((l) => l !== loc));
-                    }}>
-                    <YStack backgroundColor="#10B981" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
-                      <Text color="#FFFFFF" fontSize={11} fontWeight="700">
-                        {loc} ×
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                ))}
+            <YStack gap="$2">
+              <XStack gap="$2" alignItems="center">
+                <Input
+                  value={localityValue}
+                  onChangeText={setLocalityValue}
+                  placeholder="Search locality (max 3)"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={titleColor}
+                  flexGrow={1}
+                />
+                {localityLoading && (
+                  <Text color={muted} fontSize={12} animation="pulse">
+                    Searching...
+                  </Text>
+                )}
               </XStack>
-            )}
-            {localitySuggestions.length ? (
-              <YStack gap="$2">
-                <Text color={muted} fontSize={11}>
-                  Suggested localities (tap to add):
-                </Text>
-                {localitySuggestions.map((s) => (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => {
-                      if (!selectedLocalities.includes(s.label)) {
-                        setSelectedLocalities((prev) => [...prev, s.label]);
-                      }
-                      setLocalitySuggestions([]);
-                    }}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={10} backgroundColor="#F8FAFC">
-                      <Text color={titleColor} fontWeight="900" numberOfLines={1}>
+
+              {/* Dropdown suggestions while typing */}
+              {localitySuggestions.length > 0 && localityValue.trim().length >= 2 && (
+                <YStack borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" maxHeight={200} overflow="hidden">
+                  {localitySuggestions.map((s) => (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => {
+                        if (selectedLocalities.length < 3 && !selectedLocalities.includes(s.label)) {
+                          setSelectedLocalities((prev) => [...prev, s.label]);
+                          setLocalityValue('');
+                          setLocalitySuggestions([]);
+                        }
+                      }}
+                      style={{ paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: border }}>
+                      <Text color={titleColor} fontWeight="700" numberOfLines={1}>
                         {s.label}
                       </Text>
                       <Text color={muted} fontSize={11} numberOfLines={1}>
                         {s.full}
                       </Text>
-                    </YStack>
-                  </Pressable>
-                ))}
-              </YStack>
-            ) : localityLoading ? (
-              <Text color={muted} fontSize={11}>
-                Searching...
-              </Text>
-            ) : null}
+                    </Pressable>
+                  ))}
+                </YStack>
+              )}
+
+              {/* Selected localities as pills */}
+              {selectedLocalities.length > 0 && (
+                <XStack gap="$2" flexWrap="wrap">
+                  {selectedLocalities.map((loc) => (
+                    <Pressable
+                      key={loc}
+                      onPress={() => {
+                        setSelectedLocalities((prev) => prev.filter((l) => l !== loc));
+                      }}>
+                      <YStack backgroundColor="#10B981" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
+                        <Text color="#FFFFFF" fontSize={11} fontWeight="700">
+                          {loc} ×
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  ))}
+                  {selectedLocalities.length >= 3 && (
+                    <Text color={muted} fontSize={11} fontStyle="italic">
+                      Max 3 selected
+                    </Text>
+                  )}
+                </XStack>
+              )}
+            </YStack>
 
             <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
               <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => void search()} disabled={loading}>
