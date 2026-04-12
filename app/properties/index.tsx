@@ -52,6 +52,7 @@ export default function PropertiesIndexScreen() {
   const [localityValue, setLocalityValue] = useState('');
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
+  const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -127,6 +128,12 @@ export default function PropertiesIndexScreen() {
     if (cities.length) return cities.map((c) => c.name);
     return fallbackCityByState[stateValue] ?? [];
   }, [cities, fallbackCityByState, stateValue]);
+
+  useEffect(() => {
+    // Reset locality selections when state or city changes
+    setSelectedLocalities([]);
+    setLocalitySuggestions([]);
+  }, [stateValue, cityValue]);
 
   useEffect(() => {
     let active = true;
@@ -206,7 +213,11 @@ export default function PropertiesIndexScreen() {
 
       if (stateValue) query = query.eq('state', stateValue);
       if (cityValue) query = query.eq('city', cityValue);
-      if (localityValue.trim()) query = query.ilike('locality', `%${localityValue.trim()}%`);
+      if (selectedLocalities.length > 0) {
+        query = query.in('locality', selectedLocalities);
+      } else if (localityValue.trim()) {
+        query = query.ilike('locality', `%${localityValue.trim()}%`);
+      }
 
       const { data, error: fetchError } = await query;
       if (fetchError) throw new Error(fetchError.message);
@@ -318,10 +329,24 @@ export default function PropertiesIndexScreen() {
                     if (!parts.length) return;
                     const nextState = parts.length >= 2 ? parts[parts.length - 2] : '';
                     const nextCity = parts.length >= 3 ? parts[parts.length - 3] : '';
-                    const nextLocality = parts.length >= 4 ? parts[parts.length - 4] : '';
                     if (nextState) setStateValue(nextState);
                     if (nextCity) setCityValue(nextCity);
-                    if (nextLocality) setLocalityValue(nextLocality);
+                    // Fetch up to 3 locality suggestions around current location
+                    if (nextCity && nextState) {
+                      try {
+                        const results = await searchPlaces(`${nextCity}, ${nextState}`);
+                        const localities = results
+                          .slice(0, 3)
+                          .map((x) => {
+                            const place = String((x as any)?.place_name ?? '').trim();
+                            const label = place.split(',')[0]?.trim() || place;
+                            return { id: String((x as any)?.id ?? place), label, full: place };
+                          });
+                        setLocalitySuggestions(localities);
+                      } catch {
+                        // ignore if suggestions fail
+                      }
+                    }
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
                   }
@@ -333,13 +358,35 @@ export default function PropertiesIndexScreen() {
               </Text>
             </Pressable>
 
+            {selectedLocalities.length > 0 && (
+              <XStack gap="$2" flexWrap="wrap">
+                {selectedLocalities.map((loc) => (
+                  <Pressable
+                    key={loc}
+                    onPress={() => {
+                      setSelectedLocalities((prev) => prev.filter((l) => l !== loc));
+                    }}>
+                    <YStack backgroundColor="#10B981" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
+                      <Text color="#FFFFFF" fontSize={11} fontWeight="700">
+                        {loc} ×
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                ))}
+              </XStack>
+            )}
             {localitySuggestions.length ? (
               <YStack gap="$2">
+                <Text color={muted} fontSize={11}>
+                  Suggested localities (tap to add):
+                </Text>
                 {localitySuggestions.map((s) => (
                   <Pressable
                     key={s.id}
                     onPress={() => {
-                      setLocalityValue(s.label);
+                      if (!selectedLocalities.includes(s.label)) {
+                        setSelectedLocalities((prev) => [...prev, s.label]);
+                      }
                       setLocalitySuggestions([]);
                     }}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={10} backgroundColor="#F8FAFC">

@@ -556,6 +556,23 @@ export default function LoginScreen() {
           </Button>
           <Button
             size="$3"
+            backgroundColor={mode === 'signup' ? activeBtnBg : idleBtnBg}
+            color={mode === 'signup' ? activeBtnText : idleBtnText}
+            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnHoverBg : idleBtnHoverBg }}
+            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnPressBg : idleBtnPressBg }}
+            onPress={() => {
+              setMode('signup');
+              setForgotStep('request');
+              setShowEmailSignup(false);
+              setPendingOAuthUser(null);
+              setError(null);
+              setInfo(null);
+            }}
+            fontFamily="Times New Roman">
+            Sign Up
+          </Button>
+          <Button
+            size="$3"
             backgroundColor={mode === 'forgot' ? activeBtnBg : idleBtnBg}
             color={mode === 'forgot' ? activeBtnText : idleBtnText}
             hoverStyle={{ backgroundColor: mode === 'forgot' ? activeBtnHoverBg : idleBtnHoverBg }}
@@ -587,15 +604,6 @@ export default function LoginScreen() {
               onPress={() => handleOAuth('google')}
               disabled={loading || oauthLoading !== null}>
               {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
-            </Button>
-            <Button
-              backgroundColor="#1877F2"
-              color="#FFFFFF"
-              hoverStyle={{ backgroundColor: '#1D4ED8' }}
-              pressStyle={{ backgroundColor: '#1E40AF' }}
-              onPress={() => handleOAuth('facebook')}
-              disabled={loading || oauthLoading !== null}>
-              Continue with Facebook
             </Button>
 
             {mode === 'signup' ? (
