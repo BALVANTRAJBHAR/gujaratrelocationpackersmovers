@@ -1,29 +1,28 @@
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    ImageBackground,
-    Linking,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  ImageBackground,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { reverseGeocode, searchPlaces } from '@/lib/mapbox';
+import { searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
@@ -610,7 +609,7 @@ export default function HomeLandingScreen() {
     },
     {
       key: 'slide-4',
-      image: require('../assets/images/truckpackers.jpg'),
+      image: require('../assets/images/MultiSImages.png'),
       title: 'Multi Services\nProvider',
       subtitle: 'All Home Services in One Place',
     },
@@ -1854,35 +1853,91 @@ export default function HomeLandingScreen() {
                     </Paragraph>
                   </YStack>
 
-                  <XStack flexWrap="wrap" gap="$2.5" justifyContent="center" alignItems="center" marginTop={10}>
-                    <AppButton
-                      label="Call Now"
-                      onPress={handleCallNow}
-                      backgroundColor="#12a3a3ff"
-                      textColor="#e4ebecff"
-                      containerStyle={styles.heroCta}
-                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
-                      glowOnHover
-                    />
-                    <AppButton
-                      label="WhatsApp"
-                      onPress={handleWhatsApp}
-                      backgroundColor="#22C55E"
-                      textColor="#e4ebecff"
-                      containerStyle={styles.heroCta}
-                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
-                      glowOnHover
-                    />
-                    <AppButton
-                      label="Get Quote"
-                      onPress={handleOpenQuote}
-                      backgroundColor="#3a53e2ff"
-                      textColor="#e4ebecff"
-                      containerStyle={styles.heroCta}
-                      labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
-                      glowOnHover
-                    />
-                  </XStack>
+                  {heroSlides[heroIndex]?.key === 'slide-4' ? (
+                    <XStack flexWrap="wrap" gap="$2.5" justifyContent="center" alignItems="center" marginTop={10}>
+                      <AppButton
+                        label="Shifting"
+                        onPress={() => {
+                          setActiveService('shifting');
+                          const y = sectionOffsetsRef.current.services;
+                          if (typeof y === 'number') {
+                            const headerHeight = isSmallScreen ? 132 : 104;
+                            const extraTopSpacing = 20;
+                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+                          }
+                        }}
+                        backgroundColor="#F59E0B"
+                        textColor="#FFFFFF"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                      <AppButton
+                        label="Home Services"
+                        onPress={() => {
+                          setActiveService('home_services');
+                          const y = sectionOffsetsRef.current.services;
+                          if (typeof y === 'number') {
+                            const headerHeight = isSmallScreen ? 132 : 104;
+                            const extraTopSpacing = 20;
+                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+                          }
+                        }}
+                        backgroundColor="#3B82F6"
+                        textColor="#FFFFFF"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                      <AppButton
+                        label="Property"
+                        onPress={() => {
+                          setActiveService('property');
+                          const y = sectionOffsetsRef.current.services;
+                          if (typeof y === 'number') {
+                            const headerHeight = isSmallScreen ? 132 : 104;
+                            const extraTopSpacing = 20;
+                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+                          }
+                        }}
+                        backgroundColor="#22C55E"
+                        textColor="#FFFFFF"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                    </XStack>
+                  ) : (
+                    <XStack flexWrap="wrap" gap="$2.5" justifyContent="center" alignItems="center" marginTop={10}>
+                      <AppButton
+                        label="Call Now"
+                        onPress={handleCallNow}
+                        backgroundColor="#12a3a3ff"
+                        textColor="#e4ebecff"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                      <AppButton
+                        label="WhatsApp"
+                        onPress={handleWhatsApp}
+                        backgroundColor="#22C55E"
+                        textColor="#e4ebecff"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                      <AppButton
+                        label="Get Quote"
+                        onPress={handleOpenQuote}
+                        backgroundColor="#3a53e2ff"
+                        textColor="#e4ebecff"
+                        containerStyle={styles.heroCta}
+                        labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
+                        glowOnHover
+                      />
+                    </XStack>
+                  )}
 
                   <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={12}>
                     {heroSlides.map((s, i) => (
@@ -2340,52 +2395,6 @@ export default function HomeLandingScreen() {
                         Search
                       </Button>
                     </XStack>
-
-                    <Pressable
-                      onPress={() =>
-                        void (async () => {
-                          try {
-                            const { status } = await Location.requestForegroundPermissionsAsync();
-                            if (status !== 'granted') return;
-                            const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                            const place = await reverseGeocode(current.coords.longitude, current.coords.latitude);
-                            const parts = String(place)
-                              .split(',')
-                              .map((x) => x.trim())
-                              .filter(Boolean);
-                            if (!parts.length) return;
-                            const nextState = parts.length >= 2 ? parts[parts.length - 2] : '';
-                            const nextCity = parts.length >= 3 ? parts[parts.length - 3] : '';
-                            const nextLocality = parts.length >= 4 ? parts[parts.length - 4] : '';
-                            if (nextState) setPropertyState(nextState);
-                            if (nextCity) setPropertyCity(nextCity);
-                            if (nextLocality) setTopSearch(nextLocality);
-                          } catch {
-                          }
-                        })()
-                      }
-                      style={{ alignSelf: 'flex-start' } as any}>
-                      <XStack alignItems="center" gap="$2" paddingVertical={4}>
-                        <View
-                          style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: 10,
-                            borderWidth: 2,
-                            borderColor: '#0EA5E9',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                          }}>
-                          <View style={{ width: 6, height: 6, borderRadius: 6, backgroundColor: '#0EA5E9' }} />
-                          <View style={{ position: 'absolute', width: 16, height: 2, backgroundColor: '#0EA5E9' }} />
-                          <View style={{ position: 'absolute', width: 2, height: 16, backgroundColor: '#0EA5E9' }} />
-                        </View>
-                        <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
-                          Use Current Location
-                        </Text>
-                      </XStack>
-                    </Pressable>
 
                     {propertyLocalitySuggestions.length ? (
                       <YStack gap="$2">
