@@ -5,19 +5,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  ImageBackground,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    ImageBackground,
+    Linking,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
@@ -607,6 +607,12 @@ export default function HomeLandingScreen() {
       image: require('../assets/images/truckpackers.jpg'),
       title: 'Safe & Secure\nRelocation',
       subtitle: '18+ Years of Quality Service',
+    },
+    {
+      key: 'slide-4',
+      image: require('../assets/images/truckpackers.jpg'),
+      title: 'Multi Services\nProvider',
+      subtitle: 'All Home Services in One Place',
     },
   ];
 
