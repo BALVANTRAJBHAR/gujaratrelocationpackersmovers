@@ -409,7 +409,7 @@ export default function HomeLandingScreen() {
   const [quoteSubmitNotice, setQuoteSubmitNotice] = useState<string>('');
   const [cardDownloadNotice, setCardDownloadNotice] = useState<string>('');
   const scrollRef = useRef<ScrollView | null>(null);
-  const sectionOffsetsRef = useRef<{ services?: number; contact?: number }>({});
+  const sectionOffsetsRef = useRef<{ services?: number; serviceMenu?: number; contact?: number }>({});
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const didRedirectRef = useRef(false);
   const businessCardRef = useRef<any>(null);
@@ -809,6 +809,16 @@ export default function HomeLandingScreen() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/home');
+  };
+
+  const scrollToServiceMenu = () => {
+    const y = sectionOffsetsRef.current.serviceMenu ?? sectionOffsetsRef.current.services;
+    if (typeof y !== 'number') return;
+    const headerHeight = isSmallScreen ? 132 : 104;
+    const extraTopSpacing = 0;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+    });
   };
 
   const scrollToSection = (key: 'services' | 'contact') => {
@@ -1859,12 +1869,7 @@ export default function HomeLandingScreen() {
                         label="Shifting"
                         onPress={() => {
                           setActiveService('shifting');
-                          const y = sectionOffsetsRef.current.services;
-                          if (typeof y === 'number') {
-                            const headerHeight = isSmallScreen ? 132 : 104;
-                            const extraTopSpacing = 20;
-                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
-                          }
+                          scrollToServiceMenu();
                         }}
                         backgroundColor="#F59E0B"
                         textColor="#FFFFFF"
@@ -1876,12 +1881,7 @@ export default function HomeLandingScreen() {
                         label="Home Services"
                         onPress={() => {
                           setActiveService('home_services');
-                          const y = sectionOffsetsRef.current.services;
-                          if (typeof y === 'number') {
-                            const headerHeight = isSmallScreen ? 132 : 104;
-                            const extraTopSpacing = 20;
-                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
-                          }
+                          scrollToServiceMenu();
                         }}
                         backgroundColor="#3B82F6"
                         textColor="#FFFFFF"
@@ -1893,12 +1893,7 @@ export default function HomeLandingScreen() {
                         label="Property"
                         onPress={() => {
                           setActiveService('property');
-                          const y = sectionOffsetsRef.current.services;
-                          if (typeof y === 'number') {
-                            const headerHeight = isSmallScreen ? 132 : 104;
-                            const extraTopSpacing = 20;
-                            scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
-                          }
+                          scrollToServiceMenu();
                         }}
                         backgroundColor="#22C55E"
                         textColor="#FFFFFF"
@@ -1949,16 +1944,20 @@ export default function HomeLandingScreen() {
                 </YStack>
               </ImageBackground>
 
-              <YStack
-                marginTop={16}
-                width={isSmallScreen ? '100%' : 720}
-                maxWidth="100%"
-                backgroundColor={theme.bgCard}
-                borderRadius={18}
-                padding={14}
-                borderWidth={2}
-                borderColor={theme.border}
-                gap="$2.5">
+              <View
+                onLayout={(e) => {
+                  sectionOffsetsRef.current.serviceMenu = e.nativeEvent.layout.y;
+                }}>
+                <YStack
+                  marginTop={16}
+                  width={isSmallScreen ? '100%' : 720}
+                  maxWidth="100%"
+                  backgroundColor={theme.bgCard}
+                  borderRadius={18}
+                  padding={14}
+                  borderWidth={2}
+                  borderColor={theme.border}
+                  gap="$2.5">
                 <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
                   <Button
                     flex={1}
@@ -2664,7 +2663,8 @@ export default function HomeLandingScreen() {
                     {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Post Property'}
                   </Button>
                 </XStack>
-              </YStack>
+                </YStack>
+              </View>
             </YStack>
           </XStack>
 
