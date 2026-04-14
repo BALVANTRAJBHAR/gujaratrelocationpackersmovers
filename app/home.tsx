@@ -890,19 +890,34 @@ export default function HomeLandingScreen() {
       void (async () => {
         try {
           setPropertyLocalityLoading(true);
-          const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim());
+          const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim(), {
+            limit: 10,
+            types: ['poi', 'neighborhood', 'locality', 'address'],
+          });
           if (!active) return;
+          const cityLower = String(propertyCity ?? '').trim().toLowerCase();
+          const stateLower = String(propertyState ?? '').trim().toLowerCase();
+          const allowedTypes = new Set(['poi', 'neighborhood', 'locality', 'address']);
           const filtered = results
             .filter((x) => {
+              const placeTypes = ((x as any)?.place_type ?? []) as string[];
+              const hasAllowedType = placeTypes.some((t) => allowedTypes.has(String(t)));
+              if (!hasAllowedType) return false;
               const name = String((x as any)?.place_name ?? '').toLowerCase();
-              if (propertyState && !name.includes(propertyState.trim().toLowerCase())) return false;
-              if (propertyCity && !name.includes(propertyCity.trim().toLowerCase())) return false;
+              if (stateLower && !name.includes(stateLower)) return false;
+              if (cityLower && !name.includes(cityLower)) return false;
               return true;
             })
             .map((x) => {
               const place = String((x as any)?.place_name ?? '').trim();
               const label = place.split(',')[0]?.trim() || place;
               return { id: String((x as any)?.id ?? place), label, full: place };
+            })
+            .filter((x) => {
+              const labelLower = x.label.trim().toLowerCase();
+              if (cityLower && labelLower === cityLower) return false;
+              if (stateLower && labelLower === stateLower) return false;
+              return true;
             })
             .slice(0, 6);
           setPropertyLocalitySuggestions(filtered);

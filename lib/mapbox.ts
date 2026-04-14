@@ -4,6 +4,9 @@ type GeocodeFeature = {
   id: string;
   place_name: string;
   center: [number, number];
+  place_type?: string[];
+  text?: string;
+  context?: MapboxContextItem[];
 };
 
 type ReverseGeocodeFeature = {
@@ -26,12 +29,19 @@ export type MapboxReverseGeocodeFeature = {
   context?: MapboxContextItem[];
 };
 
-export async function searchPlaces(query: string): Promise<GeocodeFeature[]> {
+export type SearchPlacesOptions = {
+  limit?: number;
+  types?: Array<'address' | 'poi' | 'place' | 'locality' | 'neighborhood' | 'region' | 'country'>;
+};
+
+export async function searchPlaces(query: string, options: SearchPlacesOptions = {}): Promise<GeocodeFeature[]> {
   if (!query.trim()) return [];
   const mapboxToken = await getMapboxToken();
+  const limit = Math.max(1, Math.min(10, Number(options.limit ?? 5) || 5));
+  const types = Array.isArray(options.types) && options.types.length ? `&types=${options.types.join(',')}` : '';
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
     query
-  )}.json?access_token=${mapboxToken}&autocomplete=true&country=IN&limit=5`;
+  )}.json?access_token=${mapboxToken}&autocomplete=true&country=IN&limit=${limit}${types}`;
 
   const response = await fetch(url);
   if (!response.ok) {
