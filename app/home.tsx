@@ -393,6 +393,8 @@ export default function HomeLandingScreen() {
   const [propertyCityPickerOpen, setPropertyCityPickerOpen] = useState(false);
   const [propertyLocalitySuggestions, setPropertyLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [propertyLocalityLoading, setPropertyLocalityLoading] = useState(false);
+  const [propertyLocalityRawDebug, setPropertyLocalityRawDebug] = useState<string>('');
+  const suppressNextPropertyLocalitySuggestRef = useRef(false);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [couponIndex, setCouponIndex] = useState(0);
   const couponTimerRef = useRef<any>(null);
@@ -410,6 +412,7 @@ export default function HomeLandingScreen() {
   const [cardDownloadNotice, setCardDownloadNotice] = useState<string>('');
   const scrollRef = useRef<ScrollView | null>(null);
   const sectionOffsetsRef = useRef<{ services?: number; serviceMenu?: number; contact?: number }>({});
+  const propertyCityCentersRef = useRef<Record<string, [number, number]>>({});
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const didRedirectRef = useRef(false);
   const businessCardRef = useRef<any>(null);
@@ -878,52 +881,196 @@ export default function HomeLandingScreen() {
     let active = true;
     if (activeService !== 'property') {
       setPropertyLocalitySuggestions([]);
+      setPropertyLocalityRawDebug('');
       return;
     }
+
+    if (suppressNextPropertyLocalitySuggestRef.current) {
+      suppressNextPropertyLocalitySuggestRef.current = false;
+      return;
+    }
+
     const q = topSearch.trim();
     if (!q || q.length < 2) {
       setPropertyLocalitySuggestions([]);
+      setPropertyLocalityRawDebug('');
       return;
     }
+
+    const qLower = q.toLowerCase();
 
     const handle = setTimeout(() => {
       void (async () => {
         try {
           setPropertyLocalityLoading(true);
-          const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim(), {
-            limit: 10,
-            types: ['poi', 'neighborhood', 'locality', 'address'],
-          });
-          if (!active) return;
           const cityLower = String(propertyCity ?? '').trim().toLowerCase();
           const stateLower = String(propertyState ?? '').trim().toLowerCase();
-          const allowedTypes = new Set(['poi', 'neighborhood', 'locality', 'address']);
-          const filtered = results
+
+          let proximity: [number, number] | undefined;
+          let bbox: [number, number, number, number] | undefined;
+          if (cityLower && stateLower) {
+            const key = `${cityLower}|${stateLower}`;
+            const cached = propertyCityCentersRef.current[key];
+            if (cached) {
+              proximity = cached;
+            } else {
+              try {
+                const cityLookup = await searchPlaces(`${propertyCity}, ${propertyState}`.trim(), {
+                  limit: 1,
+                  types: ['place'],
+                });
+                const center = (cityLookup?.[0]?.center ?? null) as any;
+                const lookedBbox = (cityLookup?.[0] as any)?.bbox ?? null;
+                if (Array.isArray(center) && center.length === 2) {
+                  proximity = [Number(center[0]), Number(center[1])];
+                  propertyCityCentersRef.current[key] = proximity;
+                }
+                if (Array.isArray(lookedBbox) && lookedBbox.length === 4) {
+                  bbox = [Number(lookedBbox[0]), Number(lookedBbox[1]), Number(lookedBbox[2]), Number(lookedBbox[3])];
+                }
+              } catch {
+              }
+            }
+          }
+
+          const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim(), {
+            limit: 20,
+            types: ['poi', 'neighborhood', 'locality', 'place', 'district', 'address'],
+            proximity,
+            bbox,
+          });
+          if (!active) return;
+
+          try {
+            const slim = (results ?? []).slice(0, 8).map((r: any) => ({
+              id: r?.id,
+              text: r?.text,
+              place_type: r?.place_type,
+              place_name: r?.place_name,
+              center: r?.center,
+              context: Array.isArray(r?.context) ? r.context.map((c: any) => c?.text).filter(Boolean) : [],
+            }));
+            setPropertyLocalityRawDebug(JSON.stringify(slim, null, 2));
+          } catch {
+            setPropertyLocalityRawDebug('');
+          }
+
+          const allowedTypes = new Set(['poi', 'neighborhood', 'locality', 'place', 'district', 'address']);
+          const picked = results
             .filter((x) => {
               const placeTypes = ((x as any)?.place_type ?? []) as string[];
               const hasAllowedType = placeTypes.some((t) => allowedTypes.has(String(t)));
               if (!hasAllowedType) return false;
               const name = String((x as any)?.place_name ?? '').toLowerCase();
               if (stateLower && !name.includes(stateLower)) return false;
-              if (cityLower && !name.includes(cityLower)) return false;
+              if (cityLower) {
+                const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+                const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
+                const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
+                if (!name.includes(cityLower) && !ctxHasCity) return false;
+              }
               return true;
             })
             .map((x) => {
               const place = String((x as any)?.place_name ?? '').trim();
-              const label = place.split(',')[0]?.trim() || place;
-              return { id: String((x as any)?.id ?? place), label, full: place };
+              const textLabel = String((x as any)?.text ?? '').trim();
+              const placeNameLower = place.toLowerCase();
+              const textLower = textLabel.toLowerCase();
+              const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+              const ctxParts = ctx.map((c) => String(c?.text ?? '').trim()).filter(Boolean);
+              const placeParts = place
+                .split(/,|•/g)
+                .map((p) => p.trim())
+                .filter(Boolean);
+              const candidates = Array.from(new Set([...ctxParts, ...placeParts, textLabel].filter(Boolean)));
+
+              const isBadPrefix = (s: string) => {
+                const v = s.trim().toLowerCase();
+                return (
+                  v.startsWith('near ') ||
+                  v.startsWith('opp') ||
+                  v.startsWith('opposite') ||
+                  v.startsWith('beside') ||
+                  v.startsWith('behind') ||
+                  v.startsWith('in front of')
+                );
+              };
+
+              const qMatches = (s: string) => s.toLowerCase().includes(qLower);
+              const bestCandidate = candidates
+                .filter((c) => qMatches(c))
+                .sort((a, b) => {
+                  const aLower = a.toLowerCase();
+                  const bLower = b.toLowerCase();
+                  const aStarts = aLower.startsWith(qLower) ? 1 : 0;
+                  const bStarts = bLower.startsWith(qLower) ? 1 : 0;
+                  if (aStarts !== bStarts) return bStarts - aStarts;
+                  const aBad = isBadPrefix(aLower) ? 1 : 0;
+                  const bBad = isBadPrefix(bLower) ? 1 : 0;
+                  if (aBad !== bBad) return aBad - bBad;
+                  return a.length - b.length;
+                })[0];
+
+              let label = bestCandidate || textLabel || place.split(',')[0]?.trim() || place;
+
+              let full = place;
+              const labelLowerForFull = label.toLowerCase();
+              const matchIndex = placeParts.findIndex((p) => p.toLowerCase() === labelLowerForFull);
+              if (matchIndex >= 0) {
+                full = placeParts.slice(matchIndex).join(', ');
+              } else {
+                const containsIndex = placeParts.findIndex((p) => p.toLowerCase().includes(labelLowerForFull));
+                if (containsIndex >= 0) full = placeParts.slice(containsIndex).join(', ');
+              }
+
+              const placeTypes = ((x as any)?.place_type ?? []) as string[];
+              const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
+              const fullLower = full.toLowerCase();
+              const labelLower = label.toLowerCase();
+              let score = 0;
+              const matchesQuery =
+                labelLower.includes(qLower) ||
+                fullLower.includes(qLower) ||
+                textLower.includes(qLower) ||
+                ctxText.some((t) => t.includes(qLower));
+              if (!matchesQuery) score -= 1000;
+              if (labelLower.startsWith(qLower)) score += 40;
+              else if (fullLower.startsWith(qLower)) score += 20;
+              if (isBadPrefix(labelLower) && ctxText.some((t) => t.includes(qLower))) score -= 15;
+              const isAddress = placeTypes.includes('address');
+              if (isAddress && isBadPrefix(textLower) && labelLower === textLower) score -= 1000;
+              if (cityLower) {
+                const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
+                if (fullLower.includes(cityLower) || labelLower.includes(cityLower) || ctxHasCity) score += 20;
+                else score -= 200;
+              }
+              if (placeTypes.includes('poi')) score += 12;
+              if (placeTypes.includes('neighborhood')) score += 10;
+              if (placeTypes.includes('locality')) score += 9;
+              if (placeTypes.includes('address')) score += 2;
+              if (placeTypes.includes('place')) score -= 6;
+              if (labelLower.includes('police')) score += 25;
+              if (labelLower.includes('railway')) score += 22;
+              if (labelLower.includes('station')) score += 14;
+              if (labelLower.includes('metro')) score += 12;
+              return { id: String((x as any)?.id ?? place), label, full, score };
             })
+            .filter((x) => x.score > -500)
             .filter((x) => {
               const labelLower = x.label.trim().toLowerCase();
               if (cityLower && labelLower === cityLower) return false;
               if (stateLower && labelLower === stateLower) return false;
               return true;
             })
-            .slice(0, 6);
-          setPropertyLocalitySuggestions(filtered);
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 6)
+            .map(({ id, label, full }) => ({ id, label, full }));
+
+          setPropertyLocalitySuggestions(picked);
         } catch {
           if (!active) return;
           setPropertyLocalitySuggestions([]);
+          setPropertyLocalityRawDebug('');
         } finally {
           if (!active) return;
           setPropertyLocalityLoading(false);
@@ -2416,6 +2563,7 @@ export default function HomeLandingScreen() {
                           <Pressable
                             key={s.id}
                             onPress={() => {
+                              suppressNextPropertyLocalitySuggestRef.current = true;
                               setTopSearch(s.label);
                               setPropertyLocalitySuggestions([]);
                             }}>
@@ -2435,6 +2583,7 @@ export default function HomeLandingScreen() {
                         Searching...
                       </Text>
                     ) : null}
+
 
                     <Modal
                       visible={propertyStatePickerOpen}
@@ -2839,32 +2988,6 @@ export default function HomeLandingScreen() {
               </View>
             </View>
           </Modal>
-
-          <XStack justifyContent="center" alignItems="center" marginTop={40}>
-            <Animated.View style={buttonStyle}>
-              <AppButton
-                label={activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
-                onPress={handlePrimaryServiceAction}
-                backgroundColor="#F59E0B"
-                textColor="#FFFFFF"
-                glowOnHover
-                containerStyle={{
-                  height: 50,
-                  minWidth: 300,
-                  paddingHorizontal: 42,
-                  borderRadius: 700,
-                  shadowColor: 'rgba(0,0,0,0.55)',
-                  shadowOffset: { width: 0, height: 14 },
-                  shadowOpacity: 0.28,
-                  shadowRadius: 22,
-                  elevation: 12,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                labelStyle={{ fontFamily: 'Georgia', fontSize: 22, fontWeight: '900', letterSpacing: 0.6 }}
-              />
-            </Animated.View>
-          </XStack>
 
           {coupons.length > 0 ? (
             <YStack marginTop={18} gap="$2.5">

@@ -7,6 +7,7 @@ type GeocodeFeature = {
   place_type?: string[];
   text?: string;
   context?: MapboxContextItem[];
+  bbox?: [number, number, number, number];
 };
 
 type ReverseGeocodeFeature = {
@@ -31,17 +32,27 @@ export type MapboxReverseGeocodeFeature = {
 
 export type SearchPlacesOptions = {
   limit?: number;
-  types?: Array<'address' | 'poi' | 'place' | 'locality' | 'neighborhood' | 'region' | 'country'>;
+  types?: Array<'address' | 'poi' | 'place' | 'locality' | 'neighborhood' | 'district' | 'region' | 'country'>;
+  proximity?: [number, number];
+  bbox?: [number, number, number, number];
 };
 
 export async function searchPlaces(query: string, options: SearchPlacesOptions = {}): Promise<GeocodeFeature[]> {
   if (!query.trim()) return [];
   const mapboxToken = await getMapboxToken();
-  const limit = Math.max(1, Math.min(10, Number(options.limit ?? 5) || 5));
+  const limit = Math.max(1, Math.min(20, Number(options.limit ?? 5) || 5));
   const types = Array.isArray(options.types) && options.types.length ? `&types=${options.types.join(',')}` : '';
+  const proximity =
+    Array.isArray(options.proximity) && options.proximity.length === 2
+      ? `&proximity=${options.proximity[0]},${options.proximity[1]}`
+      : '';
+  const bbox =
+    Array.isArray(options.bbox) && options.bbox.length === 4
+      ? `&bbox=${options.bbox[0]},${options.bbox[1]},${options.bbox[2]},${options.bbox[3]}`
+      : '';
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
     query
-  )}.json?access_token=${mapboxToken}&autocomplete=true&country=IN&limit=${limit}${types}`;
+  )}.json?access_token=${mapboxToken}&autocomplete=true&country=IN&limit=${limit}${types}${proximity}${bbox}`;
 
   const response = await fetch(url);
   if (!response.ok) {
