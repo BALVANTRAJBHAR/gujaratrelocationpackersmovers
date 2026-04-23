@@ -42,6 +42,8 @@ export default function PostPropertyScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [listingType, setListingType] = useState<'rent' | 'buy' | 'commercial'>('rent');
+  const [propertyCategory, setPropertyCategory] = useState<'residential' | 'commercial' | 'land_plot'>('residential');
+  const [adType, setAdType] = useState<'rent' | 'resale' | 'pg_hostel' | 'flatmates' | 'sale'>('rent');
   const [propertyType, setPropertyType] = useState('apartment');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -440,6 +442,35 @@ export default function PostPropertyScreen() {
   const titleColor = '#0F172A';
   const muted = '#64748B';
 
+  const setCategoryAndDefaultAdType = (nextCategory: 'residential' | 'commercial' | 'land_plot') => {
+    setPropertyCategory(nextCategory);
+    if (nextCategory === 'residential') {
+      setAdType('rent');
+      setListingType('rent');
+      return;
+    }
+    if (nextCategory === 'commercial') {
+      setAdType('rent');
+      setListingType('commercial');
+      return;
+    }
+    setAdType('resale');
+    setListingType('buy');
+  };
+
+  const setAdTypeAndListingType = (nextAd: 'rent' | 'resale' | 'pg_hostel' | 'flatmates' | 'sale') => {
+    setAdType(nextAd);
+    if (propertyCategory === 'commercial') {
+      setListingType('commercial');
+      return;
+    }
+    if (nextAd === 'resale') {
+      setListingType('buy');
+      return;
+    }
+    setListingType('rent');
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
       <YStack backgroundColor="#111827" padding={16} paddingTop={18}>
@@ -466,23 +497,102 @@ export default function PostPropertyScreen() {
                 Basic
               </Text>
 
-              <XStack gap="$2" flexWrap="wrap">
-                {([
-                  { label: 'Rent', value: 'rent' },
-                  { label: 'Buy', value: 'buy' },
-                  { label: 'Commercial', value: 'commercial' },
-                ] as const).map((t) => (
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Property type
+                </Text>
+
+                <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
                   <Button
-                    key={t.value}
-                    size="$2"
-                    backgroundColor={listingType === t.value ? '#F59E0B' : '#E5E7EB'}
-                    color="#111827"
-                    borderRadius={999}
-                    onPress={() => setListingType(t.value)}>
-                    {t.label}
+                    flex={1}
+                    borderRadius={0}
+                    backgroundColor={propertyCategory === 'residential' ? '#059669' : 'transparent'}
+                    color={propertyCategory === 'residential' ? '#FFFFFF' : '#111827'}
+                    fontWeight="800"
+                    onPress={() => setCategoryAndDefaultAdType('residential')}>
+                    Residential
                   </Button>
-                ))}
-              </XStack>
+                  <Button
+                    flex={1}
+                    borderRadius={0}
+                    backgroundColor={propertyCategory === 'commercial' ? '#059669' : 'transparent'}
+                    color={propertyCategory === 'commercial' ? '#FFFFFF' : '#111827'}
+                    fontWeight="800"
+                    onPress={() => setCategoryAndDefaultAdType('commercial')}>
+                    Commercial
+                  </Button>
+                  <Button
+                    flex={1}
+                    borderRadius={0}
+                    backgroundColor={propertyCategory === 'land_plot' ? '#059669' : 'transparent'}
+                    color={propertyCategory === 'land_plot' ? '#FFFFFF' : '#111827'}
+                    fontWeight="800"
+                    onPress={() => setCategoryAndDefaultAdType('land_plot')}>
+                    Land/Plot
+                  </Button>
+                </XStack>
+
+                <YStack borderWidth={1} borderColor={border} borderRadius={14} padding={12} backgroundColor="#FFFFFF" gap="$2">
+                  <Text color={titleColor} fontWeight="800" textAlign="center">
+                    Select Property Ad Type
+                  </Text>
+
+                  {propertyCategory === 'residential' ? (
+                    <XStack gap="$2" flexWrap="wrap" justifyContent="center">
+                      {([
+                        { label: 'Rent', value: 'rent' },
+                        { label: 'Resale', value: 'resale' },
+                        { label: 'PG/Hostel', value: 'pg_hostel' },
+                        { label: 'Flatmates', value: 'flatmates' },
+                      ] as const).map((x) => (
+                        <Button
+                          key={x.value}
+                          size="$3"
+                          minWidth={120}
+                          backgroundColor={adType === x.value ? '#059669' : '#F3F4F6'}
+                          color={adType === x.value ? '#FFFFFF' : '#111827'}
+                          fontWeight="800"
+                          borderRadius={12}
+                          onPress={() => setAdTypeAndListingType(x.value)}>
+                          {x.label}
+                        </Button>
+                      ))}
+                    </XStack>
+                  ) : propertyCategory === 'commercial' ? (
+                    <XStack gap="$2" flexWrap="wrap" justifyContent="center">
+                      {([
+                        { label: 'Rent', value: 'rent' },
+                        { label: 'Sale', value: 'sale' },
+                      ] as const).map((x) => (
+                        <Button
+                          key={x.value}
+                          size="$3"
+                          minWidth={140}
+                          backgroundColor={adType === x.value ? '#059669' : '#F3F4F6'}
+                          color={adType === x.value ? '#FFFFFF' : '#111827'}
+                          fontWeight="800"
+                          borderRadius={12}
+                          onPress={() => setAdTypeAndListingType(x.value)}>
+                          {x.label}
+                        </Button>
+                      ))}
+                    </XStack>
+                  ) : (
+                    <XStack gap="$2" flexWrap="wrap" justifyContent="center">
+                      <Button
+                        size="$3"
+                        minWidth={160}
+                        backgroundColor={adType === 'resale' ? '#059669' : '#F3F4F6'}
+                        color={adType === 'resale' ? '#FFFFFF' : '#111827'}
+                        fontWeight="800"
+                        borderRadius={12}
+                        onPress={() => setAdTypeAndListingType('resale')}>
+                        Resale
+                      </Button>
+                    </XStack>
+                  )}
+                </YStack>
+              </YStack>
 
               <Input value={propertyType} onChangeText={setPropertyType} placeholder="Property type (apartment/villa/...)" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
               <Input value={title} onChangeText={setTitle} placeholder="Title *" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />

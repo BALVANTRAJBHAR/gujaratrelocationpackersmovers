@@ -897,7 +897,15 @@ export default function HomeLandingScreen() {
       return;
     }
 
+    const normalizeLocalityToken = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/v/g, 'w');
+
     const qLower = q.toLowerCase();
+    const qNorm = normalizeLocalityToken(q);
 
     const handle = setTimeout(() => {
       void (async () => {
@@ -996,17 +1004,17 @@ export default function HomeLandingScreen() {
                 );
               };
 
-              const qMatches = (s: string) => s.toLowerCase().includes(qLower);
+              const qMatches = (s: string) => normalizeLocalityToken(s).includes(qNorm);
               const bestCandidate = candidates
                 .filter((c) => qMatches(c))
                 .sort((a, b) => {
-                  const aLower = a.toLowerCase();
-                  const bLower = b.toLowerCase();
-                  const aStarts = aLower.startsWith(qLower) ? 1 : 0;
-                  const bStarts = bLower.startsWith(qLower) ? 1 : 0;
+                  const aNorm = normalizeLocalityToken(a);
+                  const bNorm = normalizeLocalityToken(b);
+                  const aStarts = aNorm.startsWith(qNorm) ? 1 : 0;
+                  const bStarts = bNorm.startsWith(qNorm) ? 1 : 0;
                   if (aStarts !== bStarts) return bStarts - aStarts;
-                  const aBad = isBadPrefix(aLower) ? 1 : 0;
-                  const bBad = isBadPrefix(bLower) ? 1 : 0;
+                  const aBad = isBadPrefix(a) ? 1 : 0;
+                  const bBad = isBadPrefix(b) ? 1 : 0;
                   if (aBad !== bBad) return aBad - bBad;
                   return a.length - b.length;
                 })[0];
@@ -1027,16 +1035,19 @@ export default function HomeLandingScreen() {
               const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
               const fullLower = full.toLowerCase();
               const labelLower = label.toLowerCase();
+              const fullNorm = normalizeLocalityToken(full);
+              const labelNorm = normalizeLocalityToken(label);
+              const textNorm = normalizeLocalityToken(textLabel);
               let score = 0;
               const matchesQuery =
-                labelLower.includes(qLower) ||
-                fullLower.includes(qLower) ||
-                textLower.includes(qLower) ||
-                ctxText.some((t) => t.includes(qLower));
+                labelNorm.includes(qNorm) ||
+                fullNorm.includes(qNorm) ||
+                textNorm.includes(qNorm) ||
+                ctxText.some((t) => normalizeLocalityToken(t).includes(qNorm));
               if (!matchesQuery) score -= 1000;
-              if (labelLower.startsWith(qLower)) score += 40;
-              else if (fullLower.startsWith(qLower)) score += 20;
-              if (isBadPrefix(labelLower) && ctxText.some((t) => t.includes(qLower))) score -= 15;
+              if (labelNorm.startsWith(qNorm)) score += 40;
+              else if (fullNorm.startsWith(qNorm)) score += 20;
+              if (isBadPrefix(labelLower) && ctxText.some((t) => normalizeLocalityToken(t).includes(qNorm))) score -= 15;
               const isAddress = placeTypes.includes('address');
               if (isAddress && isBadPrefix(textLower) && labelLower === textLower) score -= 1000;
               if (cityLower) {
@@ -2546,12 +2557,12 @@ export default function HomeLandingScreen() {
                         height={44}
                         paddingHorizontal={18}
                         borderRadius={12}
-                        backgroundColor="#EF4444"
-                        color="#FFFFFF"
+                        backgroundColor="#551274ff"
+                        color="#3838b4ffff"
                         fontWeight="900"
-                        hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
-                        pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
-                        focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                        hoverStyle={{ backgroundColor: '#551274ff', color: '#1c1c94ff' } as any}
+                        pressStyle={{ backgroundColor: '#551274ff', color: '#2424b4ff' } as any}
+                        focusStyle={{ backgroundColor: '#551274ff', color: '#2020adff' } as any}
                         onPress={handleTopSearch}>
                         Search
                       </Button>
@@ -2816,13 +2827,27 @@ export default function HomeLandingScreen() {
                     </Text>
                   </YStack>
                   <Button
-                    backgroundColor="#F59E0B"
-                    color="#FFFFFF"
+                    backgroundColor={activeService === 'property' ? '#FFFFFF' : '#F59E0B'}
+                    color={activeService === 'property' ? '#0B0B12' : '#FFFFFF'}
                     fontWeight="900"
                     borderRadius={14}
-                    hoverStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
-                    pressStyle={{ backgroundColor: '#16A34A', color: '#FFFFFF' } as any}
-                    focusStyle={{ backgroundColor: '#22C55E', color: '#FFFFFF' } as any}
+                    borderWidth={activeService === 'property' ? 1 : 0}
+                    borderColor={activeService === 'property' ? theme.border : 'transparent'}
+                    hoverStyle={
+                      (activeService === 'property'
+                        ? { backgroundColor: '#F3F4F6', color: '#0B0B12' }
+                        : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
+                    }
+                    pressStyle={
+                      (activeService === 'property'
+                        ? { backgroundColor: '#E5E7EB', color: '#0B0B12' }
+                        : { backgroundColor: '#16A34A', color: '#FFFFFF' }) as any
+                    }
+                    focusStyle={
+                      (activeService === 'property'
+                        ? { backgroundColor: '#F3F4F6', color: '#0B0B12' }
+                        : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
+                    }
                     onPress={handlePrimaryServiceAction}>
                     {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Post Property'}
                   </Button>
