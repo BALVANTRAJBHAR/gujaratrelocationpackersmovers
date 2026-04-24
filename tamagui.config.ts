@@ -1,8 +1,35 @@
+import { Platform } from 'react-native';
+
 import { config } from '@tamagui/config/v3';
-import { createTamagui } from 'tamagui';
+import { createFont, createTamagui } from 'tamagui';
+
+const systemSans = Platform.select({
+  web: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  default: 'System',
+});
+
+const systemSerif = Platform.select({
+  web: "Georgia, 'Times New Roman', serif",
+  default: 'Times New Roman',
+});
+
+const bodyFont = createFont({
+  ...(config as any).fonts?.body,
+  family: systemSans,
+});
+
+const headingFont = createFont({
+  ...(config as any).fonts?.heading,
+  family: systemSerif,
+});
 
 const appConfig = createTamagui({
   ...config,
+  fonts: {
+    ...(config as any).fonts,
+    body: bodyFont,
+    heading: headingFont,
+  },
   components: {
     ...(config as any).components,
     Input: {

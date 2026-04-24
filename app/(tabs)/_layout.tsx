@@ -23,11 +23,19 @@ export default function TabLayout() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originalError = console.error;
+    const shouldIgnore = (value: unknown) => {
+      try {
+        const msg = typeof value === 'string' ? value : String((value as any)?.message ?? '');
+        return msg.includes('6000ms timeout exceeded');
+      } catch {
+        return false;
+      }
+    };
+
     console.error = (...args: any[]) => {
       try {
         const first = args[0];
-        const msg = typeof first === 'string' ? first : '';
-        if (msg.includes('6000ms timeout exceeded')) {
+        if (shouldIgnore(first)) {
           return;
         }
       } catch {
@@ -35,8 +43,25 @@ export default function TabLayout() {
       }
       originalError(...args);
     };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (shouldIgnore((event as any)?.reason)) {
+        event.preventDefault();
+      }
+    };
+
+    const onWindowError = (event: ErrorEvent) => {
+      if (shouldIgnore((event as any)?.error ?? event.message)) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    window.addEventListener('error', onWindowError);
     return () => {
       console.error = originalError;
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+      window.removeEventListener('error', onWindowError);
     };
   }, []);
 
