@@ -1503,12 +1503,12 @@ export default function PostPropertyScreen() {
                     Select Time Schedule
                   </Text>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
-                    <YStack padding={12}>
+                    <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
                       <Text color={titleColor} fontWeight="800">
                         {scheduleStart ? formatTimeHhMm(scheduleStart) : 'Start time'}
                       </Text>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={0.01}>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
                       <AppDateTimePicker
                         value={scheduleStart ?? new Date()}
                         mode="time"
@@ -1524,16 +1524,14 @@ export default function PostPropertyScreen() {
                 </YStack>
 
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    
-                  </Text>
+                  <YStack height={16} />
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
-                    <YStack padding={12}>
+                    <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
                       <Text color={titleColor} fontWeight="800">
                         {scheduleEnd ? formatTimeHhMm(scheduleEnd) : 'End time'}
                       </Text>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={0.01}>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
                       <AppDateTimePicker
                         value={scheduleEnd ?? new Date()}
                         mode="time"
