@@ -38,7 +38,19 @@ type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
 type LocalityRow = { id: string; city_id: string; name: string };
 
-type WizardStep = 'basic' | 'details' | 'location' | 'pricing' | 'amenities' | 'uploads' | 'additional_info' | 'schedule' | 'review';
+type WizardStep =
+  | 'basic'
+  | 'details'
+  | 'pg_room_types'
+  | 'pg_room_details'
+  | 'location'
+  | 'pg_details'
+  | 'pricing'
+  | 'amenities'
+  | 'uploads'
+  | 'additional_info'
+  | 'schedule'
+  | 'review';
 
 export default function PostPropertyScreen() {
   const router = useRouter();
@@ -54,6 +66,68 @@ export default function PostPropertyScreen() {
   const [propertyType, setPropertyType] = useState('apartment');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+
+  const [pgRoomSingle, setPgRoomSingle] = useState(false);
+  const [pgRoomDouble, setPgRoomDouble] = useState(false);
+  const [pgRoomThree, setPgRoomThree] = useState(false);
+  const [pgRoomFour, setPgRoomFour] = useState(false);
+  const [pgActiveRoom, setPgActiveRoom] = useState<'single' | 'double' | 'three' | 'four'>('single');
+
+  const [pgSingleRent, setPgSingleRent] = useState('');
+  const [pgSingleDeposit, setPgSingleDeposit] = useState('');
+  const [pgDoubleRent, setPgDoubleRent] = useState('');
+  const [pgDoubleDeposit, setPgDoubleDeposit] = useState('');
+  const [pgThreeRent, setPgThreeRent] = useState('');
+  const [pgThreeDeposit, setPgThreeDeposit] = useState('');
+  const [pgFourRent, setPgFourRent] = useState('');
+  const [pgFourDeposit, setPgFourDeposit] = useState('');
+
+  const [pgSingleAmenityCupboard, setPgSingleAmenityCupboard] = useState(false);
+  const [pgSingleAmenityTv, setPgSingleAmenityTv] = useState(false);
+  const [pgSingleAmenityBedding, setPgSingleAmenityBedding] = useState(false);
+  const [pgSingleAmenityGeyser, setPgSingleAmenityGeyser] = useState(false);
+  const [pgSingleAmenityAc, setPgSingleAmenityAc] = useState(false);
+  const [pgSingleAmenityAttachedBathroom, setPgSingleAmenityAttachedBathroom] = useState(false);
+
+  const [pgDoubleAmenityCupboard, setPgDoubleAmenityCupboard] = useState(false);
+  const [pgDoubleAmenityTv, setPgDoubleAmenityTv] = useState(false);
+  const [pgDoubleAmenityBedding, setPgDoubleAmenityBedding] = useState(false);
+  const [pgDoubleAmenityGeyser, setPgDoubleAmenityGeyser] = useState(false);
+  const [pgDoubleAmenityAc, setPgDoubleAmenityAc] = useState(false);
+  const [pgDoubleAmenityAttachedBathroom, setPgDoubleAmenityAttachedBathroom] = useState(false);
+
+  const [pgThreeAmenityCupboard, setPgThreeAmenityCupboard] = useState(false);
+  const [pgThreeAmenityTv, setPgThreeAmenityTv] = useState(false);
+  const [pgThreeAmenityBedding, setPgThreeAmenityBedding] = useState(false);
+  const [pgThreeAmenityGeyser, setPgThreeAmenityGeyser] = useState(false);
+  const [pgThreeAmenityAc, setPgThreeAmenityAc] = useState(false);
+  const [pgThreeAmenityAttachedBathroom, setPgThreeAmenityAttachedBathroom] = useState(false);
+
+  const [pgFourAmenityCupboard, setPgFourAmenityCupboard] = useState(false);
+  const [pgFourAmenityTv, setPgFourAmenityTv] = useState(false);
+  const [pgFourAmenityBedding, setPgFourAmenityBedding] = useState(false);
+  const [pgFourAmenityGeyser, setPgFourAmenityGeyser] = useState(false);
+  const [pgFourAmenityAc, setPgFourAmenityAc] = useState(false);
+  const [pgFourAmenityAttachedBathroom, setPgFourAmenityAttachedBathroom] = useState(false);
+
+  const [pgPlaceAvailableFor, setPgPlaceAvailableFor] = useState<'male' | 'female' | 'anyone' | ''>('');
+  const [pgPreferredGuests, setPgPreferredGuests] = useState<'working_professional' | 'student' | 'both' | ''>('');
+  const [pgAvailableFromDate, setPgAvailableFromDate] = useState<Date | null>(null);
+  const [pgAvailableFromText, setPgAvailableFromText] = useState('');
+
+  const [pgFoodIncluded, setPgFoodIncluded] = useState<'yes' | 'no' | ''>('');
+  const [pgMealBreakfast, setPgMealBreakfast] = useState(false);
+  const [pgMealLunch, setPgMealLunch] = useState(false);
+  const [pgMealDinner, setPgMealDinner] = useState(false);
+
+  const [pgRuleNoSmoking, setPgRuleNoSmoking] = useState(false);
+  const [pgRuleNoGuardianStay, setPgRuleNoGuardianStay] = useState(false);
+  const [pgRuleNoOppositeEntry, setPgRuleNoOppositeEntry] = useState(false);
+  const [pgRuleNoDrinking, setPgRuleNoDrinking] = useState(false);
+  const [pgRuleNoNonVeg, setPgRuleNoNonVeg] = useState(false);
+
+  const [pgGateClosingTime, setPgGateClosingTime] = useState<Date | null>(null);
+  const [pgDescription, setPgDescription] = useState('');
 
   const [apartmentType, setApartmentType] = useState<
     'apartment' | 'independent_house_villa' | 'gated_community_villa' | 'standalone_building'
@@ -166,10 +240,12 @@ export default function PostPropertyScreen() {
     | 'whoWillShow'
     | 'powerBackupType'
     | 'propertyCondition'
+    | 'khataCertificate'
     | 'saleDeedCertificate'
     | 'saleAgreement'
     | 'propertyTaxPaid'
     | 'occupancyCertificate'
+    | 'pgPreferredGuests'
   >(null);
 
   const [contactName, setContactName] = useState(String(profile?.name ?? '').trim());
@@ -183,6 +259,7 @@ export default function PostPropertyScreen() {
   const [scheduleStart, setScheduleStart] = useState<Date | null>(null);
   const [scheduleEnd, setScheduleEnd] = useState<Date | null>(null);
 
+  const [khataCertificate, setKhataCertificate] = useState<'yes_a_khata' | 'yes_b_khata' | 'no' | 'dont_know' | ''>('');
   const [saleDeedCertificate, setSaleDeedCertificate] = useState<'yes' | 'no' | 'dont_know' | ''>('');
   const [saleAgreement, setSaleAgreement] = useState<'yes' | 'no' | 'dont_know' | ''>('');
   const [propertyTaxPaid, setPropertyTaxPaid] = useState<'yes' | 'no' | 'dont_know' | ''>('');
@@ -195,6 +272,19 @@ export default function PostPropertyScreen() {
     router.push({ pathname: '/auth/login', params: { redirectTo: '/properties/post' } } as any);
     return false;
   };
+
+  const pgPreferredGuestText = (v: typeof pgPreferredGuests) => {
+    if (v === 'working_professional') return 'Working Professional';
+    if (v === 'student') return 'Student';
+    if (v === 'both') return 'Both';
+    return 'Select';
+  };
+
+  const pgOppositeEntryLabel = useMemo(() => {
+    if (pgPlaceAvailableFor === 'male') return "No Girl's Entry";
+    if (pgPlaceAvailableFor === 'female') return "No Boy's Entry";
+    return '';
+  }, [pgPlaceAvailableFor]);
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -392,7 +482,51 @@ export default function PostPropertyScreen() {
   const next = () => {
     if (step === 'basic') {
       setError(null);
-      setStep('details');
+      if (adType === 'pg_hostel') {
+        setStep('pg_room_types');
+      } else {
+        setStep('details');
+      }
+      return;
+    }
+    if (step === 'pg_room_types') {
+      const anySelected = pgRoomSingle || pgRoomDouble || pgRoomThree || pgRoomFour;
+      if (!anySelected) {
+        setError('Please select at least one room type.');
+        return;
+      }
+      const first: Array<'single' | 'double' | 'three' | 'four'> = [];
+      if (pgRoomSingle) first.push('single');
+      if (pgRoomDouble) first.push('double');
+      if (pgRoomThree) first.push('three');
+      if (pgRoomFour) first.push('four');
+      setPgActiveRoom(first[0] ?? 'single');
+      setError(null);
+      setStep('pg_room_details');
+      return;
+    }
+    if (step === 'pg_room_details') {
+      const checks: Array<{ label: string; rent: string; deposit: string; enabled: boolean }> = [
+        { label: 'Single', rent: pgSingleRent, deposit: pgSingleDeposit, enabled: pgRoomSingle },
+        { label: 'Double', rent: pgDoubleRent, deposit: pgDoubleDeposit, enabled: pgRoomDouble },
+        { label: 'Three', rent: pgThreeRent, deposit: pgThreeDeposit, enabled: pgRoomThree },
+        { label: 'Four', rent: pgFourRent, deposit: pgFourDeposit, enabled: pgRoomFour },
+      ];
+
+      for (const c of checks) {
+        if (!c.enabled) continue;
+        if (!isValidSingleDecimalNumber(c.rent)) {
+          setError(`${c.label} room: Please enter Expected Rent.`);
+          return;
+        }
+        if (!isValidSingleDecimalNumber(c.deposit)) {
+          setError(`${c.label} room: Please enter Expected Deposit.`);
+          return;
+        }
+      }
+
+      setError(null);
+      setStep('location');
       return;
     }
     if (step === 'details') {
@@ -470,7 +604,44 @@ export default function PostPropertyScreen() {
         return;
       }
       setError(null);
-      setStep('pricing');
+      if (adType === 'pg_hostel') {
+        setStep('pg_details');
+      } else {
+        setStep('pricing');
+      }
+      return;
+    }
+    if (step === 'pg_details') {
+      if (!pgPlaceAvailableFor) {
+        setError('Please select Place is available for.');
+        return;
+      }
+      if (!pgPreferredGuests) {
+        setError('Please select Preferred Guests.');
+        return;
+      }
+      if (!pgAvailableFromDate && !parseDateDdMmYyyy(pgAvailableFromText)) {
+        setError('Please select Available From date.');
+        return;
+      }
+      if (!pgFoodIncluded) {
+        setError('Please select Food Included.');
+        return;
+      }
+      if (pgFoodIncluded === 'yes') {
+        const anyMeal = pgMealBreakfast || pgMealLunch || pgMealDinner;
+        if (!anyMeal) {
+          setError('Please select at least one meal (Breakfast/Lunch/Dinner).');
+          return;
+        }
+      }
+      if (!pgGateClosingTime) {
+        setError('Please select Gate Closing Time.');
+        return;
+      }
+
+      setError(null);
+      setStep('amenities');
       return;
     }
     if (step === 'pricing') {
@@ -529,6 +700,10 @@ export default function PostPropertyScreen() {
       return;
     }
     if (step === 'additional_info') {
+      if (!khataCertificate) {
+        setError('Please select Khata Certificate.');
+        return;
+      }
       if (!saleDeedCertificate) {
         setError('Please select Sale Deed Certificate.');
         return;
@@ -568,12 +743,28 @@ export default function PostPropertyScreen() {
       router.back();
       return;
     }
+    if (step === 'pg_room_types') {
+      setStep('basic');
+      return;
+    }
+    if (step === 'pg_room_details') {
+      setStep('pg_room_types');
+      return;
+    }
     if (step === 'details') {
       setStep('basic');
       return;
     }
     if (step === 'location') {
-      setStep('details');
+      if (adType === 'pg_hostel') {
+        setStep('pg_room_details');
+      } else {
+        setStep('details');
+      }
+      return;
+    }
+    if (step === 'pg_details') {
+      setStep('location');
       return;
     }
     if (step === 'pricing') {
@@ -585,7 +776,11 @@ export default function PostPropertyScreen() {
       return;
     }
     if (step === 'amenities') {
-      setStep('pricing');
+      if (adType === 'pg_hostel') {
+        setStep('pg_details');
+      } else {
+        setStep('pricing');
+      }
       return;
     }
     if (step === 'additional_info') {
@@ -840,6 +1035,70 @@ export default function PostPropertyScreen() {
   const valueColor = '#475569';
   const valueWeight: any = '400';
 
+  const pgSelectedRoomTypes = useMemo(() => {
+    const arr: Array<'single' | 'double' | 'three' | 'four'> = [];
+    if (pgRoomSingle) arr.push('single');
+    if (pgRoomDouble) arr.push('double');
+    if (pgRoomThree) arr.push('three');
+    if (pgRoomFour) arr.push('four');
+    return arr;
+  }, [pgRoomDouble, pgRoomFour, pgRoomSingle, pgRoomThree]);
+
+  const pgRoomLabel = (k: 'single' | 'double' | 'three' | 'four') => {
+    if (k === 'single') return 'Single Room Details';
+    if (k === 'double') return 'Double Room Details';
+    if (k === 'three') return 'Three Room Details';
+    return 'Four Room Details';
+  };
+
+  const pgAmenityState = (k: 'single' | 'double' | 'three' | 'four') => {
+    if (k === 'single') {
+      return {
+        cupboard: [pgSingleAmenityCupboard, setPgSingleAmenityCupboard] as const,
+        tv: [pgSingleAmenityTv, setPgSingleAmenityTv] as const,
+        bedding: [pgSingleAmenityBedding, setPgSingleAmenityBedding] as const,
+        geyser: [pgSingleAmenityGeyser, setPgSingleAmenityGeyser] as const,
+        ac: [pgSingleAmenityAc, setPgSingleAmenityAc] as const,
+        attachedBathroom: [pgSingleAmenityAttachedBathroom, setPgSingleAmenityAttachedBathroom] as const,
+      };
+    }
+    if (k === 'double') {
+      return {
+        cupboard: [pgDoubleAmenityCupboard, setPgDoubleAmenityCupboard] as const,
+        tv: [pgDoubleAmenityTv, setPgDoubleAmenityTv] as const,
+        bedding: [pgDoubleAmenityBedding, setPgDoubleAmenityBedding] as const,
+        geyser: [pgDoubleAmenityGeyser, setPgDoubleAmenityGeyser] as const,
+        ac: [pgDoubleAmenityAc, setPgDoubleAmenityAc] as const,
+        attachedBathroom: [pgDoubleAmenityAttachedBathroom, setPgDoubleAmenityAttachedBathroom] as const,
+      };
+    }
+    if (k === 'three') {
+      return {
+        cupboard: [pgThreeAmenityCupboard, setPgThreeAmenityCupboard] as const,
+        tv: [pgThreeAmenityTv, setPgThreeAmenityTv] as const,
+        bedding: [pgThreeAmenityBedding, setPgThreeAmenityBedding] as const,
+        geyser: [pgThreeAmenityGeyser, setPgThreeAmenityGeyser] as const,
+        ac: [pgThreeAmenityAc, setPgThreeAmenityAc] as const,
+        attachedBathroom: [pgThreeAmenityAttachedBathroom, setPgThreeAmenityAttachedBathroom] as const,
+      };
+    }
+    return {
+      cupboard: [pgFourAmenityCupboard, setPgFourAmenityCupboard] as const,
+      tv: [pgFourAmenityTv, setPgFourAmenityTv] as const,
+      bedding: [pgFourAmenityBedding, setPgFourAmenityBedding] as const,
+      geyser: [pgFourAmenityGeyser, setPgFourAmenityGeyser] as const,
+      ac: [pgFourAmenityAc, setPgFourAmenityAc] as const,
+      attachedBathroom: [pgFourAmenityAttachedBathroom, setPgFourAmenityAttachedBathroom] as const,
+    };
+  };
+
+  const pgRoomMoneyState = (k: 'single' | 'double' | 'three' | 'four') => {
+    if (k === 'single') return { rent: [pgSingleRent, setPgSingleRent] as const, deposit: [pgSingleDeposit, setPgSingleDeposit] as const };
+    if (k === 'double') return { rent: [pgDoubleRent, setPgDoubleRent] as const, deposit: [pgDoubleDeposit, setPgDoubleDeposit] as const };
+    if (k === 'three') return { rent: [pgThreeRent, setPgThreeRent] as const, deposit: [pgThreeDeposit, setPgThreeDeposit] as const };
+    return { rent: [pgFourRent, setPgFourRent] as const, deposit: [pgFourDeposit, setPgFourDeposit] as const };
+  };
+
   const parseDateDdMmYyyy = (value: string) => {
     const v = String(value ?? '').trim();
     const m = /^([0-9]{2})-([0-9]{2})-([0-9]{4})$/.exec(v);
@@ -872,11 +1131,19 @@ export default function PostPropertyScreen() {
     return (
       <XStack flexWrap="wrap">
         <Text color="#374151">{label}: </Text>
-        <Text color={valueColor} fontWeight={valueWeight}>
+        <Text color="#60A5FA" fontWeight={valueWeight}>
           {value}
         </Text>
       </XStack>
     );
+  };
+
+  const khataCertificateText = (v: typeof khataCertificate) => {
+    if (v === 'yes_a_khata') return 'Yes, A-Khata';
+    if (v === 'yes_b_khata') return 'Yes, B-Khata';
+    if (v === 'no') return 'No';
+    if (v === 'dont_know') return "Don't know";
+    return 'Select';
   };
 
   const updatePreferredAll = (checked: boolean) => {
@@ -1111,22 +1378,26 @@ export default function PostPropertyScreen() {
             </Text>
             <Text color={muted} fontSize={12} fontWeight="700">
               {step === 'basic'
-                ? `Step 1 of ${adType === 'resale' ? 9 : 8}`
+                ? `Step 1 of ${adType === 'resale' ? 9 : adType === 'pg_hostel' ? 7 : 8}`
                 : step === 'details'
                   ? `Step 2 of ${adType === 'resale' ? 9 : 8}`
-                  : step === 'location'
-                    ? `Step 3 of ${adType === 'resale' ? 9 : 8}`
-                    : step === 'pricing'
-                      ? `Step 4 of ${adType === 'resale' ? 9 : 8}`
-                      : step === 'amenities'
-                        ? `Step 5 of ${adType === 'resale' ? 9 : 8}`
-                        : step === 'uploads'
-                          ? `Step 6 of ${adType === 'resale' ? 9 : 8}`
-                          : step === 'additional_info'
-                            ? `Step 7 of ${adType === 'resale' ? 9 : 8}`
-                            : step === 'schedule'
-                              ? `Step 8 of ${adType === 'resale' ? 9 : 8}`
-                              : `Step 9 of ${adType === 'resale' ? 9 : 8}`}
+                  : step === 'pg_room_types'
+                    ? `Step 2 of 7`
+                    : step === 'pg_room_details'
+                      ? `Step 3 of 7`
+                      : step === 'location'
+                        ? `Step ${adType === 'pg_hostel' ? 4 : 3} of ${adType === 'resale' ? 9 : adType === 'pg_hostel' ? 7 : 8}`
+                        : step === 'pricing'
+                          ? `Step 4 of ${adType === 'resale' ? 9 : 8}`
+                          : step === 'amenities'
+                            ? `Step ${adType === 'pg_hostel' ? 5 : 5} of ${adType === 'resale' ? 9 : adType === 'pg_hostel' ? 7 : 8}`
+                            : step === 'uploads'
+                              ? `Step ${adType === 'pg_hostel' ? 6 : 6} of ${adType === 'resale' ? 9 : adType === 'pg_hostel' ? 7 : 8}`
+                              : step === 'additional_info'
+                                ? `Step 7 of 9`
+                                : step === 'schedule'
+                                  ? `Step ${adType === 'pg_hostel' ? 7 : 8} of ${adType === 'resale' ? 9 : adType === 'pg_hostel' ? 7 : 8}`
+                                  : `Step 8 of 8`}
             </Text>
           </YStack>
         </XStack>
@@ -1540,6 +1811,29 @@ export default function PostPropertyScreen() {
                               </XStack>
                             </Pressable>
                           ))
+                        : pickerOpen === 'khataCertificate'
+                          ? ([
+                              { label: 'Yes, A-Khata', value: 'yes_a_khata' },
+                              { label: 'Yes, B-Khata', value: 'yes_b_khata' },
+                              { label: 'No', value: 'no' },
+                              { label: "Don't know", value: 'dont_know' },
+                            ] as const).map((it) => (
+                              <Pressable
+                                key={it.value}
+                                onPress={() => {
+                                  setKhataCertificate(it.value);
+                                  setPickerOpen(null);
+                                }}>
+                                <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                  <Text color={titleColor} fontWeight="800">
+                                    {it.label}
+                                  </Text>
+                                  <Text color={muted} fontWeight="900">
+                                    {khataCertificate === it.value ? '✓' : ''}
+                                  </Text>
+                                </XStack>
+                              </Pressable>
+                            ))
                         : pickerOpen === 'saleDeedCertificate'
                           ? yesNoDontKnowOptions.map((it) => (
                               <Pressable
@@ -1613,6 +1907,28 @@ export default function PostPropertyScreen() {
                                       </XStack>
                                     </Pressable>
                                   ))
+                        : pickerOpen === 'pgPreferredGuests'
+                          ? ([
+                                { label: 'Working Professional', value: 'working_professional' },
+                                { label: 'Student', value: 'student' },
+                                { label: 'Both', value: 'both' },
+                              ] as const).map((it) => (
+                                <Pressable
+                                  key={it.value}
+                                  onPress={() => {
+                                    setPgPreferredGuests(it.value);
+                                    setPickerOpen(null);
+                                  }}>
+                                  <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                    <Text color={titleColor} fontWeight="800">
+                                      {it.label}
+                                    </Text>
+                                    <Text color={muted} fontWeight="900">
+                                      {pgPreferredGuests === it.value ? '✓' : ''}
+                                    </Text>
+                                  </XStack>
+                                </Pressable>
+                              ))
                         : pickerOpen === 'powerBackupType'
                           ? powerBackupOptions.map((it) => (
                               <Pressable
@@ -1748,11 +2064,439 @@ export default function PostPropertyScreen() {
             </YStack>
           ) : null}
 
+          {step === 'pg_details' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                PG Details
+              </Text>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Place is available for*
+                </Text>
+                <XStack gap="$3" flexWrap="wrap">
+                  {(
+                    [
+                      { label: 'Male', value: 'male' as const },
+                      { label: 'Female', value: 'female' as const },
+                      { label: 'Anyone', value: 'anyone' as const },
+                    ] as const
+                  ).map((it) => (
+                    <Pressable
+                      key={it.value}
+                      onPress={() => {
+                        setPgPlaceAvailableFor(it.value);
+                        if (it.value === 'anyone') setPgRuleNoOppositeEntry(false);
+                      }}>
+                      <XStack alignItems="center" gap="$2" paddingVertical={6}>
+                        <YStack
+                          width={18}
+                          height={18}
+                          borderWidth={2}
+                          borderColor={pgPlaceAvailableFor === it.value ? '#059669' : border}
+                          borderRadius={20}
+                          alignItems="center"
+                          justifyContent="center">
+                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgPlaceAvailableFor === it.value ? '#059669' : 'transparent'} />
+                        </YStack>
+                        <Text color={titleColor} fontWeight="800">
+                          {it.label}
+                        </Text>
+                      </XStack>
+                    </Pressable>
+                  ))}
+                </XStack>
+              </YStack>
+
+              <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                <YStack flexGrow={1} minWidth={220} gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Preferred Guests*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('pgPreferredGuests')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {pgPreferredGuestText(pgPreferredGuests)}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+
+                <YStack flexGrow={1} minWidth={220} gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Available From*
+                  </Text>
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                    <YStack padding={12}>
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {pgAvailableFromDate ? formatDateDdMmYyyy(pgAvailableFromDate) : pgAvailableFromText || 'Select date'}
+                      </Text>
+                    </YStack>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01}>
+                      <AppDateTimePicker
+                        value={pgAvailableFromDate ?? new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(_e: any, d?: Date) => {
+                          if (!d) return;
+                          setPgAvailableFromDate(d);
+                          setPgAvailableFromText('');
+                        }}
+                        style={{ height: 48, padding: '0 12px' }}
+                      />
+                    </YStack>
+                  </YStack>
+                </YStack>
+              </XStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Food Included*
+                </Text>
+                <XStack gap="$3" flexWrap="wrap">
+                  {(
+                    [
+                      { label: 'Yes', value: 'yes' as const },
+                      { label: 'No', value: 'no' as const },
+                    ] as const
+                  ).map((it) => (
+                    <Pressable
+                      key={it.value}
+                      onPress={() => {
+                        setPgFoodIncluded(it.value);
+                        if (it.value === 'no') {
+                          setPgMealBreakfast(false);
+                          setPgMealLunch(false);
+                          setPgMealDinner(false);
+                        }
+                      }}>
+                      <XStack alignItems="center" gap="$2" paddingVertical={6}>
+                        <YStack
+                          width={18}
+                          height={18}
+                          borderWidth={2}
+                          borderColor={pgFoodIncluded === it.value ? '#059669' : border}
+                          borderRadius={20}
+                          alignItems="center"
+                          justifyContent="center">
+                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgFoodIncluded === it.value ? '#059669' : 'transparent'} />
+                        </YStack>
+                        <Text color={titleColor} fontWeight="800">
+                          {it.label}
+                        </Text>
+                      </XStack>
+                    </Pressable>
+                  ))}
+                </XStack>
+
+                {pgFoodIncluded === 'yes' ? (
+                  <XStack gap="$3" flexWrap="wrap" paddingTop={6}>
+                    {(
+                      [
+                        { label: 'Breakfast', v: pgMealBreakfast, setV: setPgMealBreakfast },
+                        { label: 'Lunch', v: pgMealLunch, setV: setPgMealLunch },
+                        { label: 'Dinner', v: pgMealDinner, setV: setPgMealDinner },
+                      ] as const
+                    ).map((it) => (
+                      <Pressable key={it.label} onPress={() => it.setV(!it.v)}>
+                        <XStack alignItems="center" gap="$2" paddingVertical={6}>
+                          <YStack
+                            width={18}
+                            height={18}
+                            borderWidth={1}
+                            borderColor={it.v ? '#059669' : border}
+                            borderRadius={4}
+                            backgroundColor={it.v ? '#059669' : '#FFFFFF'}
+                            alignItems="center"
+                            justifyContent="center">
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                              {it.v ? '✓' : ''}
+                            </Text>
+                          </YStack>
+                          <Text color={titleColor} fontWeight="800">
+                            {it.label}
+                          </Text>
+                        </XStack>
+                      </Pressable>
+                    ))}
+                  </XStack>
+                ) : null}
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={titleColor} fontWeight="900">
+                  PG/Hostel Rules
+                </Text>
+
+                <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                  {(
+                    [
+                      { label: 'No Smoking', icon: 'smoking-off', show: true, v: pgRuleNoSmoking, setV: setPgRuleNoSmoking },
+                      { label: 'No Guardians Stay', icon: 'account-off-outline', show: true, v: pgRuleNoGuardianStay, setV: setPgRuleNoGuardianStay },
+                      { label: pgOppositeEntryLabel, icon: 'account-remove-outline', show: pgPlaceAvailableFor !== 'anyone', v: pgRuleNoOppositeEntry, setV: setPgRuleNoOppositeEntry },
+                      { label: 'No Drinking', icon: 'glass-wine', show: true, v: pgRuleNoDrinking, setV: setPgRuleNoDrinking },
+                      { label: 'No Non-Veg', icon: 'food-drumstick-off-outline', show: true, v: pgRuleNoNonVeg, setV: setPgRuleNoNonVeg },
+                    ] as const
+                  )
+                    .filter((x) => x.show)
+                    .map((it) => (
+                      <Pressable key={it.label} onPress={() => it.setV(!it.v)}>
+                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" minWidth={240}>
+                          <XStack alignItems="center" gap="$2">
+                            <MaterialCommunityIcons name={it.icon as any} size={20} color={it.v ? '#059669' : '#374151'} />
+                            <Text color={titleColor} fontWeight="800">
+                              {it.label}
+                            </Text>
+                          </XStack>
+                          <YStack
+                            width={18}
+                            height={18}
+                            borderWidth={1}
+                            borderColor={it.v ? '#059669' : border}
+                            borderRadius={4}
+                            backgroundColor={it.v ? '#059669' : '#FFFFFF'}
+                            alignItems="center"
+                            justifyContent="center">
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                              {it.v ? '✓' : ''}
+                            </Text>
+                          </YStack>
+                        </XStack>
+                      </Pressable>
+                    ))}
+                </XStack>
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Gate Closing Time*
+                </Text>
+                <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                  <YStack padding={12}>
+                    <Text color={valueColor} fontWeight={valueWeight}>
+                      {pgGateClosingTime ? formatTimeHhMm(pgGateClosingTime) : 'Gate Closing Time'}
+                    </Text>
+                  </YStack>
+                  <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01}>
+                    <AppDateTimePicker
+                      value={pgGateClosingTime ?? new Date()}
+                      mode="time"
+                      display="default"
+                      onChange={(_e: any, d?: Date) => {
+                        if (!d) return;
+                        setPgGateClosingTime(d);
+                      }}
+                      style={{ height: 48, padding: '0 12px' }}
+                    />
+                  </YStack>
+                </YStack>
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Description
+                </Text>
+                <TextInput
+                  value={pgDescription}
+                  onChangeText={setPgDescription}
+                  placeholder="Write a few lines about your property. Please do not mention your contact details."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  style={{
+                    borderWidth: 1,
+                    borderColor: border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    minHeight: 90,
+                    backgroundColor: '#FFFFFF',
+                    color: valueColor,
+                    textAlignVertical: 'top',
+                  }}
+                />
+              </YStack>
+            </YStack>
+          ) : null}
+
+          {step === 'pg_room_types' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                Room Details
+              </Text>
+              <Text color={muted} fontSize={12} fontWeight="700">
+                Select the type of rooms available in your PG
+              </Text>
+
+              <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
+                {(
+                  [
+                    { key: 'single' as const, label: 'Single', icon: 'bed-single-outline', value: pgRoomSingle, setValue: setPgRoomSingle },
+                    { key: 'double' as const, label: 'Double', icon: 'bed-double-outline', value: pgRoomDouble, setValue: setPgRoomDouble },
+                    { key: 'three' as const, label: 'Three', icon: 'bunk-bed-outline', value: pgRoomThree, setValue: setPgRoomThree },
+                    { key: 'four' as const, label: 'Four', icon: 'bunk-bed', value: pgRoomFour, setValue: setPgRoomFour },
+                  ] as const
+                ).map((it) => (
+                  <Pressable key={it.key} onPress={() => it.setValue(!it.value)}>
+                    <YStack
+                      width={160}
+                      minHeight={120}
+                      borderWidth={1}
+                      borderColor={it.value ? '#059669' : border}
+                      borderRadius={14}
+                      padding={12}
+                      backgroundColor={it.value ? '#ECFDF5' : '#FFFFFF'}
+                      alignItems="center"
+                      justifyContent="center"
+                      gap="$2">
+                      <MaterialCommunityIcons name={it.icon as any} size={34} color={it.value ? '#059669' : '#374151'} />
+                      <XStack alignItems="center" gap="$2">
+                        <YStack
+                          width={18}
+                          height={18}
+                          borderWidth={1}
+                          borderColor={it.value ? '#059669' : border}
+                          borderRadius={4}
+                          backgroundColor={it.value ? '#059669' : '#FFFFFF'}
+                          alignItems="center"
+                          justifyContent="center">
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                            {it.value ? '✓' : ''}
+                          </Text>
+                        </YStack>
+                        <Text color={titleColor} fontWeight="800">
+                          {it.label}
+                        </Text>
+                      </XStack>
+                    </YStack>
+                  </Pressable>
+                ))}
+              </XStack>
+            </YStack>
+          ) : null}
+
+          {step === 'pg_room_details' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                Room Details
+              </Text>
+
+              <XStack gap="$2" flexWrap="wrap">
+                {pgSelectedRoomTypes.map((k) => (
+                  <Pressable key={k} onPress={() => setPgActiveRoom(k)}>
+                    <YStack
+                      minWidth={140}
+                      borderWidth={1}
+                      borderColor={pgActiveRoom === k ? '#059669' : border}
+                      borderRadius={12}
+                      padding={12}
+                      backgroundColor={pgActiveRoom === k ? '#ECFDF5' : '#FFFFFF'}
+                      alignItems="center"
+                      justifyContent="center">
+                      <Text color={pgActiveRoom === k ? '#059669' : titleColor} fontWeight="900">
+                        {pgRoomLabel(k)}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                ))}
+              </XStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Expected {pgActiveRoom === 'single' ? 'Rent' : 'Rent per person'}*
+                </Text>
+                <Input
+                  value={pgRoomMoneyState(pgActiveRoom).rent[0]}
+                  onChangeText={(t) => pgRoomMoneyState(pgActiveRoom).rent[1](sanitizeSingleDecimal(String(t ?? '')))}
+                  placeholder="Enter amount"
+                  keyboardType="numeric"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={valueColor}
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Expected {pgActiveRoom === 'single' ? 'Deposit' : 'Deposit per person'}*
+                </Text>
+                <Input
+                  value={pgRoomMoneyState(pgActiveRoom).deposit[0]}
+                  onChangeText={(t) => pgRoomMoneyState(pgActiveRoom).deposit[1](sanitizeSingleDecimal(String(t ?? '')))}
+                  placeholder="Enter amount"
+                  keyboardType="numeric"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={valueColor}
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={titleColor} fontWeight="900">
+                  Room Amenities
+                </Text>
+
+                {(
+                  [
+                    { k: 'cupboard' as const, label: 'Cupboard', icon: 'cupboard-outline' },
+                    { k: 'tv' as const, label: 'TV', icon: 'television' },
+                    { k: 'bedding' as const, label: 'Bedding', icon: 'bed-outline' },
+                    { k: 'geyer' as const, label: 'Geyser', icon: 'water-boiler' },
+                    { k: 'ac' as const, label: 'AC', icon: 'air-conditioner' },
+                    { k: 'attachedBathroom' as const, label: 'Attached Bathroom', icon: 'toilet' },
+                  ] as const
+                ).map((it) => {
+                  const st = pgAmenityState(pgActiveRoom);
+                  const v = it.k === 'cupboard' ? st.cupboard : it.k === 'tv' ? st.tv : it.k === 'bedding' ? st.bedding : it.k === 'geyer' ? st.geyser : it.k === 'ac' ? st.ac : st.attachedBathroom;
+                  const checked = v[0];
+                  const setChecked = v[1];
+                  return (
+                    <Pressable key={it.k} onPress={() => setChecked(!checked)}>
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name={it.icon as any} size={20} color={checked ? '#059669' : '#374151'} />
+                          <Text color={titleColor} fontWeight="800">
+                            {it.label}
+                          </Text>
+                        </XStack>
+                        <YStack
+                          width={18}
+                          height={18}
+                          borderWidth={1}
+                          borderColor={checked ? '#059669' : border}
+                          borderRadius={4}
+                          backgroundColor={checked ? '#059669' : '#FFFFFF'}
+                          alignItems="center"
+                          justifyContent="center">
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                            {checked ? '✓' : ''}
+                          </Text>
+                        </YStack>
+                      </XStack>
+                    </Pressable>
+                  );
+                })}
+              </YStack>
+            </YStack>
+          ) : null}
+
           {step === 'additional_info' ? (
             <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Additional Information
               </Text>
+
+              <YStack flexGrow={1} minWidth={220} gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Do you have Khata Certificate?*
+                </Text>
+                <Pressable onPress={() => setPickerOpen('khataCertificate')}>
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <Text color={valueColor} fontWeight={valueWeight}>
+                      {khataCertificateText(khataCertificate)}
+                    </Text>
+                  </YStack>
+                </Pressable>
+              </YStack>
 
               <XStack gap="$2" flexWrap="wrap">
                 <YStack flexGrow={1} minWidth={220} gap="$2">
@@ -1761,7 +2505,7 @@ export default function PostPropertyScreen() {
                   </Text>
                   <Pressable onPress={() => setPickerOpen('saleDeedCertificate')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {yesNoDontKnowText(saleDeedCertificate)}
                       </Text>
                     </YStack>
@@ -1775,7 +2519,7 @@ export default function PostPropertyScreen() {
                     </Text>
                     <Pressable onPress={() => setPickerOpen('saleAgreement')}>
                       <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                        <Text color={titleColor} fontWeight="800">
+                        <Text color={valueColor} fontWeight={valueWeight}>
                           {yesNoDontKnowText(saleAgreement)}
                         </Text>
                       </YStack>
@@ -1791,7 +2535,7 @@ export default function PostPropertyScreen() {
                   </Text>
                   <Pressable onPress={() => setPickerOpen('propertyTaxPaid')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {yesNoDontKnowText(propertyTaxPaid)}
                       </Text>
                     </YStack>
@@ -1804,7 +2548,7 @@ export default function PostPropertyScreen() {
                   </Text>
                   <Pressable onPress={() => setPickerOpen('occupancyCertificate')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {yesNoDontKnowText(occupancyCertificate)}
                       </Text>
                     </YStack>
@@ -3114,6 +3858,34 @@ export default function PostPropertyScreen() {
                 {reviewRow('Ad Type', reviewValue(adType))}
               </YStack>
 
+              {adType === 'pg_hostel' ? (
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900">PG Room Details</Text>
+                  {pgRoomSingle ? reviewRow('Single Room', `Rent: ${reviewValue(pgSingleRent)}, Deposit: ${reviewValue(pgSingleDeposit)}`) : null}
+                  {pgRoomDouble ? reviewRow('Double Room (per person)', `Rent: ${reviewValue(pgDoubleRent)}, Deposit: ${reviewValue(pgDoubleDeposit)}`) : null}
+                  {pgRoomThree ? reviewRow('Three Room (per person)', `Rent: ${reviewValue(pgThreeRent)}, Deposit: ${reviewValue(pgThreeDeposit)}`) : null}
+                  {pgRoomFour ? reviewRow('Four Room (per person)', `Rent: ${reviewValue(pgFourRent)}, Deposit: ${reviewValue(pgFourDeposit)}`) : null}
+                </YStack>
+              ) : null}
+
+              {adType === 'pg_hostel' ? (
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900">PG Details</Text>
+                  {reviewRow('Place available for', reviewValue(pgPlaceAvailableFor))}
+                  {reviewRow('Preferred Guests', pgPreferredGuestText(pgPreferredGuests))}
+                  {reviewRow('Available From', pgAvailableFromDate ? formatDateDdMmYyyy(pgAvailableFromDate) : reviewValue(pgAvailableFromText))}
+                  {reviewRow('Food Included', reviewValue(pgFoodIncluded))}
+                  {pgFoodIncluded === 'yes'
+                    ? reviewRow(
+                        'Meals',
+                        [pgMealBreakfast ? 'Breakfast' : '', pgMealLunch ? 'Lunch' : '', pgMealDinner ? 'Dinner' : ''].filter(Boolean).join(', ') || '—'
+                      )
+                    : null}
+                  {reviewRow('Gate Closing Time', pgGateClosingTime ? formatTimeHhMm(pgGateClosingTime) : '—')}
+                  {pgDescription ? reviewRow('Description', reviewValue(pgDescription)) : null}
+                </YStack>
+              ) : null}
+
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Property Details</Text>
                 {reviewRow('Apartment Type', reviewValue(apartmentType))}
@@ -3219,6 +3991,7 @@ export default function PostPropertyScreen() {
               {adType === 'resale' ? (
                 <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Additional Information</Text>
+                  {reviewRow('Khata Certificate', khataCertificateText(khataCertificate))}
                   {reviewRow('Sale Deed Certificate', yesNoDontKnowText(saleDeedCertificate))}
                   {saleDeedCertificate === 'no' ? reviewRow('Sale Agreement', yesNoDontKnowText(saleAgreement)) : null}
                   {reviewRow('Property Tax Paid', yesNoDontKnowText(propertyTaxPaid))}
