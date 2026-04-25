@@ -11,6 +11,7 @@ export type DateTimePickerProps = {
 export default function AppDateTimePicker(props: DateTimePickerProps) {
   const { value, onChange, style, mode } = props;
   const isTime = String(mode ?? '').toLowerCase() === 'time';
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
 
   const yyyy = value.getFullYear();
   const mm = String(value.getMonth() + 1).padStart(2, '0');
@@ -21,10 +22,24 @@ export default function AppDateTimePicker(props: DateTimePickerProps) {
   const min = String(value.getMinutes()).padStart(2, '0');
   const timeValue = `${hh}:${min}`;
 
+  const openPicker = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    try {
+      el.focus();
+      (el as any).showPicker?.();
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <input
+      ref={inputRef}
       type={isTime ? 'time' : 'date'}
       value={isTime ? timeValue : iso}
+      onClick={openPicker}
+      onFocus={openPicker}
       onChange={(e) => {
         const nextVal = (e.target as HTMLInputElement).value;
         if (!nextVal) return;
@@ -47,6 +62,7 @@ export default function AppDateTimePicker(props: DateTimePickerProps) {
         background: 'transparent',
         padding: '0 12px',
         fontSize: 14,
+        cursor: 'pointer',
         ...(style ?? {}),
       }}
     />

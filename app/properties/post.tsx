@@ -38,7 +38,7 @@ type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
 type LocalityRow = { id: string; city_id: string; name: string };
 
-type WizardStep = 'basic' | 'details' | 'location' | 'pricing' | 'amenities' | 'uploads' | 'schedule' | 'review';
+type WizardStep = 'basic' | 'details' | 'location' | 'pricing' | 'amenities' | 'uploads' | 'additional_info' | 'schedule' | 'review';
 
 export default function PostPropertyScreen() {
   const router = useRouter();
@@ -55,9 +55,13 @@ export default function PostPropertyScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  const [apartmentType, setApartmentType] = useState<'apartment' | 'independent_house_villa' | 'gated_community_villa'>('apartment');
+  const [apartmentType, setApartmentType] = useState<
+    'apartment' | 'independent_house_villa' | 'gated_community_villa' | 'standalone_building'
+  >('apartment');
   const [apartmentName, setApartmentName] = useState('');
   const [bhkType, setBhkType] = useState('');
+  const [ownershipType, setOwnershipType] = useState<'on_lease' | 'self_owned' | ''>('');
+  const [leaseYears, setLeaseYears] = useState('');
   const [floor, setFloor] = useState('');
   const [totalFloors, setTotalFloors] = useState('');
   const [propertyAge, setPropertyAge] = useState('');
@@ -89,6 +93,8 @@ export default function PostPropertyScreen() {
 
   const [propertyAvailableFor, setPropertyAvailableFor] = useState<'only_rent' | 'only_lease'>('only_rent');
   const [rentNegotiable, setRentNegotiable] = useState(false);
+  const [currentlyUnderLoan, setCurrentlyUnderLoan] = useState(false);
+  const [kitchenType, setKitchenType] = useState<'modular' | 'cupboard_shelf' | 'open_shelf' | ''>('');
   const [monthlyMaintenanceType, setMonthlyMaintenanceType] = useState<'included' | 'extra' | ''>('');
   const [maintenanceAmount, setMaintenanceAmount] = useState('');
   const [availableFromDate, setAvailableFromDate] = useState<Date | null>(null);
@@ -102,6 +108,9 @@ export default function PostPropertyScreen() {
   const [bedrooms, setBedrooms] = useState('');
   const [bathrooms, setBathrooms] = useState('');
   const [areaSqft, setAreaSqft] = useState('');
+  const [carpetAreaSqft, setCarpetAreaSqft] = useState('');
+  const [plotAreaSqft, setPlotAreaSqft] = useState('');
+  const [floorType, setFloorType] = useState<'verified_tiles' | 'mosaic' | 'marble_granite' | 'wooden' | 'cement' | ''>('');
   const [furnishing, setFurnishing] = useState('semi_furnished');
   const [parking, setParking] = useState('none');
 
@@ -112,6 +121,7 @@ export default function PostPropertyScreen() {
   const [nonVegAllowed, setNonVegAllowed] = useState<0 | 1 | null>(null);
   const [gatedSecurity, setGatedSecurity] = useState<0 | 1 | null>(null);
   const [whoWillShowProperty, setWhoWillShowProperty] = useState('');
+  const [powerBackupType, setPowerBackupType] = useState<'full' | 'partial' | 'none' | ''>('');
   const [currentPropertyCondition, setCurrentPropertyCondition] = useState('');
   const [secondaryPhone, setSecondaryPhone] = useState('');
   const [moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable] = useState<0 | 1 | null>(null);
@@ -139,11 +149,14 @@ export default function PostPropertyScreen() {
     | null
     | 'apartmentType'
     | 'bhkType'
+    | 'ownershipType'
+    | 'floorType'
     | 'floor'
     | 'totalFloors'
     | 'propertyAge'
     | 'facing'
     | 'areaUnit'
+    | 'kitchenType'
     | 'maintenanceType'
     | 'furnishing'
     | 'parking'
@@ -151,7 +164,12 @@ export default function PostPropertyScreen() {
     | 'city'
     | 'waterSupply'
     | 'whoWillShow'
+    | 'powerBackupType'
     | 'propertyCondition'
+    | 'saleDeedCertificate'
+    | 'saleAgreement'
+    | 'propertyTaxPaid'
+    | 'occupancyCertificate'
   >(null);
 
   const [contactName, setContactName] = useState(String(profile?.name ?? '').trim());
@@ -164,6 +182,11 @@ export default function PostPropertyScreen() {
   const [scheduleAllDay, setScheduleAllDay] = useState(false);
   const [scheduleStart, setScheduleStart] = useState<Date | null>(null);
   const [scheduleEnd, setScheduleEnd] = useState<Date | null>(null);
+
+  const [saleDeedCertificate, setSaleDeedCertificate] = useState<'yes' | 'no' | 'dont_know' | ''>('');
+  const [saleAgreement, setSaleAgreement] = useState<'yes' | 'no' | 'dont_know' | ''>('');
+  const [propertyTaxPaid, setPropertyTaxPaid] = useState<'yes' | 'no' | 'dont_know' | ''>('');
+  const [occupancyCertificate, setOccupancyCertificate] = useState<'yes' | 'no' | 'dont_know' | ''>('');
 
   const createdPropertyIdRef = useRef<string | null>(null);
 
@@ -374,7 +397,11 @@ export default function PostPropertyScreen() {
     }
     if (step === 'details') {
       const floorN = floorToNumber(floor);
-      const totalN = apartmentType !== 'independent_house_villa' ? floorToNumber(totalFloors) : null;
+      const resale = adType === 'resale';
+      const needsTotalFloors = resale
+        ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
+        : apartmentType !== 'independent_house_villa';
+      const totalN = needsTotalFloors ? floorToNumber(totalFloors) : null;
 
       if (!bhkType.trim()) {
         setError('Please select BHK Type.');
@@ -386,7 +413,36 @@ export default function PostPropertyScreen() {
         return;
       }
 
-      if (apartmentType !== 'independent_house_villa') {
+      if (resale) {
+        if (!ownershipType) {
+          setError('Please select Ownership Type.');
+          return;
+        }
+        if (ownershipType === 'on_lease') {
+          const ly = Number(String(leaseYears ?? '').trim() || 0);
+          if (!ly || ly < 1) {
+            setError('Please enter Lease Years.');
+            return;
+          }
+        }
+        if (!floorType) {
+          setError('Please select Floor Type.');
+          return;
+        }
+        if (apartmentType === 'independent_house_villa') {
+          const cleanedPlot = String(plotAreaSqft ?? '').trim();
+          if (!cleanedPlot || !isValidSingleDecimalNumber(cleanedPlot)) {
+            setError('Plot Area me sirf number (single decimal allowed) enter kare.');
+            return;
+          }
+        }
+        if (carpetAreaSqft.trim() && !isValidSingleDecimalNumber(carpetAreaSqft)) {
+          setError('Carpet Area me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+      }
+
+      if (needsTotalFloors) {
         if (totalN === null) {
           setError('Please select Total Floor(s).');
           return;
@@ -418,21 +474,36 @@ export default function PostPropertyScreen() {
       return;
     }
     if (step === 'pricing') {
-      if (!isValidSingleDecimalNumber(price)) {
-        setError('Expected Rent/Lease Amount me sirf number (single decimal allowed) enter kare.');
-        return;
-      }
-      if (propertyAvailableFor === 'only_rent' && !isValidSingleDecimalNumber(deposit)) {
-        setError('Expected Deposit me sirf number (single decimal allowed) enter kare.');
-        return;
-      }
-      if (monthlyMaintenanceType === 'extra' && !isValidSingleDecimalNumber(maintenanceAmount)) {
-        setError('Maintenance Amount me sirf number (single decimal allowed) enter kare.');
-        return;
-      }
-      if (!availableFromDate && !parseDateDdMmYyyy(availableFromText)) {
-        setError('Please select Available From date.');
-        return;
+      if (adType === 'resale') {
+        if (!isValidSingleDecimalNumber(price)) {
+          setError('Expected Price me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+        if (!availableFromDate && !parseDateDdMmYyyy(availableFromText)) {
+          setError('Please select Available From date.');
+          return;
+        }
+        if (!kitchenType) {
+          setError('Please select Kitchen Type.');
+          return;
+        }
+      } else {
+        if (!isValidSingleDecimalNumber(price)) {
+          setError('Expected Rent/Lease Amount me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+        if (propertyAvailableFor === 'only_rent' && !isValidSingleDecimalNumber(deposit)) {
+          setError('Expected Deposit me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+        if (monthlyMaintenanceType === 'extra' && !isValidSingleDecimalNumber(maintenanceAmount)) {
+          setError('Maintenance Amount me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+        if (!availableFromDate && !parseDateDdMmYyyy(availableFromText)) {
+          setError('Please select Available From date.');
+          return;
+        }
       }
       setError(null);
       setStep('amenities');
@@ -449,6 +520,31 @@ export default function PostPropertyScreen() {
       return;
     }
     if (step === 'uploads') {
+      setError(null);
+      if (adType === 'resale') {
+        setStep('additional_info');
+      } else {
+        setStep('schedule');
+      }
+      return;
+    }
+    if (step === 'additional_info') {
+      if (!saleDeedCertificate) {
+        setError('Please select Sale Deed Certificate.');
+        return;
+      }
+      if (saleDeedCertificate === 'no' && !saleAgreement) {
+        setError('Please select Sale Agreement.');
+        return;
+      }
+      if (!propertyTaxPaid) {
+        setError('Please select Property Tax.');
+        return;
+      }
+      if (!occupancyCertificate) {
+        setError('Please select Occupancy Certificate.');
+        return;
+      }
       setError(null);
       setStep('schedule');
       return;
@@ -492,12 +588,20 @@ export default function PostPropertyScreen() {
       setStep('pricing');
       return;
     }
+    if (step === 'additional_info') {
+      setStep('uploads');
+      return;
+    }
     if (step === 'review') {
       setStep('schedule');
       return;
     }
     if (step === 'schedule') {
-      setStep('uploads');
+      if (adType === 'resale') {
+        setStep('additional_info');
+      } else {
+        setStep('uploads');
+      }
       return;
     }
   };
@@ -733,6 +837,8 @@ export default function PostPropertyScreen() {
   const border = '#E5E7EB';
   const titleColor = '#0F172A';
   const muted = '#64748B';
+  const valueColor = '#475569';
+  const valueWeight: any = '400';
 
   const parseDateDdMmYyyy = (value: string) => {
     const v = String(value ?? '').trim();
@@ -766,7 +872,9 @@ export default function PostPropertyScreen() {
     return (
       <XStack flexWrap="wrap">
         <Text color="#374151">{label}: </Text>
-        <Text color={muted}>{value}</Text>
+        <Text color={valueColor} fontWeight={valueWeight}>
+          {value}
+        </Text>
       </XStack>
     );
   };
@@ -837,38 +945,28 @@ export default function PostPropertyScreen() {
   const selectedAmenityLabels = useMemo(() => {
     const items: Array<{ label: string; value: 0 | 1 | null }> = [
       { label: 'Lift', value: amenityLift },
-      { label: 'Air Conditioner', value: amenityAirConditioner },
       { label: 'Intercom', value: amenityIntercom },
       { label: 'Children Play Area', value: amenityChildrenPlayArea },
-      { label: 'Servant Room', value: amenityServantRoom },
       { label: 'Gas Pipeline', value: amenityGasPipeline },
-      { label: 'Rain Water Harvesting', value: amenityRainWaterHarvesting },
-      { label: 'House Keeping', value: amenityHouseKeeping },
       { label: 'Visitor Parking', value: amenityVisitorParking },
-      { label: 'Internet Services', value: amenityInternetServices },
       { label: 'Club House', value: amenityClubHouse },
       { label: 'Swimming Pool', value: amenitySwimmingPool },
       { label: 'Fire Safety', value: amenityFireSafety },
       { label: 'Shopping Center', value: amenityShoppingCenter },
       { label: 'Park', value: amenityPark },
       { label: 'Sewage Treatment Plant', value: amenitySewageTreatmentPlant },
-      { label: 'Power Backup', value: amenityPowerBackup },
+      { label: 'Internet Provider', value: amenityInternetServices },
     ];
     return items.filter((x) => x.value === 1).map((x) => x.label);
   }, [
-    amenityAirConditioner,
     amenityChildrenPlayArea,
     amenityClubHouse,
     amenityFireSafety,
     amenityGasPipeline,
-    amenityHouseKeeping,
     amenityIntercom,
     amenityInternetServices,
     amenityLift,
     amenityPark,
-    amenityPowerBackup,
-    amenityRainWaterHarvesting,
-    amenityServantRoom,
     amenitySewageTreatmentPlant,
     amenityShoppingCenter,
     amenitySwimmingPool,
@@ -897,8 +995,28 @@ export default function PostPropertyScreen() {
   }, []);
 
   const propertyConditionOptions = useMemo(() => {
-    return ['Vacant', 'Tenant on notice period', 'New property', 'Need help to manage'];
+    return ['Pattern', 'Tune', 'Exchange', 'Self Occupied', 'Sale', 'Urgently Not Finding Tenant'];
   }, []);
+
+  const powerBackupOptions = useMemo(() => {
+    return [
+      { label: 'Full', value: 'full' },
+      { label: 'Partial', value: 'partial' },
+      { label: 'None', value: 'none' },
+    ] as const;
+  }, []);
+
+  const yesNoDontKnowOptions = useMemo(() => {
+    return [
+      { label: 'Yes', value: 'yes' },
+      { label: 'No', value: 'no' },
+      { label: "Don't know", value: 'dont_know' },
+    ] as const;
+  }, []);
+
+  const yesNoDontKnowText = (v: string) => {
+    return v === 'yes' ? 'Yes' : v === 'no' ? 'No' : v === 'dont_know' ? "Don't know" : 'Select';
+  };
 
   const renderYesNo = (value: 0 | 1 | null, onChange: (v: 0 | 1 | null) => void) => {
     return (
@@ -993,20 +1111,22 @@ export default function PostPropertyScreen() {
             </Text>
             <Text color={muted} fontSize={12} fontWeight="700">
               {step === 'basic'
-                ? 'Step 1 of 8'
+                ? `Step 1 of ${adType === 'resale' ? 9 : 8}`
                 : step === 'details'
-                  ? 'Step 2 of 8'
+                  ? `Step 2 of ${adType === 'resale' ? 9 : 8}`
                   : step === 'location'
-                    ? 'Step 3 of 8'
+                    ? `Step 3 of ${adType === 'resale' ? 9 : 8}`
                     : step === 'pricing'
-                      ? 'Step 4 of 8'
+                      ? `Step 4 of ${adType === 'resale' ? 9 : 8}`
                       : step === 'amenities'
-                        ? 'Step 5 of 8'
+                        ? `Step 5 of ${adType === 'resale' ? 9 : 8}`
                         : step === 'uploads'
-                          ? 'Step 6 of 8'
-                          : step === 'schedule'
-                            ? 'Step 7 of 8'
-                            : 'Step 8 of 8'}
+                          ? `Step 6 of ${adType === 'resale' ? 9 : 8}`
+                          : step === 'additional_info'
+                            ? `Step 7 of ${adType === 'resale' ? 9 : 8}`
+                            : step === 'schedule'
+                              ? `Step 8 of ${adType === 'resale' ? 9 : 8}`
+                              : `Step 9 of ${adType === 'resale' ? 9 : 8}`}
             </Text>
           </YStack>
         </XStack>
@@ -1050,16 +1170,26 @@ export default function PostPropertyScreen() {
               <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 420 }}>
                 <ScrollView>
                   {pickerOpen === 'apartmentType'
-                    ? ([
-                        { label: 'Apartment', value: 'apartment' },
-                        { label: 'Independent House / Villa', value: 'independent_house_villa' },
-                        { label: 'Gated Community Villa', value: 'gated_community_villa' },
-                      ] as const).map((it) => (
+                    ? ((adType === 'resale'
+                        ? ([
+                            { label: 'Apartment', value: 'apartment' },
+                            { label: 'Independent House / Villa', value: 'independent_house_villa' },
+                            { label: 'Gated Community Villa', value: 'gated_community_villa' },
+                            { label: 'Standalone Building', value: 'standalone_building' },
+                          ] as const)
+                        : ([
+                            { label: 'Apartment', value: 'apartment' },
+                            { label: 'Independent House / Villa', value: 'independent_house_villa' },
+                            { label: 'Gated Community Villa', value: 'gated_community_villa' },
+                          ] as const)
+                      )).map((it) => (
                         <Pressable
                           key={it.value}
                           onPress={() => {
                             setApartmentType(it.value);
                             setPropertyType(it.value);
+                            setApartmentName('');
+                            setPlotAreaSqft('');
                             setPickerOpen(null);
                           }}>
                           <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
@@ -1072,6 +1202,52 @@ export default function PostPropertyScreen() {
                           </XStack>
                         </Pressable>
                       ))
+                    : pickerOpen === 'ownershipType'
+                      ? ([
+                          { label: 'On Lease', value: 'on_lease' },
+                          { label: 'Self Owned', value: 'self_owned' },
+                        ] as const).map((it) => (
+                          <Pressable
+                            key={it.value}
+                            onPress={() => {
+                              setOwnershipType(it.value);
+                              if (it.value !== 'on_lease') setLeaseYears('');
+                              setPickerOpen(null);
+                            }}>
+                            <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                              <Text color={titleColor} fontWeight="800">
+                                {it.label}
+                              </Text>
+                              <Text color={muted} fontWeight="900">
+                                {ownershipType === it.value ? '✓' : ''}
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        ))
+                      : pickerOpen === 'floorType'
+                        ? ([
+                            { label: 'Verified Tiles', value: 'verified_tiles' },
+                            { label: 'Mosaic', value: 'mosaic' },
+                            { label: 'Marble / Granite', value: 'marble_granite' },
+                            { label: 'Wooden', value: 'wooden' },
+                            { label: 'Cement', value: 'cement' },
+                          ] as const).map((it) => (
+                            <Pressable
+                              key={it.value}
+                              onPress={() => {
+                                setFloorType(it.value);
+                                setPickerOpen(null);
+                              }}>
+                              <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                <Text color={titleColor} fontWeight="800">
+                                  {it.label}
+                                </Text>
+                                <Text color={muted} fontWeight="900">
+                                  {floorType === it.value ? '✓' : ''}
+                                </Text>
+                              </XStack>
+                            </Pressable>
+                          ))
                     : pickerOpen === 'bhkType'
                       ? (['1 RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '10 BHK'] as const).map((v) => (
                           <Pressable
@@ -1112,7 +1288,7 @@ export default function PostPropertyScreen() {
                             </Pressable>
                           ))
                         : pickerOpen === 'propertyAge'
-                          ? (['Less than 1 year', '1 to 3 years', '3 to 5 years', '5 to 10 years', 'More than 10 years'] as const).map((v) => (
+                          ? (['Under Construction', 'Less than 1 year', '1 to 3 years', '3 to 5 years', '5 to 10 years', 'More than 10 years'] as const).map((v) => (
                               <Pressable
                                 key={v}
                                 onPress={() => {
@@ -1169,6 +1345,28 @@ export default function PostPropertyScreen() {
                                     </XStack>
                                   </Pressable>
                                 ))
+                              : pickerOpen === 'kitchenType'
+                                ? ([
+                                    { label: 'Modular', value: 'modular' },
+                                    { label: 'Cupboard Shelves', value: 'cupboard_shelf' },
+                                    { label: 'Open Shelves', value: 'open_shelf' },
+                                  ] as const).map((it) => (
+                                    <Pressable
+                                      key={it.value}
+                                      onPress={() => {
+                                        setKitchenType(it.value);
+                                        setPickerOpen(null);
+                                      }}>
+                                      <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                        <Text color={titleColor} fontWeight="800">
+                                          {it.label}
+                                        </Text>
+                                        <Text color={muted} fontWeight="900">
+                                          {kitchenType === it.value ? '✓' : ''}
+                                        </Text>
+                                      </XStack>
+                                    </Pressable>
+                                  ))
                               : pickerOpen === 'maintenanceType'
                                 ? ([
                                     { label: 'Maintenance Included', value: 'included' },
@@ -1342,7 +1540,98 @@ export default function PostPropertyScreen() {
                               </XStack>
                             </Pressable>
                           ))
-                        : null}
+                        : pickerOpen === 'saleDeedCertificate'
+                          ? yesNoDontKnowOptions.map((it) => (
+                              <Pressable
+                                key={it.value}
+                                onPress={() => {
+                                  setSaleDeedCertificate(it.value);
+                                  if (it.value !== 'no') setSaleAgreement('');
+                                  setPickerOpen(null);
+                                }}>
+                                <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                  <Text color={titleColor} fontWeight="800">
+                                    {it.label}
+                                  </Text>
+                                  <Text color={muted} fontWeight="900">
+                                    {saleDeedCertificate === it.value ? '✓' : ''}
+                                  </Text>
+                                </XStack>
+                              </Pressable>
+                            ))
+                          : pickerOpen === 'saleAgreement'
+                            ? yesNoDontKnowOptions.map((it) => (
+                                <Pressable
+                                  key={it.value}
+                                  onPress={() => {
+                                    setSaleAgreement(it.value);
+                                    setPickerOpen(null);
+                                  }}>
+                                  <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                    <Text color={titleColor} fontWeight="800">
+                                      {it.label}
+                                    </Text>
+                                    <Text color={muted} fontWeight="900">
+                                      {saleAgreement === it.value ? '✓' : ''}
+                                    </Text>
+                                  </XStack>
+                                </Pressable>
+                              ))
+                            : pickerOpen === 'propertyTaxPaid'
+                              ? yesNoDontKnowOptions.map((it) => (
+                                  <Pressable
+                                    key={it.value}
+                                    onPress={() => {
+                                      setPropertyTaxPaid(it.value);
+                                      setPickerOpen(null);
+                                    }}>
+                                    <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                      <Text color={titleColor} fontWeight="800">
+                                        {it.label}
+                                      </Text>
+                                      <Text color={muted} fontWeight="900">
+                                        {propertyTaxPaid === it.value ? '✓' : ''}
+                                      </Text>
+                                    </XStack>
+                                  </Pressable>
+                                ))
+                              : pickerOpen === 'occupancyCertificate'
+                                ? yesNoDontKnowOptions.map((it) => (
+                                    <Pressable
+                                      key={it.value}
+                                      onPress={() => {
+                                        setOccupancyCertificate(it.value);
+                                        setPickerOpen(null);
+                                      }}>
+                                      <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                        <Text color={titleColor} fontWeight="800">
+                                          {it.label}
+                                        </Text>
+                                        <Text color={muted} fontWeight="900">
+                                          {occupancyCertificate === it.value ? '✓' : ''}
+                                        </Text>
+                                      </XStack>
+                                    </Pressable>
+                                  ))
+                        : pickerOpen === 'powerBackupType'
+                          ? powerBackupOptions.map((it) => (
+                              <Pressable
+                                key={it.value}
+                                onPress={() => {
+                                  setPowerBackupType(it.value);
+                                  setPickerOpen(null);
+                                }}>
+                                <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                  <Text color={titleColor} fontWeight="800">
+                                    {it.label}
+                                  </Text>
+                                  <Text color={muted} fontWeight="900">
+                                    {powerBackupType === it.value ? '✓' : ''}
+                                  </Text>
+                                </XStack>
+                              </Pressable>
+                            ))
+                          : null}
                 </ScrollView>
               </Pressable>
             </Pressable>
@@ -1459,6 +1748,72 @@ export default function PostPropertyScreen() {
             </YStack>
           ) : null}
 
+          {step === 'additional_info' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                Additional Information
+              </Text>
+
+              <XStack gap="$2" flexWrap="wrap">
+                <YStack flexGrow={1} minWidth={220} gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Do you have Sale Deed Certificate?*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('saleDeedCertificate')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={titleColor} fontWeight="800">
+                        {yesNoDontKnowText(saleDeedCertificate)}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+
+                {saleDeedCertificate === 'no' ? (
+                  <YStack flexGrow={1} minWidth={220} gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Do you have Sale Agreement?*
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('saleAgreement')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={titleColor} fontWeight="800">
+                          {yesNoDontKnowText(saleAgreement)}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+                ) : null}
+              </XStack>
+
+              <XStack gap="$2" flexWrap="wrap">
+                <YStack flexGrow={1} minWidth={220} gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Have you paid Property Tax?*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('propertyTaxPaid')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={titleColor} fontWeight="800">
+                        {yesNoDontKnowText(propertyTaxPaid)}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+
+                <YStack flexGrow={1} minWidth={220} gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Do you have Occupancy Certificate?*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('occupancyCertificate')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={titleColor} fontWeight="800">
+                        {yesNoDontKnowText(occupancyCertificate)}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+              </XStack>
+            </YStack>
+          ) : null}
+
           {step === 'schedule' ? (
             <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
@@ -1504,11 +1859,11 @@ export default function PostPropertyScreen() {
                   </Text>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
                     <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {scheduleStart ? formatTimeHhMm(scheduleStart) : 'Start time'}
                       </Text>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
                       <AppDateTimePicker
                         value={scheduleStart ?? new Date()}
                         mode="time"
@@ -1527,11 +1882,11 @@ export default function PostPropertyScreen() {
                   <YStack height={16} />
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
                     <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {scheduleEnd ? formatTimeHhMm(scheduleEnd) : 'End time'}
                       </Text>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
                       <AppDateTimePicker
                         value={scheduleEnd ?? new Date()}
                         mode="time"
@@ -1597,9 +1952,10 @@ export default function PostPropertyScreen() {
                 const details =
                   (features.find((f: any) => (f.place_type ?? []).includes('address')) ??
                     features[0] ??
-                    (await reverseGeocodeDetails(mapPickerCoord.lng, mapPickerCoord.lat))) as any;
+                    (await reverseGeocodeDetails(mapPickerCoord.lng, mapPickerCoord.lat).catch(() => null))) as any;
 
-                const placeName = String(details?.place_name ?? (await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat)) ?? '').trim();
+                const fallbackPlace = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat).catch(() => '');
+                const placeName = String(details?.place_name ?? fallbackPlace ?? '').trim();
 
                 const ctx = Array.isArray(details?.context) ? details.context : [];
                 const ctxState = ctx.find((x: any) => String(x?.id ?? '').startsWith('region.'));
@@ -1614,9 +1970,10 @@ export default function PostPropertyScreen() {
                   `${details?.address ? `${details.address} ` : ''}${details?.text ?? ''}`
                 ).trim();
 
+                const pincodeFromLandmark = /\b([0-9]{6})\b/.exec(landmark)?.[1] ?? '';
                 const pincodeFromContext = String(ctxPostcode?.text ?? '').trim();
                 const pincodeFromText = /\b([0-9]{6})\b/.exec(placeName)?.[1] ?? '';
-                const nextPincode = (pincodeFromContext || pincodeFromText).trim();
+                const nextPincode = (pincodeFromLandmark || pincodeFromContext || pincodeFromText).trim();
 
                 if (nextState) setStateValue(nextState);
                 if (nextCity) setCityValue(nextCity);
@@ -1644,6 +2001,8 @@ export default function PostPropertyScreen() {
                 }
 
                 setMapPickerOpen(false);
+              } catch {
+                setError('Failed to fetch location details. Please try again or fill address manually.');
               } finally {
                 setMapPickerBusy(false);
               }
@@ -1656,25 +2015,37 @@ export default function PostPropertyScreen() {
                 Property Details
               </Text>
 
+              {adType === 'resale' ? (
+                <Text color={muted} fontSize={11}>
+                  Residential Resale details
+                </Text>
+              ) : null}
+
               <YStack gap="$2">
                 <Text color={muted} fontSize={12} fontWeight="700">
-                  Apartment Type*
+                  Property Type*
                 </Text>
                 <Pressable onPress={() => setPickerOpen('apartmentType')}>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={titleColor} fontWeight="800">
+                    <Text color={valueColor} fontWeight={valueWeight}>
                       {apartmentType === 'apartment'
                         ? 'Apartment'
                         : apartmentType === 'independent_house_villa'
                           ? 'Independent House / Villa'
-                          : 'Gated Community Villa'}
+                          : apartmentType === 'standalone_building'
+                            ? 'Standalone Building'
+                            : 'Gated Community Villa'}
                     </Text>
                   </YStack>
                 </Pressable>
               </YStack>
 
-              {apartmentType !== 'independent_house_villa' ? (
-                <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
+              {adType === 'resale' ? (
+                apartmentType === 'apartment' || apartmentType === 'gated_community_villa' || apartmentType === 'standalone_building' ? (
+                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
+                ) : null
+              ) : apartmentType !== 'independent_house_villa' ? (
+                <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
               ) : null}
 
               <YStack gap="$2">
@@ -1683,397 +2054,324 @@ export default function PostPropertyScreen() {
                 </Text>
                 <Pressable onPress={() => setPickerOpen('bhkType')}>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={titleColor} fontWeight="800">
+                    <Text color={valueColor} fontWeight={valueWeight}>
                       {bhkType || 'Select'}
                     </Text>
                   </YStack>
                 </Pressable>
               </YStack>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={200} gap="$2">
+              {adType === 'resale' ? (
+                <YStack gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
-                    No. of Floor(s)*
+                    Ownership Type*
                   </Text>
-                  <Pressable onPress={() => setPickerOpen('floor')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {floor || 'Select'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-                {apartmentType !== 'independent_house_villa' ? (
-                  <YStack flexGrow={1} minWidth={200} gap="$2">
-                    <Text color={muted} fontSize={12} fontWeight="700">
-                      Total Floor(s)*
+                  <Pressable onPress={() => setPickerOpen('ownershipType')}>
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <Text color={valueColor} fontWeight={valueWeight}>
+                      {ownershipType === 'on_lease' ? 'On Lease' : ownershipType === 'self_owned' ? 'Self Owned' : 'Select'}
                     </Text>
-                    <Pressable onPress={() => setPickerOpen('totalFloors')}>
+                  </YStack>
+                </Pressable>
+              </YStack>
+              ) : (
+                <>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Property available for
+                    </Text>
+                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        backgroundColor={propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent'}
+                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'}
+                        fontWeight="800"
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        onPress={() => {
+                          setPropertyAvailableFor('only_rent');
+                        }}>
+                        Only rent
+                      </Button>
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        backgroundColor={propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent'}
+                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'}
+                        fontWeight="800"
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        onPress={() => {
+                          setPropertyAvailableFor('only_lease');
+                          setDeposit('');
+                        }}>
+                        Only lease
+                      </Button>
+                    </XStack>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Input
+                      value={price}
+                      onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
+                      placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={valueColor}
+                      flexGrow={1}
+                      minWidth={200}
+                    />
+                    {propertyAvailableFor === 'only_rent' ? (
+                      <Input
+                        value={deposit}
+                        onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Expected Deposit *"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                        flexGrow={1}
+                        minWidth={200}
+                      />
+                    ) : null}
+                  </XStack>
+
+                  <Pressable onPress={() => setRentNegotiable((p) => !p)}>
+                    <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                      <YStack
+                        width={18}
+                        height={18}
+                        borderWidth={1}
+                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderRadius={4}
+                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                          {rentNegotiable ? '✓' : ''}
+                        </Text>
+                      </YStack>
+                      <Text color={titleColor} fontWeight="800">
+                        Rent Negotiable
+                      </Text>
+                    </XStack>
+                  </Pressable>
+                </>
+              )}
+
+              {adType === 'resale' ? (
+                <>
+                  {ownershipType === 'on_lease' ? (
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Lease Years*
+                      </Text>
+                      <Input
+                        value={leaseYears}
+                        onChangeText={(t) => setLeaseYears(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 2))}
+                        placeholder="Enter years"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+                  ) : null}
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Floor Type*
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('floorType')}>
                       <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                        <Text color={titleColor} fontWeight="800">
-                          {totalFloors || 'Select'}
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {floorType === 'verified_tiles'
+                            ? 'Verified Tiles'
+                            : floorType === 'mosaic'
+                              ? 'Mosaic'
+                              : floorType === 'marble_granite'
+                                ? 'Marble / Granite'
+                                : floorType === 'wooden'
+                                  ? 'Wooden'
+                                  : floorType === 'cement'
+                                    ? 'Cement'
+                                    : 'Select'}
                         </Text>
                       </YStack>
                     </Pressable>
                   </YStack>
-                ) : null}
-              </XStack>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={200} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Property Age*
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('propertyAge')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {propertyAge || 'Select'}
+                  <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Built Up Area*
                       </Text>
+                      <Input
+                        value={areaSqft}
+                        onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Enter area"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
                     </YStack>
-                  </Pressable>
-                </YStack>
-                <YStack flexGrow={1} minWidth={200} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Facing*
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('facing')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {facing || 'Select'}
+                    <YStack minWidth={140} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Unit
                       </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-              </XStack>
-
-              <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
-                <YStack flexGrow={1} minWidth={200} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Built Up Area*
-                  </Text>
-                  <Input
-                    value={areaSqft}
-                    onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
-                    placeholder="Enter area"
-                    keyboardType="numeric"
-                    backgroundColor="#FFFFFF"
-                    borderColor={border}
-                    color={titleColor}
-                  />
-                </YStack>
-                <YStack minWidth={110} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Unit
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('areaUnit')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {areaUnit === 'sqft' ? 'Sq.ft' : areaUnit === 'sqm' ? 'Sq.m' : 'Sq.yd'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-              </XStack>
-            </YStack>
-          ) : null}
-
-          {step === 'location' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-              <Text color={titleColor} fontWeight="900">
-                Location
-              </Text>
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  State*
-                </Text>
-                <Pressable onPress={() => setPickerOpen('state')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={titleColor} fontWeight="800">
-                      {stateValue || 'Select'}
-                    </Text>
-                  </YStack>
-                </Pressable>
-              </YStack>
-
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  City*
-                </Text>
-                <Pressable onPress={() => setPickerOpen('city')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={titleColor} fontWeight="800">
-                      {cityValue || 'Select'}
-                    </Text>
-                  </YStack>
-                </Pressable>
-              </YStack>
-
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Locality*
-                </Text>
-                <Input
-                  value={localityValue}
-                  onChangeText={(t) => {
-                    setLocalityValue(t);
-                    setLocalityTyped(true);
-                  }}
-                  placeholder="Type to search locality"
-                  backgroundColor="#FFFFFF"
-                  borderColor={border}
-                  color={titleColor}
-                />
-
-                {localityLoading ? (
-                  <Text color={muted} fontSize={11}>
-                    Searching…
-                  </Text>
-                ) : null}
-
-                {localitySuggestions.length ? (
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF">
-                    {localitySuggestions.map((s) => (
-                      <Pressable
-                        key={s.id}
-                        onPress={() => {
-                          setLocalityValue(s.label);
-                          setLocalityTyped(false);
-                          setLocalitySuggestions([]);
-                        }}>
-                        <XStack paddingVertical={10} paddingHorizontal={12} justifyContent="space-between" alignItems="center">
-                          <Text color={titleColor} fontWeight="800">
-                            {s.label}
+                      <Pressable onPress={() => setPickerOpen('areaUnit')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {areaUnit === 'sqft' ? 'Sq ft' : areaUnit === 'sqm' ? 'Sq m' : 'Sq yd'}
                           </Text>
-                          <Text color={muted} fontSize={11}>
-                            Select
-                          </Text>
-                        </XStack>
+                        </YStack>
                       </Pressable>
-                    ))}
-                  </YStack>
-                ) : null}
-
-                {!localitySuggestions.length && localityOptions.length ? (
-                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                    <Text color={muted} fontSize={11}>
-                      Suggestions:
-                    </Text>
-                    {localityOptions.slice(0, 6).map((l) => (
-                      <Pressable
-                        key={l}
-                        onPress={() => {
-                          setLocalityValue(l);
-                          setLocalityTyped(false);
-                          setLocalitySuggestions([]);
-                        }}>
-                        <Text color="#2563EB" fontSize={11} fontWeight="900">
-                          {l}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    </YStack>
                   </XStack>
-                ) : null}
-              </YStack>
 
-              <YStack gap="$2">
-                <Text color={titleColor} fontWeight="900">
-                  Mark Locality on Map
-                </Text>
-                <Text color={muted} fontSize={11}>
-                  Tap to select on map and auto-fill State, City, Locality, and Landmark / Street.
-                </Text>
-                <Button
-                  backgroundColor="#1F4E79"
-                  color="#FFFFFF"
-                  onPress={() => {
-                    setMapPickerCoord((p) => p ?? { lng: 72.8777, lat: 19.076 });
-                    setMapPickerOpen(true);
-                  }}>
-                  Open Map
-                </Button>
-              </YStack>
-
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Landmark / Street*
-                </Text>
-                <Input value={address1} onChangeText={setAddress1} placeholder="Landmark / Street" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
-              </YStack>
-
-              <Input value={address2} onChangeText={setAddress2} placeholder="Address line 2" backgroundColor="#FFFFFF" borderColor={border} color={titleColor} />
-              <Input
-                value={pincode}
-                onChangeText={(t) => setPincode(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 6))}
-                placeholder="Pincode"
-                keyboardType="number-pad"
-                backgroundColor="#FFFFFF"
-                borderColor={border}
-                color={titleColor}
-              />
-
-              <XStack gap="$2" flexWrap="wrap">
-                <Text color={muted} fontSize={11}>
-                  Suggestions:
-                </Text>
-                {stateOptions.slice(0, 2).map((s) => (
-                  <Pressable
-                    key={s}
-                    onPress={() => {
-                      setStateValue(s);
-                      setCityValue((fallbackCityByState[s] ?? [])[0] ?? '');
-                    }}>
-                    <Text color="#2563EB" fontSize={11} fontWeight="900">
-                      {s}
-                    </Text>
-                  </Pressable>
-                ))}
-                {(cityOptions ?? []).slice(0, 3).map((c) => (
-                  <Pressable key={c} onPress={() => setCityValue(c)}>
-                    <Text color="#2563EB" fontSize={11} fontWeight="900">
-                      {c}
-                    </Text>
-                  </Pressable>
-                ))}
-              </XStack>
-            </YStack>
-          ) : null}
-
-          {step === 'pricing' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-              <Text color={titleColor} fontWeight="900">
-                Rental Details
-              </Text>
-
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Property available for
-                </Text>
-                <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
-                  <Button
-                    flex={1}
-                    borderRadius={0}
-                    backgroundColor={propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent'}
-                    color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'}
-                    fontWeight="800"
-                    hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
-                    pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
-                    onPress={() => {
-                      setPropertyAvailableFor('only_rent');
-                    }}>
-                    Only rent
-                  </Button>
-                  <Button
-                    flex={1}
-                    borderRadius={0}
-                    backgroundColor={propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent'}
-                    color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'}
-                    fontWeight="800"
-                    hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
-                    pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
-                    onPress={() => {
-                      setPropertyAvailableFor('only_lease');
-                      setDeposit('');
-                    }}>
-                    Only lease
-                  </Button>
-                </XStack>
-              </YStack>
-
-              <XStack gap="$2" flexWrap="wrap">
-                <Input
-                  value={price}
-                  onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
-                  placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
-                  keyboardType="numeric"
-                  backgroundColor="#FFFFFF"
-                  borderColor={border}
-                  color={titleColor}
-                  flexGrow={1}
-                  minWidth={200}
-                />
-                {propertyAvailableFor === 'only_rent' ? (
-                  <Input
-                    value={deposit}
-                    onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
-                    placeholder="Expected Deposit *"
-                    keyboardType="numeric"
-                    backgroundColor="#FFFFFF"
-                    borderColor={border}
-                    color={titleColor}
-                    flexGrow={1}
-                    minWidth={200}
-                  />
-                ) : null}
-              </XStack>
-
-              <Pressable onPress={() => setRentNegotiable((p) => !p)}>
-                <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                  <YStack
-                    width={18}
-                    height={18}
-                    borderWidth={1}
-                    borderColor={rentNegotiable ? '#059669' : border}
-                    borderRadius={4}
-                    backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
-                    alignItems="center"
-                    justifyContent="center">
-                    <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
-                      {rentNegotiable ? '✓' : ''}
-                    </Text>
-                  </YStack>
-                  <Text color={titleColor} fontWeight="800">
-                    Rent Negotiable
-                  </Text>
-                </XStack>
-              </Pressable>
-
-              <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
-                <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Monthly Maintenance
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('maintenanceType')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {monthlyMaintenanceType === 'included'
-                          ? 'Maintenance Included'
-                          : monthlyMaintenanceType === 'extra'
-                            ? 'Maintenance Extra'
-                            : 'Select'}
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Carpet Area (Optional)
                       </Text>
+                      <Input
+                        value={carpetAreaSqft}
+                        onChangeText={(t) => setCarpetAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Enter carpet area"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
                     </YStack>
-                  </Pressable>
-                </YStack>
-                {monthlyMaintenanceType === 'extra' ? (
+                    {apartmentType === 'independent_house_villa' ? (
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Plot Area*
+                        </Text>
+                        <Input
+                          value={plotAreaSqft}
+                          onChangeText={(t) => setPlotAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
+                          placeholder="Enter plot area"
+                          keyboardType="numeric"
+                          backgroundColor="#FFFFFF"
+                          borderColor={border}
+                          color={valueColor}
+                        />
+                      </YStack>
+                    ) : null}
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        No. of Floor(s)*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('floor')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {floor || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    {apartmentType === 'apartment' || apartmentType === 'standalone_building' ? (
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Total Floor(s)*
+                        </Text>
+                        <Pressable onPress={() => setPickerOpen('totalFloors')}>
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                            <Text color={valueColor} fontWeight={valueWeight}>
+                              {totalFloors || 'Select'}
+                            </Text>
+                          </YStack>
+                        </Pressable>
+                      </YStack>
+                    ) : null}
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Property Age*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('propertyAge')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {propertyAge || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Facing*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('facing')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {facing || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+                </>
+              ) : null}
+
+              {adType !== 'resale' ? (
+                <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                   <YStack flexGrow={1} minWidth={220} gap="$2">
                     <Text color={muted} fontSize={12} fontWeight="700">
-                      Maintenance Amount*
+                      Monthly Maintenance
                     </Text>
-                    <Input
-                      value={maintenanceAmount}
-                      onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
-                      placeholder="Enter amount"
-                      keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
-                    />
+                    <Pressable onPress={() => setPickerOpen('maintenanceType')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {monthlyMaintenanceType === 'included'
+                            ? 'Maintenance Included'
+                            : monthlyMaintenanceType === 'extra'
+                              ? 'Maintenance Extra'
+                              : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
                   </YStack>
-                ) : null}
-              </XStack>
+                  {monthlyMaintenanceType === 'extra' ? (
+                    <YStack flexGrow={1} minWidth={220} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Maintenance Amount*
+                      </Text>
+                      <Input
+                        value={maintenanceAmount}
+                        onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Enter amount"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+                  ) : null}
+                </XStack>
+              ) : null}
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Available From*
-                </Text>
-                <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
-                  <YStack padding={12}>
-                    <Text color={titleColor} fontWeight="800">
-                      {availableFromText || 'Select date'}
-                    </Text>
-                  </YStack>
-                  {Platform.OS === 'web' ? (
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={0.01}>
+              {adType !== 'resale' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Available From*
+                  </Text>
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                    <YStack padding={12}>
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                      </Text>
+                    </YStack>
+                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
                       <AppDateTimePicker
                         value={availableFromDate ?? new Date()}
                         mode="date"
@@ -2086,104 +2384,104 @@ export default function PostPropertyScreen() {
                         style={{ height: 48, padding: '0 12px' }}
                       />
                     </YStack>
-                  ) : (
-                    <AppDateTimePicker
-                      value={availableFromDate ?? new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(_e: any, d?: Date) => {
-                        if (!d) return;
-                        setAvailableFromDate(d);
-                        setAvailableFromText(formatDateDdMmYyyy(d));
-                      }}
-                    />
-                  )}
+                  </YStack>
                 </YStack>
-              </YStack>
+              ) : null}
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Preferred Tenants*
-                </Text>
-                <XStack gap="$2" flexWrap="wrap">
-                  <Button
-                    size="$2"
-                    borderWidth={1}
-                    borderColor={preferredAnyone ? '#059669' : border}
-                    backgroundColor={preferredAnyone ? '#ECFDF5' : '#FFFFFF'}
-                    color={titleColor}
-                    fontWeight="800"
-                    onPress={togglePreferredAnyone}>
-                    Anyone {preferredAnyone ? '✓' : ''}
-                  </Button>
-                  <Button
-                    size="$2"
-                    borderWidth={1}
-                    borderColor={preferredFamily ? '#059669' : border}
-                    backgroundColor={preferredFamily ? '#ECFDF5' : '#FFFFFF'}
-                    color={preferredAnyone ? '#9CA3AF' : titleColor}
-                    fontWeight="800"
-                    disabled={preferredAnyone}
-                    onPress={() => togglePreferredOne(preferredFamily, setPreferredFamily, !preferredFamily)}>
-                    Family {preferredFamily ? '✓' : ''}
-                  </Button>
-                  <Button
-                    size="$2"
-                    borderWidth={1}
-                    borderColor={preferredBachelorFemale ? '#059669' : border}
-                    backgroundColor={preferredBachelorFemale ? '#ECFDF5' : '#FFFFFF'}
-                    color={preferredAnyone ? '#9CA3AF' : titleColor}
-                    fontWeight="800"
-                    disabled={preferredAnyone}
-                    onPress={() => togglePreferredOne(preferredBachelorFemale, setPreferredBachelorFemale, !preferredBachelorFemale)}>
-                    Bachelor Female {preferredBachelorFemale ? '✓' : ''}
-                  </Button>
-                  <Button
-                    size="$2"
-                    borderWidth={1}
-                    borderColor={preferredBachelorMale ? '#059669' : border}
-                    backgroundColor={preferredBachelorMale ? '#ECFDF5' : '#FFFFFF'}
-                    color={preferredAnyone ? '#9CA3AF' : titleColor}
-                    fontWeight="800"
-                    disabled={preferredAnyone}
-                    onPress={() => togglePreferredOne(preferredBachelorMale, setPreferredBachelorMale, !preferredBachelorMale)}>
-                    Bachelor Male {preferredBachelorMale ? '✓' : ''}
-                  </Button>
-                  <Button
-                    size="$2"
-                    borderWidth={1}
-                    borderColor={preferredCompany ? '#059669' : border}
-                    backgroundColor={preferredCompany ? '#ECFDF5' : '#FFFFFF'}
-                    color={preferredAnyone ? '#9CA3AF' : titleColor}
-                    fontWeight="800"
-                    disabled={preferredAnyone}
-                    onPress={() => togglePreferredOne(preferredCompany, setPreferredCompany, !preferredCompany)}>
-                    Company {preferredCompany ? '✓' : ''}
-                  </Button>
-                </XStack>
-              </YStack>
+              {adType !== 'resale' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Preferred Tenants*
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$2"
+                      borderWidth={1}
+                      borderColor={preferredAnyone ? '#059669' : border}
+                      backgroundColor={preferredAnyone ? '#ECFDF5' : '#FFFFFF'}
+                      color={titleColor}
+                      fontWeight="800"
+                      onPress={togglePreferredAnyone}>
+                      Anyone {preferredAnyone ? '✓' : ''}
+                    </Button>
+                    <Button
+                      size="$2"
+                      borderWidth={1}
+                      borderColor={preferredFamily ? '#059669' : border}
+                      backgroundColor={preferredFamily ? '#ECFDF5' : '#FFFFFF'}
+                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      fontWeight="800"
+                      disabled={preferredAnyone}
+                      onPress={() => togglePreferredOne(preferredFamily, setPreferredFamily, !preferredFamily)}>
+                      Family {preferredFamily ? '✓' : ''}
+                    </Button>
+                    <Button
+                      size="$2"
+                      borderWidth={1}
+                      borderColor={preferredBachelorFemale ? '#059669' : border}
+                      backgroundColor={preferredBachelorFemale ? '#ECFDF5' : '#FFFFFF'}
+                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      fontWeight="800"
+                      disabled={preferredAnyone}
+                      onPress={() => togglePreferredOne(preferredBachelorFemale, setPreferredBachelorFemale, !preferredBachelorFemale)}>
+                      Bachelor Female {preferredBachelorFemale ? '✓' : ''}
+                    </Button>
+                    <Button
+                      size="$2"
+                      borderWidth={1}
+                      borderColor={preferredBachelorMale ? '#059669' : border}
+                      backgroundColor={preferredBachelorMale ? '#ECFDF5' : '#FFFFFF'}
+                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      fontWeight="800"
+                      disabled={preferredAnyone}
+                      onPress={() => togglePreferredOne(preferredBachelorMale, setPreferredBachelorMale, !preferredBachelorMale)}>
+                      Bachelor Male {preferredBachelorMale ? '✓' : ''}
+                    </Button>
+                    <Button
+                      size="$2"
+                      borderWidth={1}
+                      borderColor={preferredCompany ? '#059669' : border}
+                      backgroundColor={preferredCompany ? '#ECFDF5' : '#FFFFFF'}
+                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      fontWeight="800"
+                      disabled={preferredAnyone}
+                      onPress={() => togglePreferredOne(preferredCompany, setPreferredCompany, !preferredCompany)}>
+                      Company {preferredCompany ? '✓' : ''}
+                    </Button>
+                  </XStack>
+                </YStack>
+              ) : null}
+            </YStack>
+          ) : null}
+
+          {step === 'location' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                Location
+              </Text>
 
               <XStack gap="$2" flexWrap="wrap">
                 <YStack flexGrow={1} minWidth={220} gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
-                    Furnishing*
+                    State*
                   </Text>
-                  <Pressable onPress={() => setPickerOpen('furnishing')}>
+                  <Pressable onPress={() => setPickerOpen('state')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {furnishing === 'furnished' ? 'Fully Furnished' : furnishing === 'semi_furnished' ? 'Semi Furnished' : 'Unfurnished'}
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {stateValue || 'Select'}
                       </Text>
                     </YStack>
                   </Pressable>
                 </YStack>
+
                 <YStack flexGrow={1} minWidth={220} gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
-                    Parking*
+                    City*
                   </Text>
-                  <Pressable onPress={() => setPickerOpen('parking')}>
+                  <Pressable onPress={() => setPickerOpen('city')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
-                        {parking === 'bike' ? 'Bike' : parking === 'car' ? 'Car' : parking === 'both' ? 'Both' : 'None'}
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {cityValue || 'Select'}
                       </Text>
                     </YStack>
                   </Pressable>
@@ -2192,27 +2490,369 @@ export default function PostPropertyScreen() {
 
               <YStack gap="$2">
                 <Text color={muted} fontSize={12} fontWeight="700">
-                  Description
+                  Locality*
                 </Text>
-                <TextInput
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Write a few lines about your property..."
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  style={{
-                    borderWidth: 1,
-                    borderColor: border,
-                    borderRadius: 12,
-                    paddingHorizontal: 12,
-                    paddingVertical: 10,
-                    minHeight: 90,
-                    backgroundColor: '#FFFFFF',
-                    color: titleColor,
-                    textAlignVertical: 'top',
+                <Input
+                  value={localityValue}
+                  onChangeText={(t) => {
+                    setLocalityValue(String(t ?? ''));
+                    setLocalityTyped(true);
                   }}
+                  placeholder="Enter locality"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={valueColor}
                 />
               </YStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Landmark / Street*
+                </Text>
+                <Input
+                  value={address1}
+                  onChangeText={setAddress1}
+                  placeholder="Landmark / street"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={valueColor}
+                />
+              </YStack>
+
+              <YStack gap="$2">
+                <Text color={muted} fontSize={12} fontWeight="700">
+                  Pincode*
+                </Text>
+                <Input
+                  value={pincode}
+                  onChangeText={(t) => setPincode(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 6))}
+                  placeholder="6 digit pincode"
+                  keyboardType="numeric"
+                  backgroundColor="#FFFFFF"
+                  borderColor={border}
+                  color={valueColor}
+                />
+              </YStack>
+
+              <XStack gap="$2" flexWrap="wrap" alignItems="center" justifyContent="space-between">
+                <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => setMapPickerOpen(true)}>
+                  Select on Map
+                </Button>
+                <Text color={muted} fontSize={12}>
+                  {mapPickerCoord ? `Lat ${mapPickerCoord.lat.toFixed(6)}, Lng ${mapPickerCoord.lng.toFixed(6)}` : ''}
+                </Text>
+              </XStack>
+            </YStack>
+          ) : null}
+
+          {step === 'pricing' ? (
+            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+              <Text color={titleColor} fontWeight="900">
+                {adType === 'resale' ? 'Resale Details' : 'Pricing'}
+              </Text>
+
+              {adType === 'resale' ? (
+                <>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Input
+                      value={price}
+                      onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
+                      placeholder="Expected Price *"
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={valueColor}
+                      flexGrow={1}
+                      minWidth={220}
+                    />
+                  </XStack>
+
+                  <Pressable onPress={() => setRentNegotiable((p) => !p)}>
+                    <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                      <YStack
+                        width={18}
+                        height={18}
+                        borderWidth={1}
+                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderRadius={4}
+                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                          {rentNegotiable ? '✓' : ''}
+                        </Text>
+                      </YStack>
+                      <Text color={titleColor} fontWeight="800">
+                        Price Negotiable
+                      </Text>
+                    </XStack>
+                  </Pressable>
+
+                  <Pressable onPress={() => setCurrentlyUnderLoan((p) => !p)}>
+                    <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                      <YStack
+                        width={18}
+                        height={18}
+                        borderWidth={1}
+                        borderColor={currentlyUnderLoan ? '#059669' : border}
+                        borderRadius={4}
+                        backgroundColor={currentlyUnderLoan ? '#059669' : '#FFFFFF'}
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                          {currentlyUnderLoan ? '✓' : ''}
+                        </Text>
+                      </YStack>
+                      <Text color={titleColor} fontWeight="800">
+                        Currently Under Loan
+                      </Text>
+                    </XStack>
+                  </Pressable>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Available From*
+                    </Text>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                      <YStack padding={12}>
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                        </Text>
+                      </YStack>
+                      <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
+                        <AppDateTimePicker
+                          value={availableFromDate ?? new Date()}
+                          mode="date"
+                          display="default"
+                          onChange={(_e: any, d?: Date) => {
+                            if (!d) return;
+                            setAvailableFromDate(d);
+                            setAvailableFromText(formatDateDdMmYyyy(d));
+                          }}
+                          style={{ height: 48, padding: '0 12px' }}
+                        />
+                      </YStack>
+                    </YStack>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={220} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Kitchen Type*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('kitchenType')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {kitchenType === 'modular'
+                              ? 'Modular'
+                              : kitchenType === 'cupboard_shelf'
+                                ? 'Cupboard / Shelf'
+                                : kitchenType === 'open_shelf'
+                                  ? 'Open Shelf'
+                                  : 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={220} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Furnishing*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('furnishing')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {furnishing === 'furnished' ? 'Fully Furnished' : furnishing === 'semi_furnished' ? 'Semi Furnished' : furnishing === 'unfurnished' ? 'Unfurnished' : 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Parking*
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('parking')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {parking === 'bike' ? 'Bike' : parking === 'car' ? 'Car' : parking === 'both' ? 'Both' : parking === 'none' ? 'None' : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Description*
+                    </Text>
+                    <TextInput
+                      value={description}
+                      onChangeText={setDescription}
+                      placeholder="Describe your property"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      style={{
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        minHeight: 90,
+                        backgroundColor: '#FFFFFF',
+                        color: valueColor,
+                        textAlignVertical: 'top',
+                      }}
+                    />
+                  </YStack>
+                </>
+              ) : (
+                <>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Property available for
+                    </Text>
+                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        backgroundColor={propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent'}
+                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'}
+                        fontWeight="800"
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        onPress={() => {
+                          setPropertyAvailableFor('only_rent');
+                        }}>
+                        Only rent
+                      </Button>
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        backgroundColor={propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent'}
+                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'}
+                        fontWeight="800"
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        onPress={() => {
+                          setPropertyAvailableFor('only_lease');
+                          setDeposit('');
+                        }}>
+                        Only lease
+                      </Button>
+                    </XStack>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Input
+                      value={price}
+                      onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
+                      placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={valueColor}
+                      flexGrow={1}
+                      minWidth={200}
+                    />
+                    {propertyAvailableFor === 'only_rent' ? (
+                      <Input
+                        value={deposit}
+                        onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Expected Deposit *"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                        flexGrow={1}
+                        minWidth={200}
+                      />
+                    ) : null}
+                  </XStack>
+
+                  <Pressable onPress={() => setRentNegotiable((p) => !p)}>
+                    <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                      <YStack
+                        width={18}
+                        height={18}
+                        borderWidth={1}
+                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderRadius={4}
+                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        alignItems="center"
+                        justifyContent="center">
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                          {rentNegotiable ? '✓' : ''}
+                        </Text>
+                      </YStack>
+                      <Text color={titleColor} fontWeight="800">
+                        Rent Negotiable
+                      </Text>
+                    </XStack>
+                  </Pressable>
+
+                  <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                    <YStack flexGrow={1} minWidth={220} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Monthly Maintenance
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('maintenanceType')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {monthlyMaintenanceType === 'included'
+                              ? 'Maintenance Included'
+                              : monthlyMaintenanceType === 'extra'
+                                ? 'Maintenance Extra'
+                                : 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    {monthlyMaintenanceType === 'extra' ? (
+                      <YStack flexGrow={1} minWidth={220} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Maintenance Amount*
+                        </Text>
+                        <Input
+                          value={maintenanceAmount}
+                          onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
+                          placeholder="Enter amount"
+                          keyboardType="numeric"
+                          backgroundColor="#FFFFFF"
+                          borderColor={border}
+                          color={valueColor}
+                        />
+                      </YStack>
+                    ) : null}
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Available From*
+                    </Text>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                      <YStack padding={12}>
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                        </Text>
+                      </YStack>
+                      <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
+                        <AppDateTimePicker
+                          value={availableFromDate ?? new Date()}
+                          mode="date"
+                          display="default"
+                          onChange={(_e: any, d?: Date) => {
+                            if (!d) return;
+                            setAvailableFromDate(d);
+                            setAvailableFromText(formatDateDdMmYyyy(d));
+                          }}
+                          style={{ height: 48, padding: '0 12px' }}
+                        />
+                      </YStack>
+                    </YStack>
+                  </YStack>
+                </>
+              )}
             </YStack>
           ) : null}
 
@@ -2243,7 +2883,7 @@ export default function PostPropertyScreen() {
                 </Text>
                 <Pressable onPress={() => setPickerOpen('waterSupply')}>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={titleColor} fontWeight="800">
+                    <Text color={valueColor} fontWeight={valueWeight}>
                       {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
                     </Text>
                   </YStack>
@@ -2287,7 +2927,7 @@ export default function PostPropertyScreen() {
                   </Text>
                   <Pressable onPress={() => setPickerOpen('whoWillShow')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {whoWillShowProperty || 'Select'}
                       </Text>
                     </YStack>
@@ -2299,7 +2939,7 @@ export default function PostPropertyScreen() {
                   </Text>
                   <Pressable onPress={() => setPickerOpen('propertyCondition')}>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={titleColor} fontWeight="800">
+                      <Text color={valueColor} fontWeight={valueWeight}>
                         {currentPropertyCondition || 'Select'}
                       </Text>
                     </YStack>
@@ -2318,7 +2958,7 @@ export default function PostPropertyScreen() {
                   keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                   backgroundColor="#FFFFFF"
                   borderColor={border}
-                  color={titleColor}
+                  color={valueColor}
                 />
               </YStack>
 
@@ -2347,7 +2987,7 @@ export default function PostPropertyScreen() {
                     paddingVertical: 10,
                     minHeight: 80,
                     backgroundColor: '#FFFFFF',
-                    color: titleColor,
+                    color: valueColor,
                     textAlignVertical: 'top',
                   }}
                 />
@@ -2359,24 +2999,18 @@ export default function PostPropertyScreen() {
                 </Text>
                 {(() => {
                   const items = [
-                    { label: 'Lift', icon: 'elevator', value: amenityLift, setValue: setAmenityLift },
-                    { label: 'Air Conditioner', icon: 'air-conditioner', value: amenityAirConditioner, setValue: setAmenityAirConditioner },
-                    { label: 'Intercom', icon: 'phone-in-talk', value: amenityIntercom, setValue: setAmenityIntercom },
-                    { label: 'Children Play Area', icon: 'human-male-child', value: amenityChildrenPlayArea, setValue: setAmenityChildrenPlayArea },
-                    { label: 'Servant Room', icon: 'account-tie', value: amenityServantRoom, setValue: setAmenityServantRoom },
-                    { label: 'Gas Pipeline', icon: 'gas-cylinder', value: amenityGasPipeline, setValue: setAmenityGasPipeline },
-                    { label: 'Rain Water Harvesting', icon: 'water', value: amenityRainWaterHarvesting, setValue: setAmenityRainWaterHarvesting },
-                    { label: 'House Keeping', icon: 'broom', value: amenityHouseKeeping, setValue: setAmenityHouseKeeping },
                     { label: 'Visitor Parking', icon: 'car', value: amenityVisitorParking, setValue: setAmenityVisitorParking },
-
-                    { label: 'Internet Services', icon: 'wifi', value: amenityInternetServices, setValue: setAmenityInternetServices },
                     { label: 'Club House', icon: 'home-city', value: amenityClubHouse, setValue: setAmenityClubHouse },
                     { label: 'Swimming Pool', icon: 'pool', value: amenitySwimmingPool, setValue: setAmenitySwimmingPool },
+                    { label: 'Lift', icon: 'elevator', value: amenityLift, setValue: setAmenityLift },
                     { label: 'Fire Safety', icon: 'fire-extinguisher', value: amenityFireSafety, setValue: setAmenityFireSafety },
+                    { label: 'Intercom', icon: 'phone-in-talk', value: amenityIntercom, setValue: setAmenityIntercom },
+                    { label: 'Children Play Area', icon: 'human-male-child', value: amenityChildrenPlayArea, setValue: setAmenityChildrenPlayArea },
                     { label: 'Shopping Center', icon: 'shopping', value: amenityShoppingCenter, setValue: setAmenityShoppingCenter },
                     { label: 'Park', icon: 'tree', value: amenityPark, setValue: setAmenityPark },
                     { label: 'Sewage Treatment Plant', icon: 'water-pump', value: amenitySewageTreatmentPlant, setValue: setAmenitySewageTreatmentPlant },
-                    { label: 'Power Backup', icon: 'battery-charging', value: amenityPowerBackup, setValue: setAmenityPowerBackup },
+                    { label: 'Gas Pipeline', icon: 'gas-cylinder', value: amenityGasPipeline, setValue: setAmenityGasPipeline },
+                    { label: 'Internet Provider', icon: 'wifi', value: amenityInternetServices, setValue: setAmenityInternetServices },
                   ] as const;
 
                   const columns = [items.slice(0, 9), items.slice(9, 18), items.slice(18, 27)].filter((c) => c.length);
@@ -2485,8 +3119,30 @@ export default function PostPropertyScreen() {
                 {reviewRow('Apartment Type', reviewValue(apartmentType))}
                 {reviewRow('Apartment Name', reviewValue(apartmentName))}
                 {reviewRow('BHK Type', reviewValue(bhkType))}
+                {ownershipType ? reviewRow('Ownership Type', ownershipType === 'on_lease' ? 'On Lease' : 'Self Owned') : null}
+                {ownershipType === 'on_lease' && leaseYears ? reviewRow('Lease Years', `${reviewValue(leaseYears)} Years`) : null}
+                {carpetAreaSqft ? reviewRow('Carpet Area', `${reviewValue(carpetAreaSqft)} (${areaUnit})`) : null}
+                {plotAreaSqft ? reviewRow('Plot Area', `${reviewValue(plotAreaSqft)} (${areaUnit})`) : null}
+                {floorType ?
+                  reviewRow(
+                    'Floor Type',
+                    floorType === 'verified_tiles'
+                      ? 'Verified Tiles'
+                      : floorType === 'mosaic'
+                        ? 'Mosaic'
+                        : floorType === 'marble_granite'
+                          ? 'Marble / Granite'
+                          : floorType === 'wooden'
+                            ? 'Wooden'
+                            : 'Cement'
+                  )
+                : null}
                 {reviewRow('No. of Floor(s)', reviewValue(floor))}
-                {apartmentType !== 'independent_house_villa' ? reviewRow('Total Floor(s)', reviewValue(totalFloors)) : null}
+                {(adType === 'resale'
+                  ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
+                  : apartmentType !== 'independent_house_villa')
+                  ? reviewRow('Total Floor(s)', reviewValue(totalFloors))
+                  : null}
                 {reviewRow('Property Age', reviewValue(propertyAge))}
                 {reviewRow('Facing', reviewValue(facing))}
                 {reviewRow('Built Up Area', `${reviewValue(areaSqft)} (${areaUnit})`)}
@@ -2498,25 +3154,41 @@ export default function PostPropertyScreen() {
                 {reviewRow('City', reviewValue(cityValue))}
                 {reviewRow('Locality', reviewValue(localityValue))}
                 {reviewRow('Landmark / Street', reviewValue(address1))}
-                {reviewRow('Address line 2', reviewValue(address2))}
                 {reviewRow('Pincode', reviewValue(pincode))}
                 {reviewRow('Map', mapPickerCoord ? `Lat ${mapPickerCoord.lat.toFixed(6)}, Lng ${mapPickerCoord.lng.toFixed(6)}` : '—')}
               </YStack>
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-                <Text color={titleColor} fontWeight="900">Rental Details</Text>
-                {reviewRow('Available for', reviewValue(propertyAvailableFor === 'only_rent' ? 'Only rent' : 'Only lease'))}
-                {reviewRow('Expected Amount', reviewValue(price))}
-                {propertyAvailableFor === 'only_rent' ? reviewRow('Expected Deposit', reviewValue(deposit)) : null}
-                {reviewRow('Rent Negotiable', reviewValue(rentNegotiable ? 'Yes' : 'No'))}
-                {reviewRow('Monthly Maintenance', reviewValue(monthlyMaintenanceType === 'included' ? 'Included' : monthlyMaintenanceType === 'extra' ? 'Extra' : ''))}
-                {monthlyMaintenanceType === 'extra' ? reviewRow('Maintenance Amount', reviewValue(maintenanceAmount)) : null}
-                {reviewRow('Available From', availableFromDate ? formatDateDdMmYyyy(availableFromDate) : reviewValue(availableFromText))}
-                {reviewRow('Preferred Tenants', preferredAnyone ? 'Anyone' : [preferredFamily ? 'Family' : '', preferredBachelorFemale ? 'Bachelor Female' : '', preferredBachelorMale ? 'Bachelor Male' : '', preferredCompany ? 'Company' : ''].filter(Boolean).join(', ') || '—')}
-                {reviewRow('Furnishing', reviewValue(furnishing))}
-                {reviewRow('Parking', reviewValue(parking))}
-                {reviewRow('Description', reviewValue(description))}
-              </YStack>
+              {adType === 'resale' ? (
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900">Resale Details</Text>
+                  {reviewRow('Expected Price', reviewValue(price))}
+                  {reviewRow('Price Negotiable', reviewValue(rentNegotiable ? 'Yes' : 'No'))}
+                  {reviewRow('Currently Under Loan', reviewValue(currentlyUnderLoan ? 'Yes' : 'No'))}
+                  {reviewRow('Available From', availableFromDate ? formatDateDdMmYyyy(availableFromDate) : reviewValue(availableFromText))}
+                  {reviewRow(
+                    'Kitchen Type',
+                    kitchenType === 'modular' ? 'Modular' : kitchenType === 'cupboard_shelf' ? 'Cupboard Shelves' : kitchenType === 'open_shelf' ? 'Open Shelves' : '—'
+                  )}
+                  {reviewRow('Furnishing', reviewValue(furnishing))}
+                  {reviewRow('Parking', reviewValue(parking))}
+                  {reviewRow('Description', reviewValue(description))}
+                </YStack>
+              ) : (
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900">Rental Details</Text>
+                  {reviewRow('Available for', reviewValue(propertyAvailableFor === 'only_rent' ? 'Only rent' : 'Only lease'))}
+                  {reviewRow('Expected Amount', reviewValue(price))}
+                  {propertyAvailableFor === 'only_rent' ? reviewRow('Expected Deposit', reviewValue(deposit)) : null}
+                  {reviewRow('Rent Negotiable', reviewValue(rentNegotiable ? 'Yes' : 'No'))}
+                  {reviewRow('Monthly Maintenance', reviewValue(monthlyMaintenanceType === 'included' ? 'Included' : monthlyMaintenanceType === 'extra' ? 'Extra' : ''))}
+                  {monthlyMaintenanceType === 'extra' ? reviewRow('Maintenance Amount', reviewValue(maintenanceAmount)) : null}
+                  {reviewRow('Available From', availableFromDate ? formatDateDdMmYyyy(availableFromDate) : reviewValue(availableFromText))}
+                  {reviewRow('Preferred Tenants', preferredAnyone ? 'Anyone' : [preferredFamily ? 'Family' : '', preferredBachelorFemale ? 'Bachelor Female' : '', preferredBachelorMale ? 'Bachelor Male' : '', preferredCompany ? 'Company' : ''].filter(Boolean).join(', ') || '—')}
+                  {reviewRow('Furnishing', reviewValue(furnishing))}
+                  {reviewRow('Parking', reviewValue(parking))}
+                  {reviewRow('Description', reviewValue(description))}
+                </YStack>
+              )}
 
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Schedule</Text>
@@ -2533,6 +3205,7 @@ export default function PostPropertyScreen() {
                 {reviewRow('Water Supply', reviewValue(waterSupply))}
                 {reviewRow('Pet Allowed', reviewYesNo(petAllowed))}
                 {reviewRow('Gym', reviewYesNo(gym))}
+                {reviewRow('Power Backup', powerBackupType ? (powerBackupType === 'full' ? 'Full' : powerBackupType === 'partial' ? 'Partial' : 'None') : '—')}
                 {reviewRow('Non-Veg Allowed', reviewYesNo(nonVegAllowed))}
                 {reviewRow('Gated Security', reviewYesNo(gatedSecurity))}
                 {reviewRow('Who will show', reviewValue(whoWillShowProperty))}
@@ -2542,6 +3215,16 @@ export default function PostPropertyScreen() {
                 {reviewRow('Direction tip', reviewValue(directionTip))}
                 {reviewRow('Selected Amenities', selectedAmenityLabels.length ? selectedAmenityLabels.join(', ') : '—')}
               </YStack>
+
+              {adType === 'resale' ? (
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900">Additional Information</Text>
+                  {reviewRow('Sale Deed Certificate', yesNoDontKnowText(saleDeedCertificate))}
+                  {saleDeedCertificate === 'no' ? reviewRow('Sale Agreement', yesNoDontKnowText(saleAgreement)) : null}
+                  {reviewRow('Property Tax Paid', yesNoDontKnowText(propertyTaxPaid))}
+                  {reviewRow('Occupancy Certificate', yesNoDontKnowText(occupancyCertificate))}
+                </YStack>
+              ) : null}
 
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Uploads</Text>

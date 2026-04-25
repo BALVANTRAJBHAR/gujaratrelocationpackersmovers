@@ -1,3 +1,4 @@
+import React from 'react';
 import { NativeModules, Platform } from 'react-native';
 
 export type DateTimePickerProps = {
@@ -7,7 +8,15 @@ export type DateTimePickerProps = {
   [key: string]: any;
 };
 
-const WebFallback = (_props: DateTimePickerProps) => null;
+const WebFallback = (props: DateTimePickerProps) => {
+  try {
+    const mod = require('./AppDateTimePicker.web');
+    const Impl = mod?.default ?? mod;
+    return Impl ? <Impl {...(props as any)} /> : null;
+  } catch {
+    return null;
+  }
+};
 
 let NativePicker: any = null;
 if (Platform.OS !== 'web') {
