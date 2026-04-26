@@ -9,7 +9,7 @@ export type DateTimePickerProps = {
 };
 
 export default function AppDateTimePicker(props: DateTimePickerProps) {
-  const { value, onChange, style, mode } = props;
+  const { value, onChange, style, mode, ...rest } = props;
   const isTime = String(mode ?? '').toLowerCase() === 'time';
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -21,6 +21,16 @@ export default function AppDateTimePicker(props: DateTimePickerProps) {
   const hh = String(value.getHours()).padStart(2, '0');
   const min = String(value.getMinutes()).padStart(2, '0');
   const timeValue = `${hh}:${min}`;
+
+  const minDate: Date | null = (rest as any)?.minimumDate instanceof Date ? (rest as any).minimumDate : null;
+  const maxDate: Date | null = (rest as any)?.maximumDate instanceof Date ? (rest as any).maximumDate : null;
+
+  const minIso = minDate
+    ? `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-${String(minDate.getDate()).padStart(2, '0')}`
+    : undefined;
+  const maxIso = maxDate
+    ? `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`
+    : undefined;
 
   const openPicker = () => {
     const el = inputRef.current;
@@ -38,6 +48,8 @@ export default function AppDateTimePicker(props: DateTimePickerProps) {
       ref={inputRef}
       type={isTime ? 'time' : 'date'}
       value={isTime ? timeValue : iso}
+      min={!isTime ? ((rest as any)?.min ?? minIso) : undefined}
+      max={!isTime ? ((rest as any)?.max ?? maxIso) : undefined}
       onClick={openPicker}
       onFocus={openPicker}
       onChange={(e) => {

@@ -16,8 +16,10 @@ import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
+
+const TARGET_IMAGE_BYTES = 1 * 1024 * 1024;
 
 const isAllowedJpeg = (value: string) => {
   const v = String(value ?? '').toLowerCase();
@@ -66,6 +68,10 @@ export default function PostPropertyScreen() {
   const [propertyType, setPropertyType] = useState('apartment');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+
+  const [commercialBuildingType, setCommercialBuildingType] = useState('');
+  const [commercialOnMainRoad, setCommercialOnMainRoad] = useState(false);
+  const [commercialCornerProperty, setCommercialCornerProperty] = useState(false);
 
   const [pgRoomSingle, setPgRoomSingle] = useState(false);
   const [pgRoomDouble, setPgRoomDouble] = useState(false);
@@ -133,6 +139,9 @@ export default function PostPropertyScreen() {
     'apartment' | 'independent_house_villa' | 'gated_community_villa' | 'standalone_building'
   >('apartment');
   const [apartmentName, setApartmentName] = useState('');
+
+  const [flatmatesRoomType, setFlatmatesRoomType] = useState<'single_room' | 'shared_room' | ''>('');
+  const [flatmatesTenantType, setFlatmatesTenantType] = useState<'male' | 'female' | ''>('');
   const [bhkType, setBhkType] = useState('');
   const [ownershipType, setOwnershipType] = useState<'on_lease' | 'self_owned' | ''>('');
   const [leaseYears, setLeaseYears] = useState('');
@@ -140,7 +149,7 @@ export default function PostPropertyScreen() {
   const [totalFloors, setTotalFloors] = useState('');
   const [propertyAge, setPropertyAge] = useState('');
   const [facing, setFacing] = useState('');
-  const [areaUnit, setAreaUnit] = useState<'sqft' | 'sqm' | 'sqyd'>('sqft');
+  const [areaUnit, setAreaUnit] = useState<'sqft'>('sqft');
 
   const [stateValue, setStateValue] = useState('Gujarat');
   const [cityValue, setCityValue] = useState('Ahmedabad');
@@ -190,6 +199,12 @@ export default function PostPropertyScreen() {
 
   const [balconies, setBalconies] = useState(0);
   const [waterSupply, setWaterSupply] = useState<'corporation' | 'borewell' | 'both' | ''>('');
+  const [flatmatesAttachedBathroom, setFlatmatesAttachedBathroom] = useState<0 | 1 | null>(null);
+  const [flatmatesBathroomType, setFlatmatesBathroomType] = useState<'private' | 'shared' | ''>('');
+  const [flatmatesAcRoom, setFlatmatesAcRoom] = useState<0 | 1 | null>(null);
+  const [flatmatesBalcony, setFlatmatesBalcony] = useState<0 | 1 | null>(null);
+  const [flatmatesSmokingAllowed, setFlatmatesSmokingAllowed] = useState<0 | 1 | null>(null);
+  const [flatmatesDrinkingAllowed, setFlatmatesDrinkingAllowed] = useState<0 | 1 | null>(null);
   const [petAllowed, setPetAllowed] = useState<0 | 1 | null>(null);
   const [gym, setGym] = useState<0 | 1 | null>(null);
   const [nonVegAllowed, setNonVegAllowed] = useState<0 | 1 | null>(null);
@@ -200,6 +215,18 @@ export default function PostPropertyScreen() {
   const [secondaryPhone, setSecondaryPhone] = useState('');
   const [moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable] = useState<0 | 1 | null>(null);
   const [directionTip, setDirectionTip] = useState('');
+
+  const [pgLaundryAvailable, setPgLaundryAvailable] = useState<0 | 1 | null>(null);
+  const [pgRoomCleaningAvailable, setPgRoomCleaningAvailable] = useState<0 | 1 | null>(null);
+  const [pgWardenFacilityAvailable, setPgWardenFacilityAvailable] = useState<0 | 1 | null>(null);
+
+  const [pgAmenityCommonTv, setPgAmenityCommonTv] = useState(false);
+  const [pgAmenityLift, setPgAmenityLift] = useState(false);
+  const [pgAmenityWifi, setPgAmenityWifi] = useState(false);
+  const [pgAmenityPowerBackup, setPgAmenityPowerBackup] = useState(false);
+  const [pgAmenityMess, setPgAmenityMess] = useState(false);
+  const [pgAmenityRefrigerator, setPgAmenityRefrigerator] = useState(false);
+  const [pgAmenityCookingAllowed, setPgAmenityCookingAllowed] = useState(false);
 
   const [amenityLift, setAmenityLift] = useState<0 | 1 | null>(null);
   const [amenityPowerBackup, setAmenityPowerBackup] = useState<0 | 1 | null>(null);
@@ -222,6 +249,8 @@ export default function PostPropertyScreen() {
   const [pickerOpen, setPickerOpen] = useState<
     | null
     | 'apartmentType'
+    | 'commercialPropertyType'
+    | 'commercialBuildingType'
     | 'bhkType'
     | 'ownershipType'
     | 'floorType'
@@ -530,12 +559,54 @@ export default function PostPropertyScreen() {
       return;
     }
     if (step === 'details') {
+      const isCommercialRent = propertyCategory === 'commercial' && adType === 'rent';
       const floorN = floorToNumber(floor);
       const resale = adType === 'resale';
-      const needsTotalFloors = resale
-        ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
-        : apartmentType !== 'independent_house_villa';
+      const isFlatmates = adType === 'flatmates';
+      const needsTotalFloors = isFlatmates
+        ? true
+        : resale
+          ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
+          : apartmentType !== 'independent_house_villa';
       const totalN = needsTotalFloors ? floorToNumber(totalFloors) : null;
+
+      if (isCommercialRent) {
+        if (!propertyType.trim()) {
+          setError('Please select Property Type.');
+          return;
+        }
+        if (!commercialBuildingType.trim()) {
+          setError('Please select Building Type.');
+          return;
+        }
+        if (!propertyAge.trim()) {
+          setError('Please select Property Age.');
+          return;
+        }
+        if (!floor.trim()) {
+          setError('Please select Floor.');
+          return;
+        }
+        if (!totalFloors.trim()) {
+          setError('Please select Total Floor.');
+          return;
+        }
+
+        const cleanedArea = String(areaSqft ?? '').trim();
+        if (!cleanedArea || !isValidSingleDecimalNumber(cleanedArea)) {
+          setError('Built Up Area me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+
+        if (!furnishing) {
+          setError('Please select Furnishing.');
+          return;
+        }
+
+        setError(null);
+        setStep('location');
+        return;
+      }
 
       if (!bhkType.trim()) {
         setError('Please select BHK Type.');
@@ -545,6 +616,26 @@ export default function PostPropertyScreen() {
       if (floorN === null) {
         setError('Please select No. of Floor(s).');
         return;
+      }
+
+      if (isFlatmates) {
+        const needsApartmentName = apartmentType === 'apartment' || apartmentType === 'gated_community_villa';
+        if (needsApartmentName && !apartmentName.trim()) {
+          setError('Please enter Apartment Name.');
+          return;
+        }
+        if (!flatmatesRoomType) {
+          setError('Please select Room Type.');
+          return;
+        }
+        if (!flatmatesTenantType) {
+          setError('Please select Tenant Type.');
+          return;
+        }
+        if (!propertyAge.trim()) {
+          setError('Please select Property Age.');
+          return;
+        }
       }
 
       if (resale) {
@@ -686,6 +777,54 @@ export default function PostPropertyScreen() {
         setError('Secondary phone must be 10 digits.');
         return;
       }
+
+      if (adType === 'flatmates') {
+        if (flatmatesAttachedBathroom === null) {
+          setError('Please select Attached Bathroom.');
+          return;
+        }
+        if (flatmatesAttachedBathroom === 0 && !flatmatesBathroomType) {
+          setError('Please select Private Bathroom or Shared Bathroom.');
+          return;
+        }
+        if (flatmatesAcRoom === null) {
+          setError('Please select AC Room.');
+          return;
+        }
+        if (flatmatesBalcony === null) {
+          setError('Please select Balcony.');
+          return;
+        }
+        if (nonVegAllowed === null) {
+          setError('Please select Non-Veg Allowed.');
+          return;
+        }
+        if (flatmatesSmokingAllowed === null) {
+          setError('Please select Smoking Allowed.');
+          return;
+        }
+        if (flatmatesDrinkingAllowed === null) {
+          setError('Please select Drinking Allowed.');
+          return;
+        }
+        if (gym === null) {
+          setError('Please select Gym.');
+          return;
+        }
+        if (gatedSecurity === null) {
+          setError('Please select Gated Security.');
+          return;
+        }
+        if (!whoWillShowProperty.trim()) {
+          setError('Please select Who will show the property.');
+          return;
+        }
+        if (!waterSupply) {
+          setError('Please select Water Supply.');
+          return;
+        }
+      }
+
       setError(null);
       setStep('uploads');
       return;
@@ -818,6 +957,71 @@ export default function PostPropertyScreen() {
 
     if (result.canceled) return;
 
+    const compressJpegIfNeeded = async (uri: string) => {
+      try {
+        const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
+        const size = typeof (info as any)?.size === 'number' ? Number((info as any).size) : null;
+        if (size !== null && size <= TARGET_IMAGE_BYTES) return uri;
+
+        if (Platform.OS === 'web') {
+          const res = await fetch(uri);
+          const blob = await res.blob();
+          const bmp = await createImageBitmap(blob as any);
+          const maxDim = 1600;
+          const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+          const w = Math.max(1, Math.round(bmp.width * scale));
+          const h = Math.max(1, Math.round(bmp.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return uri;
+          ctx.drawImage(bmp as any, 0, 0, w, h);
+
+          let q = 0.82;
+          let dataUrl = canvas.toDataURL('image/jpeg', q);
+          while (dataUrl.length * 0.75 > TARGET_IMAGE_BYTES && q > 0.35) {
+            q -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', q);
+          }
+          return dataUrl;
+        }
+
+        try {
+          const mod = require('expo-image-manipulator');
+          const manipulateAsync = mod?.manipulateAsync ?? mod?.default?.manipulateAsync;
+          const SaveFormat = mod?.SaveFormat ?? mod?.default?.SaveFormat;
+          if (!manipulateAsync || !SaveFormat) return uri;
+
+          const maxDim = 1600;
+          let q = 0.82;
+          let currentUri = uri;
+          for (let i = 0; i < 6; i++) {
+            const result = await manipulateAsync(
+              currentUri,
+              [{ resize: { width: maxDim } }],
+              { compress: q, format: SaveFormat.JPEG }
+            );
+            const outUri = String(result?.uri ?? '').trim();
+            if (!outUri) return uri;
+
+            const outInfo = await FileSystem.getInfoAsync(outUri, { size: true } as any);
+            const outSize = typeof (outInfo as any)?.size === 'number' ? Number((outInfo as any).size) : null;
+            if (outSize !== null && outSize <= TARGET_IMAGE_BYTES) return outUri;
+
+            currentUri = outUri;
+            q = Math.max(0.35, q - 0.12);
+          }
+          return currentUri;
+        } catch {
+          return uri;
+        }
+      } catch {
+        return uri;
+      }
+    };
+
     const accepted: string[] = [];
     for (const asset of result.assets) {
       const uri = asset?.uri;
@@ -836,7 +1040,8 @@ export default function PostPropertyScreen() {
         continue;
       }
 
-      accepted.push(uri);
+      const finalUri = await compressJpegIfNeeded(uri);
+      accepted.push(finalUri);
     }
 
     if (!accepted.length) return;
@@ -876,7 +1081,7 @@ export default function PostPropertyScreen() {
     const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true } as any) : null;
     const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
     if (finalSize !== null && finalSize > MAX_VIDEO_BYTES) {
-      setError('Video must be 5MB or less.');
+      setError('Video too large. Please select an MP4 up to 30MB.');
       return;
     }
 
@@ -980,7 +1185,7 @@ export default function PostPropertyScreen() {
 
       if (it.kind === 'video') {
         if (!isAllowedMp4(it.uri)) throw new Error('Only MP4 videos are allowed.');
-        if (fileSize !== null && fileSize > MAX_VIDEO_BYTES) throw new Error('Video must be 5MB or less.');
+        if (fileSize !== null && fileSize > MAX_VIDEO_BYTES) throw new Error('Video too large. Please select an MP4 up to 30MB.');
       }
 
       const res = await fetch(it.uri);
@@ -1034,6 +1239,20 @@ export default function PostPropertyScreen() {
   const muted = '#64748B';
   const valueColor = '#475569';
   const valueWeight: any = '400';
+
+  const clampAvailableFromDate = (d: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const max = new Date(today);
+    max.setMonth(max.getMonth() + 2);
+    max.setHours(23, 59, 59, 999);
+
+    const picked = new Date(d);
+    picked.setHours(0, 0, 0, 0);
+    if (picked.getTime() < today.getTime()) return null;
+    if (picked.getTime() > max.getTime()) return null;
+    return picked;
+  };
 
   const pgSelectedRoomTypes = useMemo(() => {
     const arr: Array<'single' | 'double' | 'three' | 'four'> = [];
@@ -1186,7 +1405,9 @@ export default function PostPropertyScreen() {
   const floorToNumber = (value: string) => {
     const v = String(value ?? '').trim();
     if (!v) return null;
+    if (v.toLowerCase().includes('basement')) return -1;
     if (v.toLowerCase().includes('ground')) return 0;
+    if (v.toLowerCase().includes('full building')) return null;
     const n = Number(v);
     if (!Number.isFinite(n)) return null;
     return n;
@@ -1294,8 +1515,16 @@ export default function PostPropertyScreen() {
           backgroundColor={value === 1 ? '#059669' : 'transparent'}
           color={value === 1 ? '#FFFFFF' : '#111827'}
           fontWeight="800"
+          hoverStyle={{
+            backgroundColor: value === 1 ? '#059669' : 'transparent',
+          }}
+          pressStyle={{
+            backgroundColor: value === 1 ? '#059669' : 'transparent',
+          }}
           onPress={() => onChange(1)}>
-          Yes
+          <Text color={value === 1 ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+            Yes
+          </Text>
         </Button>
         <Button
           flex={1}
@@ -1303,8 +1532,16 @@ export default function PostPropertyScreen() {
           backgroundColor={value === 0 ? '#059669' : 'transparent'}
           color={value === 0 ? '#FFFFFF' : '#111827'}
           fontWeight="800"
+          hoverStyle={{
+            backgroundColor: value === 0 ? '#059669' : 'transparent',
+          }}
+          pressStyle={{
+            backgroundColor: value === 0 ? '#059669' : 'transparent',
+          }}
           onPress={() => onChange(0)}>
-          No
+          <Text color={value === 0 ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+            No
+          </Text>
         </Button>
       </XStack>
     );
@@ -1313,16 +1550,34 @@ export default function PostPropertyScreen() {
   const renderCounter = (value: number, setValue: (n: number) => void) => {
     return (
       <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#FFFFFF" alignItems="center">
-        <Button size="$3" borderRadius={0} backgroundColor="#F3F4F6" color="#111827" fontWeight="900" onPress={() => setValue(Math.max(0, value - 1))}>
-          -
+        <Button
+          size="$3"
+          borderRadius={0}
+          backgroundColor="#F3F4F6"
+          color="#111827"
+          fontWeight="900"
+          hoverStyle={{ backgroundColor: '#F3F4F6' }}
+          onPress={() => setValue(Math.max(0, value - 1))}>
+          <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+            -
+          </Text>
         </Button>
         <YStack flex={1} alignItems="center" justifyContent="center" paddingVertical={10} paddingHorizontal={12}>
           <Text color={titleColor} fontWeight="900">
             {value}
           </Text>
         </YStack>
-        <Button size="$3" borderRadius={0} backgroundColor="#F3F4F6" color="#111827" fontWeight="900" onPress={() => setValue(value + 1)}>
-          +
+        <Button
+          size="$3"
+          borderRadius={0}
+          backgroundColor="#F3F4F6"
+          color="#111827"
+          fontWeight="900"
+          hoverStyle={{ backgroundColor: '#F3F4F6' }}
+          onPress={() => setValue(value + 1)}>
+          <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+            +
+          </Text>
         </Button>
       </XStack>
     );
@@ -1411,12 +1666,19 @@ export default function PostPropertyScreen() {
                 onPress={() => {}}
                 style={{ backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 520 }}>
                 <YStack gap="$3">
-                  <XStack justifyContent="space-between" alignItems="center">
+                  <XStack alignItems="center" justifyContent="space-between">
                     <Text color={titleColor} fontWeight="900">
                       Preview
                     </Text>
-                    <Button size="$2" backgroundColor="#E5E7EB" color="#111827" onPress={() => setPreviewOpen(false)}>
-                      Close
+                    <Button
+                      size="$2"
+                      backgroundColor="#E5E7EB"
+                      color="#111827"
+                      hoverStyle={{ backgroundColor: '#E5E7EB' }}
+                      onPress={() => setPreviewOpen(false)}>
+                      <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+                        Close
+                      </Text>
                     </Button>
                   </XStack>
                   <YStack height={420} borderRadius={12} overflow="hidden" backgroundColor="#0B0B12" alignItems="center" justifyContent="center">
@@ -1473,6 +1735,80 @@ export default function PostPropertyScreen() {
                           </XStack>
                         </Pressable>
                       ))
+                    : pickerOpen === 'commercialPropertyType'
+                      ? (
+                          [
+                            { label: 'Shop', value: 'shop' },
+                            { label: 'Showroom', value: 'showroom' },
+                            { label: 'Office Space', value: 'office_space' },
+                            { label: 'Warehouse / Godown', value: 'warehouse_godown' },
+                            { label: 'Industrial Shed', value: 'industrial_shed' },
+                            { label: 'Commercial Land', value: 'commercial_land' },
+                            { label: 'Restaurant / Cafe', value: 'restaurant_cafe' },
+                            { label: 'Co-working Space', value: 'co_working' },
+                            { label: 'Other', value: 'other' },
+                          ] as const
+                        ).map((it) => (
+                          <Pressable
+                            key={it.value}
+                            onPress={() => {
+                              setPropertyType(it.value);
+                              setCommercialBuildingType('');
+                              setPickerOpen(null);
+                            }}>
+                            <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                              <Text color={titleColor} fontWeight="800">
+                                {it.label}
+                              </Text>
+                              <Text color={muted} fontWeight="900">
+                                {propertyType === it.value ? '✓' : ''}
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        ))
+                      : pickerOpen === 'commercialBuildingType'
+                        ? (
+                            (() => {
+                              const all = [
+                                { label: 'Standalone Building', value: 'standalone_building' },
+                                { label: 'Business Park', value: 'business_park' },
+                                { label: 'Mall', value: 'mall' },
+                                { label: 'Commercial Complex', value: 'commercial_complex' },
+                                { label: 'Industrial Estate', value: 'industrial_estate' },
+                              ] as const;
+
+                              const allowed: Record<string, Array<(typeof all)[number]['value']>> = {
+                                shop: ['commercial_complex', 'mall', 'standalone_building'],
+                                showroom: ['commercial_complex', 'mall', 'standalone_building'],
+                                office_space: ['business_park', 'commercial_complex', 'standalone_building'],
+                                warehouse_godown: ['industrial_estate', 'standalone_building'],
+                                industrial_shed: ['industrial_estate', 'standalone_building'],
+                                commercial_land: ['standalone_building'],
+                                restaurant_cafe: ['commercial_complex', 'mall', 'standalone_building'],
+                                co_working: ['business_park', 'commercial_complex', 'standalone_building'],
+                                other: all.map((x) => x.value),
+                              };
+
+                              const list = allowed[propertyType] ? all.filter((x) => allowed[propertyType].includes(x.value)) : all;
+                              return list;
+                            })()
+                          ).map((it) => (
+                            <Pressable
+                              key={it.value}
+                              onPress={() => {
+                                setCommercialBuildingType(it.value);
+                                setPickerOpen(null);
+                              }}>
+                              <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
+                                <Text color={titleColor} fontWeight="800">
+                                  {it.label}
+                                </Text>
+                                <Text color={muted} fontWeight="900">
+                                  {commercialBuildingType === it.value ? '✓' : ''}
+                                </Text>
+                              </XStack>
+                            </Pressable>
+                          ))
                     : pickerOpen === 'ownershipType'
                       ? ([
                           { label: 'On Lease', value: 'on_lease' },
@@ -1539,8 +1875,14 @@ export default function PostPropertyScreen() {
                             </XStack>
                           </Pressable>
                         ))
-                      : pickerOpen === 'floor' || pickerOpen === 'totalFloors'
-                        ? (['Ground only', ...Array.from({ length: 99 }, (_, i) => String(i + 1))] as const).map((v) => (
+                    : pickerOpen === 'floor' || pickerOpen === 'totalFloors'
+                        ? (
+                            (
+                              pickerOpen === 'floor'
+                                ? (['Basement', 'Ground', 'Full Building', ...Array.from({ length: 99 }, (_, i) => String(i + 1))] as const)
+                                : (['Ground', ...Array.from({ length: 99 }, (_, i) => String(i + 1))] as const)
+                            )
+                          ).map((v) => (
                             <Pressable
                               key={v}
                               onPress={() => {
@@ -1559,7 +1901,11 @@ export default function PostPropertyScreen() {
                             </Pressable>
                           ))
                         : pickerOpen === 'propertyAge'
-                          ? (['Under Construction', 'Less than 1 year', '1 to 3 years', '3 to 5 years', '5 to 10 years', 'More than 10 years'] as const).map((v) => (
+                          ? (
+                              propertyCategory === 'commercial'
+                                ? (['Under Construction', 'Less than 1 year', '1 to 5 years', 'More than 5 years'] as const)
+                                : (['Under Construction', 'Less than 1 year', '1 to 3 years', '3 to 5 years', '5 to 10 years', 'More than 10 years'] as const)
+                            ).map((v) => (
                               <Pressable
                                 key={v}
                                 onPress={() => {
@@ -1595,11 +1941,7 @@ export default function PostPropertyScreen() {
                                 </Pressable>
                               ))
                             : pickerOpen === 'areaUnit'
-                              ? ([
-                                  { label: 'Sq.ft', value: 'sqft' },
-                                  { label: 'Sq.m', value: 'sqm' },
-                                  { label: 'Sq.yd', value: 'sqyd' },
-                                ] as const).map((it) => (
+                              ? ([{ label: 'Sq.ft', value: 'sqft' }] as const).map((it) => (
                                   <Pressable
                                     key={it.value}
                                     onPress={() => {
@@ -1663,11 +2005,15 @@ export default function PostPropertyScreen() {
                                     </Pressable>
                                   ))
                                 : pickerOpen === 'furnishing'
-                                  ? (['Fully Furnished', 'Semi Furnished', 'Unfurnished'] as const).map((v) => (
+                                  ? (
+                                      propertyCategory === 'commercial'
+                                        ? (['Fully Furnished', 'Heavy Furnished', 'Unfurnished'] as const)
+                                        : (['Fully Furnished', 'Semi Furnished', 'Unfurnished'] as const)
+                                    ).map((v) => (
                                       <Pressable
                                         key={v}
                                         onPress={() => {
-                                          setFurnishing(v === 'Fully Furnished' ? 'furnished' : v === 'Semi Furnished' ? 'semi_furnished' : 'unfurnished');
+                                          setFurnishing(v === 'Fully Furnished' ? 'furnished' : v === 'Semi Furnished' || v === 'Heavy Furnished' ? 'semi_furnished' : 'unfurnished');
                                           setPickerOpen(null);
                                         }}>
                                         <XStack paddingVertical={12} paddingHorizontal={10} borderRadius={10} alignItems="center" justifyContent="space-between">
@@ -1679,7 +2025,9 @@ export default function PostPropertyScreen() {
                                               furnishing === 'furnished'
                                                 ? 'Fully Furnished'
                                                 : furnishing === 'semi_furnished'
-                                                  ? 'Semi Furnished'
+                                                  ? propertyCategory === 'commercial'
+                                                    ? 'Heavy Furnished'
+                                                    : 'Semi Furnished'
                                                   : 'Unfurnished'
                                             ) === v
                                               ? '✓'
@@ -1974,7 +2322,9 @@ export default function PostPropertyScreen() {
                     hoverStyle={{ backgroundColor: propertyCategory === 'residential' ? '#059669' : 'transparent' }}
                     pressStyle={{ backgroundColor: propertyCategory === 'residential' ? '#059669' : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('residential')}>
-                    Residential
+                    <Text color={propertyCategory === 'residential' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                      Residential
+                    </Text>
                   </Button>
                   <Button
                     flex={1}
@@ -1985,7 +2335,9 @@ export default function PostPropertyScreen() {
                     hoverStyle={{ backgroundColor: propertyCategory === 'commercial' ? '#059669' : 'transparent' }}
                     pressStyle={{ backgroundColor: propertyCategory === 'commercial' ? '#059669' : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('commercial')}>
-                    Commercial
+                    <Text color={propertyCategory === 'commercial' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                      Commercial
+                    </Text>
                   </Button>
                   <Button
                     flex={1}
@@ -1996,7 +2348,9 @@ export default function PostPropertyScreen() {
                     hoverStyle={{ backgroundColor: propertyCategory === 'land_plot' ? '#059669' : 'transparent' }}
                     pressStyle={{ backgroundColor: propertyCategory === 'land_plot' ? '#059669' : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('land_plot')}>
-                    Land/Plot
+                    <Text color={propertyCategory === 'land_plot' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                      Land/Plot
+                    </Text>
                   </Button>
                 </XStack>
 
@@ -2021,8 +2375,11 @@ export default function PostPropertyScreen() {
                           color={adType === x.value ? '#FFFFFF' : '#111827'}
                           fontWeight="800"
                           borderRadius={12}
+                          hoverStyle={{ backgroundColor: adType === x.value ? '#059669' : '#F3F4F6' }}
                           onPress={() => setAdTypeAndListingType(x.value)}>
-                          {x.label}
+                          <Text color={adType === x.value ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                            {x.label}
+                          </Text>
                         </Button>
                       ))}
                     </XStack>
@@ -2040,8 +2397,11 @@ export default function PostPropertyScreen() {
                           color={adType === x.value ? '#FFFFFF' : '#111827'}
                           fontWeight="800"
                           borderRadius={12}
+                          hoverStyle={{ backgroundColor: adType === x.value ? '#059669' : '#F3F4F6' }}
                           onPress={() => setAdTypeAndListingType(x.value)}>
-                          {x.label}
+                          <Text color={adType === x.value ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                            {x.label}
+                          </Text>
                         </Button>
                       ))}
                     </XStack>
@@ -2054,8 +2414,13 @@ export default function PostPropertyScreen() {
                         color={adType === 'resale' ? '#FFFFFF' : '#111827'}
                         fontWeight="800"
                         borderRadius={12}
+                        hoverStyle={{
+                          backgroundColor: adType === 'resale' ? '#059669' : '#F3F4F6',
+                        }}
                         onPress={() => setAdTypeAndListingType('resale')}>
-                        Resale
+                        <Text color={adType === 'resale' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                          Resale
+                        </Text>
                       </Button>
                     </XStack>
                   )}
@@ -2574,24 +2939,63 @@ export default function PostPropertyScreen() {
                     backgroundColor={scheduleAvailability === 'everyday' ? '#059669' : '#F3F4F6'}
                     color={scheduleAvailability === 'everyday' ? '#FFFFFF' : '#111827'}
                     fontWeight="900"
+                    hoverStyle={{
+                      backgroundColor: scheduleAvailability === 'everyday' ? '#059669' : '#F3F4F6',
+                    }}
                     onPress={() => setScheduleAvailability('everyday')}>
-                    Everyday
+                    <YStack alignItems="center" gap={2}>
+                      <Text
+                        color={scheduleAvailability === 'everyday' ? '#FFFFFF' : '#111827'}
+                        fontWeight="900"
+                        hoverStyle={{ color: '#FFFFFF' }}>
+                        Everyday
+                      </Text>
+                      <Text color={scheduleAvailability === 'everyday' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                        Mon-Sun
+                      </Text>
+                    </YStack>
                   </Button>
                   <Button
                     size="$3"
                     backgroundColor={scheduleAvailability === 'weekday' ? '#059669' : '#F3F4F6'}
                     color={scheduleAvailability === 'weekday' ? '#FFFFFF' : '#111827'}
                     fontWeight="900"
+                    hoverStyle={{
+                      backgroundColor: scheduleAvailability === 'weekday' ? '#059669' : '#F3F4F6',
+                    }}
                     onPress={() => setScheduleAvailability('weekday')}>
-                    Weekday
+                    <YStack alignItems="center" gap={2}>
+                      <Text
+                        color={scheduleAvailability === 'weekday' ? '#FFFFFF' : '#111827'}
+                        fontWeight="900"
+                        hoverStyle={{ color: '#FFFFFF' }}>
+                        Weekday
+                      </Text>
+                      <Text color={scheduleAvailability === 'weekday' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                        Mon-Fri
+                      </Text>
+                    </YStack>
                   </Button>
                   <Button
                     size="$3"
                     backgroundColor={scheduleAvailability === 'weekend' ? '#059669' : '#F3F4F6'}
                     color={scheduleAvailability === 'weekend' ? '#FFFFFF' : '#111827'}
                     fontWeight="900"
+                    hoverStyle={{
+                      backgroundColor: scheduleAvailability === 'weekend' ? '#059669' : '#F3F4F6',
+                    }}
                     onPress={() => setScheduleAvailability('weekend')}>
-                    Weekend
+                    <YStack alignItems="center" gap={2}>
+                      <Text
+                        color={scheduleAvailability === 'weekend' ? '#FFFFFF' : '#111827'}
+                        fontWeight="900"
+                        hoverStyle={{ color: '#FFFFFF' }}>
+                        Weekend
+                      </Text>
+                      <Text color={scheduleAvailability === 'weekend' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                        Sat-Sun
+                      </Text>
+                    </YStack>
                   </Button>
                 </XStack>
               </YStack>
@@ -2651,6 +3055,13 @@ export default function PostPropertyScreen() {
                   setScheduleAllDay((p) => {
                     const nextVal = !p;
                     if (nextVal) {
+                      const start = new Date();
+                      start.setHours(7, 0, 0, 0);
+                      const end = new Date();
+                      end.setHours(22, 0, 0, 0);
+                      setScheduleStart(start);
+                      setScheduleEnd(end);
+                    } else {
                       setScheduleStart(null);
                       setScheduleEnd(null);
                     }
@@ -2765,26 +3176,222 @@ export default function PostPropertyScreen() {
                 </Text>
               ) : null}
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Property Type*
-                </Text>
-                <Pressable onPress={() => setPickerOpen('apartmentType')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={valueColor} fontWeight={valueWeight}>
-                      {apartmentType === 'apartment'
-                        ? 'Apartment'
-                        : apartmentType === 'independent_house_villa'
-                          ? 'Independent House / Villa'
-                          : apartmentType === 'standalone_building'
-                            ? 'Standalone Building'
-                            : 'Gated Community Villa'}
+              {propertyCategory === 'commercial' && adType === 'rent' ? (
+                <>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Property Type*
                     </Text>
+                    <Pressable
+                      onPress={() => {
+                        setPickerOpen('commercialPropertyType');
+                        setAreaUnit('sqft');
+                      }}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {propertyType === 'shop'
+                            ? 'Shop'
+                            : propertyType === 'showroom'
+                              ? 'Showroom'
+                              : propertyType === 'office_space'
+                                ? 'Office Space'
+                                : propertyType === 'warehouse_godown'
+                                  ? 'Warehouse / Godown'
+                                  : propertyType === 'industrial_shed'
+                                    ? 'Industrial Shed'
+                                    : propertyType === 'commercial_land'
+                                      ? 'Commercial Land'
+                                      : propertyType === 'restaurant_cafe'
+                                        ? 'Restaurant / Cafe'
+                                        : propertyType === 'co_working'
+                                          ? 'Co-working Space'
+                                          : propertyType === 'other'
+                                            ? 'Other'
+                                            : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
                   </YStack>
-                </Pressable>
-              </YStack>
 
-              {adType === 'resale' ? (
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Building Type*
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('commercialBuildingType')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {commercialBuildingType === 'standalone_building'
+                            ? 'Standalone Building'
+                            : commercialBuildingType === 'business_park'
+                              ? 'Business Park'
+                              : commercialBuildingType === 'mall'
+                                ? 'Mall'
+                                : commercialBuildingType === 'commercial_complex'
+                                  ? 'Commercial Complex'
+                                  : commercialBuildingType === 'industrial_estate'
+                                    ? 'Industrial Estate'
+                                    : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Age of Property*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('propertyAge')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {propertyAge || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Floor*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('floor')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {floor || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Total Floor*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('totalFloors')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {totalFloors || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Super Built-up Area (Sq.ft)*
+                      </Text>
+                      <Input
+                        value={areaSqft}
+                        onChangeText={(t) => {
+                          setAreaUnit('sqft');
+                          setAreaSqft(sanitizeSingleDecimal(String(t ?? '')));
+                        }}
+                        placeholder="Enter area"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Furnishing*
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('furnishing')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {furnishing === 'furnished'
+                            ? 'Fully Furnished'
+                            : furnishing === 'semi_furnished'
+                              ? 'Heavy Furnished'
+                              : furnishing === 'unfurnished'
+                                ? 'Unfurnished'
+                                : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Other Features
+                    </Text>
+                    <XStack gap="$3" flexWrap="wrap" paddingTop={2}>
+                      <Pressable onPress={() => setCommercialOnMainRoad((p) => !p)}>
+                        <XStack alignItems="center" gap="$2" paddingVertical={6}>
+                          <YStack
+                            width={18}
+                            height={18}
+                            borderWidth={1}
+                            borderColor={commercialOnMainRoad ? '#059669' : border}
+                            borderRadius={4}
+                            backgroundColor={commercialOnMainRoad ? '#059669' : '#FFFFFF'}
+                            alignItems="center"
+                            justifyContent="center">
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                              {commercialOnMainRoad ? '✓' : ''}
+                            </Text>
+                          </YStack>
+                          <Text color={titleColor} fontWeight="800">
+                            On Main Road
+                          </Text>
+                        </XStack>
+                      </Pressable>
+
+                      <Pressable onPress={() => setCommercialCornerProperty((p) => !p)}>
+                        <XStack alignItems="center" gap="$2" paddingVertical={6}>
+                          <YStack
+                            width={18}
+                            height={18}
+                            borderWidth={1}
+                            borderColor={commercialCornerProperty ? '#059669' : border}
+                            borderRadius={4}
+                            backgroundColor={commercialCornerProperty ? '#059669' : '#FFFFFF'}
+                            alignItems="center"
+                            justifyContent="center">
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                              {commercialCornerProperty ? '✓' : ''}
+                            </Text>
+                          </YStack>
+                          <Text color={titleColor} fontWeight="800">
+                            Corner Property
+                          </Text>
+                        </XStack>
+                      </Pressable>
+                    </XStack>
+                  </YStack>
+                </>
+              ) : (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    Property Type*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('apartmentType')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {apartmentType === 'apartment'
+                          ? 'Apartment'
+                          : apartmentType === 'independent_house_villa'
+                            ? 'Independent House / Villa'
+                            : apartmentType === 'standalone_building'
+                              ? 'Standalone Building'
+                              : 'Gated Community Villa'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+              )}
+
+              {adType === 'flatmates' ? (
+                apartmentType === 'apartment' || apartmentType === 'gated_community_villa' ? (
+                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
+                ) : null
+              ) : adType === 'resale' ? (
                 apartmentType === 'apartment' || apartmentType === 'gated_community_villa' || apartmentType === 'standalone_building' ? (
                   <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
                 ) : null
@@ -2792,18 +3399,169 @@ export default function PostPropertyScreen() {
                 <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
               ) : null}
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  BHK Type*
-                </Text>
-                <Pressable onPress={() => setPickerOpen('bhkType')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={valueColor} fontWeight={valueWeight}>
-                      {bhkType || 'Select'}
-                    </Text>
-                  </YStack>
-                </Pressable>
-              </YStack>
+              {propertyCategory === 'commercial' && adType === 'rent' ? null : (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="700">
+                    BHK Type*
+                  </Text>
+                  <Pressable onPress={() => setPickerOpen('bhkType')}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {bhkType || 'Select'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                </YStack>
+              )}
+
+              {adType === 'flatmates' ? (
+                <>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Floor*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('floor')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {floor || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Total Floor*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('totalFloors')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {totalFloors || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={240} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Room Type*
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        <Button
+                          size="$2"
+                          borderWidth={1}
+                          borderColor={flatmatesRoomType === 'single_room' ? '#059669' : border}
+                          backgroundColor={flatmatesRoomType === 'single_room' ? '#ECFDF5' : '#FFFFFF'}
+                          color={titleColor}
+                          fontWeight="800"
+                          onPress={() => setFlatmatesRoomType('single_room')}>
+                          Single Room {flatmatesRoomType === 'single_room' ? '✓' : ''}
+                        </Button>
+                        <Button
+                          size="$2"
+                          borderWidth={1}
+                          borderColor={flatmatesRoomType === 'shared_room' ? '#059669' : border}
+                          backgroundColor={flatmatesRoomType === 'shared_room' ? '#ECFDF5' : '#FFFFFF'}
+                          color={titleColor}
+                          fontWeight="800"
+                          onPress={() => setFlatmatesRoomType('shared_room')}>
+                          Shared Room {flatmatesRoomType === 'shared_room' ? '✓' : ''}
+                        </Button>
+                      </XStack>
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={240} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Tenant Type*
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        <Button
+                          size="$2"
+                          borderWidth={1}
+                          borderColor={flatmatesTenantType === 'male' ? '#059669' : border}
+                          backgroundColor={flatmatesTenantType === 'male' ? '#ECFDF5' : '#FFFFFF'}
+                          color={titleColor}
+                          fontWeight="800"
+                          onPress={() => setFlatmatesTenantType('male')}>
+                          Male {flatmatesTenantType === 'male' ? '✓' : ''}
+                        </Button>
+                        <Button
+                          size="$2"
+                          borderWidth={1}
+                          borderColor={flatmatesTenantType === 'female' ? '#059669' : border}
+                          backgroundColor={flatmatesTenantType === 'female' ? '#ECFDF5' : '#FFFFFF'}
+                          color={titleColor}
+                          fontWeight="800"
+                          onPress={() => setFlatmatesTenantType('female')}>
+                          Female {flatmatesTenantType === 'female' ? '✓' : ''}
+                        </Button>
+                      </XStack>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Property Age*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('propertyAge')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {propertyAge || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Facing
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('facing')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {facing || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Built Up Area*
+                      </Text>
+                      <Input
+                        value={areaSqft}
+                        onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Enter area"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+                    <YStack minWidth={140} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Unit
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setAreaUnit('sqft');
+                          setPickerOpen('areaUnit');
+                        }}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            Sq ft
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+                </>
+              ) : null}
 
               {adType === 'resale' ? (
                 <YStack gap="$2">
@@ -2818,7 +3576,7 @@ export default function PostPropertyScreen() {
                   </YStack>
                 </Pressable>
               </YStack>
-              ) : (
+              ) : adType !== 'flatmates' ? (
                 <>
                   <YStack gap="$2">
                     <Text color={muted} fontSize={12} fontWeight="700">
@@ -2836,7 +3594,9 @@ export default function PostPropertyScreen() {
                         onPress={() => {
                           setPropertyAvailableFor('only_rent');
                         }}>
-                        Only rent
+                        <Text color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                          Only rent
+                        </Text>
                       </Button>
                       <Button
                         flex={1}
@@ -2850,7 +3610,9 @@ export default function PostPropertyScreen() {
                           setPropertyAvailableFor('only_lease');
                           setDeposit('');
                         }}>
-                        Only lease
+                        <Text color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                          Only lease
+                        </Text>
                       </Button>
                     </XStack>
                   </YStack>
@@ -2859,7 +3621,7 @@ export default function PostPropertyScreen() {
                     <Input
                       value={price}
                       onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
-                      placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
+                      placeholder={adType === 'flatmates' ? 'Expected Rent *' : propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
                       keyboardType="numeric"
                       backgroundColor="#FFFFFF"
                       borderColor={border}
@@ -2871,7 +3633,7 @@ export default function PostPropertyScreen() {
                       <Input
                         value={deposit}
                         onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
-                        placeholder="Expected Deposit *"
+                        placeholder={adType === 'flatmates' ? 'Expected Deposit *' : 'Expected Deposit *'}
                         keyboardType="numeric"
                         backgroundColor="#FFFFFF"
                         borderColor={border}
@@ -2903,7 +3665,7 @@ export default function PostPropertyScreen() {
                     </XStack>
                   </Pressable>
                 </>
-              )}
+              ) : null}
 
               {adType === 'resale' ? (
                 <>
@@ -2969,7 +3731,7 @@ export default function PostPropertyScreen() {
                       <Pressable onPress={() => setPickerOpen('areaUnit')}>
                         <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
                           <Text color={valueColor} fontWeight={valueWeight}>
-                            {areaUnit === 'sqft' ? 'Sq ft' : areaUnit === 'sqm' ? 'Sq m' : 'Sq yd'}
+                            Sq ft
                           </Text>
                         </YStack>
                       </Pressable>
@@ -3067,7 +3829,7 @@ export default function PostPropertyScreen() {
                 </>
               ) : null}
 
-              {adType !== 'resale' ? (
+              {adType !== 'resale' && adType !== 'flatmates' ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                   <YStack flexGrow={1} minWidth={220} gap="$2">
                     <Text color={muted} fontSize={12} fontWeight="700">
@@ -3104,7 +3866,7 @@ export default function PostPropertyScreen() {
                 </XStack>
               ) : null}
 
-              {adType !== 'resale' ? (
+              {adType !== 'resale' && adType !== 'flatmates' ? (
                 <YStack gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Available From*
@@ -3132,7 +3894,7 @@ export default function PostPropertyScreen() {
                 </YStack>
               ) : null}
 
-              {adType !== 'resale' ? (
+              {adType !== 'resale' && adType !== 'flatmates' ? (
                 <YStack gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Preferred Tenants*
@@ -3292,7 +4054,7 @@ export default function PostPropertyScreen() {
           {step === 'pricing' ? (
             <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
-                {adType === 'resale' ? 'Resale Details' : 'Pricing'}
+                {adType === 'resale' ? 'Resale Details' : adType === 'flatmates' ? 'Rental Details' : 'Pricing'}
               </Text>
 
               {adType === 'resale' ? (
@@ -3370,9 +4132,24 @@ export default function PostPropertyScreen() {
                           display="default"
                           onChange={(_e: any, d?: Date) => {
                             if (!d) return;
-                            setAvailableFromDate(d);
-                            setAvailableFromText(formatDateDdMmYyyy(d));
+                            const clamped = clampAvailableFromDate(d);
+                            if (!clamped) return;
+                            setAvailableFromDate(clamped);
+                            setAvailableFromText(formatDateDdMmYyyy(clamped));
                           }}
+                          minimumDate={(() => {
+                            const t = new Date();
+                            t.setHours(0, 0, 0, 0);
+                            return t;
+                          })()}
+                          maximumDate={(() => {
+                            const t = new Date();
+                            t.setHours(0, 0, 0, 0);
+                            const m = new Date(t);
+                            m.setMonth(m.getMonth() + 2);
+                            m.setHours(23, 59, 59, 999);
+                            return m;
+                          })()}
                           style={{ height: 48, padding: '0 12px' }}
                         />
                       </YStack>
@@ -3587,9 +4364,24 @@ export default function PostPropertyScreen() {
                           display="default"
                           onChange={(_e: any, d?: Date) => {
                             if (!d) return;
-                            setAvailableFromDate(d);
-                            setAvailableFromText(formatDateDdMmYyyy(d));
+                            const clamped = clampAvailableFromDate(d);
+                            if (!clamped) return;
+                            setAvailableFromDate(clamped);
+                            setAvailableFromText(formatDateDdMmYyyy(clamped));
                           }}
+                          minimumDate={(() => {
+                            const t = new Date();
+                            t.setHours(0, 0, 0, 0);
+                            return t;
+                          })()}
+                          maximumDate={(() => {
+                            const t = new Date();
+                            t.setHours(0, 0, 0, 0);
+                            const m = new Date(t);
+                            m.setMonth(m.getMonth() + 2);
+                            m.setHours(23, 59, 59, 999);
+                            return m;
+                          })()}
                           style={{ height: 48, padding: '0 12px' }}
                         />
                       </YStack>
@@ -3606,189 +4398,569 @@ export default function PostPropertyScreen() {
                 Amenities
               </Text>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Bathroom(s)
-                  </Text>
-                  {renderCounter(Number(bathrooms.trim() ? Number(bathrooms) : 0), (n) => setBathrooms(String(n)))}
-                </YStack>
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Balcony
-                  </Text>
-                  {renderCounter(balconies, setBalconies)}
-                </YStack>
-              </XStack>
-
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Water Supply
-                </Text>
-                <Pressable onPress={() => setPickerOpen('waterSupply')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                    <Text color={valueColor} fontWeight={valueWeight}>
-                      {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
+              {adType === 'pg_hostel' ? (
+                <>
+                  <YStack gap="$2">
+                    <Text color={titleColor} fontWeight="900">
+                      Provide additional details about your place
                     </Text>
                   </YStack>
-                </Pressable>
-              </YStack>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Pet Allowed
-                  </Text>
-                  {renderYesNo(petAllowed, setPetAllowed)}
-                </YStack>
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Gym
-                  </Text>
-                  {renderYesNo(gym, setGym)}
-                </YStack>
-              </XStack>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Available Services
+                    </Text>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Non-Veg Allowed
-                  </Text>
-                  {renderYesNo(nonVegAllowed, setNonVegAllowed)}
-                </YStack>
-                <YStack flexGrow={1} minWidth={160} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Gated Security
-                  </Text>
-                  {renderYesNo(gatedSecurity, setGatedSecurity)}
-                </YStack>
-              </XStack>
+                    <XStack gap="$2" flexWrap="wrap">
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Laundry
+                        </Text>
+                        {renderYesNo(pgLaundryAvailable, setPgLaundryAvailable)}
+                      </YStack>
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Room Cleaning
+                        </Text>
+                        {renderYesNo(pgRoomCleaningAvailable, setPgRoomCleaningAvailable)}
+                      </YStack>
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Warden Facility
+                        </Text>
+                        {renderYesNo(pgWardenFacilityAvailable, setPgWardenFacilityAvailable)}
+                      </YStack>
+                    </XStack>
+                  </YStack>
 
-              <XStack gap="$2" flexWrap="wrap">
-                <YStack flexGrow={1} minWidth={200} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Who will show the property?*
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('whoWillShow')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {whoWillShowProperty || 'Select'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-                <YStack flexGrow={1} minWidth={200} gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="700">
-                    Current Property Condition?*
-                  </Text>
-                  <Pressable onPress={() => setPickerOpen('propertyCondition')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {currentPropertyCondition || 'Select'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-              </XStack>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Add Directions Tip for your tenants
+                    </Text>
+                    <TextInput
+                      value={directionTip}
+                      onChangeText={setDirectionTip}
+                      placeholder="Eg. Take the road opposite to ..., take right after 300m..."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      style={{
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        minHeight: 80,
+                        backgroundColor: '#FFFFFF',
+                        color: valueColor,
+                        textAlignVertical: 'top',
+                      }}
+                    />
+                  </YStack>
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Secondary Phone (Optional)
-                </Text>
-                <Input
-                  value={secondaryPhone}
-                  onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
-                  placeholder="10 digit number"
-                  keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                  backgroundColor="#FFFFFF"
-                  borderColor={border}
-                  color={valueColor}
-                />
-              </YStack>
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Available Amenities
+                    </Text>
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  More similar units available?
-                </Text>
-                {renderYesNo(moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable)}
-              </YStack>
+                    {(() => {
+                      const items = [
+                        { label: 'Common TV', icon: 'television-classic', value: pgAmenityCommonTv, setValue: setPgAmenityCommonTv },
+                        { label: 'Lift', icon: 'elevator', value: pgAmenityLift, setValue: setPgAmenityLift },
+                        { label: 'Wifi', icon: 'wifi', value: pgAmenityWifi, setValue: setPgAmenityWifi },
+                        { label: 'Power Backup', icon: 'power', value: pgAmenityPowerBackup, setValue: setPgAmenityPowerBackup },
+                        { label: 'Mess', icon: 'silverware-fork-knife', value: pgAmenityMess, setValue: setPgAmenityMess },
+                        { label: 'Refrigerator', icon: 'fridge-outline', value: pgAmenityRefrigerator, setValue: setPgAmenityRefrigerator },
+                        { label: 'Cooking Allowed', icon: 'chef-hat', value: pgAmenityCookingAllowed, setValue: setPgAmenityCookingAllowed },
+                      ] as const;
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Direction tip
-                </Text>
-                <TextInput
-                  value={directionTip}
-                  onChangeText={setDirectionTip}
-                  placeholder="Any directions to reach the property"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  style={{
-                    borderWidth: 1,
-                    borderColor: border,
-                    borderRadius: 12,
-                    paddingHorizontal: 12,
-                    paddingVertical: 10,
-                    minHeight: 80,
-                    backgroundColor: '#FFFFFF',
-                    color: valueColor,
-                    textAlignVertical: 'top',
-                  }}
-                />
-              </YStack>
+                      const columns = [items.slice(0, 4), items.slice(4, 7)].filter((c) => c.length);
 
-              <YStack gap="$2">
-                <Text color={muted} fontSize={12} fontWeight="700">
-                  Available amenities
-                </Text>
-                {(() => {
-                  const items = [
-                    { label: 'Visitor Parking', icon: 'car', value: amenityVisitorParking, setValue: setAmenityVisitorParking },
-                    { label: 'Club House', icon: 'home-city', value: amenityClubHouse, setValue: setAmenityClubHouse },
-                    { label: 'Swimming Pool', icon: 'pool', value: amenitySwimmingPool, setValue: setAmenitySwimmingPool },
-                    { label: 'Lift', icon: 'elevator', value: amenityLift, setValue: setAmenityLift },
-                    { label: 'Fire Safety', icon: 'fire-extinguisher', value: amenityFireSafety, setValue: setAmenityFireSafety },
-                    { label: 'Intercom', icon: 'phone-in-talk', value: amenityIntercom, setValue: setAmenityIntercom },
-                    { label: 'Children Play Area', icon: 'human-male-child', value: amenityChildrenPlayArea, setValue: setAmenityChildrenPlayArea },
-                    { label: 'Shopping Center', icon: 'shopping', value: amenityShoppingCenter, setValue: setAmenityShoppingCenter },
-                    { label: 'Park', icon: 'tree', value: amenityPark, setValue: setAmenityPark },
-                    { label: 'Sewage Treatment Plant', icon: 'water-pump', value: amenitySewageTreatmentPlant, setValue: setAmenitySewageTreatmentPlant },
-                    { label: 'Gas Pipeline', icon: 'gas-cylinder', value: amenityGasPipeline, setValue: setAmenityGasPipeline },
-                    { label: 'Internet Provider', icon: 'wifi', value: amenityInternetServices, setValue: setAmenityInternetServices },
-                  ] as const;
+                      const renderItem = (it: any) => {
+                        const checked = !!it.value;
+                        return (
+                          <Pressable key={it.label} onPress={() => it.setValue(!checked)}>
+                            <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                                  {checked ? '✓' : ''}
+                                </Text>
+                              </YStack>
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <Text color={titleColor} fontWeight="800">
+                                {it.label}
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        );
+                      };
 
-                  const columns = [items.slice(0, 9), items.slice(9, 18), items.slice(18, 27)].filter((c) => c.length);
+                      return (
+                        <XStack gap="$4" flexWrap="wrap">
+                          {columns.map((col, idx) => (
+                            <YStack key={String(idx)} minWidth={220} flexGrow={1}>
+                              {col.map(renderItem)}
+                            </YStack>
+                          ))}
+                        </XStack>
+                      );
+                    })()}
+                  </YStack>
 
-                  const renderItem = (it: any) => {
-                    const checked = it.value === 1;
-                    return (
-                      <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
-                        <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                          <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
-                              {checked ? '✓' : ''}
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Parking
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('parking')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {parking === 'bike' ? 'Bike' : parking === 'car' ? 'Car' : parking === 'both' ? 'Both' : parking === 'none' ? 'None' : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+                </>
+              ) : adType === 'flatmates' ? (
+                <>
+                  <YStack gap="$2">
+                    <Text color={titleColor} fontWeight="900">
+                      Room Details
+                    </Text>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <XStack alignItems="center" gap="$2">
+                        <MaterialCommunityIcons name="bathtub" size={18} color={titleColor} />
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Attached Bathroom*
+                        </Text>
+                      </XStack>
+                      {renderYesNo(flatmatesAttachedBathroom, (v) => {
+                        setFlatmatesAttachedBathroom(v);
+                        if (v === 1) setFlatmatesBathroomType('');
+                      })}
+
+                      {flatmatesAttachedBathroom === 0 ? (
+                        <XStack gap="$2" flexWrap="wrap">
+                          <Button
+                            flexGrow={1}
+                            minWidth={140}
+                            backgroundColor={flatmatesBathroomType === 'private' ? '#E0F2FE' : '#FFFFFF'}
+                            borderWidth={1}
+                            borderColor={flatmatesBathroomType === 'private' ? '#0891B2' : border}
+                            onPress={() => setFlatmatesBathroomType('private')}
+                          >
+                            <Text color={titleColor} fontWeight="900">
+                              Private Bathroom
                             </Text>
-                          </YStack>
-                          <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
-                          <Text color={titleColor} fontWeight="800">
-                            {it.label}
+                          </Button>
+                          <Button
+                            flexGrow={1}
+                            minWidth={140}
+                            backgroundColor={flatmatesBathroomType === 'shared' ? '#E0F2FE' : '#FFFFFF'}
+                            borderWidth={1}
+                            borderColor={flatmatesBathroomType === 'shared' ? '#0891B2' : border}
+                            onPress={() => setFlatmatesBathroomType('shared')}
+                          >
+                            <Text color={titleColor} fontWeight="900">
+                              Shared Bathroom
+                            </Text>
+                          </Button>
+                        </XStack>
+                      ) : null}
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <XStack alignItems="center" gap="$2">
+                        <MaterialCommunityIcons name="air-conditioner" size={18} color={titleColor} />
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          AC Room*
+                        </Text>
+                      </XStack>
+                      {renderYesNo(flatmatesAcRoom, setFlatmatesAcRoom)}
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <XStack alignItems="center" gap="$2">
+                        <MaterialCommunityIcons name="balcony" size={18} color={titleColor} />
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Balcony*
+                        </Text>
+                      </XStack>
+                      {renderYesNo(flatmatesBalcony, setFlatmatesBalcony)}
+                    </YStack>
+                  </XStack>
+
+                  <YStack borderTopWidth={1} borderColor={border} paddingTop={12} marginTop={4} gap="$2">
+                    <Text color={titleColor} fontWeight="900">
+                      Flatmate Preference
+                    </Text>
+
+                    <XStack gap="$2" flexWrap="wrap">
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name="food" size={18} color={titleColor} />
+                          <Text color={muted} fontSize={12} fontWeight="700">
+                            Non-Veg Allowed*
                           </Text>
                         </XStack>
-                      </Pressable>
-                    );
-                  };
-
-                  return (
-                    <XStack gap="$4" flexWrap="wrap">
-                      {columns.map((col, idx) => (
-                        <YStack key={String(idx)} minWidth={220} flexGrow={1}>
-                          {col.map(renderItem)}
-                        </YStack>
-                      ))}
+                        {renderYesNo(nonVegAllowed, setNonVegAllowed)}
+                      </YStack>
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name="smoking-off" size={18} color={titleColor} />
+                          <Text color={muted} fontSize={12} fontWeight="700">
+                            Smoking Allowed
+                          </Text>
+                        </XStack>
+                        {renderYesNo(flatmatesSmokingAllowed, setFlatmatesSmokingAllowed)}
+                      </YStack>
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name="bottle-wine-outline" size={18} color={titleColor} />
+                          <Text color={muted} fontSize={12} fontWeight="700">
+                            Drinking Allowed
+                          </Text>
+                        </XStack>
+                        {renderYesNo(flatmatesDrinkingAllowed, setFlatmatesDrinkingAllowed)}
+                      </YStack>
                     </XStack>
-                  );
-                })()}
-              </YStack>
+                  </YStack>
+
+                  <YStack borderTopWidth={1} borderColor={border} paddingTop={12} marginTop={4} gap="$2">
+                    <Text color={titleColor} fontWeight="900">
+                      Additional Details for maximum visibility
+                    </Text>
+
+                    <XStack gap="$2" flexWrap="wrap">
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name="dumbbell" size={18} color={titleColor} />
+                          <Text color={muted} fontSize={12} fontWeight="700">
+                            Gym*
+                          </Text>
+                        </XStack>
+                        {renderYesNo(gym, setGym)}
+                      </YStack>
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <XStack alignItems="center" gap="$2">
+                          <MaterialCommunityIcons name="shield-home" size={18} color={titleColor} />
+                          <Text color={muted} fontSize={12} fontWeight="700">
+                            Gated Security*
+                          </Text>
+                        </XStack>
+                        {renderYesNo(gatedSecurity, setGatedSecurity)}
+                      </YStack>
+                    </XStack>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Who will show the property?*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('whoWillShow')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {whoWillShowProperty || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Secondary Number
+                      </Text>
+                      <Input
+                        value={secondaryPhone}
+                        onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                        placeholder="10 digit number"
+                        keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Water Supply
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('waterSupply')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Add Directions Tip for your tenants
+                    </Text>
+                    <TextInput
+                      value={directionTip}
+                      onChangeText={setDirectionTip}
+                      placeholder="Eg. Take the road opposite to ..., take right after 300m..."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      style={{
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        minHeight: 80,
+                        backgroundColor: '#FFFFFF',
+                        color: valueColor,
+                        textAlignVertical: 'top',
+                      }}
+                    />
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Select the available amenities
+                    </Text>
+                    {(() => {
+                      const items = [
+                        { label: 'Lift', icon: 'elevator', value: amenityLift, setValue: setAmenityLift },
+                        { label: 'Club House', icon: 'home-city', value: amenityClubHouse, setValue: setAmenityClubHouse },
+                        { label: 'Park', icon: 'tree', value: amenityPark, setValue: setAmenityPark },
+                        { label: 'House Keeping', icon: 'broom', value: amenityHouseKeeping, setValue: setAmenityHouseKeeping },
+                        { label: 'Gas Pipeline', icon: 'gas-cylinder', value: amenityGasPipeline, setValue: setAmenityGasPipeline },
+                        { label: 'Visitor Parking', icon: 'parking', value: amenityVisitorParking, setValue: setAmenityVisitorParking },
+                        { label: 'Swimming Pool', icon: 'pool', value: amenitySwimmingPool, setValue: setAmenitySwimmingPool },
+                        { label: 'Power Backup', icon: 'power', value: amenityPowerBackup, setValue: setAmenityPowerBackup },
+                        { label: 'Shopping Center', icon: 'shopping', value: amenityShoppingCenter, setValue: setAmenityShoppingCenter },
+                        { label: 'Intercom', icon: 'phone-in-talk', value: amenityIntercom, setValue: setAmenityIntercom },
+                        { label: 'Sewage Treatment Plant', icon: 'water-pump', value: amenitySewageTreatmentPlant, setValue: setAmenitySewageTreatmentPlant },
+                        { label: 'Fire Safety', icon: 'fire-extinguisher', value: amenityFireSafety, setValue: setAmenityFireSafety },
+                      ] as const;
+
+                      const columns = [items.slice(0, 6), items.slice(6, 12)].filter((c) => c.length);
+
+                      const renderItem = (it: any) => {
+                        const checked = it.value === 1;
+                        return (
+                          <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
+                            <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                                  {checked ? '✓' : ''}
+                                </Text>
+                              </YStack>
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <Text color={titleColor} fontWeight="800">
+                                {it.label}
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        );
+                      };
+
+                      return (
+                        <XStack gap="$4" flexWrap="wrap">
+                          {columns.map((col, idx) => (
+                            <YStack key={String(idx)} minWidth={220} flexGrow={1}>
+                              {col.map(renderItem)}
+                            </YStack>
+                          ))}
+                        </XStack>
+                      );
+                    })()}
+                  </YStack>
+                </>
+              ) : (
+                <>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Bathroom(s)
+                      </Text>
+                      {renderCounter(Number(bathrooms.trim() ? Number(bathrooms) : 0), (n) => setBathrooms(String(n)))}
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Balcony
+                      </Text>
+                      {renderCounter(balconies, setBalconies)}
+                    </YStack>
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Water Supply
+                    </Text>
+                    <Pressable onPress={() => setPickerOpen('waterSupply')}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Pet Allowed
+                      </Text>
+                      {renderYesNo(petAllowed, setPetAllowed)}
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Gym
+                      </Text>
+                      {renderYesNo(gym, setGym)}
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Non-Veg Allowed
+                      </Text>
+                      {renderYesNo(nonVegAllowed, setNonVegAllowed)}
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={160} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Gated Security
+                      </Text>
+                      {renderYesNo(gatedSecurity, setGatedSecurity)}
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Who will show the property?*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('whoWillShow')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {whoWillShowProperty || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Current Property Condition?*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('propertyCondition')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {currentPropertyCondition || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Secondary Phone (Optional)
+                    </Text>
+                    <Input
+                      value={secondaryPhone}
+                      onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                      placeholder="10 digit number"
+                      keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={valueColor}
+                    />
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      More similar units available?
+                    </Text>
+                    {renderYesNo(moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable)}
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Direction tip
+                    </Text>
+                    <TextInput
+                      value={directionTip}
+                      onChangeText={setDirectionTip}
+                      placeholder="Any directions to reach the property"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      style={{
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        minHeight: 80,
+                        backgroundColor: '#FFFFFF',
+                        color: valueColor,
+                        textAlignVertical: 'top',
+                      }}
+                    />
+                  </YStack>
+
+                  <YStack gap="$2">
+                    <Text color={muted} fontSize={12} fontWeight="700">
+                      Available amenities
+                    </Text>
+                    {(() => {
+                      const items = [
+                        { label: 'Visitor Parking', icon: 'car', value: amenityVisitorParking, setValue: setAmenityVisitorParking },
+                        { label: 'Club House', icon: 'home-city', value: amenityClubHouse, setValue: setAmenityClubHouse },
+                        { label: 'Swimming Pool', icon: 'pool', value: amenitySwimmingPool, setValue: setAmenitySwimmingPool },
+                        { label: 'Lift', icon: 'elevator', value: amenityLift, setValue: setAmenityLift },
+                        { label: 'Fire Safety', icon: 'fire-extinguisher', value: amenityFireSafety, setValue: setAmenityFireSafety },
+                        { label: 'Intercom', icon: 'phone-in-talk', value: amenityIntercom, setValue: setAmenityIntercom },
+                        { label: 'Children Play Area', icon: 'human-male-child', value: amenityChildrenPlayArea, setValue: setAmenityChildrenPlayArea },
+                        { label: 'Shopping Center', icon: 'shopping', value: amenityShoppingCenter, setValue: setAmenityShoppingCenter },
+                        { label: 'Park', icon: 'tree', value: amenityPark, setValue: setAmenityPark },
+                        { label: 'Sewage Treatment Plant', icon: 'water-pump', value: amenitySewageTreatmentPlant, setValue: setAmenitySewageTreatmentPlant },
+                        { label: 'Gas Pipeline', icon: 'gas-cylinder', value: amenityGasPipeline, setValue: setAmenityGasPipeline },
+                        { label: 'Internet Provider', icon: 'wifi', value: amenityInternetServices, setValue: setAmenityInternetServices },
+                      ] as const;
+
+                      const columns = [items.slice(0, 9), items.slice(9, 18), items.slice(18, 27)].filter((c) => c.length);
+
+                      const renderItem = (it: any) => {
+                        const checked = it.value === 1;
+                        return (
+                          <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
+                            <XStack alignItems="center" gap="$2" paddingVertical={8}>
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
+                                  {checked ? '✓' : ''}
+                                </Text>
+                              </YStack>
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <Text color={titleColor} fontWeight="800">
+                                {it.label}
+                              </Text>
+                            </XStack>
+                          </Pressable>
+                        );
+                      };
+
+                      return (
+                        <XStack gap="$4" flexWrap="wrap">
+                          {columns.map((col, idx) => (
+                            <YStack key={String(idx)} minWidth={220} flexGrow={1}>
+                              {col.map(renderItem)}
+                            </YStack>
+                          ))}
+                        </XStack>
+                      );
+                    })()}
+                  </YStack>
+                </>
+              )}
             </YStack>
           ) : null}
 
@@ -3798,7 +4970,7 @@ export default function PostPropertyScreen() {
                 Uploads
               </Text>
               <Paragraph color={muted}>
-                JPG/JPEG only. Videos: MP4 only (max 30s, 5MB). Images max 10MB upload; will be compressed server-side.
+                JPG/JPEG only (we compress images to ~1MB). Videos: MP4 only (max 30s, up to 30MB; will be compressed after upload).
               </Paragraph>
 
               <XStack gap="$2" flexWrap="wrap">
@@ -3843,6 +5015,10 @@ export default function PostPropertyScreen() {
 
           {step === 'review' ? (
             <YStack gap="$3">
+              {(() => {
+                const isCommercialRent = propertyCategory === 'commercial' && adType === 'rent';
+                return null;
+              })()}
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">
                   Review
@@ -3888,36 +5064,67 @@ export default function PostPropertyScreen() {
 
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Property Details</Text>
-                {reviewRow('Apartment Type', reviewValue(apartmentType))}
-                {reviewRow('Apartment Name', reviewValue(apartmentName))}
-                {reviewRow('BHK Type', reviewValue(bhkType))}
-                {ownershipType ? reviewRow('Ownership Type', ownershipType === 'on_lease' ? 'On Lease' : 'Self Owned') : null}
-                {ownershipType === 'on_lease' && leaseYears ? reviewRow('Lease Years', `${reviewValue(leaseYears)} Years`) : null}
-                {carpetAreaSqft ? reviewRow('Carpet Area', `${reviewValue(carpetAreaSqft)} (${areaUnit})`) : null}
-                {plotAreaSqft ? reviewRow('Plot Area', `${reviewValue(plotAreaSqft)} (${areaUnit})`) : null}
-                {floorType ?
-                  reviewRow(
-                    'Floor Type',
-                    floorType === 'verified_tiles'
-                      ? 'Verified Tiles'
-                      : floorType === 'mosaic'
-                        ? 'Mosaic'
-                        : floorType === 'marble_granite'
-                          ? 'Marble / Granite'
-                          : floorType === 'wooden'
-                            ? 'Wooden'
-                            : 'Cement'
-                  )
-                : null}
-                {reviewRow('No. of Floor(s)', reviewValue(floor))}
-                {(adType === 'resale'
-                  ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
-                  : apartmentType !== 'independent_house_villa')
-                  ? reviewRow('Total Floor(s)', reviewValue(totalFloors))
-                  : null}
-                {reviewRow('Property Age', reviewValue(propertyAge))}
-                {reviewRow('Facing', reviewValue(facing))}
-                {reviewRow('Built Up Area', `${reviewValue(areaSqft)} (${areaUnit})`)}
+                {propertyCategory === 'commercial' && adType === 'rent' ? (
+                  <>
+                    {reviewRow('Property Type', reviewValue(propertyType))}
+                    {reviewRow('Building Type', reviewValue(commercialBuildingType))}
+                    {reviewRow('Property Age', reviewValue(propertyAge))}
+                    {reviewRow('Floor', reviewValue(floor))}
+                    {reviewRow('Total Floor(s)', reviewValue(totalFloors))}
+                    {reviewRow('Super Built-up Area', `${reviewValue(areaSqft)} (Sq ft)`) }
+                    {reviewRow(
+                      'Furnishing',
+                      furnishing === 'furnished'
+                        ? 'Fully Furnished'
+                        : furnishing === 'semi_furnished'
+                          ? 'Heavy Furnished'
+                          : furnishing === 'unfurnished'
+                            ? 'Unfurnished'
+                            : '—'
+                    )}
+                    {reviewRow('On Main Road', commercialOnMainRoad ? 'Yes' : 'No')}
+                    {reviewRow('Corner Property', commercialCornerProperty ? 'Yes' : 'No')}
+                  </>
+                ) : (
+                  <>
+                    {reviewRow('Apartment Type', reviewValue(apartmentType))}
+                    {reviewRow('Apartment Name', reviewValue(apartmentName))}
+                    {reviewRow('BHK Type', reviewValue(bhkType))}
+                    {adType === 'flatmates' ? reviewRow('Room Type', flatmatesRoomType === 'single_room' ? 'Single Room' : flatmatesRoomType === 'shared_room' ? 'Shared Room' : '—') : null}
+                    {adType === 'flatmates' ? reviewRow('Tenant Type', flatmatesTenantType ? (flatmatesTenantType === 'male' ? 'Male' : 'Female') : '—') : null}
+                    {ownershipType ? reviewRow('Ownership Type', ownershipType === 'on_lease' ? 'On Lease' : 'Self Owned') : null}
+                    {ownershipType === 'on_lease' && leaseYears ? reviewRow('Lease Years', `${reviewValue(leaseYears)} Years`) : null}
+                    {carpetAreaSqft ? reviewRow('Carpet Area', `${reviewValue(carpetAreaSqft)} (Sq ft)`) : null}
+                    {plotAreaSqft ? reviewRow('Plot Area', `${reviewValue(plotAreaSqft)} (Sq ft)`) : null}
+                  </>
+                )}
+                {propertyCategory === 'commercial' && adType === 'rent' ? null : (
+                  <>
+                    {floorType ?
+                      reviewRow(
+                        'Floor Type',
+                        floorType === 'verified_tiles'
+                          ? 'Verified Tiles'
+                          : floorType === 'mosaic'
+                            ? 'Mosaic'
+                            : floorType === 'marble_granite'
+                              ? 'Marble / Granite'
+                              : floorType === 'wooden'
+                                ? 'Wooden'
+                                : 'Cement'
+                      )
+                    : null}
+                    {reviewRow('No. of Floor(s)', reviewValue(floor))}
+                    {(adType === 'resale'
+                      ? apartmentType === 'apartment' || apartmentType === 'standalone_building'
+                      : adType === 'flatmates' ? true : apartmentType !== 'independent_house_villa')
+                      ? reviewRow('Total Floor(s)', reviewValue(totalFloors))
+                      : null}
+                    {reviewRow('Property Age', reviewValue(propertyAge))}
+                    {reviewRow('Facing', reviewValue(facing))}
+                    {reviewRow('Built Up Area', `${reviewValue(areaSqft)} (Sq ft)`)}
+                  </>
+                )}
               </YStack>
 
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
@@ -3972,20 +5179,64 @@ export default function PostPropertyScreen() {
 
               <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Amenities</Text>
-                {reviewRow('Bathrooms', reviewValue(bathrooms))}
-                {reviewRow('Balconies', reviewValue(balconies))}
-                {reviewRow('Water Supply', reviewValue(waterSupply))}
-                {reviewRow('Pet Allowed', reviewYesNo(petAllowed))}
-                {reviewRow('Gym', reviewYesNo(gym))}
-                {reviewRow('Power Backup', powerBackupType ? (powerBackupType === 'full' ? 'Full' : powerBackupType === 'partial' ? 'Partial' : 'None') : '—')}
-                {reviewRow('Non-Veg Allowed', reviewYesNo(nonVegAllowed))}
-                {reviewRow('Gated Security', reviewYesNo(gatedSecurity))}
-                {reviewRow('Who will show', reviewValue(whoWillShowProperty))}
-                {reviewRow('Property Condition', reviewValue(currentPropertyCondition))}
-                {reviewRow('Secondary Phone', reviewValue(secondaryPhone))}
-                {reviewRow('More similar units', reviewYesNo(moreSimilarUnitsAvailable))}
-                {reviewRow('Direction tip', reviewValue(directionTip))}
-                {reviewRow('Selected Amenities', selectedAmenityLabels.length ? selectedAmenityLabels.join(', ') : '—')}
+
+                {adType === 'pg_hostel' ? (
+                  <>
+                    {reviewRow('Laundry', reviewYesNo(pgLaundryAvailable))}
+                    {reviewRow('Room Cleaning', reviewYesNo(pgRoomCleaningAvailable))}
+                    {reviewRow('Warden Facility', reviewYesNo(pgWardenFacilityAvailable))}
+                    {reviewRow('Direction tip', reviewValue(directionTip))}
+                    {reviewRow(
+                      'Available Amenities',
+                      [
+                        pgAmenityCommonTv ? 'Common TV' : '',
+                        pgAmenityLift ? 'Lift' : '',
+                        pgAmenityWifi ? 'Wifi' : '',
+                        pgAmenityPowerBackup ? 'Power Backup' : '',
+                        pgAmenityMess ? 'Mess' : '',
+                        pgAmenityRefrigerator ? 'Refrigerator' : '',
+                        pgAmenityCookingAllowed ? 'Cooking Allowed' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || '—'
+                    )}
+                    {reviewRow('Parking', reviewValue(parking))}
+                  </>
+                ) : adType === 'flatmates' ? (
+                  <>
+                    {reviewRow('Attached Bathroom', reviewYesNo(flatmatesAttachedBathroom))}
+                    {flatmatesAttachedBathroom === 0 ? reviewRow('Bathroom Type', flatmatesBathroomType ? (flatmatesBathroomType === 'private' ? 'Private Bathroom' : 'Shared Bathroom') : '—') : null}
+                    {reviewRow('AC Room', reviewYesNo(flatmatesAcRoom))}
+                    {reviewRow('Balcony', reviewYesNo(flatmatesBalcony))}
+                    {reviewRow('Non-Veg Allowed', reviewYesNo(nonVegAllowed))}
+                    {reviewRow('Smoking Allowed', reviewYesNo(flatmatesSmokingAllowed))}
+                    {reviewRow('Drinking Allowed', reviewYesNo(flatmatesDrinkingAllowed))}
+                    {reviewRow('Gym', reviewYesNo(gym))}
+                    {reviewRow('Gated Security', reviewYesNo(gatedSecurity))}
+                    {reviewRow('Who will show', reviewValue(whoWillShowProperty))}
+                    {reviewRow('Secondary Phone', reviewValue(secondaryPhone))}
+                    {reviewRow('Water Supply', reviewValue(waterSupply))}
+                    {reviewRow('Direction tip', reviewValue(directionTip))}
+                    {reviewRow('Selected Amenities', selectedAmenityLabels.length ? selectedAmenityLabels.join(', ') : '—')}
+                  </>
+                ) : (
+                  <>
+                    {reviewRow('Bathrooms', reviewValue(bathrooms))}
+                    {reviewRow('Balconies', reviewValue(balconies))}
+                    {reviewRow('Water Supply', reviewValue(waterSupply))}
+                    {reviewRow('Pet Allowed', reviewYesNo(petAllowed))}
+                    {reviewRow('Gym', reviewYesNo(gym))}
+                    {reviewRow('Power Backup', powerBackupType ? (powerBackupType === 'full' ? 'Full' : powerBackupType === 'partial' ? 'Partial' : 'None') : '—')}
+                    {reviewRow('Non-Veg Allowed', reviewYesNo(nonVegAllowed))}
+                    {reviewRow('Gated Security', reviewYesNo(gatedSecurity))}
+                    {reviewRow('Who will show', reviewValue(whoWillShowProperty))}
+                    {reviewRow('Property Condition', reviewValue(currentPropertyCondition))}
+                    {reviewRow('Secondary Phone', reviewValue(secondaryPhone))}
+                    {reviewRow('More similar units', reviewYesNo(moreSimilarUnitsAvailable))}
+                    {reviewRow('Direction tip', reviewValue(directionTip))}
+                    {reviewRow('Selected Amenities', selectedAmenityLabels.length ? selectedAmenityLabels.join(', ') : '—')}
+                  </>
+                )}
               </YStack>
 
               {adType === 'resale' ? (
@@ -4047,8 +5298,15 @@ export default function PostPropertyScreen() {
 
       <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor="#FFFFFF" padding={14} borderTopWidth={1} borderTopColor="#E5E7EB">
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
-          <Button disabled={saving} backgroundColor="#E5E7EB" color="#111827" onPress={back}>
-            Back
+          <Button
+            disabled={saving}
+            backgroundColor="#E5E7EB"
+            color="#111827"
+            hoverStyle={{ backgroundColor: '#E5E7EB' }}
+            onPress={back}>
+            <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+              Back
+            </Text>
           </Button>
 
           {step !== 'review' ? (
