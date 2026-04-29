@@ -18,6 +18,7 @@ type PropertyRow = {
   bedrooms: number | null;
   bathrooms: number | null;
   area_sqft: number | null;
+  carpet_area_sqft: number | null;
   furnishing: string | null;
   parking: string | null;
   address_line1: string | null;
@@ -61,7 +62,7 @@ export default function PropertyDetailScreen() {
         const { data, error: fetchError } = await supabase
           .from('properties')
           .select(
-            'id,listing_type,property_type,title,description,price,deposit,maintenance,available_from,bedrooms,bathrooms,area_sqft,furnishing,parking,address_line1,address_line2,state,city,locality,pincode,contact_name,contact_phone,status,created_at'
+            'id,listing_type,property_type,title,description,price,deposit,maintenance,available_from,bedrooms,bathrooms,area_sqft,carpet_area_sqft,furnishing,parking,address_line1,address_line2,state,city,locality,pincode,contact_name,contact_phone,status,created_at'
           )
           .eq('id', id)
           .maybeSingle();

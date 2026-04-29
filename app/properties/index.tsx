@@ -4,7 +4,7 @@ import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
 import { searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 type PropertyRow = {
   id: string;
@@ -17,6 +17,7 @@ type PropertyRow = {
   bedrooms: number | null;
   bathrooms: number | null;
   area_sqft: number | null;
+  carpet_area_sqft?: number | null;
   furnishing: string | null;
   parking: string | null;
   state: string | null;
@@ -40,6 +41,23 @@ type CityRow = { id: string; state_id: string; name: string };
 
 export default function PropertiesIndexScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    listing_type?: string;
+    property_category?: string;
+    ad_type?: string;
+    bhk?: string;
+    property_status?: string;
+    new_builder_project?: string;
+    pg_tenant_type?: string;
+    pg_room_type?: string;
+    flatmates_tenant_type?: string;
+    flatmates_room_type?: string;
+    property_type?: string;
+    commercial_availability?: string;
+    state?: string;
+    city?: string;
+    q?: string;
+  }>();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +67,61 @@ export default function PropertiesIndexScreen() {
   const [stateValue, setStateValue] = useState('Gujarat');
   const [cityValue, setCityValue] = useState('Ahmedabad');
   const [localityValue, setLocalityValue] = useState('');
+
+  const [propertyCategory, setPropertyCategory] = useState<string>('');
+  const [adType, setAdType] = useState<string>('');
+  const [bhkCsv, setBhkCsv] = useState<string>('');
+  const [propertyStatus, setPropertyStatus] = useState<string>('');
+  const [newBuilderProject, setNewBuilderProject] = useState<string>('');
+  const [pgTenantType, setPgTenantType] = useState<string>('');
+  const [pgRoomType, setPgRoomType] = useState<string>('');
+  const [flatmatesTenantType, setFlatmatesTenantType] = useState<string>('');
+  const [flatmatesRoomType, setFlatmatesRoomType] = useState<string>('');
+  const [propertyTypeCsv, setPropertyTypeCsv] = useState<string>('');
+  const [commercialAvailability, setCommercialAvailability] = useState<string>('');
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityRawDebug, setLocalityRawDebug] = useState<string>('');
   const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
+
+  useEffect(() => {
+    const lt = String(params.listing_type ?? '').trim();
+    if (lt === 'rent' || lt === 'buy' || lt === 'commercial') setListingType(lt);
+    const st = String(params.state ?? '').trim();
+    const ct = String(params.city ?? '').trim();
+    const q = String(params.q ?? '').trim();
+    if (st) setStateValue(st);
+    if (ct) setCityValue(ct);
+    if (q) setLocalityValue(q);
+
+    setPropertyCategory(String(params.property_category ?? '').trim());
+    setAdType(String(params.ad_type ?? '').trim());
+    setBhkCsv(String(params.bhk ?? '').trim());
+    setPropertyStatus(String(params.property_status ?? '').trim());
+    setNewBuilderProject(String(params.new_builder_project ?? '').trim());
+    setPgTenantType(String(params.pg_tenant_type ?? '').trim());
+    setPgRoomType(String(params.pg_room_type ?? '').trim());
+    setFlatmatesTenantType(String(params.flatmates_tenant_type ?? '').trim());
+    setFlatmatesRoomType(String(params.flatmates_room_type ?? '').trim());
+    setPropertyTypeCsv(String(params.property_type ?? '').trim());
+    setCommercialAvailability(String(params.commercial_availability ?? '').trim());
+  }, [
+    params.ad_type,
+    params.bhk,
+    params.city,
+    params.commercial_availability,
+    params.flatmates_room_type,
+    params.flatmates_tenant_type,
+    params.listing_type,
+    params.new_builder_project,
+    params.pg_room_type,
+    params.pg_tenant_type,
+    params.property_category,
+    params.property_status,
+    params.property_type,
+    params.q,
+    params.state,
+  ]);
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -369,13 +438,63 @@ export default function PropertiesIndexScreen() {
     setLoading(true);
 
     try {
+      const parseCsv = (v: string) =>
+        String(v ?? '')
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+
       let query = supabase
         .from('properties')
-        .select('id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,furnishing,parking,state,city,locality,status,created_at')
+        .select(
+          'id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,furnishing,parking,state,city,locality,status,created_at,property_category,ad_type,property_status,new_builder_project,pg_tenant_type,pg_room_type,flatmates_tenant_type,flatmates_room_type,commercial_availability'
+        )
         .eq('status', 'published')
         .eq('listing_type', listingType)
         .order('created_at', { ascending: false })
         .limit(40);
+
+      if (propertyCategory) query = query.eq('property_category', propertyCategory);
+      if (adType) query = query.eq('ad_type', adType);
+
+      if (bhkCsv) {
+        const arr = bhkCsv
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean)
+          .map((x) => Number(x.split(' ')[0]))
+          .filter((n) => Number.isFinite(n));
+        if (arr.length) query = query.in('bedrooms', arr as any);
+      }
+
+      if (propertyStatus) query = query.eq('property_status', propertyStatus);
+      if (newBuilderProject === '1' || newBuilderProject === '0') query = query.eq('new_builder_project', newBuilderProject === '1');
+      if (pgTenantType) query = query.eq('pg_tenant_type', pgTenantType);
+      if (pgRoomType) query = query.eq('pg_room_type', pgRoomType);
+
+      if (flatmatesTenantType) {
+        const arr = parseCsv(flatmatesTenantType);
+        if (arr.length === 1) query = query.eq('flatmates_tenant_type', arr[0]);
+        else if (arr.length > 1) query = query.in('flatmates_tenant_type', arr as any);
+      }
+
+      if (flatmatesRoomType) {
+        const arr = parseCsv(flatmatesRoomType);
+        if (arr.length === 1) query = query.eq('flatmates_room_type', arr[0]);
+        else if (arr.length > 1) query = query.in('flatmates_room_type', arr as any);
+      }
+
+      if (propertyTypeCsv) {
+        const types = propertyTypeCsv
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        if (types.length) query = query.in('property_type', types as any);
+      }
+
+      if (commercialAvailability && listingType === 'commercial' && adType === 'sale') {
+        query = query.eq('commercial_availability', commercialAvailability);
+      }
 
       if (stateValue) query = query.eq('state', stateValue);
       if (cityValue) query = query.eq('city', cityValue);

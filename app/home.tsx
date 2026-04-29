@@ -4,19 +4,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  ImageBackground,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    ImageBackground,
+    Linking,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
@@ -874,7 +874,54 @@ export default function HomeLandingScreen() {
       handlePrimaryServiceAction();
       return;
     }
-    Alert.alert('Coming soon', 'Search will be available soon.');
+    if (activeService !== 'property') return;
+
+    const trimOrEmpty = (v: string) => String(v ?? '').trim();
+    const state = trimOrEmpty(propertyState);
+    const city = trimOrEmpty(propertyCity);
+    const q = trimOrEmpty(topSearch);
+
+    const params: Record<string, any> = {
+      state,
+      city,
+      q,
+    };
+
+    if (propertyMode === 'buy') {
+      params.listing_type = 'buy';
+      params.property_category = propertyBuyType === 'land_plot' ? 'land_plot' : 'residential';
+      params.ad_type = 'resale';
+      if (propertyBuyType === 'full_house') {
+        if (buyBhkSelected.length) params.bhk = buyBhkSelected.join(',');
+        if (buyPropertyStatus) params.property_status = buyPropertyStatus;
+        params.new_builder_project = buyNewBuilderProjects ? '1' : '0';
+      }
+    }
+
+    if (propertyMode === 'rent') {
+      params.listing_type = 'rent';
+      params.property_category = 'residential';
+      params.ad_type = propertyRentType;
+      if (propertyRentType === 'full_house') {
+        if (rentFullHouseBhkSelected.length) params.bhk = rentFullHouseBhkSelected.join(',');
+      } else if (propertyRentType === 'pg_hostel') {
+        if (rentPgTenantType) params.pg_tenant_type = rentPgTenantType;
+        if (rentPgRoomType) params.pg_room_type = rentPgRoomType;
+      } else if (propertyRentType === 'flatmates') {
+        if (rentFlatmatesTenantTypes.length) params.flatmates_tenant_type = rentFlatmatesTenantTypes.join(',');
+        if (rentFlatmatesRoomType) params.flatmates_room_type = rentFlatmatesRoomType;
+      }
+    }
+
+    if (propertyMode === 'commercial') {
+      params.listing_type = 'commercial';
+      params.property_category = 'commercial';
+      params.ad_type = propertyCommercialTxn === 'buy' ? 'sale' : 'rent';
+      if (commercialPropertyTypes.length) params.property_type = commercialPropertyTypes.join(',');
+      if (propertyCommercialTxn === 'buy' && commercialAvailability) params.commercial_availability = commercialAvailability;
+    }
+
+    router.push({ pathname: '/properties', params } as any);
   };
 
   React.useEffect(() => {
@@ -2238,7 +2285,7 @@ export default function HomeLandingScreen() {
                                 {propertyBuyType === 'full_house' ? <View style={styles.radioInner} /> : null}
                               </View>
                               <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Full House
+                                House Property{propertyBuyType === 'full_house' && buyBhkSelected.length ? ` (${formatSelection(buyBhkSelected)})` : ''}
                               </Text>
                             </XStack>
                           </Pressable>
@@ -2327,7 +2374,7 @@ export default function HomeLandingScreen() {
                                 {propertyRentType === 'full_house' ? <View style={styles.radioInner} /> : null}
                               </View>
                               <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
-                                Full House
+                                House Property{propertyRentType === 'full_house' && rentFullHouseBhkSelected.length ? ` (${formatSelection(rentFullHouseBhkSelected)})` : ''}
                               </Text>
                             </XStack>
                           </Pressable>
