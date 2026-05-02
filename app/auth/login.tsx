@@ -423,6 +423,11 @@ export default function LoginScreen() {
           email: trimmedEmail,
           password,
           options: {
+            ...(typeof window === 'undefined'
+              ? null
+              : {
+                  emailRedirectTo: `${window.location.origin}/auth/login`,
+                }),
             data: {
               ...(trimmedName ? { name: trimmedName } : {}),
               role_intent: signupRole,

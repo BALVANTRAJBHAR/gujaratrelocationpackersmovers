@@ -623,7 +623,32 @@ export default function HomeLandingScreen() {
     if (!isProvider) return;
     if (didRedirectRef.current) return;
     didRedirectRef.current = true;
-    router.replace('/(tabs)/driver');
+    void (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        const roleIntent = String((u.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+        if (roleIntent === 'provider') {
+          const { data: row, error: rowError } = await supabase
+            .from('users')
+            .select('id, phone, document_number')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          const phoneOk = Boolean(String((row as any)?.phone ?? '').trim());
+          const aadhaarDigits = String((row as any)?.document_number ?? '').replace(/\D/g, '');
+          const aadhaarOk = aadhaarDigits.length === 12;
+
+          if (rowError || !phoneOk || !aadhaarOk) {
+            router.replace('/auth/register' as any);
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      router.replace('/(tabs)/driver');
+    })();
   }, [isProvider, router, session?.user?.id]);
 
   const welcomeName =
