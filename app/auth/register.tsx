@@ -1,5 +1,6 @@
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
@@ -13,60 +14,202 @@ export default function RegisterDetailsScreen() {
   const [info, setInfo] = useState<string | null>(null);
 
   const [name, setName] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [countryCodePickerOpen, setCountryCodePickerOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [aadhaarImageUri, setAadhaarImageUri] = useState<string | null>(null);
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
+  const [aadhaarExtracted, setAadhaarExtracted] = useState<string>('');
+  const extractingAadhaarRef = useRef(false);
 
   const labelColor = useMemo(() => '#9CA3AF', []);
   const border = useMemo(() => '#374151', []);
 
-  const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> => {
-    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-    if (!baseUrl || !anonKey) {
-      throw new Error('Supabase env vars missing.');
+  const verhoeffValidate = (num: string) => {
+    const s = String(num ?? '').replace(/\D/g, '');
+    if (s.length !== 12) return false;
+    const d = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+      [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+      [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+      [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+      [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+      [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+      [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+      [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+      [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+    ];
+    const p = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+      [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+      [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+      [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+      [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+      [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+      [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+    ];
+    let c = 0;
+    const digits = s.split('').map((x) => Number(x));
+    for (let i = 0; i < digits.length; i++) {
+      c = d[c][p[i % 8][digits[digits.length - 1 - i]]];
     }
-    const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
-      method: 'POST',
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body ?? {}),
-    } as any);
-    const text = await res.text();
-    let parsed: any = null;
-    if (text) {
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = null;
-      }
-    }
-    if (!res.ok) {
-      const msg = parsed?.error || parsed?.message || text || `Edge Function error (${res.status})`;
-      throw new Error(`(${res.status}) ${msg}`);
-    }
-    return parsed as T;
+    return c === 0;
   };
 
-  const normalizePhone = (value: string) => {
+  const normalizeOcrText = (lines: string[]) => {
+    return (lines ?? []).join(' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const extractAadhaarFromOcrLines = (ocrLines: string[]) => {
+    const text = normalizeOcrText(ocrLines);
+    if (!text) return '';
+    const upper = text.toUpperCase();
+    const digitOnly = upper.replace(/\D/g, '');
+    const hasAadhaarHint = /(AADHAAR|AADHAR|UIDAI|UNIQUE|MY\s*AADHAAR)/i.test(upper);
+    const candidates = Array.from(new Set(digitOnly.match(/\d{12}/g) ?? []));
+
+    const bestValid = candidates.find((c) => verhoeffValidate(c));
+    if (bestValid) return bestValid;
+    if (hasAadhaarHint && candidates.length === 1) return candidates[0] ?? '';
+    return '';
+  };
+
+  const runAadhaarOcr = async (uri: string) => {
+    if (!uri) return;
+    if (extractingAadhaarRef.current) return;
+    extractingAadhaarRef.current = true;
+    try {
+      let lines: string[] = [];
+
+      if (Platform.OS === 'web') {
+        const resp = await fetch(uri);
+        const blob = await resp.blob();
+        const { createWorker } = await import('tesseract.js');
+        const worker = await createWorker('eng');
+        const out = await worker.recognize(blob);
+        await worker.terminate();
+        const raw = String((out as any)?.data?.text ?? '').split(/\r?\n/);
+        lines = raw.map((x) => String(x ?? '').trim()).filter(Boolean);
+      } else {
+        const TextRecognition = (await import('react-native-text-recognition')).default as any;
+        lines = (await TextRecognition.recognize(uri)) as string[];
+      }
+
+      const extracted = extractAadhaarFromOcrLines(lines);
+      if (extracted) {
+        setAadhaarExtracted(extracted);
+        setAadhaarNumber((prev) => {
+          const cur = String(prev ?? '').replace(/\D/g, '').slice(0, 12);
+          return cur.length === 12 ? cur : extracted;
+        });
+      }
+    } catch {
+      // ignore OCR errors
+    } finally {
+      extractingAadhaarRef.current = false;
+    }
+  };
+
+  const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> => {
+    const extra = (Constants as any)?.expoConfig?.extra ?? (Constants as any)?.manifest?.extra ?? {};
+    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? '';
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra?.supabaseAnonKey ?? '';
+    if (!baseUrl || !anonKey) {
+      throw new Error('Supabase env vars missing. Check EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+
+    // OTP functions are configured with verify_jwt=false, and some environments may issue
+    // ES256 access tokens which can fail gateway verification. Use anon bearer for OTP calls.
+    const otpFunctions = new Set(['send-booking-otp', 'verify-booking-otp']);
+    const jwt = otpFunctions.has(name)
+      ? anonKey
+      : (await supabase.auth.getSession()).data.session?.access_token || anonKey;
+
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = setTimeout(() => ctrl?.abort(), 25000);
+
+    try {
+      const headers: Record<string, string> = {
+        apikey: anonKey,
+        'Content-Type': 'application/json',
+      };
+      if (jwt) headers.Authorization = `Bearer ${jwt}`;
+
+      const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body ?? {}),
+        signal: ctrl?.signal,
+      } as any);
+      const text = await res.text();
+      let parsed: any = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = null;
+        }
+      }
+      if (!res.ok) {
+        const msg = parsed?.error || parsed?.message || text || `Edge Function error (${res.status})`;
+        throw new Error(`(${res.status}) ${msg}`);
+      }
+      return parsed as T;
+    } catch (e: any) {
+      const msg = e?.name === 'AbortError' ? 'Timeout calling OTP service. Please try again.' : e?.message;
+      throw new Error(msg || 'OTP service failed.');
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const normalizePhoneDigits = (value: string) => {
     const v = String(value ?? '').replace(/\s+/g, '');
     if (!v) return '';
-    const digits = v.replace(/[^0-9+]/g, '');
-    return digits;
+    return v.replace(/\D/g, '').slice(0, 10);
+  };
+
+  const normalizeCountryCode = (value: string) => {
+    const v = String(value ?? '').trim();
+    if (!v) return '+91';
+    if (!v.startsWith('+')) return `+${v.replace(/\D/g, '')}`;
+    return `+${v.replace(/\D/g, '')}`;
+  };
+
+  const fullPhoneForOtp = () => {
+    const cc = normalizeCountryCode(countryCode);
+    const digits = normalizePhoneDigits(phone);
+    return `${cc}${digits}`;
   };
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          try {
+            const url = new URL(window.location.href);
+            const hashParams = new URLSearchParams((url.hash ?? '').replace(/^#/, ''));
+            const searchParams = url.searchParams;
+            const access_token = (hashParams.get('access_token') ?? searchParams.get('access_token') ?? '').trim();
+            const refresh_token = (hashParams.get('refresh_token') ?? searchParams.get('refresh_token') ?? '').trim();
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({ access_token, refresh_token });
+              window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         const { data: userResp } = await supabase.auth.getUser();
         const user = userResp.user;
         if (!user?.id) {
@@ -86,7 +229,7 @@ export default function RegisterDetailsScreen() {
         if (!rowError && row) {
           if (isMounted) {
             setName(String(row.name ?? (user.user_metadata as any)?.name ?? '').trim());
-            setPhone(String(row.phone ?? '').trim());
+            setPhone(String(row.phone ?? '').replace(/\D/g, '').slice(0, 10));
             setAadhaarNumber(String((row as any)?.document_number ?? '').trim());
             setOtpVerified(Boolean((user.user_metadata as any)?.phone_verified) || Boolean((row as any)?.is_verified));
 
@@ -126,21 +269,23 @@ export default function RegisterDetailsScreen() {
     setError(null);
     setInfo(null);
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
+    const digits = normalizePhoneDigits(phone);
+    if (!digits) {
       setError('Phone number is required.');
       return;
     }
-    const phoneDigits = normalizedPhone.replace(/[^0-9]/g, '');
-    if (phoneDigits.length < 10) {
-      setError('Please enter a valid phone number.');
+    if (digits.length !== 10) {
+      setError('Please enter a valid 10-digit phone number.');
       return;
     }
+
+    const normalizedPhone = fullPhoneForOtp();
 
     setOtpSending(true);
     try {
       await invokeEdgeFunction('send-booking-otp', { phone: normalizedPhone });
       setInfo('OTP sent.');
+      setOtpSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send OTP.');
     } finally {
@@ -152,11 +297,12 @@ export default function RegisterDetailsScreen() {
     setError(null);
     setInfo(null);
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
-      setError('Phone number is required.');
+    const digits = normalizePhoneDigits(phone);
+    if (!digits || digits.length !== 10) {
+      setError('Please enter a valid 10-digit phone number.');
       return;
     }
+    const normalizedPhone = fullPhoneForOtp();
     const code = String(otpCode ?? '').replace(/\D/g, '').slice(0, 6);
     if (code.length !== 6) {
       setError('Enter 6-digit OTP.');
@@ -185,7 +331,7 @@ export default function RegisterDetailsScreen() {
             id: user.id,
             email: user.email ?? null,
             name: name.trim() || null,
-            phone: normalizedPhone,
+            phone: digits,
             role: 'provider',
             is_verified: true,
           },
@@ -228,6 +374,7 @@ export default function RegisterDetailsScreen() {
       const uri = String(asset?.uri ?? '').trim();
       if (!uri) return;
       setAadhaarImageUri(uri);
+      void runAadhaarOcr(uri);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to pick image.');
     }
@@ -247,6 +394,13 @@ export default function RegisterDetailsScreen() {
       setError('Enter valid 12-digit Aadhaar number.');
       return;
     }
+
+    const extractedDigits = String(aadhaarExtracted ?? '').replace(/\D/g, '').slice(0, 12);
+    if (extractedDigits.length === 12 && extractedDigits !== aadhaarDigits) {
+      setError('Aadhaar number does not match uploaded Aadhaar photo.');
+      return;
+    }
+
     if (!aadhaarImageUri) {
       setError('Please upload Aadhaar photo.');
       return;
@@ -327,14 +481,73 @@ export default function RegisterDetailsScreen() {
 
         <YStack gap="$2">
           <Text color={labelColor}>Phone</Text>
-          <Input
-            value={phone}
-            onChangeText={setPhone}
-            placeholder={Platform.OS === 'web' ? '+91XXXXXXXXXX' : 'Phone number'}
-            keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-            editable={!otpVerified}
-          />
+          <XStack gap="$2" alignItems="center" flexWrap="wrap">
+            <Button
+              size="$3"
+              backgroundColor="#1F2937"
+              color="#FFFFFF"
+              borderWidth={1}
+              borderColor={border}
+              disabled={otpVerified}
+              onPress={() => setCountryCodePickerOpen((v) => !v)}>
+              {normalizeCountryCode(countryCode)}
+            </Button>
+            <Input
+              flex={1}
+              value={phone}
+              onChangeText={(v) => setPhone(normalizePhoneDigits(v))}
+              placeholder="10-digit mobile"
+              keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+              editable={!otpVerified}
+              maxLength={10}
+            />
+          </XStack>
+
+          {countryCodePickerOpen ? (
+            <YStack gap="$2" paddingTop={8}>
+              <XStack gap="$2" flexWrap="wrap">
+                {['+91', '+92', '+880', '+977', '+94', '+971', '+966', '+44', '+1'].map((cc) => (
+                  <Button
+                    key={cc}
+                    size="$2"
+                    backgroundColor={normalizeCountryCode(countryCode) === cc ? '#10B981' : '#1F2937'}
+                    color={normalizeCountryCode(countryCode) === cc ? '#111827' : '#FFFFFF'}
+                    borderWidth={1}
+                    borderColor={border}
+                    onPress={() => {
+                      setCountryCode(cc);
+                      setCountryCodePickerOpen(false);
+                    }}>
+                    {cc}
+                  </Button>
+                ))}
+              </XStack>
+            </YStack>
+          ) : null}
         </YStack>
+
+        {!otpVerified && otpSent ? (
+          <YStack gap="$2">
+            <Text color={labelColor}>OTP Code</Text>
+            <XStack gap="$2" alignItems="center" flexWrap="wrap">
+              <Input
+                flex={1}
+                value={otpCode}
+                onChangeText={(v) => setOtpCode(String(v ?? '').replace(/\D/g, '').slice(0, 6))}
+                placeholder="6-digit OTP"
+                keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+                maxLength={6}
+              />
+              <Button
+                backgroundColor="#10B981"
+                color="#111827"
+                onPress={verifyOtp}
+                disabled={otpVerifying || otpVerified}>
+                {otpVerified ? 'Verified' : otpVerifying ? 'Verifying…' : 'Verify OTP'}
+              </Button>
+            </XStack>
+          </YStack>
+        ) : null}
 
         <XStack gap="$2" flexWrap="wrap">
           <Button
@@ -345,28 +558,7 @@ export default function RegisterDetailsScreen() {
             disabled={otpSending || otpVerified}>
             {otpVerified ? 'OTP Verified' : otpSending ? 'Sending…' : 'Send OTP'}
           </Button>
-          <Button
-            flex={1}
-            backgroundColor="#10B981"
-            color="#111827"
-            onPress={verifyOtp}
-            disabled={otpVerifying || otpVerified}>
-            {otpVerified ? 'Verified' : otpVerifying ? 'Verifying…' : 'Verify OTP'}
-          </Button>
         </XStack>
-
-        {!otpVerified ? (
-          <YStack gap="$2">
-            <Text color={labelColor}>OTP Code</Text>
-            <Input
-              value={otpCode}
-              onChangeText={setOtpCode}
-              placeholder="6-digit OTP"
-              keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
-              maxLength={6}
-            />
-          </YStack>
-        ) : null}
 
         {otpVerified ? (
           <YStack gap="$3">
