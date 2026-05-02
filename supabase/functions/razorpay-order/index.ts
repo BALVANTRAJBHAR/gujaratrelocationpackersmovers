@@ -13,6 +13,7 @@ serve(async (req) => {
     const currency = body.currency ?? 'INR';
     const receipt = body.receipt ?? `rcpt_${Date.now()}`;
     const bookingId = body.booking_id ?? null;
+    const notesInput = body.notes ?? null;
 
     const keyId = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
     const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
@@ -32,6 +33,11 @@ serve(async (req) => {
     }
 
     const auth = btoa(`${keyId}:${keySecret}`);
+    const notes = (() => {
+      if (bookingId) return { booking_id: bookingId };
+      if (notesInput && typeof notesInput === 'object') return notesInput;
+      return undefined;
+    })();
     const orderResponse = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
@@ -43,7 +49,7 @@ serve(async (req) => {
         currency,
         receipt,
         payment_capture: 1,
-        notes: bookingId ? { booking_id: bookingId } : undefined,
+        notes,
       }),
     });
 

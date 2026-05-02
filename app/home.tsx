@@ -2597,19 +2597,18 @@ export default function HomeLandingScreen() {
                           borderColor: theme.border,
                           color: theme.text,
                           fontFamily: 'Georgia',
-                          backgroundColor: theme.bgSecondary,
                         }}
                       />
+
                       <Button
-                        height={44}
-                        paddingHorizontal={18}
+                        backgroundColor="#5b0f78ff"
                         borderRadius={12}
-                        backgroundColor="#551274ff"
-                        color="#3838b4ffff"
-                        fontWeight="900"
-                        hoverStyle={{ backgroundColor: '#551274ff', color: '#1c1c94ff' } as any}
-                        pressStyle={{ backgroundColor: '#551274ff', color: '#2424b4ff' } as any}
-                        focusStyle={{ backgroundColor: '#551274ff', color: '#2020adff' } as any}
+                        paddingHorizontal={20}
+                        height={50}
+                        color="#FFFFFF"
+                        hoverStyle={{ backgroundColor: '#4338CA', color: '#FFFFFF' } as any}
+                        pressStyle={{ backgroundColor: '#3730A3', color: '#FFFFFF' } as any}
+                        focusStyle={{ backgroundColor: '#4338CA', color: '#FFFFFF' } as any}
                         onPress={handleTopSearch}>
                         Search
                       </Button>

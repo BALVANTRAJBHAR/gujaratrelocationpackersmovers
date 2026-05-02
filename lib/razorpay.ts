@@ -49,6 +49,7 @@ type CreateOrderPayload = {
   currency?: string;
   receipt?: string;
   booking_id?: string;
+  notes?: Record<string, any>;
 };
 
 type RazorpayOrder = {
@@ -71,5 +72,25 @@ type VerifyPayload = {
 
 export async function verifyRazorpaySignature(payload: VerifyPayload): Promise<boolean> {
   const data = await invokeEdgeFunction<{ valid?: boolean }>('razorpay-verify', payload);
+  return Boolean(data?.valid);
+}
+
+type VerifySubscriptionPayload = {
+  order_id: string;
+  payment_id: string;
+  signature: string;
+  plan_code: string;
+  amount: number;
+};
+
+export async function verifyRazorpaySubscription(payload: VerifySubscriptionPayload): Promise<boolean> {
+  const data = await invokeEdgeFunction<{ valid?: boolean }>('razorpay-verify', {
+    order_id: payload.order_id,
+    payment_id: payload.payment_id,
+    signature: payload.signature,
+    purpose: 'subscription',
+    plan_code: payload.plan_code,
+    amount: payload.amount,
+  });
   return Boolean(data?.valid);
 }

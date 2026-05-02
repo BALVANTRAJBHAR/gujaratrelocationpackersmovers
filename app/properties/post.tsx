@@ -442,6 +442,7 @@ export default function PostPropertyScreen() {
     if (propertyCategory === 'commercial' && adType === 'sale') return 'Commercial Sale';
     if (propertyCategory === 'commercial' && adType === 'rent') return 'Commercial Rent';
     if (propertyCategory === 'residential' && adType === 'resale') return 'Residential Resale';
+    if (propertyCategory === 'residential' && adType === 'rent') return 'Residential Rent';
     if (adType === 'pg_hostel') return 'PG/Hostel';
     if (adType === 'flatmates') return 'Flatmates';
     if (propertyCategory === 'land_plot' && adType === 'sale') return 'Land/Plot Sale';
@@ -722,6 +723,7 @@ export default function PostPropertyScreen() {
       const floorN = floorToNumber(floor);
       const resale = adType === 'resale';
       const isFlatmates = adType === 'flatmates';
+      const isResidentialRent = propertyCategory === 'residential' && adType === 'rent';
       const needsTotalFloors = isFlatmates
         ? true
         : resale
@@ -834,6 +836,22 @@ export default function PostPropertyScreen() {
       if (floorN === null) {
         setError('Please select No. of Floor(s).');
         return;
+      }
+
+      if (isResidentialRent) {
+        const cleanedArea = String(areaSqft ?? '').trim();
+        if (!cleanedArea || !isValidSingleDecimalNumber(cleanedArea)) {
+          setError('Built Up Area me sirf number (single decimal allowed) enter kare.');
+          return;
+        }
+        if (!propertyAge.trim()) {
+          setError('Please select Property Age.');
+          return;
+        }
+        if (!facing.trim()) {
+          setError('Please select Facing.');
+          return;
+        }
       }
 
       if (isFlatmates) {
@@ -4852,7 +4870,7 @@ export default function PostPropertyScreen() {
                   </YStack>
                 </Pressable>
               </YStack>
-              ) : adType !== 'flatmates' && !isCommercialAny ? (
+              ) : adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <>
                   <YStack gap="$2">
                     <Text color={muted} fontSize={12} fontWeight="700">
@@ -4940,6 +4958,96 @@ export default function PostPropertyScreen() {
                       </Text>
                     </XStack>
                   </Pressable>
+                </>
+              ) : null}
+
+              {propertyCategory === 'residential' && adType === 'rent' ? (
+                <>
+                  <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Built Up Area*
+                      </Text>
+                      <Input
+                        value={areaSqft}
+                        onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
+                        placeholder="Enter area"
+                        keyboardType="numeric"
+                        backgroundColor="#FFFFFF"
+                        borderColor={border}
+                        color={valueColor}
+                      />
+                    </YStack>
+                    <YStack minWidth={140} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Unit
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('areaUnit')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            Sq ft
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        No. of Floor(s)*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('floor')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {floor || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+
+                    {apartmentType !== 'independent_house_villa' ? (
+                      <YStack flexGrow={1} minWidth={200} gap="$2">
+                        <Text color={muted} fontSize={12} fontWeight="700">
+                          Total Floor(s)*
+                        </Text>
+                        <Pressable onPress={() => setPickerOpen('totalFloors')}>
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                            <Text color={valueColor} fontWeight={valueWeight}>
+                              {totalFloors || 'Select'}
+                            </Text>
+                          </YStack>
+                        </Pressable>
+                      </YStack>
+                    ) : null}
+                  </XStack>
+
+                  <XStack gap="$2" flexWrap="wrap">
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Property Age*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('propertyAge')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {propertyAge || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                    <YStack flexGrow={1} minWidth={200} gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="700">
+                        Facing*
+                      </Text>
+                      <Pressable onPress={() => setPickerOpen('facing')}>
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {facing || 'Select'}
+                          </Text>
+                        </YStack>
+                      </Pressable>
+                    </YStack>
+                  </XStack>
                 </>
               ) : null}
 
@@ -5105,7 +5213,7 @@ export default function PostPropertyScreen() {
                 </>
               ) : null}
 
-              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny ? (
+              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                   <YStack flexGrow={1} minWidth={220} gap="$2">
                     <Text color={muted} fontSize={12} fontWeight="700">
@@ -5142,7 +5250,7 @@ export default function PostPropertyScreen() {
                 </XStack>
               ) : null}
 
-              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny ? (
+              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <YStack gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Available From*
@@ -5170,7 +5278,7 @@ export default function PostPropertyScreen() {
                 </YStack>
               ) : null}
 
-              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny ? (
+              {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <YStack gap="$2">
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Preferred Tenants*

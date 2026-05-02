@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
 import { searchPlaces } from '@/lib/mapbox';
+import { getRazorpayKeyId } from '@/lib/public-config';
+import { createRazorpayOrder, verifyRazorpaySubscription } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
+import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 type PropertyRow = {
@@ -18,6 +22,7 @@ type PropertyRow = {
   bathrooms: number | null;
   area_sqft: number | null;
   carpet_area_sqft?: number | null;
+  has_photo?: boolean | null;
   furnishing: string | null;
   parking: string | null;
   state: string | null;
@@ -41,6 +46,7 @@ type CityRow = { id: string; state_id: string; name: string };
 
 export default function PropertiesIndexScreen() {
   const router = useRouter();
+  const { session } = useSession();
   const params = useLocalSearchParams<{
     listing_type?: string;
     property_category?: string;
@@ -62,6 +68,9 @@ export default function PropertiesIndexScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PropertyRow[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [cursorCreatedAt, setCursorCreatedAt] = useState<string | null>(null);
+  const [cursorId, setCursorId] = useState<string | null>(null);
 
   const [listingType, setListingType] = useState<'rent' | 'buy' | 'commercial'>('rent');
   const [stateValue, setStateValue] = useState('Gujarat');
@@ -79,10 +88,38 @@ export default function PropertiesIndexScreen() {
   const [flatmatesRoomType, setFlatmatesRoomType] = useState<string>('');
   const [propertyTypeCsv, setPropertyTypeCsv] = useState<string>('');
   const [commercialAvailability, setCommercialAvailability] = useState<string>('');
+
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
+  const [minCarpet, setMinCarpet] = useState<string>('');
+  const [maxCarpet, setMaxCarpet] = useState<string>('');
+
+  const [amenityGym, setAmenityGym] = useState(false);
+  const [amenitySwimmingPool, setAmenitySwimmingPool] = useState(false);
+  const [amenityPowerBackup, setAmenityPowerBackup] = useState(false);
+  const [amenityVisitorParking, setAmenityVisitorParking] = useState(false);
+
+  const [advancedOpen, setAdvancedOpen] = useState(true);
+
+  const [activeFilterTab, setActiveFilterTab] = useState<'filters' | 'premium'>('filters');
+  const [premiumUnlocked, setPremiumUnlocked] = useState(false);
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+
+  const [minBuiltUp, setMinBuiltUp] = useState<string>('');
+  const [maxBuiltUp, setMaxBuiltUp] = useState<string>('');
+  const [propertyAgeMaxYears, setPropertyAgeMaxYears] = useState<number | null>(null);
+  const [minBathrooms, setMinBathrooms] = useState<number | null>(null);
+  const [floorBucket, setFloorBucket] = useState<string>('');
+  const [withPhotoOnly, setWithPhotoOnly] = useState(false);
+  const [removeSeen, setRemoveSeen] = useState(false);
+
   const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityRawDebug, setLocalityRawDebug] = useState<string>('');
   const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
+
+  const hasInitializedFromParamsRef = useRef(false);
 
   useEffect(() => {
     const lt = String(params.listing_type ?? '').trim();
@@ -105,6 +142,8 @@ export default function PropertiesIndexScreen() {
     setFlatmatesRoomType(String(params.flatmates_room_type ?? '').trim());
     setPropertyTypeCsv(String(params.property_type ?? '').trim());
     setCommercialAvailability(String(params.commercial_availability ?? '').trim());
+
+    hasInitializedFromParamsRef.current = true;
   }, [
     params.ad_type,
     params.bhk,
@@ -122,6 +161,85 @@ export default function PropertiesIndexScreen() {
     params.q,
     params.state,
   ]);
+
+  useEffect(() => {
+    if (!hasInitializedFromParamsRef.current) return;
+    void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    listingType,
+    stateValue,
+    cityValue,
+    propertyCategory,
+    adType,
+    bhkCsv,
+    propertyStatus,
+    newBuilderProject,
+    pgTenantType,
+    pgRoomType,
+    flatmatesTenantType,
+    flatmatesRoomType,
+    propertyTypeCsv,
+    commercialAvailability,
+    minPrice,
+    maxPrice,
+    minCarpet,
+    maxCarpet,
+    amenityGym,
+    amenitySwimmingPool,
+    amenityPowerBackup,
+    amenityVisitorParking,
+    activeFilterTab,
+    minBuiltUp,
+    maxBuiltUp,
+    propertyAgeMaxYears,
+    minBathrooms,
+    floorBucket,
+    withPhotoOnly,
+    removeSeen,
+    selectedLocalities,
+  ]);
+
+  useEffect(() => {
+    let active = true;
+    const userId = session?.user?.id ?? null;
+    if (!userId) {
+      setPremiumUnlocked(false);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_subscriptions')
+          .select('id,status,valid_until')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (!active) return;
+        if (error) {
+          setPremiumUnlocked(false);
+          return;
+        }
+        const row = (data ?? [])[0] as any;
+        if (!row) {
+          setPremiumUnlocked(false);
+          return;
+        }
+        const validUntil = row?.valid_until ? new Date(String(row.valid_until)).getTime() : null;
+        const ok = validUntil === null || Number.isFinite(validUntil) ? (validUntil === null ? true : validUntil > Date.now()) : false;
+        setPremiumUnlocked(ok);
+      } catch {
+        if (!active) return;
+        setPremiumUnlocked(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id]);
 
   const fallbackCityByState = useMemo(() => {
     return {
@@ -416,6 +534,81 @@ export default function PropertiesIndexScreen() {
 
   const uploadsRef = useRef<Record<string, PropertyUploadRow[]>>({});
 
+  async function loadRazorpayScript(): Promise<boolean> {
+    if (Platform.OS !== 'web') return false;
+    if (typeof window === 'undefined') return false;
+    if ((window as any).Razorpay) return true;
+
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Razorpay'));
+      document.body.appendChild(script);
+    });
+
+    return Boolean((window as any).Razorpay);
+  }
+
+  async function openRazorpayCheckout(options: any): Promise<any> {
+    if (Platform.OS === 'web') {
+      const ok = await loadRazorpayScript();
+      if (!ok) throw new Error('Razorpay unavailable on web');
+
+      return await new Promise((resolve, reject) => {
+        const Razorpay = (window as any).Razorpay;
+        const rz = new Razorpay({
+          ...options,
+          handler: (response: any) => resolve(response),
+          modal: {
+            ondismiss: () => reject(new Error('Payment cancelled')),
+          },
+        });
+        rz.open();
+      });
+    }
+
+    return await RazorpayCheckout.open(options);
+  }
+
+  const stableStringify = (obj: any) => {
+    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+    if (Array.isArray(obj)) return `[${obj.map((x) => stableStringify(x)).join(',')}]`;
+    const keys = Object.keys(obj).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+  };
+
+  const getBaseSearchToken = () => {
+    const base = {
+      listingType,
+      stateValue,
+      cityValue,
+      selectedLocalities: [...selectedLocalities].sort(),
+      localityValue: String(localityValue ?? '').trim().toLowerCase(),
+      propertyCategory,
+      adType,
+      bhkCsv,
+      propertyStatus,
+      newBuilderProject,
+      pgTenantType,
+      pgRoomType,
+      flatmatesTenantType,
+      flatmatesRoomType,
+      propertyTypeCsv,
+      commercialAvailability,
+      minPrice,
+      maxPrice,
+      minCarpet,
+      maxCarpet,
+      amenityGym,
+      amenitySwimmingPool,
+      amenityPowerBackup,
+      amenityVisitorParking,
+    };
+    return stableStringify(base);
+  };
+
   const fetchUploads = async (propertyId: string) => {
     if (!propertyId) return [];
     if (uploadsRef.current[propertyId]) return uploadsRef.current[propertyId];
@@ -433,9 +626,14 @@ export default function PropertiesIndexScreen() {
     return list;
   };
 
-  const search = async () => {
+  const search = async (reset = true) => {
     setError(null);
     setLoading(true);
+    if (reset) {
+      setCursorCreatedAt(null);
+      setCursorId(null);
+      setHasMore(false);
+    }
 
     try {
       const parseCsv = (v: string) =>
@@ -444,15 +642,58 @@ export default function PropertiesIndexScreen() {
           .map((x) => x.trim())
           .filter(Boolean);
 
+      const parseNum = (v: string) => {
+        const n = Number(String(v ?? '').trim().replace(/,/g, ''));
+        return Number.isFinite(n) ? n : null;
+      };
+
+      const userId = session?.user?.id ?? null;
+
+      const premiumUsed =
+        Boolean(String(minBuiltUp ?? '').trim()) ||
+        Boolean(String(maxBuiltUp ?? '').trim()) ||
+        propertyAgeMaxYears !== null ||
+        minBathrooms !== null ||
+        Boolean(String(floorBucket ?? '').trim()) ||
+        withPhotoOnly ||
+        removeSeen;
+
+      if (activeFilterTab === 'premium' && premiumUnlocked && premiumUsed && userId) {
+        const baseSearchToken = getBaseSearchToken();
+        const { data: quotaData, error: quotaErr } = await supabase.rpc('consume_premium_search', {
+          base_search_token: baseSearchToken,
+        } as any);
+        if (quotaErr) {
+          const msg = String(quotaErr.message ?? '').toLowerCase().includes('quota')
+            ? 'Premium search quota exceeded. Please upgrade/renew your plan.'
+            : quotaErr.message;
+          setError(msg);
+          setLoading(false);
+          return;
+        }
+        if (quotaData?.quota_total != null && quotaData?.quota_used != null && quotaData?.quota_used > quotaData?.quota_total) {
+          setError('Premium search quota exceeded. Please upgrade/renew your plan.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const pageSize = 40;
+
       let query = supabase
         .from('properties')
         .select(
-          'id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,furnishing,parking,state,city,locality,status,created_at,property_category,ad_type,property_status,new_builder_project,pg_tenant_type,pg_room_type,flatmates_tenant_type,flatmates_room_type,commercial_availability'
+          'id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,carpet_area_sqft,has_photo,furnishing,parking,state,city,locality,status,created_at,property_category,ad_type,property_status,new_builder_project,pg_tenant_type,pg_room_type,flatmates_tenant_type,flatmates_room_type,commercial_availability,gym,amenity_swimming_pool,amenity_power_backup,amenity_visitor_parking'
         )
         .eq('status', 'published')
         .eq('listing_type', listingType)
         .order('created_at', { ascending: false })
-        .limit(40);
+        .order('id', { ascending: false })
+        .limit(pageSize);
+
+      if (!reset && cursorCreatedAt && cursorId) {
+        query = query.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`);
+      }
 
       if (propertyCategory) query = query.eq('property_category', propertyCategory);
       if (adType) query = query.eq('ad_type', adType);
@@ -496,6 +737,58 @@ export default function PropertiesIndexScreen() {
         query = query.eq('commercial_availability', commercialAvailability);
       }
 
+      {
+        const min = parseNum(minPrice);
+        const max = parseNum(maxPrice);
+        if (min !== null) query = query.gte('price', min);
+        if (max !== null) query = query.lte('price', max);
+      }
+
+      {
+        const min = parseNum(minCarpet);
+        const max = parseNum(maxCarpet);
+        if (min !== null) query = query.gte('carpet_area_sqft', min);
+        if (max !== null) query = query.lte('carpet_area_sqft', max);
+      }
+
+      if (amenityGym) query = query.eq('gym', 1);
+      if (amenitySwimmingPool) query = query.eq('amenity_swimming_pool', 1);
+      if (amenityPowerBackup) query = query.eq('amenity_power_backup', 1);
+      if (amenityVisitorParking) query = query.eq('amenity_visitor_parking', 1);
+
+      if (activeFilterTab === 'premium' && premiumUnlocked) {
+        {
+          const min = parseNum(minBuiltUp);
+          const max = parseNum(maxBuiltUp);
+          if (min !== null) query = query.gte('area_sqft', min);
+          if (max !== null) query = query.lte('area_sqft', max);
+        }
+
+        if (propertyAgeMaxYears !== null) {
+          query = query.lte('property_age_years', propertyAgeMaxYears);
+        }
+
+        if (minBathrooms !== null) {
+          query = query.gte('bathrooms', minBathrooms);
+        }
+
+        if (floorBucket) {
+          if (floorBucket === 'ground') query = query.eq('floor_number', 0);
+          else if (floorBucket === '1_3') query = query.gte('floor_number', 1).lte('floor_number', 3);
+          else if (floorBucket === '4_6') query = query.gte('floor_number', 4).lte('floor_number', 6);
+          else if (floorBucket === '7_9') query = query.gte('floor_number', 7).lte('floor_number', 9);
+          else if (floorBucket === '10_plus') query = query.gte('floor_number', 10);
+        }
+
+        if (removeSeen && userId) {
+          const { data: seenData } = await supabase.from('user_seen_properties').select('property_id').eq('user_id', userId);
+          const ids = (seenData ?? []).map((r: any) => String(r?.property_id)).filter(Boolean);
+          if (ids.length) {
+            query = query.not('id', 'in', `(${ids.map((x) => `"${x}"`).join(',')})`);
+          }
+        }
+      }
+
       if (stateValue) query = query.eq('state', stateValue);
       if (cityValue) query = query.eq('city', cityValue);
       if (selectedLocalities.length > 0) {
@@ -504,10 +797,24 @@ export default function PropertiesIndexScreen() {
         query = query.ilike('locality', `%${localityValue.trim()}%`);
       }
 
-      const { data, error: fetchError } = await query;
+      let finalQuery = query;
+      if (activeFilterTab === 'premium' && premiumUnlocked && withPhotoOnly) {
+        finalQuery = finalQuery.eq('has_photo', true);
+      }
+
+      const { data, error: fetchError } = await finalQuery;
       if (fetchError) throw new Error(fetchError.message);
 
-      setResults(((data as any) ?? []) as PropertyRow[]);
+      const rows = (((data as any) ?? []) as PropertyRow[]) ?? [];
+      if (reset) setResults(rows);
+      else setResults((prev) => [...prev, ...rows]);
+
+      const last = rows.length ? rows[rows.length - 1] : null;
+      if (last?.created_at && last?.id) {
+        setCursorCreatedAt(String(last.created_at));
+        setCursorId(String(last.id));
+      }
+      setHasMore(rows.length === pageSize);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to search properties.');
     } finally {
@@ -520,6 +827,117 @@ export default function PropertiesIndexScreen() {
   const titleColor = '#0F172A';
   const muted = '#64748B';
   const panelBg = '#F8FAFC';
+
+  const resetFilters = () => {
+    setError(null);
+    setResults([]);
+    setSelectedLocalities([]);
+    setLocalitySuggestions([]);
+    setLocalityValue('');
+    setPropertyCategory('');
+    setAdType('');
+    setBhkCsv('');
+    setPropertyStatus('');
+    setNewBuilderProject('');
+    setPgTenantType('');
+    setPgRoomType('');
+    setFlatmatesTenantType('');
+    setFlatmatesRoomType('');
+    setPropertyTypeCsv('');
+    setCommercialAvailability('');
+
+    setMinPrice('');
+    setMaxPrice('');
+    setMinCarpet('');
+    setMaxCarpet('');
+
+    setAmenityGym(false);
+    setAmenitySwimmingPool(false);
+    setAmenityPowerBackup(false);
+    setAmenityVisitorParking(false);
+
+    setMinBuiltUp('');
+    setMaxBuiltUp('');
+    setPropertyAgeMaxYears(null);
+    setMinBathrooms(null);
+    setFloorBucket('');
+    setWithPhotoOnly(false);
+    setRemoveSeen(false);
+  };
+
+  const planOptions = useMemo(
+    () =>
+      [
+        { code: 'power_plan', title: 'Power Plan', price: 2399 },
+        { code: 'expert_plan', title: 'Property Expert Plan', price: 4999 },
+        { code: 'moneyback_plan', title: 'Property Expert MoneyBack Plan', price: 5999 },
+      ] as const,
+    []
+  );
+
+  const subscribeToPlan = async (planCode: string) => {
+    setError(null);
+    const userId = session?.user?.id ?? null;
+    if (!userId) {
+      setError('Please login first.');
+      return;
+    }
+    const plan = planOptions.find((p) => p.code === planCode);
+    if (!plan) {
+      setError('Invalid plan.');
+      return;
+    }
+
+    setUnlocking(true);
+    try {
+      const order = await createRazorpayOrder({
+        amount: Math.round(plan.price * 100),
+        currency: 'INR',
+        receipt: `sub_${Date.now()}`,
+        notes: { purpose: 'subscription', user_id: userId, plan_code: planCode },
+      });
+
+      const razorpayKeyId = await getRazorpayKeyId();
+      if (!razorpayKeyId) {
+        setError('Missing Razorpay public key. Configure RAZORPAY_KEY_ID in Supabase secrets.');
+        return;
+      }
+
+      const options: any = {
+        key: razorpayKeyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Gujarat Relocation PackersMovers',
+        description: plan.title,
+        order_id: order.id,
+        theme: { color: '#0EA5E9' },
+      };
+
+      const paymentData: any = await openRazorpayCheckout(options);
+
+      const valid = await verifyRazorpaySubscription({
+        order_id: order.id,
+        payment_id: paymentData.razorpay_payment_id,
+        signature: paymentData.razorpay_signature,
+        plan_code: planCode,
+        amount: plan.price,
+      });
+
+      if (!valid) {
+        setError('Payment verification failed.');
+        return;
+      }
+
+      setUnlockModalOpen(false);
+      setPremiumUnlocked(true);
+      setActiveFilterTab('premium');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Payment cancelled/failed.';
+      setError(String(msg).toLowerCase().includes('cancel') ? 'Payment cancelled.' : msg);
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
@@ -540,199 +958,518 @@ export default function PropertiesIndexScreen() {
       </YStack>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
-        <YStack gap="$3">
-          <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-            <Text color={titleColor} fontWeight="900">
-              Find your home
-            </Text>
-
-            <XStack gap="$2" flexWrap="wrap">
-              {([
-                { label: 'Rent', value: 'rent' },
-                { label: 'Buy', value: 'buy' },
-                { label: 'Commercial', value: 'commercial' },
-              ] as const).map((t) => (
-                <Button
-                  key={t.value}
-                  size="$2"
-                  backgroundColor={listingType === t.value ? '#F59E0B' : '#E5E7EB'}
-                  color="#111827"
-                  borderRadius={999}
-                  onPress={() => setListingType(t.value)}>
-                  {t.label}
-                </Button>
-              ))}
-            </XStack>
-
-            <XStack gap="$2" flexWrap="wrap">
-              <Input
-                value={stateValue}
-                onChangeText={setStateValue}
-                placeholder="State"
-                backgroundColor="#FFFFFF"
-                borderColor={border}
-                color={titleColor}
-                flexGrow={1}
-                minWidth={150}
-              />
-              <Input
-                value={cityValue}
-                onChangeText={setCityValue}
-                placeholder="City"
-                backgroundColor="#FFFFFF"
-                borderColor={border}
-                color={titleColor}
-                flexGrow={1}
-                minWidth={150}
-              />
-            </XStack>
-
-            <YStack gap="$2">
-              <XStack gap="$2" alignItems="center">
-                <Input
-                  value={localityValue}
-                  onChangeText={setLocalityValue}
-                  placeholder="Search locality (max 3)"
-                  backgroundColor="#FFFFFF"
-                  borderColor={border}
-                  color={titleColor}
-                  flexGrow={1}
-                />
-                {localityLoading && (
-                  <Text color={muted} fontSize={12} animation="pulse">
-                    Searching...
-                  </Text>
-                )}
+        <XStack gap="$3" alignItems="flex-start" flexWrap="wrap">
+          <YStack style={{ width: advancedOpen ? 320 : 120, maxWidth: '100%' } as any}>
+            <Pressable onPress={() => setAdvancedOpen((v) => !v)}>
+              <XStack alignItems="center" justifyContent="space-between" paddingVertical={6} paddingHorizontal={4}>
+                <Text color={titleColor} fontWeight="900">
+                  Advanced Filters
+                </Text>
+                <Text color={muted} fontWeight="900">
+                  {advancedOpen ? '˄' : '˅'}
+                </Text>
               </XStack>
+            </Pressable>
 
-              {/* Dropdown suggestions while typing */}
-              {localitySuggestions.length > 0 && localityValue.trim().length >= 2 && (
-                <YStack borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" maxHeight={200} overflow="hidden">
-                  {localitySuggestions.map((s) => (
-                    <Pressable
-                      key={s.id}
-                      onPress={() => {
-                        if (selectedLocalities.length < 3 && !selectedLocalities.includes(s.label)) {
-                          setSelectedLocalities((prev) => [...prev, s.label]);
-                          setLocalityValue('');
-                          setLocalitySuggestions([]);
-                        }
-                      }}
-                      style={{ paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: border }}>
-                      <Text color={titleColor} fontWeight="700" numberOfLines={1}>
-                        {s.label}
+            {advancedOpen ? (
+              <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+                <XStack gap="$2" alignItems="center" justifyContent="space-between">
+                  <Pressable onPress={() => setActiveFilterTab('filters')} style={{ flex: 1 } as any}>
+                    <YStack
+                      paddingVertical={10}
+                      borderRadius={12}
+                      backgroundColor={activeFilterTab === 'filters' ? '#0EA5E9' : '#FFFFFF'}
+                      borderWidth={1}
+                      borderColor={border}
+                      alignItems="center">
+                      <Text color={activeFilterTab === 'filters' ? '#FFFFFF' : titleColor} fontWeight="900">
+                        Filters
                       </Text>
-                      <Text color={muted} fontSize={11} numberOfLines={1}>
-                        {s.full}
+                    </YStack>
+                  </Pressable>
+                  <Pressable onPress={() => setActiveFilterTab('premium')} style={{ flex: 1 } as any}>
+                    <YStack
+                      paddingVertical={10}
+                      borderRadius={12}
+                      backgroundColor={activeFilterTab === 'premium' ? '#111827' : '#FFFFFF'}
+                      borderWidth={1}
+                      borderColor={border}
+                      alignItems="center">
+                      <Text color={activeFilterTab === 'premium' ? '#FFFFFF' : titleColor} fontWeight="900">
+                        Premium Filters
                       </Text>
+                    </YStack>
+                  </Pressable>
+                </XStack>
+
+                <XStack alignItems="center" justifyContent="space-between">
+                  <Text color={titleColor} fontWeight="900">
+                    Filter your search
+                  </Text>
+                  <Pressable onPress={resetFilters}>
+                    <Text color="#2563EB" fontSize={12} fontWeight="900">
+                      Reset
+                    </Text>
+                  </Pressable>
+                </XStack>
+
+                {activeFilterTab === 'premium' && !premiumUnlocked ? (
+                  <YStack gap="$3" backgroundColor="#FFFFFF" borderRadius={16} padding={12} borderWidth={1} borderColor={border}>
+                    <Text color={titleColor} fontWeight="900">
+                      Don’t scroll! Be Smart & Save Time!
+                    </Text>
+                    <Text color={muted} fontSize={12}>
+                      Fasten your search using Exclusive Filters!
+                    </Text>
+                    <Button backgroundColor="#0EA5E9" color="#FFFFFF" fontWeight="900" onPress={() => setUnlockModalOpen(true)}>
+                      Unlock Filters
+                    </Button>
+                  </YStack>
+                ) : null}
+
+                {activeFilterTab === 'filters' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="800">
+                    Listing Type
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    {([
+                      { label: 'Rent', value: 'rent' },
+                      { label: 'Buy', value: 'buy' },
+                      { label: 'Commercial', value: 'commercial' },
+                    ] as const).map((t) => (
+                      <Button
+                        key={t.value}
+                        size="$2"
+                        backgroundColor={listingType === t.value ? '#0EA5E9' : '#E5E7EB'}
+                        color="#111827"
+                        borderRadius={999}
+                        onPress={() => setListingType(t.value)}>
+                        {t.label}
+                      </Button>
+                    ))}
+                  </XStack>
+                </YStack>
+                ) : null}
+
+                {activeFilterTab === 'filters' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="800">
+                    Location
+                  </Text>
+                  <Input
+                    value={stateValue}
+                    onChangeText={setStateValue}
+                    placeholder="State"
+                    backgroundColor="#FFFFFF"
+                    borderColor={border}
+                    color={titleColor}
+                  />
+                  <Input
+                    value={cityValue}
+                    onChangeText={setCityValue}
+                    placeholder="City"
+                    backgroundColor="#FFFFFF"
+                    borderColor={border}
+                    color={titleColor}
+                  />
+                  <XStack gap="$2" alignItems="center" flexWrap="wrap">
+                    <Input
+                      value={localityValue}
+                      onChangeText={setLocalityValue}
+                      placeholder="Search locality (max 3)"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={titleColor}
+                      flexGrow={1}
+                      minWidth={160}
+                    />
+                    {localityLoading ? (
+                      <Text color={muted} fontSize={12} animation="pulse">
+                        Searching...
+                      </Text>
+                    ) : null}
+                  </XStack>
+
+                  {localitySuggestions.length > 0 && localityValue.trim().length >= 2 && (
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" maxHeight={200} overflow="hidden">
+                      {localitySuggestions.map((s) => (
+                        <Pressable
+                          key={s.id}
+                          onPress={() => {
+                            if (selectedLocalities.length < 3 && !selectedLocalities.includes(s.label)) {
+                              setSelectedLocalities((prev) => [...prev, s.label]);
+                              setLocalityValue('');
+                              setLocalitySuggestions([]);
+                            }
+                          }}
+                          style={{ paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: border }}>
+                          <Text color={titleColor} fontWeight="700" numberOfLines={1}>
+                            {s.label}
+                          </Text>
+                          <Text color={muted} fontSize={11} numberOfLines={1}>
+                            {s.full}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </YStack>
+                  )}
+
+                  {selectedLocalities.length > 0 && (
+                    <XStack gap="$2" flexWrap="wrap">
+                      {selectedLocalities.map((loc) => (
+                        <Pressable key={loc} onPress={() => setSelectedLocalities((prev) => prev.filter((l) => l !== loc))}>
+                          <YStack backgroundColor="#0EA5E9" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
+                            <Text color="#FFFFFF" fontSize={11} fontWeight="700">
+                              {loc} ×
+                            </Text>
+                          </YStack>
+                        </Pressable>
+                      ))}
+                      {selectedLocalities.length >= 3 && (
+                        <Text color={muted} fontSize={11} fontStyle="italic">
+                          Max 3 selected
+                        </Text>
+                      )}
+                    </XStack>
+                  )}
+                </YStack>
+                ) : null}
+
+                {activeFilterTab === 'filters' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="800">
+                    Price Range
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Input
+                      value={minPrice}
+                      onChangeText={setMinPrice}
+                      placeholder="Min"
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={titleColor}
+                      flexGrow={1}
+                      minWidth={120}
+                    />
+                    <Input
+                      value={maxPrice}
+                      onChangeText={setMaxPrice}
+                      placeholder="Max"
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={titleColor}
+                      flexGrow={1}
+                      minWidth={120}
+                    />
+                  </XStack>
+                </YStack>
+                ) : null}
+
+                {activeFilterTab === 'filters' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="800">
+                    Carpet Area (sq.ft.)
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Input
+                      value={minCarpet}
+                      onChangeText={setMinCarpet}
+                      placeholder="Min"
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={titleColor}
+                      flexGrow={1}
+                      minWidth={120}
+                    />
+                    <Input
+                      value={maxCarpet}
+                      onChangeText={setMaxCarpet}
+                      placeholder="Max"
+                      keyboardType="numeric"
+                      backgroundColor="#FFFFFF"
+                      borderColor={border}
+                      color={titleColor}
+                      flexGrow={1}
+                      minWidth={120}
+                    />
+                  </XStack>
+                </YStack>
+                ) : null}
+
+                {activeFilterTab === 'filters' ? (
+                <YStack gap="$2">
+                  <Text color={muted} fontSize={12} fontWeight="800">
+                    Amenities
+                  </Text>
+
+                  {(
+                    [
+                      { label: 'Gym', value: amenityGym, setValue: setAmenityGym },
+                      { label: 'Swimming Pool', value: amenitySwimmingPool, setValue: setAmenitySwimmingPool },
+                      { label: 'Power Backup', value: amenityPowerBackup, setValue: setAmenityPowerBackup },
+                      { label: 'Visitor Parking', value: amenityVisitorParking, setValue: setAmenityVisitorParking },
+                    ] as const
+                  ).map((a) => (
+                    <Pressable key={a.label} onPress={() => a.setValue(!a.value)}>
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">
+                          {a.label}
+                        </Text>
+                        <Text color={a.value ? '#0EA5E9' : muted} fontWeight="900">
+                          {a.value ? '✓' : ''}
+                        </Text>
+                      </XStack>
                     </Pressable>
                   ))}
                 </YStack>
-              )}
+                ) : null}
 
- 
+                {activeFilterTab === 'premium' && premiumUnlocked ? (
+                  <YStack gap="$3">
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="800">
+                        Built Up Area (sq.ft.)
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        <Input
+                          value={minBuiltUp}
+                          onChangeText={setMinBuiltUp}
+                          placeholder="Min"
+                          keyboardType="numeric"
+                          backgroundColor="#FFFFFF"
+                          borderColor={border}
+                          color={titleColor}
+                          flexGrow={1}
+                          minWidth={120}
+                        />
+                        <Input
+                          value={maxBuiltUp}
+                          onChangeText={setMaxBuiltUp}
+                          placeholder="Max"
+                          keyboardType="numeric"
+                          backgroundColor="#FFFFFF"
+                          borderColor={border}
+                          color={titleColor}
+                          flexGrow={1}
+                          minWidth={120}
+                        />
+                      </XStack>
+                    </YStack>
 
-              {/* Selected localities as pills */}
-              {selectedLocalities.length > 0 && (
-                <XStack gap="$2" flexWrap="wrap">
-                  {selectedLocalities.map((loc) => (
-                    <Pressable
-                      key={loc}
-                      onPress={() => {
-                        setSelectedLocalities((prev) => prev.filter((l) => l !== loc));
-                      }}>
-                      <YStack backgroundColor="#10B981" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
-                        <Text color="#FFFFFF" fontSize={11} fontWeight="700">
-                          {loc} ×
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="800">
+                        Property Age
+                      </Text>
+                      {([
+                        { label: '< 1 year', value: 1 },
+                        { label: '< 3 years', value: 3 },
+                        { label: '< 5 years', value: 5 },
+                        { label: '< 10 years', value: 10 },
+                      ] as const).map((o) => (
+                        <Pressable key={o.label} onPress={() => setPropertyAgeMaxYears(propertyAgeMaxYears === o.value ? null : o.value)}>
+                          <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                            <Text color={titleColor} fontWeight="800">
+                              {o.label}
+                            </Text>
+                            <Text color={propertyAgeMaxYears === o.value ? '#0EA5E9' : muted} fontWeight="900">
+                              {propertyAgeMaxYears === o.value ? '✓' : ''}
+                            </Text>
+                          </XStack>
+                        </Pressable>
+                      ))}
+                    </YStack>
+
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="800">
+                        Show Only
+                      </Text>
+                      <Pressable onPress={() => setWithPhotoOnly((v) => !v)}>
+                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                          <Text color={titleColor} fontWeight="800">
+                            With Photo
+                          </Text>
+                          <Text color={withPhotoOnly ? '#0EA5E9' : muted} fontWeight="900">
+                            {withPhotoOnly ? '✓' : ''}
+                          </Text>
+                        </XStack>
+                      </Pressable>
+                    </YStack>
+
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="800">
+                        Bathroom
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {([
+                          { label: '1 or more', value: 1 },
+                          { label: '2 or more', value: 2 },
+                          { label: '3 or more', value: 3 },
+                        ] as const).map((o) => (
+                          <Button
+                            key={o.label}
+                            size="$2"
+                            backgroundColor={minBathrooms === o.value ? '#0EA5E9' : '#E5E7EB'}
+                            color={minBathrooms === o.value ? '#FFFFFF' : '#111827'}
+                            borderRadius={12}
+                            onPress={() => setMinBathrooms(minBathrooms === o.value ? null : o.value)}>
+                            {o.label}
+                          </Button>
+                        ))}
+                      </XStack>
+                    </YStack>
+
+                    <YStack gap="$2">
+                      <Text color={muted} fontSize={12} fontWeight="800">
+                        Floors
+                      </Text>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {([
+                          { label: 'Ground', value: 'ground' },
+                          { label: '1 to 3', value: '1_3' },
+                          { label: '4 to 6', value: '4_6' },
+                          { label: '7 to 9', value: '7_9' },
+                          { label: '10 & above', value: '10_plus' },
+                        ] as const).map((o) => (
+                          <Button
+                            key={o.value}
+                            size="$2"
+                            backgroundColor={floorBucket === o.value ? '#0EA5E9' : '#E5E7EB'}
+                            color={floorBucket === o.value ? '#FFFFFF' : '#111827'}
+                            borderRadius={12}
+                            onPress={() => setFloorBucket(floorBucket === o.value ? '' : o.value)}>
+                            {o.label}
+                          </Button>
+                        ))}
+                      </XStack>
+                    </YStack>
+
+                    <Pressable onPress={() => setRemoveSeen((v) => !v)}>
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                        <Text color={titleColor} fontWeight="800">
+                          Remove Seen Properties
                         </Text>
-                      </YStack>
+                        <Text color={removeSeen ? '#0EA5E9' : muted} fontWeight="900">
+                          {removeSeen ? '✓' : ''}
+                        </Text>
+                      </XStack>
                     </Pressable>
-                  ))}
-                  {selectedLocalities.length >= 3 && (
-                    <Text color={muted} fontSize={11} fontStyle="italic">
-                      Max 3 selected
-                    </Text>
-                  )}
+                  </YStack>
+                ) : null}
+
+                <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
+                  <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/properties/post' as any)}>
+                    Post Property
+                  </Button>
+                  <Button backgroundColor="#111827" color="#FFFFFF" size="$2" onPress={() => router.push('/properties/my-properties' as any)}>
+                    My Properties
+                  </Button>
                 </XStack>
-              )}
-            </YStack>
-
-            <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-              <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => void search()} disabled={loading}>
-                {loading ? 'Searching…' : 'Search'}
-              </Button>
-              <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/properties/post' as any)}>
-                Post Property
-              </Button>
-            </XStack>
-
-            <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
-              <Button backgroundColor="#111827" color="#FFFFFF" size="$2" onPress={() => router.push('/properties/my-properties' as any)}>
-                My Properties
-              </Button>
-            </XStack>
-
-            <XStack gap="$2" flexWrap="wrap">
-              <Text color={muted} fontSize={11}>
-                Suggestions:
-              </Text>
-              {stateOptions.slice(0, 2).map((s) => (
-                <Pressable
-                  key={s}
-                  onPress={() => {
-                    setStateValue(s);
-                    const nextCity = (fallbackCityByState[s] ?? [])[0] ?? '';
-                    setCityValue(nextCity);
-                  }}>
-                  <Text color="#2563EB" fontSize={11} fontWeight="800">
-                    {s}
-                  </Text>
-                </Pressable>
-              ))}
-              {(cityOptions ?? []).slice(0, 3).map((c) => (
-                <Pressable key={c} onPress={() => setCityValue(c)}>
-                  <Text color="#2563EB" fontSize={11} fontWeight="800">
-                    {c}
-                  </Text>
-                </Pressable>
-              ))}
-            </XStack>
+              </YStack>
+            ) : null}
           </YStack>
 
-          {error ? <Text color="#EF4444">{error}</Text> : null}
-
-          {results.map((p) => (
-            <Pressable
-              key={p.id}
-              onPress={async () => {
-                await fetchUploads(p.id);
-                router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
-              }}>
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-                <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={1}>
-                  {p.title ?? 'Property'}
+          <YStack flex={1} minWidth={320} gap="$3">
+            <XStack alignItems="center" justifyContent="space-between" flexWrap="wrap" gap="$2">
+              <YStack>
+                <Text color={titleColor} fontSize={16} fontWeight="900">
+                  Results
                 </Text>
-                <Text color={muted} fontSize={12} numberOfLines={1}>
-                  {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
-                </Text>
-                <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                  <Text color="#10B981" fontWeight="900">
-                    {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
-                  </Text>
-                  <Text color={muted} fontSize={11}>
-                    {p.bedrooms ? `${p.bedrooms}BHK` : ''} {p.area_sqft ? `• ${p.area_sqft} sqft` : ''}
-                  </Text>
-                </XStack>
-                <Text color={muted} fontSize={11}>
-                  {String(p.listing_type ?? '').toUpperCase()} • {String(p.furnishing ?? '—').replaceAll('_', ' ')}
+                <Text color={muted} fontSize={12}>
+                  {loading ? 'Searching…' : `${results.length} listing(s)`}
                 </Text>
               </YStack>
-            </Pressable>
-          ))}
+              <Button backgroundColor="#0EA5E9" color="#FFFFFF" onPress={() => void search(true)} disabled={loading}>
+                Search
+              </Button>
+            </XStack>
 
-          {!loading && !results.length ? <Text color={muted}>No results yet. Try searching.</Text> : null}
-        </YStack>
+            {error ? <Text color="#EF4444">{error}</Text> : null}
+
+            {results.map((p) => (
+              <Pressable
+                key={p.id}
+                onPress={async () => {
+                  const userId = session?.user?.id ?? null;
+                  if (userId) {
+                    try {
+                      await supabase.from('user_seen_properties').upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any);
+                    } catch {
+                    }
+                  }
+                  await fetchUploads(p.id);
+                  router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
+                }}>
+                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={1}>
+                    {p.title ?? 'Property'}
+                  </Text>
+                  <Text color={muted} fontSize={12} numberOfLines={1}>
+                    {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
+                  </Text>
+                  <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                    <Text color="#0EA5E9" fontWeight="900">
+                      {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
+                    </Text>
+                    <Text color={muted} fontSize={11}>
+                      {p.bedrooms ? `${p.bedrooms}BHK` : ''} {p.area_sqft ? `• ${p.area_sqft} sqft` : ''}
+                    </Text>
+                  </XStack>
+                  <Text color={muted} fontSize={11}>
+                    {String(p.listing_type ?? '').toUpperCase()} • {String(p.furnishing ?? '—').replaceAll('_', ' ')}
+                  </Text>
+                </YStack>
+              </Pressable>
+            ))}
+
+            {!loading && results.length > 0 && hasMore ? (
+              <Button backgroundColor="#111827" color="#FFFFFF" onPress={() => void search(false)}>
+                Load More
+              </Button>
+            ) : null}
+
+            {!loading && !results.length ? <Text color={muted}>No results found.</Text> : null}
+          </YStack>
+        </XStack>
       </ScrollView>
+
+      <Modal visible={unlockModalOpen} transparent animationType="fade" onRequestClose={() => setUnlockModalOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', padding: 16, justifyContent: 'center' }} onPress={() => setUnlockModalOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
+              <Text color="#0F172A" fontSize={16} fontWeight="900">
+                Choose a plan
+              </Text>
+              <Pressable onPress={() => setUnlockModalOpen(false)}>
+                <Text color="#64748B" fontSize={22} fontWeight="900">
+                  ×
+                </Text>
+              </Pressable>
+            </XStack>
+
+            <YStack gap="$2">
+              {planOptions.map((p) => (
+                <YStack key={p.code} backgroundColor="#F8FAFC" borderRadius={14} padding={12} borderWidth={1} borderColor="#E5E7EB" gap="$2">
+                  <XStack alignItems="center" justifyContent="space-between">
+                    <Text color="#0F172A" fontWeight="900">
+                      {p.title}
+                    </Text>
+                    <Text color="#0F172A" fontWeight="900">
+                      ₹{p.price}
+                    </Text>
+                  </XStack>
+                  <Button disabled={unlocking} backgroundColor="#0EA5E9" color="#FFFFFF" fontWeight="900" onPress={() => subscribeToPlan(p.code)}>
+                    {unlocking ? 'Processing…' : 'Subscribe'}
+                  </Button>
+                </YStack>
+              ))}
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

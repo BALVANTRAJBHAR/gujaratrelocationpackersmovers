@@ -99,6 +99,16 @@ export default function LoginScreen() {
     return false;
   };
 
+  const redirectAfterAuth = async () => {
+    const redirect = String(params.redirectTo ?? '').trim();
+    if (redirect) {
+      router.replace(redirect as any);
+      return;
+    }
+    const didRedirect = await maybeRedirectToRegistration();
+    if (!didRedirect) router.replace('/home');
+  };
+
   useEffect(() => {
     if (mode !== 'forgot') return;
     if (forgotStep !== 'set_password') return;
@@ -153,8 +163,7 @@ export default function LoginScreen() {
             return;
           }
 
-          const redirect = String(params.redirectTo ?? '').trim();
-          router.replace(redirect ? (redirect as any) : '/home');
+          await redirectAfterAuth();
           if (typeof window !== 'undefined') {
             window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
           }
