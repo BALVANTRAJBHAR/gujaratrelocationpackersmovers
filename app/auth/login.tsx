@@ -78,6 +78,11 @@ export default function LoginScreen() {
 
       const roleIntent = String((data.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
 
+      if (roleIntent === 'provider') {
+        router.replace('/auth/register' as any);
+        return true;
+      }
+
       const { data: row, error: rowError } = await supabase
         .from('users')
         .select('id, phone, role')
@@ -614,7 +619,7 @@ export default function LoginScreen() {
               {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
             </Button>
 
-            {mode === 'signup' ? (
+            {mode === 'signup' && !showEmailSignup ? (
               <Button
                 backgroundColor={activeBtnBg}
                 color={activeBtnText}
