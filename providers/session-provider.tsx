@@ -95,8 +95,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     activeProfileUserIdRef.current = userId;
     const baseSelect = 'id, name, email, role, provider_services';
-    const extendedSelect =
-      'id, name, email, role, provider_services, license_number, vehicle_type, vehicle_number, vehicle_model, license_doc_url, id_doc_url';
 
     const promise = (async () => {
       const { data: baseData, error: baseError } = await supabase
@@ -109,19 +107,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let finalData: any = baseData;
-      const { data: extData, error: extError } = await supabase
-        .from('users')
-        .select(extendedSelect)
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (!extError && extData) {
-        finalData = extData;
-      }
-
       setProfile({
-        ...(finalData as any),
+        ...(baseData as any),
+        license_number: null,
+        vehicle_type: null,
+        vehicle_number: null,
+        vehicle_model: null,
+        license_doc_url: null,
+        id_doc_url: null,
         driver_status: null,
         driver_verified: null,
       } as UserProfile);

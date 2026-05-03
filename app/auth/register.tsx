@@ -13,6 +13,8 @@ export default function RegisterDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [name, setName] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [countryCodePickerOpen, setCountryCodePickerOpen] = useState(false);
@@ -22,6 +24,7 @@ export default function RegisterDetailsScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [aadhaarImageUri, setAadhaarImageUri] = useState<string | null>(null);
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
@@ -74,12 +77,56 @@ export default function RegisterDetailsScreen() {
     const upper = text.toUpperCase();
     const digitOnly = upper.replace(/\D/g, '');
     const hasAadhaarHint = /(AADHAAR|AADHAR|UIDAI|UNIQUE|MY\s*AADHAAR)/i.test(upper);
+    const spaced = Array.from(new Set(text.match(/\d{4}\s\d{4}\s\d{4}/g) ?? [])).map((x) => x.replace(/\D/g, ''));
+    const spacedValid = spaced.find((c) => verhoeffValidate(c));
+    if (spacedValid) return spacedValid;
+
     const candidates = Array.from(new Set(digitOnly.match(/\d{12}/g) ?? []));
 
-    const bestValid = candidates.find((c) => verhoeffValidate(c));
-    if (bestValid) return bestValid;
-    if (hasAadhaarHint && candidates.length === 1) return candidates[0] ?? '';
+    // Only trust contiguous 12-digit matches when Aadhaar context is present.
+    // Otherwise it's too easy to pick unrelated numbers (DOB, IDs) that may even pass checksum.
+    if (hasAadhaarHint) {
+      const bestValid = candidates.find((c) => verhoeffValidate(c));
+      if (bestValid) return bestValid;
+    }
+
+    // Conservative fallbacks to avoid wrong autofill:
+    // Only accept non-checksum matches when the Aadhaar pattern is very clear.
+    if (hasAadhaarHint) {
+      if (spaced.length) return spaced[spaced.length - 1] ?? '';
+    }
+
+    // If the only thing that looks like Aadhaar is a single spaced 4-4-4 match, accept it.
+    if (spaced.length === 1) return spaced[0] ?? '';
+
     return '';
+  };
+
+  const extractAadhaarFromQrPayload = (payload: string) => {
+    const text = String(payload ?? '').trim();
+    if (!text) return '';
+
+    const m1 = text.match(/\buid\s*=\s*"(\d{12})"/i);
+    if (m1?.[1]) return m1[1];
+
+    const digits = text.replace(/\D/g, '');
+    const m2 = digits.match(/\d{12}/);
+    return m2?.[0] ?? '';
+  };
+
+  const decodeAadhaarFromQrWeb = async (inputBlob: Blob) => {
+    try {
+      const anyWindow = window as any;
+      const BarcodeDetectorCtor = anyWindow?.BarcodeDetector;
+      if (!BarcodeDetectorCtor) return '';
+      const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+      const bmp = await createImageBitmap(inputBlob);
+      const codes = await detector.detect(bmp);
+      const raw = String(codes?.[0]?.rawValue ?? '').trim();
+      return extractAadhaarFromQrPayload(raw);
+    } catch {
+      return '';
+    }
   };
 
   const runAadhaarOcr = async (uri: string) => {
@@ -90,26 +137,146 @@ export default function RegisterDetailsScreen() {
       let lines: string[] = [];
 
       if (Platform.OS === 'web') {
+        const preprocessForOcr = async (inputBlob: Blob) => {
+          const img = await createImageBitmap(inputBlob);
+          const scale = 2;
+          const w = Math.max(1, Math.floor(img.width * scale));
+          const h = Math.max(1, Math.floor(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return inputBlob;
+          ctx.drawImage(img, 0, 0, w, h);
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const d = imageData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i] ?? 0;
+            const g = d[i + 1] ?? 0;
+            const b = d[i + 2] ?? 0;
+            let gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            gray = Math.min(255, Math.max(0, (gray - 128) * 1.25 + 128));
+            d[i] = gray;
+            d[i + 1] = gray;
+            d[i + 2] = gray;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          return await new Promise<Blob>((resolve) => {
+            canvas.toBlob((b) => resolve(b ?? inputBlob), 'image/png');
+          });
+        };
+
+        const cropBottomForOcr = async (inputBlob: Blob) => {
+          const img = await createImageBitmap(inputBlob);
+          const scale = 2;
+          const w = Math.max(1, Math.floor(img.width * scale));
+          const h = Math.max(1, Math.floor(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return inputBlob;
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Aadhaar number is usually printed near the bottom portion of the card.
+          const cropTop = Math.floor(h * 0.55);
+          const cropH = Math.max(1, h - cropTop);
+
+          const cropCanvas = document.createElement('canvas');
+          cropCanvas.width = w;
+          cropCanvas.height = cropH;
+          const cropCtx = cropCanvas.getContext('2d');
+          if (!cropCtx) return inputBlob;
+          cropCtx.drawImage(canvas, 0, cropTop, w, cropH, 0, 0, w, cropH);
+
+          const imageData = cropCtx.getImageData(0, 0, w, cropH);
+          const d = imageData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i] ?? 0;
+            const g = d[i + 1] ?? 0;
+            const b = d[i + 2] ?? 0;
+            let gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            gray = Math.min(255, Math.max(0, (gray - 128) * 1.35 + 128));
+            d[i] = gray;
+            d[i + 1] = gray;
+            d[i + 2] = gray;
+          }
+          cropCtx.putImageData(imageData, 0, 0);
+
+          return await new Promise<Blob>((resolve) => {
+            cropCanvas.toBlob((b) => resolve(b ?? inputBlob), 'image/png');
+          });
+        };
+
         const resp = await fetch(uri);
         const blob = await resp.blob();
+
+        const qrUid = await decodeAadhaarFromQrWeb(blob);
+        if (qrUid && qrUid.length === 12) {
+          setAadhaarExtracted(qrUid);
+          setAadhaarNumber((prev) => {
+            const cur = String(prev ?? '').replace(/\D/g, '').slice(0, 12);
+            return cur.length === 12 ? cur : qrUid;
+          });
+          return;
+        }
+
+        const preprocessed = await preprocessForOcr(blob);
+        const bottomCropped = await cropBottomForOcr(blob);
+
         const { createWorker } = await import('tesseract.js');
         const worker = await createWorker('eng');
-        const out = await worker.recognize(blob);
+
+        const out1 = await worker.recognize(preprocessed);
+        const text1 = String((out1 as any)?.data?.text ?? '');
+        const linesFull = text1.split(/\r?\n/).map((x) => String(x ?? '').trim()).filter(Boolean);
+
+        // Prefer extraction from the bottom-cropped pass (more likely to contain the printed number).
+        const outBottom1 = await worker.recognize(bottomCropped);
+        const bottomText1 = String((outBottom1 as any)?.data?.text ?? '');
+        const linesBottom = bottomText1.split(/\r?\n/).map((x) => String(x ?? '').trim()).filter(Boolean);
+
+        let extracted = extractAadhaarFromOcrLines(linesBottom);
+        lines = [...linesBottom, ...linesFull];
+        if (!extracted) extracted = extractAadhaarFromOcrLines(lines);
+
+        if (!extracted) {
+          try {
+            await (worker as any).setParameters({
+              tessedit_char_whitelist: '0123456789',
+              preserve_interword_spaces: '1',
+            });
+          } catch {
+            // ignore
+          }
+          const out2 = await worker.recognize(preprocessed);
+          const text2 = String((out2 as any)?.data?.text ?? '');
+          const lines2 = text2.split(/\r?\n/).map((x) => String(x ?? '').trim()).filter(Boolean);
+
+          const outBottom2 = await worker.recognize(bottomCropped);
+          const bottomText2 = String((outBottom2 as any)?.data?.text ?? '');
+          const bottomLines2 = bottomText2.split(/\r?\n/).map((x) => String(x ?? '').trim()).filter(Boolean);
+
+          lines = [...bottomLines2, ...lines2, ...lines];
+          extracted = extractAadhaarFromOcrLines(bottomLines2);
+          if (!extracted) extracted = extractAadhaarFromOcrLines(lines);
+        }
+
         await worker.terminate();
-        const raw = String((out as any)?.data?.text ?? '').split(/\r?\n/);
-        lines = raw.map((x) => String(x ?? '').trim()).filter(Boolean);
       } else {
         const TextRecognition = (await import('react-native-text-recognition')).default as any;
         lines = (await TextRecognition.recognize(uri)) as string[];
       }
 
-      const extracted = extractAadhaarFromOcrLines(lines);
-      if (extracted) {
-        setAadhaarExtracted(extracted);
+      const extractedFinal = extractAadhaarFromOcrLines(lines);
+      if (extractedFinal) {
+        setAadhaarExtracted(extractedFinal);
         setAadhaarNumber((prev) => {
           const cur = String(prev ?? '').replace(/\D/g, '').slice(0, 12);
-          return cur.length === 12 ? cur : extracted;
+          return cur.length === 12 ? cur : extractedFinal;
         });
+      } else {
+        setInfo('Could not auto-detect Aadhaar number. Please enter it manually.');
       }
     } catch {
       // ignore OCR errors
@@ -220,9 +387,11 @@ export default function RegisterDetailsScreen() {
           return;
         }
 
+        if (isMounted) setUserId(user.id);
+
         const { data: row, error: rowError } = await supabase
           .from('users')
-          .select('id, name, phone, role, document_type, document_number, document_image_url')
+          .select('id, name, phone, role')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -230,7 +399,6 @@ export default function RegisterDetailsScreen() {
           if (isMounted) {
             setName(String(row.name ?? (user.user_metadata as any)?.name ?? '').trim());
             setPhone(String(row.phone ?? '').replace(/\D/g, '').slice(0, 10));
-            setAadhaarNumber(String((row as any)?.document_number ?? '').trim());
             setOtpVerified(Boolean((user.user_metadata as any)?.phone_verified) || Boolean((row as any)?.is_verified));
 
             const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();
@@ -252,6 +420,25 @@ export default function RegisterDetailsScreen() {
               return;
             }
           }
+        }
+
+        // Load Aadhaar details from user_documents (schema-aligned)
+        try {
+          const { data: docs } = await supabase
+            .from('user_documents')
+            .select('id, document_type, document_number, image_url, created_at')
+            .eq('user_id', user.id)
+            .in('document_type', ['aadhar', 'aadhaar', 'Aadhaar', 'Aadhar'])
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const doc = (docs ?? [])[0] as any;
+          if (doc?.document_number && isMounted) {
+            setAadhaarNumber(String(doc.document_number ?? '').trim());
+            setAadhaarExtracted(String(doc.document_number ?? '').trim());
+          }
+        } catch {
+          // ignore
         }
       } catch (e) {
         if (isMounted) setError(e instanceof Error ? e.message : 'Failed to load profile.');
@@ -283,9 +470,10 @@ export default function RegisterDetailsScreen() {
 
     setOtpSending(true);
     try {
-      await invokeEdgeFunction('send-booking-otp', { phone: normalizedPhone });
+      await invokeEdgeFunction('send-booking-otp', { phone: normalizedPhone, user_id: userId });
       setInfo('OTP sent.');
       setOtpSent(true);
+      setOtpResendCooldown(30);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send OTP.');
     } finally {
@@ -348,13 +536,22 @@ export default function RegisterDetailsScreen() {
       });
 
       setOtpVerified(true);
-      setInfo('Phone verified.');
+      setInfo('Mobile number verified.');
+      setOtpCode('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'OTP verification failed.');
     } finally {
       setOtpVerifying(false);
     }
   };
+
+  useEffect(() => {
+    if (!otpResendCooldown) return;
+    const t = setInterval(() => {
+      setOtpResendCooldown((v) => Math.max(0, (v ?? 0) - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [otpResendCooldown]);
 
   const pickAadhaarImage = async () => {
     setError(null);
@@ -430,13 +627,16 @@ export default function RegisterDetailsScreen() {
       if (uploadError) throw new Error(uploadError.message);
 
       const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          document_type: 'Aadhaar',
-          document_number: aadhaarDigits,
-          document_image_url: path,
-        })
-        .eq('id', user.id);
+        .from('user_documents')
+        .upsert(
+          {
+            user_id: user.id,
+            document_type: 'aadhar',
+            document_number: aadhaarDigits,
+            image_url: path,
+          } as any,
+          { onConflict: 'user_id,document_type' } as any
+        );
       if (updateError) throw new Error(updateError.message);
 
       setInfo('Saved.');
@@ -555,24 +755,23 @@ export default function RegisterDetailsScreen() {
             backgroundColor="#1F4E79"
             color="#FFFFFF"
             onPress={sendOtp}
-            disabled={otpSending || otpVerified}>
-            {otpVerified ? 'OTP Verified' : otpSending ? 'Sending…' : 'Send OTP'}
+            disabled={otpSending || otpVerified || otpResendCooldown > 0}>
+            {otpVerified
+              ? 'OTP Verified'
+              : otpSending
+              ? 'Sending…'
+              : otpSent
+              ? otpResendCooldown > 0
+                ? `Resend OTP (${otpResendCooldown}s)`
+                : 'Resend OTP'
+              : 'Send OTP'}
           </Button>
         </XStack>
 
+        {otpVerified ? <Paragraph color="#34D399">Mobile number verified.</Paragraph> : null}
+
         {otpVerified ? (
           <YStack gap="$3">
-            <YStack gap="$2">
-              <Text color={labelColor}>Aadhaar Number</Text>
-              <Input
-                value={aadhaarNumber}
-                onChangeText={(v) => setAadhaarNumber(String(v ?? '').replace(/\D/g, '').slice(0, 12))}
-                placeholder="12-digit Aadhaar"
-                keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
-                maxLength={12}
-              />
-            </YStack>
-
             <YStack gap="$2">
               <Text color={labelColor}>Aadhaar Photo</Text>
               <Pressable onPress={() => void pickAadhaarImage()} style={{ width: '100%' } as any}>
@@ -595,6 +794,17 @@ export default function RegisterDetailsScreen() {
                   ) : null}
                 </View>
               </Pressable>
+            </YStack>
+
+            <YStack gap="$2">
+              <Text color={labelColor}>Aadhaar Number</Text>
+              <Input
+                value={aadhaarNumber}
+                onChangeText={(v) => setAadhaarNumber(String(v ?? '').replace(/\D/g, '').slice(0, 12))}
+                placeholder="12-digit Aadhaar"
+                keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
+                maxLength={12}
+              />
             </YStack>
           </YStack>
         ) : null}

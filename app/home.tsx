@@ -42,7 +42,7 @@ const roleRouteMap: Record<string, string> = {
   admin: '/(tabs)/admin',
   staff: '/(tabs)/admin',
   driver: '/(tabs)/driver',
-  provider: '/(tabs)/driver',
+  provider: '/(tabs)',
   customer: '/(tabs)/bookings',
 };
 
@@ -55,6 +55,19 @@ const glowKeyframes = {
 const resolveRoleRoute = (role?: string | null) => {
   const key = role?.toLowerCase() ?? 'customer';
   return roleRouteMap[key] ?? '/(tabs)';
+};
+
+const resolveDashboardRoute = (args: { role?: string | null; providerSubtype?: string | null }) => {
+  const roleKey = String(args.role ?? '').trim().toLowerCase();
+  const subtype = String(args.providerSubtype ?? '').trim().toLowerCase();
+  if (roleKey === 'admin' || roleKey === 'staff') return '/(tabs)/admin';
+  if (roleKey === 'driver') return '/(tabs)/driver';
+  if (roleKey === 'provider') {
+    if (subtype === 'property_owner') return '/(tabs)/properties';
+    if (subtype === 'home_service') return '/(tabs)/home-service';
+    return '/(tabs)';
+  }
+  return '/(tabs)/bookings';
 };
 
 const steps = [
@@ -627,19 +640,35 @@ export default function HomeLandingScreen() {
       try {
         const { data: u } = await supabase.auth.getUser();
         const roleIntent = String((u.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+        const providerSubtype = String((u.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
         if (roleIntent === 'provider') {
           const { data: row, error: rowError } = await supabase
             .from('users')
-            .select('id, phone, document_number')
+            .select('id, phone')
             .eq('id', session.user.id)
             .maybeSingle();
 
           const phoneOk = Boolean(String((row as any)?.phone ?? '').trim());
-          const aadhaarDigits = String((row as any)?.document_number ?? '').replace(/\D/g, '');
+
+          const { data: docs, error: docsError } = await supabase
+            .from('user_documents')
+            .select('id, document_number')
+            .eq('user_id', session.user.id)
+            .eq('document_type', 'aadhar')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const doc = (docs ?? [])[0] as any;
+          const aadhaarDigits = String(doc?.document_number ?? '').replace(/\D/g, '');
           const aadhaarOk = aadhaarDigits.length === 12;
 
-          if (rowError || !phoneOk || !aadhaarOk) {
+          if (rowError || docsError || !phoneOk || !aadhaarOk) {
             router.replace('/auth/register' as any);
+            return;
+          }
+
+          if (providerSubtype === 'property_owner') {
+            router.replace('/(tabs)/properties' as any);
             return;
           }
         }
@@ -647,7 +676,9 @@ export default function HomeLandingScreen() {
         // ignore
       }
 
-      router.replace('/(tabs)/driver');
+      if (isDriver) {
+        router.replace('/(tabs)/driver');
+      }
     })();
   }, [isProvider, router, session?.user?.id]);
 
@@ -826,7 +857,8 @@ export default function HomeLandingScreen() {
 
   const handleDashboardSafe = async () => {
     await refreshProfile();
-    router.push({ pathname: resolveRoleRoute(profile?.role) } as any);
+    const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
+    router.push({ pathname: resolveDashboardRoute({ role: profile?.role, providerSubtype }) } as any);
   };
 
   const handleAdminSectionSafe = async (section: string) => {
@@ -1737,81 +1769,31 @@ export default function HomeLandingScreen() {
                             </View>
                           </YStack>
                         </Pressable>
-
-                        <Pressable onPress={handleDashboardSafe}>
-                          <YStack
-                            paddingHorizontal={22}
-                            paddingVertical={12}
-                            borderRadius={14}
-                            backgroundColor={theme.menuBg}
-                            borderWidth={1}
-                            borderColor="rgba(255,255,255,0.12)"
-                            shadowColor={theme.shadow}
-                            shadowOffset={{ width: 0, height: 3 }}
-                            shadowOpacity={0.12}
-                            shadowRadius={6}
-                            elevation={3}>
-                            <Text
-                              color={theme.menuText}
-                              fontSize={15}
-                              fontWeight="700"
-                              style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
-                              Admin Panel
-                            </Text>
-                          </YStack>
-                        </Pressable>
                       </>
                     )}
 
-                    {isDriver && (
-                      <Pressable onPress={handleDashboardSafe}>
-                        <YStack
-                          paddingHorizontal={22}
-                          paddingVertical={12}
-                          borderRadius={14}
-                          backgroundColor={theme.menuBg}
-                          borderWidth={1}
-                          borderColor="rgba(255,255,255,0.12)"
-                          shadowColor={theme.shadow}
-                          shadowOffset={{ width: 0, height: 3 }}
-                          shadowOpacity={0.12}
-                          shadowRadius={6}
-                          elevation={3}>
-                          <Text
-                            color={theme.menuText}
-                            fontSize={15}
-                            fontWeight="700"
-                            style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
-                            Driver Panel
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                    )}
-
-                    {isCustomer && (
-                      <Pressable onPress={handleDashboardSafe}>
-                        <YStack
-                          paddingHorizontal={22}
-                          paddingVertical={12}
-                          borderRadius={14}
-                          backgroundColor={theme.menuBg}
-                          borderWidth={1}
-                          borderColor="rgba(255,255,255,0.12)"
-                          shadowColor={theme.shadow}
-                          shadowOffset={{ width: 0, height: 3 }}
-                          shadowOpacity={0.12}
-                          shadowRadius={6}
-                          elevation={3}>
-                          <Text
-                            color={theme.menuText}
-                            fontSize={15}
-                            fontWeight="700"
-                            style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
-                            My Bookings
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                    )}
+                    <Pressable onPress={handleDashboardSafe}>
+                      <YStack
+                        paddingHorizontal={22}
+                        paddingVertical={12}
+                        borderRadius={14}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor="rgba(255,255,255,0.12)"
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}>
+                        <Text
+                          color={theme.menuText}
+                          fontSize={15}
+                          fontWeight="700"
+                          style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                          Dashboard
+                        </Text>
+                      </YStack>
+                    </Pressable>
 
                     {Platform.OS !== 'android' && (
                       <YStack
@@ -2012,6 +1994,18 @@ export default function HomeLandingScreen() {
                   </Text>
                 </Pressable>
               ))}
+
+              {session ? (
+                <Pressable
+                  onPress={() => {
+                    setMobileMenuOpen(false);
+                    handleDashboardSafe();
+                  }}>
+                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
+                    Dashboard
+                  </Text>
+                </Pressable>
+              ) : null}
 
               {session ? (
                 <Pressable

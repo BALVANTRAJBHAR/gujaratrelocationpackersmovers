@@ -11,9 +11,16 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { session, profile, refreshProfile } = useSession();
   const role = (profile?.role ?? 'customer').toString().trim().toLowerCase();
-  const canSeeDriver = ['driver', 'provider', 'staff', 'admin'].includes(role);
+  const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '')
+    .trim()
+    .toLowerCase();
+
+  const canSeeDriver = ['driver', 'staff', 'admin'].includes(role);
   const canSeeAdmin = ['admin', 'staff'].includes(role);
   const canSeeBookings = !['driver', 'provider'].includes(role);
+
+  const canSeeProperties = role === 'provider' && providerSubtype === 'property_owner';
+  const canSeeHomeService = role === 'provider' && providerSubtype === 'home_service';
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -96,6 +103,26 @@ export default function TabLayout() {
         options={{
           title: 'Tracking',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="location.fill" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        key="tab-properties"
+        name="properties"
+        options={{
+          href: canSeeProperties ? undefined : null,
+          title: 'Properties',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="building.2.fill" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        key="tab-home-service"
+        name="home-service"
+        options={{
+          href: canSeeHomeService ? undefined : null,
+          title: 'Home Service',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.and.screwdriver.fill" color={color} />,
         }}
       />
 

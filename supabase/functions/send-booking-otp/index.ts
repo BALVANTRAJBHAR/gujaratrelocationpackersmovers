@@ -27,6 +27,12 @@ function normalizePhone(input: string) {
   return '';
 }
 
+function normalizePhoneDigits10(input: string) {
+  const digits = String(input ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length >= 10 ? digits.slice(-10) : '';
+}
+
 function randomOtp() {
   const min = 10 ** (OTP_LENGTH - 1);
   const max = 10 ** OTP_LENGTH - 1;
@@ -130,6 +136,7 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const phone = normalizePhone(String(body.phone ?? ''));
+    const requestUserId = String(body.user_id ?? '').trim() || null;
 
     if (!phone) return jsonResponse({ error: 'Valid phone required' }, 400);
 
@@ -141,6 +148,21 @@ serve(async (req) => {
       if (!supabaseUrl) missing.push('SUPABASE_URL');
       if (!serviceKey) missing.push('SERVICE_ROLE_KEY or SUPABASE_SERVICE_ROLE_KEY');
       return jsonResponse({ error: `Supabase service env missing: ${missing.join(', ')}` }, 500);
+    }
+
+    // Duplicate check against app's users table before sending OTP.
+    // App stores phone as 10 digits (without country code) in public.users.phone.
+    const phoneDigits10 = normalizePhoneDigits10(phone);
+    if (!phoneDigits10) return jsonResponse({ error: 'Valid phone required' }, 400);
+
+    const existingUsers = await getRest<{ id: string }[]>(
+      `${supabaseUrl}/rest/v1/users?phone=eq.${encodeURIComponent(phoneDigits10)}&select=id&limit=2`,
+      serviceKey
+    ).catch(() => []);
+
+    const conflict = (existingUsers ?? []).find((u) => u?.id && (!requestUserId || u.id !== requestUserId));
+    if (conflict) {
+      return jsonResponse({ error: 'Phone number already registered. Please use a different number.' }, 409);
     }
 
     const existing = await getRest<any[]>(
