@@ -13,5 +13,19 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "supabase/functions/**",
+    "_post_prev.tsx",
+    "app/properties/post.github.tsx",
+    "app/properties/post.*.bak.tsx",
+    "**/app/properties/post.01e6622.tsx",
+    "**/app/properties/post.0922f4a.tsx",
+    "**/app/properties/post.27c66f2.tsx",
+    "**/app/properties/post.6c5b3a0.tsx",
+    "**/app/properties/post.32d8381.tsx",
+    "**/app/properties/post.0da6b57.tsx",
+    "**/app/properties/post.c872db2.tsx",
+    "**/app/properties/post.dd78879.tsx"
   ]
 }

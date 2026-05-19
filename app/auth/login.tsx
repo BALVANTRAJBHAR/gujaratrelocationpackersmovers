@@ -8,7 +8,7 @@ import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -70,6 +70,41 @@ export default function LoginScreen() {
     return intent === 'provider' ? 'provider' : 'customer';
   };
 
+  const maybeStartOAuthProfileCompletion = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user?.id) return false;
+
+      const { data: profile, error: profileError } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle();
+      if (profileError) return false;
+
+      const dbRole = String((profile as any)?.role ?? '').trim().toLowerCase();
+      const roleIntent = String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+      const providerSubtype = String((user.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
+      const hasAnyRole = Boolean(dbRole) || Boolean(roleIntent);
+      const isProvider = dbRole === 'provider' || roleIntent === 'provider';
+      const needsSubtype = isProvider && !providerSubtype;
+      if (hasAnyRole && !needsSubtype) return false;
+
+      setPendingOAuthUser({ email: user.email ?? '', name: (user.user_metadata as any)?.name });
+      setShowEmailSignup(true);
+      setMode('signup');
+
+      if (isProvider) {
+        setSignupRole('provider');
+        if (providerSubtype === 'property_owner' || providerSubtype === 'home_service') {
+          setSignupProviderSubtype(providerSubtype as any);
+        }
+      }
+      return true;
+    } catch {
+      // ignore
+    }
+    return false;
+  };
+
   const maybeRedirectToRegistration = async () => {
     try {
       const { data } = await supabase.auth.getUser();
@@ -119,7 +154,7 @@ export default function LoginScreen() {
     if (forgotStep !== 'set_password') return;
 
     const tryPrefillEmail = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await getSupabaseSessionSafe();
       const sessionEmail = data.session?.user?.email;
       if (sessionEmail && (!email || email.trim().length === 0)) {
         setEmail(sessionEmail);
@@ -153,18 +188,26 @@ export default function LoginScreen() {
         }
 
         if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
+          await setSupabaseSessionSafe({ access_token, refresh_token });
         } else if (code) {
-          await supabase.auth.exchangeCodeForSession(code);
+          await runSupabaseAuth(() => supabase.auth.exchangeCodeForSession(code));
         }
 
-        const { data } = await supabase.auth.getSession();
+        const { data } = await getSupabaseSessionSafe();
         if (data.session?.user?.id) {
           if (isRecovery) {
             setMode('forgot');
             setForgotStep('set_password');
             setInfo('Set a new password for your account.');
             setError(null);
+            return;
+          }
+
+          const didStartCompletion = await maybeStartOAuthProfileCompletion();
+          if (didStartCompletion) {
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
+            }
             return;
           }
 
@@ -288,22 +331,8 @@ export default function LoginScreen() {
         return;
       }
 
-      // After successful OAuth, check if user is new and needs role selection
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (!profile?.role) {
-          // New user: show role selection UI
-          setPendingOAuthUser({ email: user.email ?? '', name: user.user_metadata?.name });
-          setShowEmailSignup(true);
-          setMode('signup');
-          return;
-        }
-      }
+      const didStartCompletion = await maybeStartOAuthProfileCompletion();
+      if (didStartCompletion) return;
 
       const redirect = String(params.redirectTo ?? '').trim();
       if (redirect) {

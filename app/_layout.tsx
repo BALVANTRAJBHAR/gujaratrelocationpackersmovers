@@ -1,12 +1,17 @@
+import '@/lib/supabase-auth-guard-init';
+import '@/lib/font-web-guard-init';
+
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import '@/lib/driver-location-task';
+import { installFontTimeoutGuard, preloadWebIconFonts } from '@/lib/font-web-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
@@ -17,6 +22,12 @@ export const unstable_settings = {
 
 function AppLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    const cleanup = installFontTimeoutGuard();
+    void preloadWebIconFonts();
+    return cleanup;
+  }, []);
 
   return (
     <SessionProvider>

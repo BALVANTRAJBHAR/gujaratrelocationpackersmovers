@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,13 @@ type PropertyRow = {
   created_at: string;
 };
 
+type UploadRow = {
+  id: string;
+  property_id: string;
+  file_url: string;
+  file_type: string | null;
+};
+
 export default function MyPropertiesScreen() {
   const router = useRouter();
   const { session } = useSession();
@@ -26,6 +34,7 @@ export default function MyPropertiesScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<PropertyRow[]>([]);
+  const [mediaByPropertyId, setMediaByPropertyId] = useState<Record<string, PropertyMediaItem[]>>({});
 
   const userId = session?.user?.id ?? '';
 
@@ -48,10 +57,39 @@ export default function MyPropertiesScreen() {
         .limit(100);
 
       if (fetchError) throw new Error(fetchError.message);
-      setItems(((data as any) ?? []) as PropertyRow[]);
+
+      const rows = ((data as any) ?? []) as PropertyRow[];
+      setItems(rows);
+
+      const ids = rows.map((r) => r.id).filter(Boolean);
+      if (!ids.length) {
+        setMediaByPropertyId({});
+        return;
+      }
+
+      const { data: uploads, error: upErr } = await supabase
+        .from('property_uploads')
+        .select('id,property_id,file_url,file_type')
+        .in('property_id', ids)
+        .order('created_at', { ascending: true });
+
+      if (upErr) {
+        setMediaByPropertyId({});
+        return;
+      }
+
+      const grouped: Record<string, PropertyMediaItem[]> = {};
+      for (const u of ((uploads as UploadRow[]) ?? [])) {
+        const pid = String(u.property_id ?? '').trim();
+        if (!pid) continue;
+        if (!grouped[pid]) grouped[pid] = [];
+        grouped[pid].push(...uploadsToMediaItems([u]));
+      }
+      setMediaByPropertyId(grouped);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load your properties.');
       setItems([]);
+      setMediaByPropertyId({});
     } finally {
       setLoading(false);
     }
@@ -68,19 +106,23 @@ export default function MyPropertiesScreen() {
     router.replace({ pathname: '/auth/login', params: { redirectTo: '/properties/my-properties' } } as any);
   }, [canUse, router]);
 
-  const updateStatus = async (id: string, nextStatus: 'draft' | 'published') => {
+  const unpublish = async (id: string) => {
     if (!id) return;
 
     try {
       setLoading(true);
-      const { error: updateError } = await supabase.from('properties').update({ status: nextStatus }).eq('id', id);
+      const { error: updateError } = await supabase.from('properties').update({ status: 'draft' }).eq('id', id);
       if (updateError) throw new Error(updateError.message);
       await load();
     } catch (e) {
-      Alert.alert('Failed', e instanceof Error ? e.message : 'Could not update status.');
+      Alert.alert('Failed', e instanceof Error ? e.message : 'Could not unpublish.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const openEditWizard = (id: string) => {
+    router.push({ pathname: '/properties/post', params: { editId: id } } as any);
   };
 
   const pageBg = '#FFFFFF';
@@ -109,6 +151,10 @@ export default function MyPropertiesScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
         <YStack gap="$3">
+          <Text color={muted} fontSize={12}>
+            Published listings appear in search. Draft listings are hidden until you review all steps and publish.
+          </Text>
+
           <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
             <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => void load()} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
@@ -124,6 +170,8 @@ export default function MyPropertiesScreen() {
           {items.map((p) => {
             const location = `${p.locality ? `${p.locality}, ` : ''}${p.city ?? ''}${p.city ? ', ' : ''}${p.state ?? ''}`.trim();
             const status = String(p.status ?? '').trim().toLowerCase();
+            const isPublished = status === 'published';
+            const cardMedia = mediaByPropertyId[p.id] ?? [];
 
             return (
               <YStack key={p.id} backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
@@ -137,14 +185,21 @@ export default function MyPropertiesScreen() {
                     </Text>
                   </YStack>
                   <YStack alignItems="flex-end" gap="$1">
-                    <Text color={status === 'published' ? '#10B981' : '#F59E0B'} fontWeight="900" fontSize={12}>
-                      {status ? status.toUpperCase() : '—'}
+                    <Text color={isPublished ? '#10B981' : '#F59E0B'} fontWeight="900" fontSize={12}>
+                      {isPublished ? 'PUBLISHED' : 'DRAFT'}
                     </Text>
                     <Text color={muted} fontSize={11}>
                       {String(p.listing_type ?? '').toUpperCase()}
                     </Text>
+                    <Text color={muted} fontSize={10} textAlign="right">
+                      {isPublished ? 'Visible in search' : 'Hidden from search'}
+                    </Text>
                   </YStack>
                 </XStack>
+
+                {cardMedia.length ? (
+                  <PropertyMediaGrid items={cardMedia} size={72} />
+                ) : null}
 
                 <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                   <Text color="#10B981" fontWeight="900">
@@ -161,28 +216,36 @@ export default function MyPropertiesScreen() {
                       </Text>
                     </Pressable>
 
-                    {status === 'published' ? (
+                    <Pressable onPress={() => openEditWizard(p.id)}>
+                      <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
+                        Edit
+                      </Text>
+                    </Pressable>
+
+                    {isPublished ? (
                       <Pressable
                         onPress={() => {
-                          Alert.alert('Unpublish?', 'This will hide your property from public search.', [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Unpublish', style: 'destructive', onPress: () => void updateStatus(p.id, 'draft') },
-                          ]);
+                          Alert.alert(
+                            'Unpublish listing?',
+                            'This will hide the property from search. You can edit all steps and publish again anytime.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Unpublish',
+                                style: 'destructive',
+                                onPress: () => void unpublish(p.id),
+                              },
+                            ]
+                          );
                         }}>
                         <Text color="#EF4444" fontWeight="900" fontSize={12}>
                           Unpublish
                         </Text>
                       </Pressable>
                     ) : (
-                      <Pressable
-                        onPress={() => {
-                          Alert.alert('Publish?', 'This will make your property visible in search.', [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Publish', onPress: () => void updateStatus(p.id, 'published') },
-                          ]);
-                        }}>
+                      <Pressable onPress={() => openEditWizard(p.id)}>
                         <Text color="#10B981" fontWeight="900" fontSize={12}>
-                          Publish
+                          Edit & Publish
                         </Text>
                       </Pressable>
                     )}

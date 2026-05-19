@@ -4,11 +4,13 @@ import * as Notifications from 'expo-notifications';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { supabase } from '@/lib/supabase';
+import { isSupabaseAuthAbortError } from '@/lib/supabase-auth-guard';
+import { getSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
 type UserProfile = {
   id: string;
   name: string | null;
+  phone: string | null;
   email: string | null;
   role: string | null;
   provider_services?: string[] | null;
@@ -94,7 +96,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
 
     activeProfileUserIdRef.current = userId;
-    const baseSelect = 'id, name, email, role, provider_services';
+    const baseSelect = 'id, name, phone, email, role, provider_services';
 
     const promise = (async () => {
       const { data: baseData, error: baseError } = await supabase
@@ -109,6 +111,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       setProfile({
         ...(baseData as any),
+        phone: (baseData as any)?.phone ?? null,
         license_number: null,
         vehicle_type: null,
         vehicle_number: null,
@@ -144,45 +147,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     let isMounted = true;
 
-    const shouldIgnoreSupabaseAbort = (value: unknown) => {
-      const msg = String((value as any)?.message ?? value ?? '');
-      return msg.toLowerCase().includes('signal is aborted without reason');
-    };
-
-    const unhandledRejectionHandler = (event: any) => {
-      const reason = event?.reason;
-      if (shouldIgnoreSupabaseAbort(reason)) {
-        event?.preventDefault?.();
-        return;
-      }
-    };
-
-    const errorHandler = (event: any) => {
-      const err = event?.error ?? event?.message;
-      if (shouldIgnoreSupabaseAbort(err)) {
-        event?.preventDefault?.();
-        return;
-      }
-    };
-
-    const errorUtils = (globalThis as any)?.ErrorUtils;
-    const prevGlobalHandler = errorUtils?.getGlobalHandler?.();
-    const setGlobalHandler = errorUtils?.setGlobalHandler?.bind(errorUtils);
-
-    if (Platform.OS !== 'web' && typeof setGlobalHandler === 'function') {
-      setGlobalHandler((e: any, isFatal?: boolean) => {
-        if (shouldIgnoreSupabaseAbort(e)) return;
-        if (typeof prevGlobalHandler === 'function') {
-          prevGlobalHandler(e, isFatal);
-        }
-      });
-    }
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.addEventListener('unhandledrejection', unhandledRejectionHandler);
-      window.addEventListener('error', errorHandler);
-    }
-
     const safeSetLoading = (v: boolean) => {
       if (!isMounted) return;
       setLoading(v);
@@ -198,7 +162,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await getSupabaseSessionSafe();
         safeSetSession(data.session ?? null);
         if (data.session?.user?.id) {
           void ensureUserRow(data.session);
@@ -210,7 +174,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } catch (e: any) {
         const msg = String(e?.message ?? '');
         const name = String(e?.name ?? '');
-        if (name === 'AbortError' || msg.toLowerCase().includes('aborted')) {
+        if (name === 'AbortError' || isSupabaseAuthAbortError(e) || msg.toLowerCase().includes('aborted')) {
           // ignore transient aborts from auth locking on web/dev reloads
         } else {
           safeSetSession(null);
@@ -240,14 +204,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       listener.subscription.unsubscribe();
 
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.removeEventListener('unhandledrejection', unhandledRejectionHandler);
-        window.removeEventListener('error', errorHandler);
-      }
-
-      if (Platform.OS !== 'web' && typeof setGlobalHandler === 'function' && typeof prevGlobalHandler === 'function') {
-        setGlobalHandler(prevGlobalHandler);
-      }
     };
   }, []);
 

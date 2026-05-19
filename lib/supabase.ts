@@ -1,7 +1,10 @@
+import type { Session } from '@supabase/supabase-js';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+
+import { isSupabaseAuthAbortError } from '@/lib/supabase-auth-guard';
 
 const extra = (Constants as any)?.expoConfig?.extra ?? (Constants as any)?.manifest?.extra ?? {};
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? '';
@@ -89,4 +92,54 @@ export const supabase =
 
 if (Platform.OS !== 'web' && !globalForSupabase.__supabase) {
   globalForSupabase.__supabase = supabase;
+}
+
+let authChain: Promise<unknown> = Promise.resolve();
+
+/** Serialize auth calls to avoid auth-js navigator lock aborts on web. */
+export function runSupabaseAuth<T>(fn: () => Promise<T>): Promise<T> {
+  const run = authChain.then(() => fn());
+  authChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+export async function getSupabaseSessionSafe() {
+  return runSupabaseAuth(async () => {
+    try {
+      return await supabase.auth.getSession();
+    } catch (e) {
+      if (isSupabaseAuthAbortError(e)) {
+        return { data: { session: null as Session | null }, error: null };
+      }
+      throw e;
+    }
+  });
+}
+
+export async function setSupabaseSessionSafe(params: { access_token: string; refresh_token: string }) {
+  return runSupabaseAuth(async () => {
+    try {
+      return await supabase.auth.setSession(params);
+    } catch (e) {
+      if (!isSupabaseAuthAbortError(e)) throw e;
+      await new Promise((r) => setTimeout(r, 80));
+      return await supabase.auth.setSession(params);
+    }
+  });
+}
+
+export async function getSupabaseUserSafe() {
+  return runSupabaseAuth(async () => {
+    try {
+      return await supabase.auth.getUser();
+    } catch (e) {
+      if (isSupabaseAuthAbortError(e)) {
+        return { data: { user: null }, error: null };
+      }
+      throw e;
+    }
+  });
 }

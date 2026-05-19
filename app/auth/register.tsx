@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseUserSafe, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
 export default function RegisterDetailsScreen() {
   const router = useRouter();
@@ -369,7 +369,7 @@ export default function RegisterDetailsScreen() {
             const access_token = (hashParams.get('access_token') ?? searchParams.get('access_token') ?? '').trim();
             const refresh_token = (hashParams.get('refresh_token') ?? searchParams.get('refresh_token') ?? '').trim();
             if (access_token && refresh_token) {
-              await supabase.auth.setSession({ access_token, refresh_token });
+              await setSupabaseSessionSafe({ access_token, refresh_token });
               window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
             }
           } catch {
@@ -377,7 +377,7 @@ export default function RegisterDetailsScreen() {
           }
         }
 
-        const { data: userResp } = await supabase.auth.getUser();
+        const { data: userResp } = await getSupabaseUserSafe();
         const user = userResp.user;
         if (!user?.id) {
           if (isMounted) {

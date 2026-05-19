@@ -10,7 +10,7 @@ const systemSans = Platform.select({
 
 const systemSerif = Platform.select({
   web: "Georgia, 'Times New Roman', serif",
-  default: 'Times New Roman',
+  default: "Georgia, 'Times New Roman', serif",
 });
 
 const bodyFont = createFont({

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import { PropertyMediaGrid, uploadsToMediaItems } from '@/components/property-media-grid';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -182,40 +183,7 @@ export default function PropertyDetailScreen() {
               <Text color={titleColor} fontWeight="900">
                 Media
               </Text>
-              {uploads.length ? (
-                uploads.map((u) => {
-                  const url = String(u.file_url ?? '').trim();
-                  const label = u.file_name || u.file_type || 'File';
-                  return (
-                    <Pressable
-                      key={u.id}
-                      onPress={() => {
-                        if (!url) return;
-                        Linking.openURL(url);
-                      }}>
-                      <XStack
-                        justifyContent="space-between"
-                        alignItems="center"
-                        paddingVertical={8}
-                        paddingHorizontal={10}
-                        borderRadius={10}
-                        backgroundColor={panelBg}
-                        borderWidth={1}
-                        borderColor={border}
-                        gap="$2">
-                        <Text color={titleColor} fontSize={12} fontWeight="800" numberOfLines={1}>
-                          {label}
-                        </Text>
-                        <Text color={muted} fontSize={11}>
-                          Open
-                        </Text>
-                      </XStack>
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <Text color={muted}>No uploads.</Text>
-              )}
+              <PropertyMediaGrid items={uploadsToMediaItems(uploads)} size={108} emptyText="No uploads." />
             </YStack>
           </YStack>
         ) : null}
