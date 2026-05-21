@@ -23,7 +23,7 @@ import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { searchPlaces } from '@/lib/mapbox';
-import { supabase } from '@/lib/supabase';
+import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
 
@@ -365,7 +365,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
   );
 };
 
-export default function HomeLandingScreen() {
+export default function HomeLandingScreen({ embeddedInTabs = false }: { embeddedInTabs?: boolean }) {
   const router = useRouter();
   const { scrollTo } = useLocalSearchParams<{ scrollTo?: string }>();
   const { session, profile, refreshProfile } = useSession();
@@ -632,15 +632,15 @@ export default function HomeLandingScreen() {
   ];
 
   useEffect(() => {
+    if (embeddedInTabs) return;
     if (!session?.user?.id) return;
     if (!isProvider) return;
     if (didRedirectRef.current) return;
     didRedirectRef.current = true;
     void (async () => {
       try {
-        const { data: u } = await supabase.auth.getUser();
-        const roleIntent = String((u.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
-        const providerSubtype = String((u.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
+        const roleIntent = String((session.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
+        const providerSubtype = String((session.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
         if (roleIntent === 'provider') {
           const { data: row, error: rowError } = await supabase
             .from('users')
@@ -680,7 +680,7 @@ export default function HomeLandingScreen() {
         router.replace('/(tabs)/driver');
       }
     })();
-  }, [isProvider, router, session?.user?.id]);
+  }, [embeddedInTabs, isProvider, router, session?.user?.id]);
 
   const welcomeName =
     profile?.name?.trim() ||
@@ -867,7 +867,7 @@ export default function HomeLandingScreen() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOutSupabaseSafe();
     router.replace('/home');
   };
 
@@ -958,7 +958,8 @@ export default function HomeLandingScreen() {
     if (propertyMode === 'rent') {
       params.listing_type = 'rent';
       params.property_category = 'residential';
-      params.ad_type = propertyRentType;
+      // DB stores residential full-house rentals as ad_type='rent' (not 'full_house').
+      params.ad_type = propertyRentType === 'full_house' ? 'rent' : propertyRentType;
       if (propertyRentType === 'full_house') {
         if (rentFullHouseBhkSelected.length) params.bhk = rentFullHouseBhkSelected.join(',');
       } else if (propertyRentType === 'pg_hostel') {

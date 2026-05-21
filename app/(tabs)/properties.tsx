@@ -51,7 +51,7 @@ export default function PropertiesTabScreen() {
               <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => router.push('/properties/post' as any)}>
                 Post Property
               </Button>
-              <Button backgroundColor="#334155" color="#FFFFFF" onPress={() => router.push('/properties/index' as any)}>
+              <Button backgroundColor="#334155" color="#FFFFFF" onPress={() => router.push('/properties' as any)}>
                 Browse
               </Button>
             </XStack>

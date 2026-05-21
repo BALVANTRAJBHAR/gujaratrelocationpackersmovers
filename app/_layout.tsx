@@ -12,6 +12,7 @@ import { TamaguiProvider } from 'tamagui';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import '@/lib/driver-location-task';
 import { installFontTimeoutGuard, preloadWebIconFonts } from '@/lib/font-web-guard';
+import { installSupabaseAuthAbortGuard } from '@/lib/supabase-auth-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
@@ -24,9 +25,13 @@ function AppLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
+    const cleanupAuth = installSupabaseAuthAbortGuard();
     const cleanup = installFontTimeoutGuard();
     void preloadWebIconFonts();
-    return cleanup;
+    return () => {
+      cleanupAuth();
+      cleanup();
+    };
   }, []);
 
   return (

@@ -1939,8 +1939,8 @@ export default function PostPropertyScreen() {
       ...videos.map((uri) => ({ uri, kind: 'video' as const })),
     ];
 
-    for (const it of items) {
-      if (isRemoteMediaUri(it.uri)) continue;
+    const uploadOne = async (it: UploadItem) => {
+      if (isRemoteMediaUri(it.uri)) return;
 
       const fileSize = await getLocalFileSizeBytes(it.uri);
 
@@ -1979,6 +1979,11 @@ export default function PostPropertyScreen() {
         kind: it.kind,
         blob,
       });
+    };
+
+    const concurrency = 3;
+    for (let i = 0; i < items.length; i += concurrency) {
+      await Promise.all(items.slice(i, i + concurrency).map((it) => uploadOne(it)));
     }
   };
 

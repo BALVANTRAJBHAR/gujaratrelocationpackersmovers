@@ -4,7 +4,9 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { isSupabaseAuthAbortError } from '@/lib/supabase-auth-guard';
+import { installSupabaseAuthAbortGuardIfWeb, isSupabaseAuthAbortError } from '@/lib/supabase-auth-guard';
+
+installSupabaseAuthAbortGuardIfWeb();
 
 const extra = (Constants as any)?.expoConfig?.extra ?? (Constants as any)?.manifest?.extra ?? {};
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? '';
@@ -87,12 +89,11 @@ const createSupabaseClient = () =>
     },
   });
 
-export const supabase =
-  Platform.OS === 'web' ? createSupabaseClient() : globalForSupabase.__supabase ?? createSupabaseClient();
-
-if (Platform.OS !== 'web' && !globalForSupabase.__supabase) {
-  globalForSupabase.__supabase = supabase;
+if (!globalForSupabase.__supabase) {
+  globalForSupabase.__supabase = createSupabaseClient();
 }
+
+export const supabase = globalForSupabase.__supabase as ReturnType<typeof createSupabaseClient>;
 
 let authChain: Promise<unknown> = Promise.resolve();
 
@@ -140,6 +141,16 @@ export async function getSupabaseUserSafe() {
         return { data: { user: null }, error: null };
       }
       throw e;
+    }
+  });
+}
+
+export async function signOutSupabaseSafe() {
+  return runSupabaseAuth(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      if (!isSupabaseAuthAbortError(e)) throw e;
     }
   });
 }

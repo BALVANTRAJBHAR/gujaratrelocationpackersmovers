@@ -3,12 +3,15 @@ import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
 import { PropertyMediaGrid, uploadsToMediaItems } from '@/components/property-media-grid';
+import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 type PropertyRow = {
   id: string;
   listing_type: string;
+  property_category: string | null;
+  ad_type: string | null;
   property_type: string | null;
   title: string | null;
   description: string | null;
@@ -63,7 +66,7 @@ export default function PropertyDetailScreen() {
         const { data, error: fetchError } = await supabase
           .from('properties')
           .select(
-            'id,listing_type,property_type,title,description,price,deposit,maintenance,available_from,bedrooms,bathrooms,area_sqft,carpet_area_sqft,furnishing,parking,address_line1,address_line2,state,city,locality,pincode,contact_name,contact_phone,status,created_at'
+            'id,listing_type,property_category,ad_type,property_type,title,description,price,deposit,maintenance,available_from,bedrooms,bathrooms,area_sqft,carpet_area_sqft,furnishing,parking,address_line1,address_line2,state,city,locality,pincode,contact_name,contact_phone,status,created_at'
           )
           .eq('id', id)
           .maybeSingle();
@@ -132,7 +135,7 @@ export default function PropertyDetailScreen() {
           <YStack gap="$3">
             <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900" fontSize={16}>
-                {item.title ?? 'Property'}
+                {formatPropertyListingTitle(item)}
               </Text>
               <Text color={muted} fontSize={12}>
                 {(item.locality ?? '') + (item.locality ? ', ' : '') + (item.city ?? '') + (item.city ? ', ' : '') + (item.state ?? '')}

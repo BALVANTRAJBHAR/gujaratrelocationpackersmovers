@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
 import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
+import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
@@ -10,9 +11,13 @@ import { useRouter } from 'expo-router';
 type PropertyRow = {
   id: string;
   listing_type: string;
+  property_category: string | null;
+  ad_type: string | null;
   property_type: string | null;
   title: string | null;
   price: number | null;
+  bedrooms: number | null;
+  area_sqft: number | null;
   state: string | null;
   city: string | null;
   locality: string | null;
@@ -51,7 +56,9 @@ export default function MyPropertiesScreen() {
     try {
       const { data, error: fetchError } = await supabase
         .from('properties')
-        .select('id,listing_type,property_type,title,price,state,city,locality,status,created_at')
+        .select(
+          'id,listing_type,property_category,ad_type,property_type,title,price,bedrooms,area_sqft,state,city,locality,status,created_at'
+        )
         .eq('owner_user_id', userId)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -172,13 +179,14 @@ export default function MyPropertiesScreen() {
             const status = String(p.status ?? '').trim().toLowerCase();
             const isPublished = status === 'published';
             const cardMedia = mediaByPropertyId[p.id] ?? [];
+            const listingTitle = formatPropertyListingTitle(p);
 
             return (
               <YStack key={p.id} backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <XStack justifyContent="space-between" alignItems="flex-start" gap="$2">
                   <YStack flex={1} gap="$1">
-                    <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={1}>
-                      {p.title ?? 'Property'}
+                    <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={2}>
+                      {listingTitle}
                     </Text>
                     <Text color={muted} fontSize={12} numberOfLines={1}>
                       {location || '—'}

@@ -46,10 +46,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const didInitRef = useRef(false);
   const activeProfileUserIdRef = useRef<string | null>(null);
   const profileLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const ensuredUserRowIdsRef = useRef<Set<string>>(new Set());
 
   const ensureUserRow = async (s: Session) => {
     const userId = s?.user?.id;
     if (!userId) return;
+    if (ensuredUserRowIdsRef.current.has(userId)) return;
+    ensuredUserRowIdsRef.current.add(userId);
     try {
       const email = s.user.email ?? null;
       const name = (s.user.user_metadata as any)?.name ?? null;
@@ -57,7 +60,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         .from('users')
         .upsert({ id: userId, email, name }, { onConflict: 'id' });
     } catch {
-      // ignore
+      ensuredUserRowIdsRef.current.delete(userId);
     }
   };
 

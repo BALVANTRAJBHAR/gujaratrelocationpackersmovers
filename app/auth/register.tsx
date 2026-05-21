@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { getSupabaseUserSafe, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
+import { findExistingUserByAadhaar, findExistingUserByPhone } from '@/lib/user-duplicate-check';
 
 export default function RegisterDetailsScreen() {
   const router = useRouter();
@@ -389,11 +390,16 @@ export default function RegisterDetailsScreen() {
 
         if (isMounted) setUserId(user.id);
 
-        const { data: row, error: rowError } = await supabase
-          .from('users')
-          .select('id, name, phone, role')
-          .eq('id', user.id)
-          .maybeSingle();
+        const [{ data: row, error: rowError }, { data: docs }] = await Promise.all([
+          supabase.from('users').select('id, name, phone, role').eq('id', user.id).maybeSingle(),
+          supabase
+            .from('user_documents')
+            .select('id, document_type, document_number, image_url, created_at')
+            .eq('user_id', user.id)
+            .in('document_type', ['aadhar', 'aadhaar', 'Aadhaar', 'Aadhar'])
+            .order('created_at', { ascending: false })
+            .limit(1),
+        ]);
 
         if (!rowError && row) {
           if (isMounted) {
@@ -422,23 +428,10 @@ export default function RegisterDetailsScreen() {
           }
         }
 
-        // Load Aadhaar details from user_documents (schema-aligned)
-        try {
-          const { data: docs } = await supabase
-            .from('user_documents')
-            .select('id, document_type, document_number, image_url, created_at')
-            .eq('user_id', user.id)
-            .in('document_type', ['aadhar', 'aadhaar', 'Aadhaar', 'Aadhar'])
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-          const doc = (docs ?? [])[0] as any;
-          if (doc?.document_number && isMounted) {
-            setAadhaarNumber(String(doc.document_number ?? '').trim());
-            setAadhaarExtracted(String(doc.document_number ?? '').trim());
-          }
-        } catch {
-          // ignore
+        const doc = (docs ?? [])[0] as any;
+        if (doc?.document_number && isMounted) {
+          setAadhaarNumber(String(doc.document_number ?? '').trim());
+          setAadhaarExtracted(String(doc.document_number ?? '').trim());
         }
       } catch (e) {
         if (isMounted) setError(e instanceof Error ? e.message : 'Failed to load profile.');
@@ -468,8 +461,20 @@ export default function RegisterDetailsScreen() {
 
     const normalizedPhone = fullPhoneForOtp();
 
+    const uid = userId;
+    if (!uid) {
+      setError('Please login again.');
+      return;
+    }
+
     setOtpSending(true);
     try {
+      const existingPhoneUser = await findExistingUserByPhone(supabase, digits, uid);
+      if (existingPhoneUser) {
+        setError('This mobile number is already registered with another account.');
+        return;
+      }
+
       await invokeEdgeFunction('send-booking-otp', { phone: normalizedPhone, user_id: userId });
       setInfo('OTP sent.');
       setOtpSent(true);
@@ -497,8 +502,20 @@ export default function RegisterDetailsScreen() {
       return;
     }
 
+    const uid = userId;
+    if (!uid) {
+      setError('Please login again.');
+      return;
+    }
+
     setOtpVerifying(true);
     try {
+      const existingPhoneUser = await findExistingUserByPhone(supabase, digits, uid);
+      if (existingPhoneUser) {
+        setError('This mobile number is already registered with another account.');
+        return;
+      }
+
       const resp = await invokeEdgeFunction<{ valid?: boolean; error?: string }>('verify-booking-otp', {
         phone: normalizedPhone,
         code,
@@ -508,7 +525,7 @@ export default function RegisterDetailsScreen() {
         return;
       }
 
-      const { data: userResp } = await supabase.auth.getUser();
+      const { data: userResp } = await getSupabaseUserSafe();
       const user = userResp.user;
       if (!user?.id) throw new Error('Please login again.');
 
@@ -603,12 +620,20 @@ export default function RegisterDetailsScreen() {
       return;
     }
 
+    const uid = userId;
+    if (!uid) {
+      setError('Please login again.');
+      return;
+    }
+
     setSaving(true);
     setAadhaarUploading(true);
     try {
-      const { data: userResp } = await supabase.auth.getUser();
-      const user = userResp.user;
-      if (!user?.id) throw new Error('Please login again.');
+      const existingAadhaarUser = await findExistingUserByAadhaar(supabase, aadhaarDigits, uid);
+      if (existingAadhaarUser) {
+        setError('This Aadhaar number is already registered with another account.');
+        return;
+      }
 
       const response = await fetch(aadhaarImageUri);
       const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -618,7 +643,7 @@ export default function RegisterDetailsScreen() {
       if (bytes.length > 10 * 1024 * 1024) throw new Error('Image too large. Max 10MB.');
 
       const ext = contentType.includes('png') ? 'png' : 'jpg';
-      const path = `${user.id}/aadhaar-${Date.now()}.${ext}`;
+      const path = `${uid}/aadhaar-${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage.from('driver-docs').upload(path, bytes, {
         contentType,
@@ -630,7 +655,7 @@ export default function RegisterDetailsScreen() {
         .from('user_documents')
         .upsert(
           {
-            user_id: user.id,
+            user_id: uid,
             document_type: 'aadhar',
             document_number: aadhaarDigits,
             image_url: path,

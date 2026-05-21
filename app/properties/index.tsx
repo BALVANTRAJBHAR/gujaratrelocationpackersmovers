@@ -1,8 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
+import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
+import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
+import {
+  collectLocalityTokens,
+  escapePostgrestValue,
+  normalizeAdTypeForSearch,
+  parseBhkBedrooms,
+  parseOptionalFilterNumber,
+  resolveAdTypeQuery,
+  routeParam,
+} from '@/lib/properties/search-params';
 import { searchPlaces } from '@/lib/mapbox';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySubscription } from '@/lib/razorpay';
@@ -13,6 +23,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 type PropertyRow = {
   id: string;
   listing_type: string;
+  property_category?: string | null;
+  ad_type?: string | null;
   property_type: string | null;
   title: string | null;
   price: number | null;
@@ -22,7 +34,6 @@ type PropertyRow = {
   bathrooms: number | null;
   area_sqft: number | null;
   carpet_area_sqft?: number | null;
-  has_photo?: boolean | null;
   furnishing: string | null;
   parking: string | null;
   state: string | null;
@@ -43,6 +54,41 @@ type PropertyUploadRow = {
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
+
+type SearchSnapshot = {
+  listingType: 'rent' | 'buy' | 'commercial';
+  stateValue: string;
+  cityValue: string;
+  localityValue: string;
+  selectedLocalities: string[];
+  propertyCategory: string;
+  adType: string;
+  bhkCsv: string;
+  propertyStatus: string;
+  newBuilderProject: string;
+  pgTenantType: string;
+  pgRoomType: string;
+  flatmatesTenantType: string;
+  flatmatesRoomType: string;
+  propertyTypeCsv: string;
+  commercialAvailability: string;
+  minPrice: string;
+  maxPrice: string;
+  minCarpet: string;
+  maxCarpet: string;
+  amenityGym: boolean;
+  amenitySwimmingPool: boolean;
+  amenityPowerBackup: boolean;
+  amenityVisitorParking: boolean;
+  activeFilterTab: 'filters' | 'premium';
+  minBuiltUp: string;
+  maxBuiltUp: string;
+  propertyAgeMaxYears: number | null;
+  minBathrooms: number | null;
+  floorBucket: string;
+  withPhotoOnly: boolean;
+  removeSeen: boolean;
+};
 
 export default function PropertiesIndexScreen() {
   const router = useRouter();
@@ -68,6 +114,7 @@ export default function PropertiesIndexScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PropertyRow[]>([]);
+  const [mediaByPropertyId, setMediaByPropertyId] = useState<Record<string, PropertyMediaItem[]>>({});
   const [hasMore, setHasMore] = useState(false);
   const [cursorCreatedAt, setCursorCreatedAt] = useState<string | null>(null);
   const [cursorId, setCursorId] = useState<string | null>(null);
@@ -105,6 +152,7 @@ export default function PropertiesIndexScreen() {
   const [premiumUnlocked, setPremiumUnlocked] = useState(false);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
+  const [unlockingPlanCode, setUnlockingPlanCode] = useState<string | null>(null);
 
   const [minBuiltUp, setMinBuiltUp] = useState<string>('');
   const [maxBuiltUp, setMaxBuiltUp] = useState<string>('');
@@ -119,31 +167,157 @@ export default function PropertiesIndexScreen() {
   const [localityRawDebug, setLocalityRawDebug] = useState<string>('');
   const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
 
-  const hasInitializedFromParamsRef = useRef(false);
+  const [filtersReady, setFiltersReady] = useState(false);
+  const searchRequestIdRef = useRef(0);
+  const skipNextAutoSearchRef = useRef(false);
+  const skipCityLocalityResetRef = useRef(true);
+  const pendingSearchSnapshotRef = useRef<SearchSnapshot | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchFnRef = useRef<(reset?: boolean, override?: Partial<SearchSnapshot>) => Promise<void>>(async () => {});
+
+  const paramsSearchKey = useMemo(
+    () =>
+      JSON.stringify({
+        listing_type: routeParam(params.listing_type),
+        property_category: routeParam(params.property_category),
+        ad_type: routeParam(params.ad_type),
+        bhk: routeParam(params.bhk),
+        state: routeParam(params.state),
+        city: routeParam(params.city),
+        q: routeParam(params.q),
+        property_status: routeParam(params.property_status),
+        new_builder_project: routeParam(params.new_builder_project),
+        pg_tenant_type: routeParam(params.pg_tenant_type),
+        pg_room_type: routeParam(params.pg_room_type),
+        flatmates_tenant_type: routeParam(params.flatmates_tenant_type),
+        flatmates_room_type: routeParam(params.flatmates_room_type),
+        property_type: routeParam(params.property_type),
+        commercial_availability: routeParam(params.commercial_availability),
+      }),
+    [
+      params.ad_type,
+      params.bhk,
+      params.city,
+      params.commercial_availability,
+      params.flatmates_room_type,
+      params.flatmates_tenant_type,
+      params.listing_type,
+      params.new_builder_project,
+      params.pg_room_type,
+      params.pg_tenant_type,
+      params.property_category,
+      params.property_status,
+      params.property_type,
+      params.q,
+      params.state,
+    ]
+  );
+
+  const buildSnapshotFromState = (): SearchSnapshot => ({
+    listingType,
+    stateValue,
+    cityValue,
+    localityValue,
+    selectedLocalities,
+    propertyCategory,
+    adType,
+    bhkCsv,
+    propertyStatus,
+    newBuilderProject,
+    pgTenantType,
+    pgRoomType,
+    flatmatesTenantType,
+    flatmatesRoomType,
+    propertyTypeCsv,
+    commercialAvailability,
+    minPrice,
+    maxPrice,
+    minCarpet,
+    maxCarpet,
+    amenityGym,
+    amenitySwimmingPool,
+    amenityPowerBackup,
+    amenityVisitorParking,
+    activeFilterTab,
+    minBuiltUp,
+    maxBuiltUp,
+    propertyAgeMaxYears,
+    minBathrooms,
+    floorBucket,
+    withPhotoOnly,
+    removeSeen,
+  });
 
   useEffect(() => {
-    const lt = String(params.listing_type ?? '').trim();
-    if (lt === 'rent' || lt === 'buy' || lt === 'commercial') setListingType(lt);
-    const st = String(params.state ?? '').trim();
-    const ct = String(params.city ?? '').trim();
-    const q = String(params.q ?? '').trim();
+    const ltParam = routeParam(params.listing_type);
+    const listingForAd: 'rent' | 'buy' | 'commercial' =
+      ltParam === 'rent' || ltParam === 'buy' || ltParam === 'commercial' ? ltParam : 'rent';
+    if (ltParam === 'rent' || ltParam === 'buy' || ltParam === 'commercial') setListingType(ltParam);
+
+    const st = routeParam(params.state);
+    const ct = routeParam(params.city);
+    const q = routeParam(params.q);
     if (st) setStateValue(st);
     if (ct) setCityValue(ct);
-    if (q) setLocalityValue(q);
+    if (q) {
+      setLocalityValue(q);
+      setSelectedLocalities([q]);
+    }
 
-    setPropertyCategory(String(params.property_category ?? '').trim());
-    setAdType(String(params.ad_type ?? '').trim());
-    setBhkCsv(String(params.bhk ?? '').trim());
-    setPropertyStatus(String(params.property_status ?? '').trim());
-    setNewBuilderProject(String(params.new_builder_project ?? '').trim());
-    setPgTenantType(String(params.pg_tenant_type ?? '').trim());
-    setPgRoomType(String(params.pg_room_type ?? '').trim());
-    setFlatmatesTenantType(String(params.flatmates_tenant_type ?? '').trim());
-    setFlatmatesRoomType(String(params.flatmates_room_type ?? '').trim());
-    setPropertyTypeCsv(String(params.property_type ?? '').trim());
-    setCommercialAvailability(String(params.commercial_availability ?? '').trim());
+    const incomingCategory = routeParam(params.property_category);
+    const incomingAdType = routeParam(params.ad_type);
+    const normalizedAd = normalizeAdTypeForSearch(incomingAdType, listingForAd) || incomingAdType;
 
-    hasInitializedFromParamsRef.current = true;
+    setPropertyCategory(incomingCategory);
+    setAdType(normalizedAd);
+    setBhkCsv(routeParam(params.bhk));
+    setPropertyStatus(routeParam(params.property_status));
+    setNewBuilderProject(routeParam(params.new_builder_project));
+    setPgTenantType(routeParam(params.pg_tenant_type));
+    setPgRoomType(routeParam(params.pg_room_type));
+    setFlatmatesTenantType(routeParam(params.flatmates_tenant_type));
+    setFlatmatesRoomType(routeParam(params.flatmates_room_type));
+    setPropertyTypeCsv(routeParam(params.property_type));
+    setCommercialAvailability(routeParam(params.commercial_availability));
+
+    pendingSearchSnapshotRef.current = {
+      listingType: listingForAd,
+      stateValue: st,
+      cityValue: ct,
+      localityValue: q,
+      selectedLocalities: q ? [q] : [],
+      propertyCategory: incomingCategory,
+      adType: normalizedAd,
+      bhkCsv: routeParam(params.bhk),
+      propertyStatus: routeParam(params.property_status),
+      newBuilderProject: routeParam(params.new_builder_project),
+      pgTenantType: routeParam(params.pg_tenant_type),
+      pgRoomType: routeParam(params.pg_room_type),
+      flatmatesTenantType: routeParam(params.flatmates_tenant_type),
+      flatmatesRoomType: routeParam(params.flatmates_room_type),
+      propertyTypeCsv: routeParam(params.property_type),
+      commercialAvailability: routeParam(params.commercial_availability),
+      minPrice: '',
+      maxPrice: '',
+      minCarpet: '',
+      maxCarpet: '',
+      amenityGym: false,
+      amenitySwimmingPool: false,
+      amenityPowerBackup: false,
+      amenityVisitorParking: false,
+      activeFilterTab: 'filters',
+      minBuiltUp: '',
+      maxBuiltUp: '',
+      propertyAgeMaxYears: null,
+      minBathrooms: null,
+      floorBucket: '',
+      withPhotoOnly: false,
+      removeSeen: false,
+    };
+
+    setFiltersReady(true);
+    skipNextAutoSearchRef.current = true;
+    skipCityLocalityResetRef.current = true;
   }, [
     params.ad_type,
     params.bhk,
@@ -163,10 +337,21 @@ export default function PropertiesIndexScreen() {
   ]);
 
   useEffect(() => {
-    if (!hasInitializedFromParamsRef.current) return;
-    void search();
+    if (!filtersReady) return;
+    if (skipNextAutoSearchRef.current) {
+      skipNextAutoSearchRef.current = false;
+      return;
+    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      void searchFnRef.current(true);
+    }, 400);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    filtersReady,
     listingType,
     stateValue,
     cityValue,
@@ -198,6 +383,7 @@ export default function PropertiesIndexScreen() {
     withPhotoOnly,
     removeSeen,
     selectedLocalities,
+    localityValue,
   ]);
 
   useEffect(() => {
@@ -318,7 +504,10 @@ export default function PropertiesIndexScreen() {
   }, [cities, fallbackCityByState, stateValue]);
 
   useEffect(() => {
-    // Reset locality selections when state or city changes
+    if (skipCityLocalityResetRef.current) {
+      skipCityLocalityResetRef.current = false;
+      return;
+    }
     setSelectedLocalities([]);
     setLocalitySuggestions([]);
     setLocalityRawDebug('');
@@ -569,6 +758,9 @@ export default function PropertiesIndexScreen() {
       });
     }
 
+    const RazorpayCheckout = require('react-native-razorpay').default as {
+      open: (options: unknown) => Promise<unknown>;
+    };
     return await RazorpayCheckout.open(options);
   }
 
@@ -609,6 +801,34 @@ export default function PropertiesIndexScreen() {
     return stableStringify(base);
   };
 
+  const loadMediaForProperties = async (propertyIds: string[]) => {
+    const ids = propertyIds.filter(Boolean);
+    if (!ids.length) {
+      setMediaByPropertyId({});
+      return;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from('property_uploads')
+      .select('id,property_id,file_url,file_type')
+      .in('property_id', ids)
+      .order('created_at', { ascending: true });
+
+    if (fetchError) {
+      setMediaByPropertyId({});
+      return;
+    }
+
+    const grouped: Record<string, PropertyMediaItem[]> = {};
+    for (const u of (data as PropertyUploadRow[]) ?? []) {
+      const pid = String(u.property_id ?? '').trim();
+      if (!pid) continue;
+      if (!grouped[pid]) grouped[pid] = [];
+      grouped[pid].push(...uploadsToMediaItems([u]));
+    }
+    setMediaByPropertyId(grouped);
+  };
+
   const fetchUploads = async (propertyId: string) => {
     if (!propertyId) return [];
     if (uploadsRef.current[propertyId]) return uploadsRef.current[propertyId];
@@ -626,7 +846,9 @@ export default function PropertiesIndexScreen() {
     return list;
   };
 
-  const search = async (reset = true) => {
+  const search = async (reset = true, override?: Partial<SearchSnapshot>) => {
+    const requestId = ++searchRequestIdRef.current;
+    const snap: SearchSnapshot = { ...buildSnapshotFromState(), ...override };
     setError(null);
     setLoading(true);
     if (reset) {
@@ -642,23 +864,18 @@ export default function PropertiesIndexScreen() {
           .map((x) => x.trim())
           .filter(Boolean);
 
-      const parseNum = (v: string) => {
-        const n = Number(String(v ?? '').trim().replace(/,/g, ''));
-        return Number.isFinite(n) ? n : null;
-      };
-
       const userId = session?.user?.id ?? null;
 
       const premiumUsed =
-        Boolean(String(minBuiltUp ?? '').trim()) ||
-        Boolean(String(maxBuiltUp ?? '').trim()) ||
-        propertyAgeMaxYears !== null ||
-        minBathrooms !== null ||
-        Boolean(String(floorBucket ?? '').trim()) ||
-        withPhotoOnly ||
-        removeSeen;
+        Boolean(String(snap.minBuiltUp ?? '').trim()) ||
+        Boolean(String(snap.maxBuiltUp ?? '').trim()) ||
+        snap.propertyAgeMaxYears !== null ||
+        snap.minBathrooms !== null ||
+        Boolean(String(snap.floorBucket ?? '').trim()) ||
+        snap.withPhotoOnly ||
+        snap.removeSeen;
 
-      if (activeFilterTab === 'premium' && premiumUnlocked && premiumUsed && userId) {
+      if (snap.activeFilterTab === 'premium' && premiumUnlocked && premiumUsed && userId) {
         const baseSearchToken = getBaseSearchToken();
         const { data: quotaData, error: quotaErr } = await supabase.rpc('consume_premium_search', {
           base_search_token: baseSearchToken,
@@ -683,104 +900,101 @@ export default function PropertiesIndexScreen() {
       let query = supabase
         .from('properties')
         .select(
-          'id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,carpet_area_sqft,has_photo,furnishing,parking,state,city,locality,status,created_at,property_category,ad_type,property_status,new_builder_project,pg_tenant_type,pg_room_type,flatmates_tenant_type,flatmates_room_type,commercial_availability,gym,amenity_swimming_pool,amenity_power_backup,amenity_visitor_parking'
+          'id,listing_type,property_type,title,price,deposit,maintenance,bedrooms,bathrooms,area_sqft,carpet_area_sqft,furnishing,parking,state,city,locality,status,created_at,property_category,ad_type,property_status,new_builder_project,pg_tenant_type,pg_room_type,flatmates_tenant_type,flatmates_room_type,commercial_availability,gym,amenity_swimming_pool,amenity_power_backup,amenity_visitor_parking'
         )
         .eq('status', 'published')
-        .eq('listing_type', listingType)
+        .eq('listing_type', snap.listingType)
         .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
         .limit(pageSize);
 
       if (!reset && cursorCreatedAt && cursorId) {
         query = query.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`);
       }
 
-      if (propertyCategory) query = query.eq('property_category', propertyCategory);
-      if (adType) query = query.eq('ad_type', adType);
+      if (snap.propertyCategory) query = query.eq('property_category', snap.propertyCategory);
 
-      if (bhkCsv) {
-        const arr = bhkCsv
-          .split(',')
-          .map((x) => x.trim())
-          .filter(Boolean)
-          .map((x) => Number(x.split(' ')[0]))
-          .filter((n) => Number.isFinite(n));
-        if (arr.length) query = query.in('bedrooms', arr as any);
+      const adTypeQuery = resolveAdTypeQuery(snap.propertyCategory, snap.listingType, snap.adType);
+      if (adTypeQuery.type === 'eq') query = query.eq('ad_type', adTypeQuery.value);
+      else if (adTypeQuery.type === 'in') query = query.in('ad_type', adTypeQuery.values as any);
+
+      const bedroomFilters = parseBhkBedrooms(snap.bhkCsv);
+      if (bedroomFilters.length) query = query.in('bedrooms', bedroomFilters as any);
+
+      if (snap.propertyStatus) query = query.eq('property_status', snap.propertyStatus);
+      if (snap.newBuilderProject === '1' || snap.newBuilderProject === '0') {
+        query = query.eq('new_builder_project', snap.newBuilderProject === '1');
       }
+      if (snap.pgTenantType) query = query.eq('pg_tenant_type', snap.pgTenantType);
+      if (snap.pgRoomType) query = query.eq('pg_room_type', snap.pgRoomType);
 
-      if (propertyStatus) query = query.eq('property_status', propertyStatus);
-      if (newBuilderProject === '1' || newBuilderProject === '0') query = query.eq('new_builder_project', newBuilderProject === '1');
-      if (pgTenantType) query = query.eq('pg_tenant_type', pgTenantType);
-      if (pgRoomType) query = query.eq('pg_room_type', pgRoomType);
-
-      if (flatmatesTenantType) {
-        const arr = parseCsv(flatmatesTenantType);
+      if (snap.flatmatesTenantType) {
+        const arr = parseCsv(snap.flatmatesTenantType);
         if (arr.length === 1) query = query.eq('flatmates_tenant_type', arr[0]);
         else if (arr.length > 1) query = query.in('flatmates_tenant_type', arr as any);
       }
 
-      if (flatmatesRoomType) {
-        const arr = parseCsv(flatmatesRoomType);
+      if (snap.flatmatesRoomType) {
+        const arr = parseCsv(snap.flatmatesRoomType);
         if (arr.length === 1) query = query.eq('flatmates_room_type', arr[0]);
         else if (arr.length > 1) query = query.in('flatmates_room_type', arr as any);
       }
 
-      if (propertyTypeCsv) {
-        const types = propertyTypeCsv
+      if (snap.propertyTypeCsv) {
+        const types = snap.propertyTypeCsv
           .split(',')
           .map((x) => x.trim())
           .filter(Boolean);
         if (types.length) query = query.in('property_type', types as any);
       }
 
-      if (commercialAvailability && listingType === 'commercial' && adType === 'sale') {
-        query = query.eq('commercial_availability', commercialAvailability);
+      if (snap.commercialAvailability && snap.listingType === 'commercial' && snap.adType === 'sale') {
+        query = query.eq('commercial_availability', snap.commercialAvailability);
       }
 
       {
-        const min = parseNum(minPrice);
-        const max = parseNum(maxPrice);
+        const min = parseOptionalFilterNumber(snap.minPrice);
+        const max = parseOptionalFilterNumber(snap.maxPrice);
         if (min !== null) query = query.gte('price', min);
         if (max !== null) query = query.lte('price', max);
       }
 
       {
-        const min = parseNum(minCarpet);
-        const max = parseNum(maxCarpet);
+        const min = parseOptionalFilterNumber(snap.minCarpet);
+        const max = parseOptionalFilterNumber(snap.maxCarpet);
         if (min !== null) query = query.gte('carpet_area_sqft', min);
         if (max !== null) query = query.lte('carpet_area_sqft', max);
       }
 
-      if (amenityGym) query = query.eq('gym', 1);
-      if (amenitySwimmingPool) query = query.eq('amenity_swimming_pool', 1);
-      if (amenityPowerBackup) query = query.eq('amenity_power_backup', 1);
-      if (amenityVisitorParking) query = query.eq('amenity_visitor_parking', 1);
+      if (snap.amenityGym) query = query.eq('gym', 1);
+      if (snap.amenitySwimmingPool) query = query.eq('amenity_swimming_pool', 1);
+      if (snap.amenityPowerBackup) query = query.eq('amenity_power_backup', 1);
+      if (snap.amenityVisitorParking) query = query.eq('amenity_visitor_parking', 1);
 
-      if (activeFilterTab === 'premium' && premiumUnlocked) {
+      if (snap.activeFilterTab === 'premium' && premiumUnlocked) {
         {
-          const min = parseNum(minBuiltUp);
-          const max = parseNum(maxBuiltUp);
+          const min = parseOptionalFilterNumber(snap.minBuiltUp);
+          const max = parseOptionalFilterNumber(snap.maxBuiltUp);
           if (min !== null) query = query.gte('area_sqft', min);
           if (max !== null) query = query.lte('area_sqft', max);
         }
 
-        if (propertyAgeMaxYears !== null) {
-          query = query.lte('property_age_years', propertyAgeMaxYears);
+        if (snap.propertyAgeMaxYears !== null) {
+          query = query.lte('property_age_years', snap.propertyAgeMaxYears);
         }
 
-        if (minBathrooms !== null) {
-          query = query.gte('bathrooms', minBathrooms);
+        if (snap.minBathrooms !== null) {
+          query = query.gte('bathrooms', snap.minBathrooms);
         }
 
-        if (floorBucket) {
-          if (floorBucket === 'ground') query = query.eq('floor_number', 0);
-          else if (floorBucket === '1_3') query = query.gte('floor_number', 1).lte('floor_number', 3);
-          else if (floorBucket === '4_6') query = query.gte('floor_number', 4).lte('floor_number', 6);
-          else if (floorBucket === '7_9') query = query.gte('floor_number', 7).lte('floor_number', 9);
-          else if (floorBucket === '10_plus') query = query.gte('floor_number', 10);
+        if (snap.floorBucket) {
+          if (snap.floorBucket === 'ground') query = query.eq('floor_number', 0);
+          else if (snap.floorBucket === '1_3') query = query.gte('floor_number', 1).lte('floor_number', 3);
+          else if (snap.floorBucket === '4_6') query = query.gte('floor_number', 4).lte('floor_number', 6);
+          else if (snap.floorBucket === '7_9') query = query.gte('floor_number', 7).lte('floor_number', 9);
+          else if (snap.floorBucket === '10_plus') query = query.gte('floor_number', 10);
         }
 
-        if (removeSeen && userId) {
+        if (snap.removeSeen && userId) {
           const { data: seenData } = await supabase.from('user_seen_properties').select('property_id').eq('user_id', userId);
           const ids = (seenData ?? []).map((r: any) => String(r?.property_id)).filter(Boolean);
           if (ids.length) {
@@ -789,25 +1003,53 @@ export default function PropertiesIndexScreen() {
         }
       }
 
-      if (stateValue) query = query.eq('state', stateValue);
-      if (cityValue) query = query.eq('city', cityValue);
-      if (selectedLocalities.length > 0) {
-        query = query.in('locality', selectedLocalities);
-      } else if (localityValue.trim()) {
-        query = query.ilike('locality', `%${localityValue.trim()}%`);
+      if (snap.stateValue.trim()) query = query.ilike('state', `%${snap.stateValue.trim()}%`);
+      if (snap.cityValue.trim()) query = query.ilike('city', `%${snap.cityValue.trim()}%`);
+
+      const localityTokens = collectLocalityTokens(snap.localityValue, snap.selectedLocalities);
+      if (localityTokens.length === 1) {
+        query = query.ilike('locality', `%${localityTokens[0]}%`);
+      } else if (localityTokens.length > 1) {
+        const orExpr = localityTokens.map((loc) => `locality.ilike.%${escapePostgrestValue(loc)}%`).join(',');
+        query = query.or(orExpr);
       }
 
       let finalQuery = query;
-      if (activeFilterTab === 'premium' && premiumUnlocked && withPhotoOnly) {
-        finalQuery = finalQuery.eq('has_photo', true);
+      if (snap.activeFilterTab === 'premium' && premiumUnlocked && snap.withPhotoOnly) {
+        const { data: photoRows, error: photoErr } = await supabase
+          .from('property_uploads')
+          .select('property_id')
+          .not('property_id', 'is', null)
+          .limit(10000);
+        if (photoErr) throw new Error(photoErr.message);
+
+        const ids = Array.from(
+          new Set((photoRows ?? []).map((r: any) => String(r?.property_id ?? '').trim()).filter(Boolean))
+        );
+        if (!ids.length) {
+          if (reset) setResults([]);
+          setHasMore(false);
+          setLoading(false);
+          return;
+        }
+        finalQuery = finalQuery.in('id', ids as any);
       }
 
       const { data, error: fetchError } = await finalQuery;
       if (fetchError) throw new Error(fetchError.message);
+      if (requestId !== searchRequestIdRef.current) return;
 
       const rows = (((data as any) ?? []) as PropertyRow[]) ?? [];
-      if (reset) setResults(rows);
-      else setResults((prev) => [...prev, ...rows]);
+      if (reset) {
+        setResults(rows);
+        void loadMediaForProperties(rows.map((r) => r.id));
+      } else {
+        setResults((prev) => {
+          const merged = [...prev, ...rows];
+          void loadMediaForProperties(merged.map((r) => r.id));
+          return merged;
+        });
+      }
 
       const last = rows.length ? rows[rows.length - 1] : null;
       if (last?.created_at && last?.id) {
@@ -816,11 +1058,27 @@ export default function PropertiesIndexScreen() {
       }
       setHasMore(rows.length === pageSize);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to search properties.');
+      if (requestId !== searchRequestIdRef.current) return;
+      const msg = e instanceof Error ? e.message : 'Failed to search properties.';
+      if (/failed to fetch/i.test(msg)) {
+        setError('Network error. Check internet connection and refresh the page.');
+      } else {
+        setError(msg);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestIdRef.current) setLoading(false);
     }
   };
+
+  searchFnRef.current = search;
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    const pending = pendingSearchSnapshotRef.current;
+    if (!pending) return;
+    pendingSearchSnapshotRef.current = null;
+    void searchFnRef.current(true, pending);
+  }, [filtersReady, paramsSearchKey]);
 
   const pageBg = '#FFFFFF';
   const border = '#E5E7EB';
@@ -889,6 +1147,7 @@ export default function PropertiesIndexScreen() {
     }
 
     setUnlocking(true);
+    setUnlockingPlanCode(planCode);
     try {
       const order = await createRazorpayOrder({
         amount: Math.round(plan.price * 100),
@@ -936,6 +1195,7 @@ export default function PropertiesIndexScreen() {
       setError(String(msg).toLowerCase().includes('cancel') ? 'Payment cancelled.' : msg);
     } finally {
       setUnlocking(false);
+      setUnlockingPlanCode(null);
     }
   };
 
@@ -1389,41 +1649,44 @@ export default function PropertiesIndexScreen() {
 
             {error ? <Text color="#EF4444">{error}</Text> : null}
 
-            {results.map((p) => (
-              <Pressable
-                key={p.id}
-                onPress={async () => {
-                  const userId = session?.user?.id ?? null;
-                  if (userId) {
-                    try {
-                      await supabase.from('user_seen_properties').upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any);
-                    } catch {
+            {results.map((p) => {
+              const cardMedia = mediaByPropertyId[p.id] ?? [];
+              return (
+                <Pressable
+                  key={p.id}
+                  onPress={() => {
+                    const userId = session?.user?.id ?? null;
+                    if (userId) {
+                      void supabase
+                        .from('user_seen_properties')
+                        .upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any)
+                        .then(() => {});
                     }
-                  }
-                  await fetchUploads(p.id);
-                  router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
-                }}>
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-                  <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={1}>
-                    {p.title ?? 'Property'}
-                  </Text>
-                  <Text color={muted} fontSize={12} numberOfLines={1}>
-                    {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
-                  </Text>
-                  <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                    <Text color="#0EA5E9" fontWeight="900">
-                      {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
-                    </Text>
-                    <Text color={muted} fontSize={11}>
-                      {p.bedrooms ? `${p.bedrooms}BHK` : ''} {p.area_sqft ? `• ${p.area_sqft} sqft` : ''}
-                    </Text>
-                  </XStack>
-                  <Text color={muted} fontSize={11}>
-                    {String(p.listing_type ?? '').toUpperCase()} • {String(p.furnishing ?? '—').replaceAll('_', ' ')}
-                  </Text>
-                </YStack>
-              </Pressable>
-            ))}
+                    router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
+                  }}>
+                  <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                    <XStack gap="$3" alignItems="flex-start">
+                      {cardMedia.length ? <PropertyMediaGrid items={cardMedia.slice(0, 4)} size={72} /> : null}
+                      <YStack flex={1} gap="$1">
+                        <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={2}>
+                          {formatPropertyListingTitle(p)}
+                        </Text>
+                        <Text color={muted} fontSize={12} numberOfLines={2}>
+                          {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
+                        </Text>
+                        <Text color="#0EA5E9" fontWeight="900">
+                          {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
+                        </Text>
+                        <Text color={muted} fontSize={11}>
+                          {p.bedrooms ? `${p.bedrooms}BHK` : ''} {p.area_sqft ? `• ${p.area_sqft} sqft` : ''} •{' '}
+                          {String(p.listing_type ?? '').toUpperCase()}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </YStack>
+                </Pressable>
+              );
+            })}
 
             {!loading && results.length > 0 && hasMore ? (
               <Button backgroundColor="#111827" color="#FFFFFF" onPress={() => void search(false)}>
@@ -1461,8 +1724,13 @@ export default function PropertiesIndexScreen() {
                       ₹{p.price}
                     </Text>
                   </XStack>
-                  <Button disabled={unlocking} backgroundColor="#0EA5E9" color="#FFFFFF" fontWeight="900" onPress={() => subscribeToPlan(p.code)}>
-                    {unlocking ? 'Processing…' : 'Subscribe'}
+                  <Button
+                    disabled={unlocking}
+                    backgroundColor="#0EA5E9"
+                    color="#FFFFFF"
+                    fontWeight="900"
+                    onPress={() => subscribeToPlan(p.code)}>
+                    {unlockingPlanCode === p.code ? 'Processing…' : 'Subscribe'}
                   </Button>
                 </YStack>
               ))}
