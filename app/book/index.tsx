@@ -196,7 +196,7 @@ export default function BookingWizardScreen() {
 
   const [form, setForm] = useState<BookingFormState>({
     fullName: profile?.name ?? '',
-    mobile: '',
+    mobile: String(profile?.phone ?? '').trim(),
     email: profile?.email ?? '',
     moveType: '',
 

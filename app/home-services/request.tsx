@@ -163,7 +163,7 @@ export default function HomeServiceRequestScreen() {
   const [customerName, setCustomerName] = useState<string>(String(profile?.name ?? '').trim());
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [countryCodePickerOpen, setCountryCodePickerOpen] = useState(false);
-  const [customerPhone, setCustomerPhone] = useState<string>('');
+  const [customerPhone, setCustomerPhone] = useState<string>(String(profile?.phone ?? '').trim());
   const [addressLine1, setAddressLine1] = useState<string>('');
   const [addressLine2, setAddressLine2] = useState<string>('');
   const [state, setState] = useState<string>('');

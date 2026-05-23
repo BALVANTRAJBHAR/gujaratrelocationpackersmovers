@@ -675,7 +675,6 @@ export default function LoginScreen() {
                   onPress={() => {
                     setSignupRole('customer');
                     setSignupProviderSubtype('home_service');
-                    setSignupProviderServices([]);
                   }}
                   disabled={loading || oauthLoading !== null}>
                   Customer
@@ -691,7 +690,6 @@ export default function LoginScreen() {
                   onPress={() => {
                     setSignupRole('provider');
                     setSignupProviderSubtype('home_service');
-                    setSignupProviderServices([]);
                   }}
                   disabled={loading || oauthLoading !== null}>
                   Provider
@@ -714,7 +712,6 @@ export default function LoginScreen() {
                   pressStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
                     setSignupProviderSubtype('home_service');
-                    setSignupProviderServices([]);
                   }}
                   disabled={loading || oauthLoading !== null}
                   fontFamily="Times New Roman">
@@ -730,7 +727,6 @@ export default function LoginScreen() {
                   pressStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
                     setSignupProviderSubtype('property_owner');
-                    setSignupProviderServices([]);
                   }}
                   disabled={loading || oauthLoading !== null}
                   fontFamily="Times New Roman">
@@ -738,38 +734,6 @@ export default function LoginScreen() {
                 </Button>
               </XStack>
 
-              {signupProviderSubtype === 'home_service' ? (
-                <YStack gap="$2">
-                  <Text color={label}>Services</Text>
-                  <Pressable
-                    onPress={() => setServicesPickerOpen(true)}
-                    style={{ width: '100%' } as any}
-                    disabled={loading || oauthLoading !== null}>
-                    <View
-                      style={{
-                        borderWidth: 1,
-                        borderColor: border,
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 12,
-                        backgroundColor: isDark ? '#0B1220' : '#FFFFFF',
-                      } as any}>
-                      <Text color={titleColor} fontWeight="700">
-                        {signupProviderServices.length
-                          ? signupProviderServices.join(', ')
-                          : 'Select services (AC, Carpenter, ...)'}
-                      </Text>
-                      <Text color={muted} fontSize={12} marginTop={2}>
-                        Tap to open list
-                      </Text>
-                    </View>
-                  </Pressable>
-                </YStack>
-              ) : (
-                <Paragraph color={muted}>
-                  Property Owner will be saved in your profile.
-                </Paragraph>
-              )}
             </YStack>
           ) : null}
 
@@ -840,9 +804,7 @@ export default function LoginScreen() {
                 loading ||
                 (mode === 'signup' &&
                   showEmailSignup &&
-                  signupRole === 'provider' &&
-                  signupProviderSubtype === 'home_service' &&
-                  signupProviderServices.length === 0)
+                  !name.trim())
               }
               fontFamily="Times New Roman"
               fontWeight="bold">
@@ -884,65 +846,6 @@ export default function LoginScreen() {
         </YStack>
       </YStack>
 
-      <Modal visible={servicesPickerOpen} transparent animationType="fade" onRequestClose={() => setServicesPickerOpen(false)}>
-        <Pressable
-          onPress={() => setServicesPickerOpen(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 } as any}>
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 520,
-              alignSelf: 'center',
-              backgroundColor: cardBg,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: border,
-              padding: 16,
-            } as any}>
-            <YStack gap="$3">
-              <Text color={titleColor} fontWeight="800" fontSize={16}>
-                Select services
-              </Text>
-
-              <XStack flexWrap="wrap" gap="$2">
-                {providerServiceOptions.map((opt) => {
-                  const selected = signupProviderServices.includes(opt);
-                  return (
-                    <Button
-                      key={opt}
-                      size="$3"
-                      backgroundColor={selected ? '#10B981' : idleBtnBg}
-                      color={selected ? '#0B0B12' : idleBtnText}
-                      borderWidth={1}
-                      borderColor={selected ? '#10B981' : border}
-                      onPress={() => {
-                        setSignupProviderServices((prev) => {
-                          if (prev.includes(opt)) return prev.filter((x) => x !== opt);
-                          return [...prev, opt];
-                        });
-                      }}>
-                      {opt}
-                    </Button>
-                  );
-                })}
-              </XStack>
-
-              <XStack gap="$2" justifyContent="flex-end">
-                <Button chromeless color={muted} onPress={() => setSignupProviderServices([])}>
-                  Clear
-                </Button>
-                <Button
-                  backgroundColor={activeBtnBg}
-                  color={activeBtnText}
-                  onPress={() => setServicesPickerOpen(false)}>
-                  Done
-                </Button>
-              </XStack>
-            </YStack>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </ScrollView>
   );
 }
