@@ -668,7 +668,8 @@ export default function RegisterDetailsScreen() {
       if (Platform.OS !== 'web') {
         Alert.alert('Success', 'Verification saved successfully.');
       }
-      router.replace('/home');
+      // Redirect provider to profile setup to select services and cities
+      router.replace('/provider/profile-setup');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save.');
     } finally {

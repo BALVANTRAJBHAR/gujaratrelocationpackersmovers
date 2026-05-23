@@ -512,9 +512,21 @@ export default function HomeServiceRequestScreen() {
       await uploadMedia(requestId);
       await supabase.from('home_service_requests').update({ status: 'pending' }).eq('id', requestId);
 
+      // Notify providers about the new request
+      try {
+        await invokeEdgeFunction<{ sent?: boolean; providers_notified?: number; error?: string }>('send-home-service-notification', {
+          request_id: requestId,
+        });
+      } catch (e) {
+        console.error('Failed to send provider notifications:', e);
+      }
+
       setOtpOpen(false);
       submitAfterOtpRef.current = false;
-      Alert.alert('Booking confirmed', `Your request has been submitted.\nPreferred: ${preferredDate || '-'} ${preferredTime || ''}`.trim());
+      Alert.alert('Booking Confirmed ✓',
+        `Your service request has been submitted successfully!\n\nService provider will reach you on:\n${preferredDate} at ${preferredTime}\n\nYou'll receive their contact details shortly.`.trim(),
+        [{ text: 'OK', onPress: () => router.replace('/home-services/my-requests') }]
+      );
       router.replace('/home-services/my-requests');
     } catch (e: any) {
       setError(e?.message ? String(e.message) : 'Failed to verify OTP.');
@@ -675,7 +687,7 @@ export default function HomeServiceRequestScreen() {
         state: state.trim() || null,
         city: city.trim() || null,
         locality: locality.trim() || null,
-        preferred_date: preferredDate.trim() || null,
+        preferred_date: preferredDate.trim() ? toISODateFromDDMMYYYY(preferredDate) : null,
         preferred_time: preferredTime.trim() || null,
         notes: notes.trim() || null,
       })

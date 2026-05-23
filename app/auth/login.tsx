@@ -58,13 +58,6 @@ export default function LoginScreen() {
   const [info, setInfo] = useState<string | null>(null);
   const [signupRole, setSignupRole] = useState<'customer' | 'provider'>('customer');
   const [signupProviderSubtype, setSignupProviderSubtype] = useState<'home_service' | 'property_owner'>('home_service');
-  const [signupProviderServices, setSignupProviderServices] = useState<string[]>([]);
-  const [servicesPickerOpen, setServicesPickerOpen] = useState(false);
-
-  const providerServiceOptions = useMemo(
-    () => ['AC', 'Carpenter', 'Electrician', 'Plumber', 'Pest Control', 'Deep Cleaning', 'Painting'],
-    []
-  );
 
   const resolveDbRole = (intent: 'customer' | 'provider') => {
     return intent === 'provider' ? 'provider' : 'customer';
@@ -400,17 +393,6 @@ export default function LoginScreen() {
       if (mode === 'signup') {
         const trimmedName = pendingOAuthUser?.name?.trim() ?? name.trim();
         const trimmedEmail = pendingOAuthUser?.email?.trim() ?? email.trim();
-        const nextProviderServices =
-          signupRole === 'provider'
-            ? signupProviderSubtype === 'property_owner'
-              ? ['Property Owner']
-              : signupProviderServices
-            : [];
-
-        if (signupRole === 'provider' && signupProviderSubtype === 'home_service' && nextProviderServices.length === 0) {
-          setError('Please select at least 1 service.');
-          return;
-        }
 
         // If we have a pending OAuth user, just update metadata and DB; no auth.signUp needed
         if (pendingOAuthUser) {
@@ -421,7 +403,6 @@ export default function LoginScreen() {
                 ...(trimmedName ? { name: trimmedName } : {}),
                 role_intent: signupRole,
                 provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
-                provider_services: nextProviderServices,
               },
             });
             // Update users table
@@ -433,7 +414,7 @@ export default function LoginScreen() {
                   email: trimmedEmail,
                   name: trimmedName || null,
                   role: resolveDbRole(signupRole),
-                  provider_services: nextProviderServices,
+                  provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
                 },
                 { onConflict: 'id' }
               );
@@ -461,7 +442,6 @@ export default function LoginScreen() {
               ...(trimmedName ? { name: trimmedName } : {}),
               role_intent: signupRole,
               provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
-              provider_services: nextProviderServices,
             },
           },
         });
@@ -491,7 +471,7 @@ export default function LoginScreen() {
                   email: trimmedEmail,
                   name: trimmedName || null,
                   role: resolveDbRole(signupRole),
-                  provider_services: nextProviderServices,
+                  provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
                 },
                 { onConflict: 'id' }
               );
