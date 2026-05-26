@@ -1,11 +1,18 @@
-import React from 'react';
-import { Platform } from 'react-native';
-import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, Pressable } from 'react-native';
+import { Button, Dialog, Input, Text, XStack, YStack } from 'tamagui';
 
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { searchPlaces } from '@/lib/mapbox';
 
 type Coord = { lat: number; lng: number };
+
+type GeocodeFeature = {
+  id: string;
+  place_name: string;
+  center: [number, number];
+};
 
 export default function BookingMapPicker(props: {
   open: boolean;
@@ -20,13 +27,52 @@ export default function BookingMapPicker(props: {
 }) {
   const isWeb = Platform.OS === 'web';
 
-  const mapContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const mapRef = React.useRef<mapboxgl.Map | null>(null);
-  const markerRef = React.useRef<mapboxgl.Marker | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markerRef = useRef<mapboxgl.Marker | null>(null);
 
-  const setMapContainer = React.useCallback((node: any) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<GeocodeFeature[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const setMapContainer = useCallback((node: any) => {
     mapContainerRef.current = (node as HTMLDivElement) ?? null;
   }, []);
+
+  useEffect(() => {
+    if (!isWeb) return;
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchPlaces(searchQuery);
+        setSearchResults(results as GeocodeFeature[]);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isWeb, searchQuery]);
+
+  const handleSelectResult = useCallback(
+    (result: GeocodeFeature) => {
+      const [lng, lat] = result.center;
+      props.onCoordChange({ lat, lng });
+      setSearchQuery(result.place_name);
+      setSearchResults([]);
+      const map = mapRef.current;
+      if (map) {
+        map.flyTo({ center: [lng, lat], zoom: 14 });
+      }
+    },
+    [props.onCoordChange]
+  );
 
   React.useEffect(() => {
     if (!isWeb) return;
@@ -115,12 +161,36 @@ export default function BookingMapPicker(props: {
                 </Text>
               </YStack>
             ) : (
-              <YStack height={320} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB">
-                <YStack
-                  ref={setMapContainer as any}
-                  width="100%"
-                  height="100%"
+              <YStack gap="$2">
+                <Input
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search area..."
+                  backgroundColor="#FFFFFF"
+                  borderColor="#E5E7EB"
+                  color="#111827"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
+                {searching ? (
+                  <Text color="#64748B" fontSize={12}>Searching...</Text>
+                ) : searchResults.length > 0 ? (
+                  <YStack backgroundColor="#FFFFFF" borderColor="#E5E7EB" borderWidth={1} borderRadius={8} maxHeight={160} overflow="scroll">
+                    {searchResults.map((result) => (
+                      <Pressable key={result.id} onPress={() => handleSelectResult(result)}>
+                        <YStack padding={10} borderBottomWidth={1} borderBottomColor="#F1F5F9">
+                          <Text color="#1E293B" fontSize={13}>{result.place_name}</Text>
+                        </YStack>
+                      </Pressable>
+                    ))}
+                  </YStack>
+                ) : null}
+                {searchQuery && !searching && searchResults.length === 0 ? (
+                  <Text color="#64748B" fontSize={12}>No results found.</Text>
+                ) : null}
+                <YStack height={280} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB">
+                  <YStack ref={setMapContainer as any} width="100%" height="100%" />
+                </YStack>
               </YStack>
             )}
 
@@ -149,7 +219,7 @@ export default function BookingMapPicker(props: {
                 pressStyle={{ backgroundColor: '#C2410C' } as any}
                 onPress={() => void props.onConfirm()}
                 disabled={props.busy || !props.coord || !props.token}>
-                {props.busy ? 'Saving…' : 'Confirm'}
+                {props.busy ? 'Saving\u2026' : 'Confirm'}
               </Button>
             </XStack>
           </YStack>

@@ -797,11 +797,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     }
 
     if (activeService === 'home_services') {
+      if (!session) {
+        router.push({ pathname: '/auth/login' } as any);
+        return;
+      }
       router.push({ pathname: '/home-services/request' } as any);
       return;
     }
 
     if (activeService === 'property') {
+      if (!session) {
+        router.push({ pathname: '/auth/login' } as any);
+        return;
+      }
       router.push({ pathname: '/properties/post' } as any);
       return;
     }
@@ -2829,7 +2837,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {homeServiceOptions.map((s) => (
                       <Pressable
                         key={s.key}
-                        onPress={() => router.push({ pathname: '/home-services/request', params: { service: s.key } } as any)}
+                        onPress={() => {
+                          if (!session) {
+                            router.push({ pathname: '/auth/login' } as any);
+                            return;
+                          }
+                          router.push({ pathname: '/home-services/request', params: { service: s.key } } as any);
+                        }}
                         style={{ flexBasis: isSmallScreen ? '48%' : '23%' } as any}>
                         <YStack
                           backgroundColor={theme.bgCard}

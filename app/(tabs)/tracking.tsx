@@ -38,6 +38,12 @@ export default function TrackingScreen() {
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [trackingId, setTrackingId] = useState('');
+  const [pickupLat, setPickupLat] = useState<number | undefined>();
+  const [pickupLng, setPickupLng] = useState<number | undefined>();
+  const [dropLat, setDropLat] = useState<number | undefined>();
+  const [dropLng, setDropLng] = useState<number | undefined>();
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [dropAddress, setDropAddress] = useState('');
 
   const maxContentWidth = 1100;
 
@@ -97,6 +103,26 @@ export default function TrackingScreen() {
   useEffect(() => {
     if (!params.bookingId) return;
 
+    const fetchBookingDetails = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('pickup_lat, pickup_lng, drop_lat, drop_lng, pickup_address, drop_address')
+          .eq('id', params.bookingId)
+          .maybeSingle();
+        if (!error && data) {
+          if (data.pickup_lat != null) setPickupLat(Number(data.pickup_lat));
+          if (data.pickup_lng != null) setPickupLng(Number(data.pickup_lng));
+          if (data.drop_lat != null) setDropLat(Number(data.drop_lat));
+          if (data.drop_lng != null) setDropLng(Number(data.drop_lng));
+          if (data.pickup_address) setPickupAddress(String(data.pickup_address));
+          if (data.drop_address) setDropAddress(String(data.drop_address));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     const fetchBookingStatus = async () => {
       try {
         const resp = await supabase.functions.invoke('public-booking-status', {
@@ -109,6 +135,7 @@ export default function TrackingScreen() {
       }
     };
 
+    fetchBookingDetails();
     fetchBookingStatus();
 
     const subscription = supabase
@@ -230,6 +257,12 @@ export default function TrackingScreen() {
             latitude={mapLat}
             longitude={mapLng}
             hasLiveLocation={Boolean(latestLocation?.lat && latestLocation?.lng)}
+            pickupLat={pickupLat}
+            pickupLng={pickupLng}
+            dropLat={dropLat}
+            dropLng={dropLng}
+            pickupAddress={pickupAddress}
+            dropAddress={dropAddress}
           />
         </YStack>
 

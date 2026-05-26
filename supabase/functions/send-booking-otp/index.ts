@@ -137,6 +137,7 @@ serve(async (req) => {
     const body = await req.json();
     const phone = normalizePhone(String(body.phone ?? ''));
     const requestUserId = String(body.user_id ?? '').trim() || null;
+    const purpose = String(body.purpose ?? 'profile').trim().toLowerCase();
 
     if (!phone) return jsonResponse({ error: 'Valid phone required' }, 400);
 
@@ -150,19 +151,20 @@ serve(async (req) => {
       return jsonResponse({ error: `Supabase service env missing: ${missing.join(', ')}` }, 500);
     }
 
-    // Duplicate check against app's users table before sending OTP.
-    // App stores phone as 10 digits (without country code) in public.users.phone.
+    // Booking flow: OTP proves ownership — always send. Profile/register: block another user's number.
     const phoneDigits10 = normalizePhoneDigits10(phone);
     if (!phoneDigits10) return jsonResponse({ error: 'Valid phone required' }, 400);
 
-    const existingUsers = await getRest<{ id: string }[]>(
-      `${supabaseUrl}/rest/v1/users?phone=eq.${encodeURIComponent(phoneDigits10)}&select=id&limit=2`,
-      serviceKey
-    ).catch(() => []);
+    if (purpose !== 'booking') {
+      const existingUsers = await getRest<{ id: string }[]>(
+        `${supabaseUrl}/rest/v1/users?phone=eq.${encodeURIComponent(phoneDigits10)}&select=id&limit=2`,
+        serviceKey
+      ).catch(() => []);
 
-    const conflict = (existingUsers ?? []).find((u) => u?.id && (!requestUserId || u.id !== requestUserId));
-    if (conflict) {
-      return jsonResponse({ error: 'Phone number already registered. Please use a different number.' }, 409);
+      const conflict = (existingUsers ?? []).find((u) => u?.id && (!requestUserId || u.id !== requestUserId));
+      if (conflict) {
+        return jsonResponse({ error: 'Phone number already registered. Please use a different number.' }, 409);
+      }
     }
 
     const existing = await getRest<any[]>(

@@ -1,11 +1,12 @@
+import { Audio, Video } from 'expo-av';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Platform, Pressable, ScrollView } from 'react-native';
+import { Dimensions, Image, Platform, Pressable, ScrollView } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
-import { Button, Dialog, H4, Image, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import BookingMapPicker from '@/components/booking-map-picker';
 import { themes } from '@/constants/theme';
@@ -14,6 +15,7 @@ import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/mapbox';
 import { getMapboxToken, getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
+import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
 
 type StepKey = 'info' | 'location' | 'vehicle' | 'items' | 'payment';
@@ -189,7 +191,7 @@ const normalizeToIsoDate = (value: string) => {
 
 export default function BookingWizardScreen() {
   const router = useRouter();
-  const { session, profile } = useSession();
+  const { session, profile, refreshProfile } = useSession();
   const screenWidth = Dimensions.get('window').width;
   const isWide = screenWidth >= 820;
   const colorScheme = useColorScheme();
@@ -200,6 +202,40 @@ export default function BookingWizardScreen() {
       backgroundColor: theme.inputBg,
       borderColor: theme.inputBorder,
       color: theme.inputText,
+    }),
+    [theme]
+  );
+
+  const otpInputUi = useMemo(
+    () => ({
+      backgroundColor: theme.inputBg,
+      borderColor: '#1F4E79',
+      color: theme.inputText,
+      placeholderTextColor: theme.textMuted,
+      hoverStyle: {
+        backgroundColor: theme.inputBg,
+        borderColor: '#1F4E79',
+        color: theme.inputText,
+      } as any,
+      focusStyle: {
+        backgroundColor: theme.inputBg,
+        borderColor: '#1F4E79',
+        color: theme.inputText,
+      } as any,
+      pressStyle: {
+        backgroundColor: theme.inputBg,
+        borderColor: '#1F4E79',
+        color: theme.inputText,
+      } as any,
+      ...(Platform.OS === 'web'
+        ? {
+            style: {
+              color: theme.inputText,
+              WebkitTextFillColor: theme.inputText,
+              caretColor: theme.inputText,
+            } as any,
+          }
+        : { style: { color: theme.inputText } as any }),
     }),
     [theme]
   );
@@ -270,11 +306,14 @@ export default function BookingWizardScreen() {
 
   useEffect(() => {
     if (step === 'location') {
-      const t = setTimeout(() => {
-        setActiveLocationField('pickup');
-        pickupRef.current?.focus?.();
-      }, 200);
-      return () => clearTimeout(t);
+      if (!locationStepMountedRef.current) {
+        locationStepMountedRef.current = true;
+        const t = setTimeout(() => {
+          setActiveLocationField('pickup');
+          pickupRef.current?.focus?.();
+        }, 200);
+        return () => clearTimeout(t);
+      }
     }
 
     if (step === 'vehicle') {
@@ -314,6 +353,7 @@ export default function BookingWizardScreen() {
   const monthWheelRef = useRef<any>(null);
   const yearWheelRef = useRef<any>(null);
   const vehicleAutoOpenedRef = useRef(false);
+  const locationStepMountedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
 
@@ -478,22 +518,6 @@ export default function BookingWizardScreen() {
     return await withTimeout(run(), 25000, name);
   };
 
-  const checkDuplicatePhone = async (phone: string): Promise<boolean> => {
-    try {
-      const normalized = phone.replace(/\D/g, '').slice(-10);
-      if (!normalized || normalized.length !== 10) return false;
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('phone', normalized)
-        .neq('id', session?.user?.id ?? '')
-        .maybeSingle();
-      return !!data;
-    } catch {
-      return false;
-    }
-  };
-
   const sendOtp = async () => {
     setError(null);
     const phone = form.mobile;
@@ -502,19 +526,13 @@ export default function BookingWizardScreen() {
       return;
     }
 
-    const isDuplicate = await checkDuplicatePhone(phone);
-    if (isDuplicate) {
-      setError('This phone number is already registered. Please sign in.');
-      return;
-    }
-
     setOtpSending(true);
     try {
-      if (session?.user?.id) {
-        const normalized = phone.replace(/\D/g, '').slice(0, 10);
-        await supabase.from('users').update({ phone: normalized }).eq('id', session.user.id);
-      }
-      const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', { phone });
+      const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', {
+        phone,
+        purpose: 'booking',
+        user_id: session?.user?.id ?? '',
+      });
       if (data?.error) setError(String(data.error));
     } catch (e: any) {
       setError(e?.message ? String(e.message) : 'Failed to send OTP.');
@@ -805,16 +823,14 @@ export default function BookingWizardScreen() {
     };
   }, []);
 
+  const addressTextRef = useRef('');
   useEffect(() => {
     let cancelled = false;
-
-    if (!activeLocationField) {
-      setPlaceResults([]);
-      return;
-    }
-
     const query = activeLocationField === 'pickup' ? form.pickupAddress : form.dropAddress;
-    if (!query.trim()) {
+    if (query === addressTextRef.current) return;
+    addressTextRef.current = query;
+
+    if (!activeLocationField || !query.trim()) {
       setPlaceResults([]);
       return;
     }
@@ -838,7 +854,7 @@ export default function BookingWizardScreen() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [activeLocationField, form.dropAddress, form.pickupAddress]);
+  }, [form.dropAddress, form.pickupAddress, activeLocationField]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1473,6 +1489,20 @@ export default function BookingWizardScreen() {
         return;
       }
 
+      const normalized = phone.replace(/\D/g, '').slice(0, 10);
+      if (session?.user?.id && normalized.length === 10) {
+        const ownedByOther = await findExistingUserByPhone(supabase, normalized, session.user.id);
+        if (!ownedByOther) {
+          const { error: phoneErr } = await supabase
+            .from('users')
+            .update({ phone: normalized })
+            .eq('id', session.user.id);
+          if (!phoneErr) {
+            await refreshProfile();
+          }
+        }
+      }
+
       await createBookingAndTakePayment();
     } catch (e: any) {
       setError(e?.message ? String(e.message) : 'Failed to verify OTP.');
@@ -1598,6 +1628,7 @@ export default function BookingWizardScreen() {
     setMediaViewerList(list);
     setMediaViewerIndex(index);
     setMediaViewerOpen(true);
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
   };
 
   const containerWidth = isWide ? 980 : '100%';
@@ -1798,10 +1829,10 @@ export default function BookingWizardScreen() {
                   </YStack>
                   <Button
                     size="$3"
-                    backgroundColor={theme.bgSecondary}
+                    backgroundColor={theme.accent}
                     borderColor={theme.border}
                     borderWidth={1}
-                    color="#0F172A"
+                    color="#FFFFFF"
                     onPress={() => openMapPicker('pickup')}>
                     Select on map
                   </Button>
@@ -1891,10 +1922,10 @@ export default function BookingWizardScreen() {
                   </YStack>
                   <Button
                     size="$3"
-                    backgroundColor={theme.bgSecondary}
+                    backgroundColor={theme.accent}
                     borderColor={theme.border}
                     borderWidth={1}
-                    color="#0F172A"
+                    color="#FFFFFF"
                     onPress={() => openMapPicker('drop')}>
                     Select on map
                   </Button>
@@ -2562,7 +2593,7 @@ export default function BookingWizardScreen() {
                               openMediaViewer(list, idx);
                             }}>
                             <YStack width={74} height={74} borderRadius={12} overflow="hidden" backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
-                              <Image source={{ uri }} width={74} height={74} />
+                              <Image source={{ uri }} style={{ width: 74, height: 74 }} />
                             </YStack>
                           </Pressable>
                         ))}
@@ -2790,10 +2821,10 @@ export default function BookingWizardScreen() {
                     {[500, 1000, 2000].map((amt) => (
                       <Button
                         key={amt}
-                        backgroundColor={form.advanceAmount === amt ? theme.bgSecondary : '#FFFFFF'}
+                        backgroundColor={form.advanceAmount === amt ? '#1F4E79' : 'transparent'}
                         borderWidth={2}
                         borderColor={form.advanceAmount === amt ? '#1F4E79' : theme.border}
-                        color={theme.text}
+                        color={form.advanceAmount === amt ? '#FFFFFF' : theme.text}
                         onPress={() => {
                           setIsCustomAdvance(false);
                           setForm((p) => ({ ...p, advanceAmount: amt }));
@@ -2802,10 +2833,10 @@ export default function BookingWizardScreen() {
                       </Button>
                     ))}
                     <Button
-                      backgroundColor={form.advanceAmount > 2000 ? theme.bgSecondary : '#FFFFFF'}
+                      backgroundColor={form.advanceAmount > 2000 ? '#1F4E79' : 'transparent'}
                       borderWidth={2}
                       borderColor={form.advanceAmount > 2000 ? '#1F4E79' : theme.border}
-                      color={theme.text}
+                      color={form.advanceAmount > 2000 ? '#FFFFFF' : theme.text}
                       onPress={() => {
                         setIsCustomAdvance(true);
                         setForm((p) => ({ ...p, advanceAmount: p.advanceAmount > 0 ? p.advanceAmount : 2500 }));
@@ -2944,10 +2975,10 @@ export default function BookingWizardScreen() {
 
               <YStack alignItems="center" gap="$1">
                 <Dialog.Title asChild>
-                  <H4>Verify Your Number</H4>
+                  <H4 color={theme.text}>Verify Your Number</H4>
                 </Dialog.Title>
                 <Dialog.Description asChild>
-                  <Paragraph textAlign="center" color="#64748B">
+                  <Paragraph textAlign="center" color={theme.textMuted}>
                     We&apos;ve sent a 6-digit OTP to {form.mobile ? `${form.mobile.slice(0, 2)}****${form.mobile.slice(-4)}` : 'your number'}
                   </Paragraph>
                 </Dialog.Description>
@@ -2962,6 +2993,7 @@ export default function BookingWizardScreen() {
                 {otpDigits.map((d, i) => (
                   <Input
                     key={i}
+                    {...otpInputUi}
                     value={d}
                     keyboardType="number-pad"
                     maxLength={6}
@@ -2969,14 +3001,9 @@ export default function BookingWizardScreen() {
                     height={54}
                     textAlign="center"
                     fontSize={18}
+                    fontWeight="800"
                     borderWidth={2}
-                    borderColor="#1F4E79"
                     borderRadius={10}
-                    backgroundColor={theme.bgCard}
-                    color={theme.text}
-                    hoverStyle={{ backgroundColor: '#FFFFFF', borderColor: '#1F4E79' } as any}
-                    focusStyle={{ backgroundColor: '#FFFFFF', borderColor: '#1F4E79' } as any}
-                    pressStyle={{ backgroundColor: '#FFFFFF', borderColor: '#1F4E79' } as any}
                     ref={(r: any) => {
                       otpRefs.current[i] = r;
                     }}
@@ -3043,14 +3070,14 @@ export default function BookingWizardScreen() {
               <XStack gap="$2" width="100%">
                 <Button
                   flex={1}
-                  backgroundColor={theme.bgCard}
+                  backgroundColor={theme.bgSecondary}
                   borderWidth={1}
                   borderColor={theme.border}
                   color={theme.text}
                   borderRadius={12}
-                  hoverStyle={{ backgroundColor: '#FFFFFF', borderColor: theme.border } as any}
-                  focusStyle={{ backgroundColor: '#FFFFFF', borderColor: theme.border } as any}
-                  pressStyle={{ backgroundColor: '#FFFFFF', borderColor: theme.border } as any}
+                  hoverStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
+                  focusStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
+                  pressStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
                   onPress={() => {
                     setError(null);
                     setOtpOpen(false);
@@ -3123,16 +3150,17 @@ export default function BookingWizardScreen() {
               </XStack>
               <YStack flex={1} justifyContent="center" alignItems="center" padding={16}>
                 {mediaViewerList[mediaViewerIndex]?.type === 'video' ? (
-                  <YStack backgroundColor="#1E293B" borderRadius={16} padding={40} alignItems="center">
-                    <Text color="#FFFFFF" fontSize={48}>▶</Text>
-                    <Text color={theme.textMuted} fontSize={12} marginTop={8}>Video Preview</Text>
-                  </YStack>
+                  <Video
+                    source={{ uri: mediaViewerList[mediaViewerIndex]?.uri ?? '' }}
+                    style={{ width: '100%', maxWidth: 600, aspectRatio: 1, borderRadius: 12 }}
+                    useNativeControls
+                    resizeMode="contain"
+                    shouldPlay
+                  />
                 ) : (
                   <Image
                     source={{ uri: mediaViewerList[mediaViewerIndex]?.uri ?? '' }}
-                    width={undefined}
-                    height={undefined}
-                    style={{ width: '100%', maxWidth: 600, aspectRatio: 1, borderRadius: 12 } as any}
+                    style={{ width: '100%', maxWidth: 600, aspectRatio: 1, borderRadius: 12 }}
                     resizeMode="contain"
                   />
                 )}
