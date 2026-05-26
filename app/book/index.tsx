@@ -1128,7 +1128,7 @@ export default function BookingWizardScreen() {
             <YStack gap="$2">
               {placeResults.map((item, idx) => (
                 <Pressable key={`${String(item.id ?? '').trim() || String(item.place_name ?? '').trim() || 'place'}-${idx}`} onPress={() => selectPlace(item)}>
-                  <YStack padding={12} borderRadius={12} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor=theme.border>
+                  <YStack padding={12} borderRadius={12} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
                     <Text color="#28b467ff">{item.place_name}</Text>
                   </YStack>
                 </Pressable>
