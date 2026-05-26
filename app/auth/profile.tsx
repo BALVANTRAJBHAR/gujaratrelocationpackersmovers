@@ -1,21 +1,32 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
+type PhoneFlowStep = 'idle' | 'verify_current' | 'enter_new';
+
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { session, profile, refreshProfile } = useSession();
+  const { session, profile, refreshProfile, loading: sessionLoading } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const activeBtnBg = '#F97316';
   const activeBtnText = '#0B1220';
-  const [loading, setLoading] = useState(false);
+  const inputUi = useMemo(
+    () => ({
+      backgroundColor: theme.inputBg,
+      borderColor: theme.inputBorder,
+      color: theme.inputText,
+      placeholderTextColor: theme.textMuted,
+    }),
+    [theme]
+  );
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [editingPassword, setEditingPassword] = useState(false);
@@ -29,15 +40,17 @@ export default function ProfileSetupScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [phoneEditing, setPhoneEditing] = useState(false);
+  const [phoneFlow, setPhoneFlow] = useState<PhoneFlowStep>('idle');
   const [phoneDraft, setPhoneDraft] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [currentPhoneVerified, setCurrentPhoneVerified] = useState(false);
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-  const otpTimerRef = useRef<any>(null);
   const currentPhone = profile?.phone?.trim() || '';
+  const displayPhone = currentPhone || '—';
 
   const displayEmail =
     profile?.email?.trim() ||
@@ -57,31 +70,6 @@ export default function ProfileSetupScreen() {
     const second = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '';
     return `${first}${second}`.toUpperCase() || 'U';
   }, [profile?.name]);
-
-  const loadedRef = useRef(false);
-  useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-    let cancelled = false;
-    const load = async () => {
-      if (!session?.user?.id) return;
-      try {
-        setLoading(true);
-        await refreshProfile();
-        if (cancelled) return;
-      } catch {
-        if (cancelled) return;
-        setError('Unable to fetch profile.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (editingName) return;
@@ -185,16 +173,22 @@ export default function ProfileSetupScreen() {
     return () => clearInterval(id);
   }, [otpResendCooldown]);
 
-  const sendPhoneOtp = async () => {
+  const normalizePhone10 = (value: string) => value.replace(/\D/g, '').slice(-10);
+
+  const sendPhoneOtp = async (targetPhone?: string) => {
     setError(null);
-    const normalized = phoneDraft.replace(/\D/g, '').slice(-10);
+    const normalized = normalizePhone10(targetPhone ?? phoneDraft);
     if (normalized.length !== 10) {
       setError('Enter a valid 10-digit mobile number.');
       return;
     }
     try {
       setOtpSending(true);
-      await invokeEdgeFunction('send-booking-otp', { phone: normalized, user_id: session?.user?.id ?? '' });
+      await invokeEdgeFunction('send-booking-otp', {
+        phone: normalized,
+        purpose: 'profile',
+        user_id: session?.user?.id ?? '',
+      });
       setOtpSent(true);
       setOtpCode('');
       setOtpVerified(false);
@@ -213,31 +207,59 @@ export default function ProfileSetupScreen() {
       setError('Enter 6-digit OTP.');
       return;
     }
+
+    const otpPhone =
+      phoneFlow === 'verify_current' ? normalizePhone10(currentPhone) : normalizePhone10(phoneDraft);
+    if (otpPhone.length !== 10) {
+      setError('Enter a valid 10-digit mobile number.');
+      return;
+    }
+
     try {
       setOtpVerifying(true);
       const resp = await invokeEdgeFunction<{ valid?: boolean; error?: string }>('verify-booking-otp', {
-        phone: phoneDraft.replace(/\D/g, '').slice(-10),
+        phone: otpPhone,
         code,
-        user_id: session?.user?.id ?? '',
       });
       if (!(resp as any)?.valid) {
         setError(String((resp as any)?.error ?? 'Invalid OTP.'));
         return;
       }
-      const normalizedPhone = phoneDraft.replace(/\D/g, '').slice(-10);
+
+      if (phoneFlow === 'verify_current') {
+        setCurrentPhoneVerified(true);
+        setPhoneFlow('enter_new');
+        setPhoneDraft('');
+        setOtpSent(false);
+        setOtpCode('');
+        setOtpVerified(false);
+        return;
+      }
+
+      const normalizedPhone = normalizePhone10(phoneDraft);
+      if (!session?.user?.id) {
+        setError('Session missing. Please login again.');
+        return;
+      }
+
+      const ownedByOther = await findExistingUserByPhone(supabase, normalizedPhone, session.user.id);
+      if (ownedByOther) {
+        setError('This mobile number is already registered with another account.');
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from('users')
         .update({ phone: normalizedPhone })
-        .eq('id', session?.user?.id ?? '');
+        .eq('id', session.user.id);
       if (updateError) {
         setError(updateError.message);
         return;
       }
+
       setOtpVerified(true);
       await refreshProfile();
-      setPhoneEditing(false);
-      setOtpSent(false);
-      setOtpCode('');
+      cancelPhoneEdit();
     } catch (e: any) {
       setError(e?.message || 'OTP verification failed.');
     } finally {
@@ -247,18 +269,31 @@ export default function ProfileSetupScreen() {
 
   const startPhoneEdit = () => {
     setError(null);
-    setPhoneDraft(currentPhone);
     setOtpSent(false);
     setOtpCode('');
     setOtpVerified(false);
+    setCurrentPhoneVerified(false);
     setPhoneEditing(true);
+
+    if (currentPhone) {
+      setPhoneFlow('verify_current');
+      setPhoneDraft(currentPhone);
+      void sendPhoneOtp(currentPhone);
+      return;
+    }
+
+    setPhoneFlow('enter_new');
+    setPhoneDraft('');
   };
 
   const cancelPhoneEdit = () => {
     setPhoneEditing(false);
+    setPhoneFlow('idle');
     setOtpSent(false);
     setOtpCode('');
     setOtpVerified(false);
+    setCurrentPhoneVerified(false);
+    setPhoneDraft('');
   };
 
   return (
@@ -273,6 +308,12 @@ export default function ProfileSetupScreen() {
       </XStack>
 
       <Paragraph color={theme.textMuted}>Your account details</Paragraph>
+
+      {sessionLoading && !profile ? (
+        <Text color={theme.textMuted} fontSize={13}>
+          Loading profile…
+        </Text>
+      ) : null}
 
       <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$4">
         <XStack alignItems="center" gap="$3">
@@ -336,14 +377,7 @@ export default function ProfileSetupScreen() {
 
           {editingName ? (
             <YStack gap="$2">
-              <Input
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                placeholder="Full name"
-                backgroundColor={theme.bg}
-                color={theme.text}
-                borderColor={theme.border}
-              />
+              <Input {...inputUi} value={nameDraft} onChangeText={setNameDraft} placeholder="Full name" />
               <Button
                 onPress={saveName}
                 disabled={submitting}
@@ -377,102 +411,135 @@ export default function ProfileSetupScreen() {
             </YStack>
           )}
 
-          <YStack height={1} backgroundColor={theme.border} />
+          {!phoneEditing ? (
+            <XStack justifyContent="space-between" alignItems="center" gap="$2">
+              <Text color={theme.textMuted}>Mobile Number</Text>
+              <XStack alignItems="center" gap="$2" flexShrink={1}>
+                <Text color={theme.text} fontWeight="800" numberOfLines={1}>
+                  {displayPhone}
+                </Text>
+                <Button
+                  size="$2"
+                  backgroundColor={currentPhone ? theme.bgCardSecondary : theme.primary}
+                  color={currentPhone ? theme.text : '#FFFFFF'}
+                  borderRadius={999}
+                  onPress={startPhoneEdit}>
+                  {currentPhone ? 'Change' : 'Add'}
+                </Button>
+              </XStack>
+            </XStack>
+          ) : null}
 
-        {phoneEditing ? (
-          <YStack gap="$2">
-            <Text color={theme.textMuted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
-              {currentPhone ? 'Change Mobile Number' : 'Add Mobile Number'}
-            </Text>
-            <Input
-              value={phoneDraft}
-              onChangeText={(v) => {
-                setPhoneDraft(v.replace(/\D/g, '').slice(0, 10));
-                setOtpVerified(false);
-              }}
-              placeholder="Enter 10-digit mobile number"
-              keyboardType="phone-pad"
-              maxLength={10}
-              backgroundColor={theme.bg}
-              color={theme.text}
-              borderColor={theme.border}
-              editable={!otpVerified}
-            />
-            {otpSent ? (
-              <YStack gap="$2">
+          {phoneEditing ? (
+            <YStack gap="$2" marginTop={4}>
+              <Text color={theme.textMuted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
+                {phoneFlow === 'verify_current'
+                  ? 'Verify Current Mobile'
+                  : currentPhone
+                  ? 'Enter New Mobile Number'
+                  : 'Add Mobile Number'}
+              </Text>
+
+              {phoneFlow === 'verify_current' ? (
+                <Text color={theme.textSecondary} fontSize={13}>
+                  OTP sent to {currentPhone.slice(0, 2)}****{currentPhone.slice(-4)}
+                </Text>
+              ) : (
                 <Input
-                  value={otpCode}
-                  onChangeText={(v) => setOtpCode(v.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="6-digit OTP"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  backgroundColor={theme.bg}
-                  color={theme.text}
-                  borderColor={theme.border}
+                  {...inputUi}
+                  value={phoneDraft}
+                  onChangeText={(v) => {
+                    setPhoneDraft(v.replace(/\D/g, '').slice(0, 10));
+                    setOtpVerified(false);
+                    setOtpSent(false);
+                    setOtpCode('');
+                  }}
+                  placeholder="Enter 10-digit mobile number"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  editable={!otpVerified}
                 />
-                <XStack gap="$2">
+              )}
+
+              {otpSent ? (
+                <YStack gap="$2">
+                  <Input
+                    {...inputUi}
+                    value={otpCode}
+                    onChangeText={(v) => setOtpCode(v.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit OTP"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                  />
                   <Button
-                    flex={1}
                     onPress={verifyPhoneOtp}
-                    disabled={otpVerifying || otpVerified}
+                    disabled={otpVerifying || (phoneFlow === 'enter_new' && otpVerified)}
                     backgroundColor={activeBtnBg}
                     borderRadius={12}
                     color={activeBtnText}
                     fontWeight="800">
-                    {otpVerified ? 'Verified' : otpVerifying ? 'Verifying…' : 'Verify OTP'}
+                    {phoneFlow === 'verify_current'
+                      ? otpVerifying
+                        ? 'Verifying…'
+                        : 'Verify Current Number'
+                      : otpVerifying
+                      ? 'Verifying…'
+                      : 'Verify & Save'}
                   </Button>
-                </XStack>
-              </YStack>
-            ) : null}
-            <XStack gap="$2">
-              <Button
-                flex={1}
-                onPress={sendPhoneOtp}
-                disabled={otpSending || otpVerified || otpResendCooldown > 0}
-                backgroundColor={theme.primary}
-                borderRadius={12}
-                color="#FFFFFF"
-                fontWeight="800">
-                {otpVerified
-                  ? 'Verified'
-                  : otpSending
-                  ? 'Sending…'
-                  : otpSent
-                  ? otpResendCooldown > 0
-                    ? `Resend (${otpResendCooldown}s)`
-                    : 'Resend OTP'
-                  : 'Send OTP'}
-              </Button>
-              <Button
-                onPress={cancelPhoneEdit}
-                backgroundColor={theme.bgCardSecondary}
-                borderRadius={12}
-                color={theme.text}
-                fontWeight="800">
-                Cancel
-              </Button>
-            </XStack>
-          </YStack>
-        ) : (
-          <YStack gap="$2">
-            <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
-                Mobile Number
-              </Text>
-              <Button
-                size="$2"
-                backgroundColor={currentPhone ? theme.bgCardSecondary : theme.primary}
-                color={currentPhone ? theme.text : '#FFFFFF'}
-                borderRadius={999}
-                onPress={startPhoneEdit}>
-                {currentPhone ? 'Change' : 'Add'}
-              </Button>
-            </XStack>
-            <Text color={theme.text} fontWeight="800" fontSize={15}>
-              {currentPhone || '—'}
-            </Text>
-          </YStack>
-        )}
+                </YStack>
+              ) : null}
+
+              <XStack gap="$2">
+                {phoneFlow === 'enter_new' ? (
+                  <Button
+                    flex={1}
+                    onPress={() => void sendPhoneOtp()}
+                    disabled={otpSending || otpVerified || otpResendCooldown > 0}
+                    backgroundColor={theme.primary}
+                    borderRadius={12}
+                    color="#FFFFFF"
+                    fontWeight="800">
+                    {otpSending
+                      ? 'Sending…'
+                      : otpSent
+                      ? otpResendCooldown > 0
+                        ? `Resend (${otpResendCooldown}s)`
+                        : 'Resend OTP'
+                      : 'Send OTP'}
+                  </Button>
+                ) : (
+                  <Button
+                    flex={1}
+                    onPress={() => void sendPhoneOtp(currentPhone)}
+                    disabled={otpSending || otpResendCooldown > 0}
+                    backgroundColor={theme.primary}
+                    borderRadius={12}
+                    color="#FFFFFF"
+                    fontWeight="800">
+                    {otpSending
+                      ? 'Sending…'
+                      : otpResendCooldown > 0
+                      ? `Resend (${otpResendCooldown}s)`
+                      : 'Resend OTP'}
+                  </Button>
+                )}
+                <Button
+                  onPress={cancelPhoneEdit}
+                  backgroundColor={theme.bgCardSecondary}
+                  borderRadius={12}
+                  color={theme.text}
+                  fontWeight="800">
+                  Cancel
+                </Button>
+              </XStack>
+
+              {phoneFlow === 'enter_new' && currentPhone && currentPhoneVerified ? (
+                <Text color={theme.success} fontSize={12} fontWeight="700">
+                  Current number verified. Enter your new mobile and verify OTP.
+                </Text>
+              ) : null}
+            </YStack>
+          ) : null}
 
           <YStack height={1} backgroundColor={theme.border} />
 
@@ -508,14 +575,12 @@ export default function ProfileSetupScreen() {
                 </Text>
                 <XStack alignItems="center" gap="$1">
                   <Input
+                    {...inputUi}
                     flex={1}
                     value={newPassword}
                     onChangeText={setNewPassword}
                     placeholder="Enter new password"
                     secureTextEntry={!showNewPwd}
-                    backgroundColor={theme.bg}
-                    color={theme.text}
-                    borderColor={theme.border}
                   />
                   <Pressable
                     onPress={() => setShowNewPwd(!showNewPwd)}
@@ -533,14 +598,12 @@ export default function ProfileSetupScreen() {
                 </Text>
                 <XStack alignItems="center" gap="$1">
                   <Input
+                    {...inputUi}
                     flex={1}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     placeholder="Confirm password"
                     secureTextEntry={!showConfirmPwd}
-                    backgroundColor={theme.bg}
-                    color={theme.text}
-                    borderColor={theme.border}
                   />
                   <Pressable
                     onPress={() => setShowConfirmPwd(!showConfirmPwd)}
@@ -568,12 +631,6 @@ export default function ProfileSetupScreen() {
             </Text>
           )}
         </YStack>
-
-          {loading ? (
-            <Text color={theme.textMuted} fontSize={12}>
-              Refreshing profile...
-            </Text>
-          ) : null}
 
           {error ? (
             <Text color={theme.danger} fontSize={12}>

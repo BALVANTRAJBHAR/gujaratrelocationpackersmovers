@@ -120,6 +120,8 @@ const AppButton = ({
   const [hovered, setHovered] = useState(false);
 
   const resolvedContainerStyle = StyleSheet.flatten(containerStyle);
+  const glowRadius =
+    typeof resolvedContainerStyle?.borderRadius === 'number' ? resolvedContainerStyle.borderRadius : 18;
 
   const inner = (
     <YStack style={[resolvedContainerStyle, { backgroundColor }] as any}>
@@ -137,8 +139,8 @@ const AppButton = ({
       onHoverIn={Platform.OS === 'web' ? () => setHovered(true) : undefined}
       onHoverOut={Platform.OS === 'web' ? () => setHovered(false) : undefined}>
       {Platform.OS === 'web' && glowOnHover ? (
-        <View style={styles.glowWrap as any}>
-          <View style={[styles.glowLayer as any, { opacity: hovered ? 1 : 0 }]} />
+        <View style={[styles.glowWrap as any, { borderRadius: glowRadius }]}>
+          <View style={[styles.glowLayer as any, { opacity: hovered ? 1 : 0, borderRadius: glowRadius }]} />
           <View style={styles.glowInner as any}>{inner}</View>
         </View>
       ) : (
@@ -4611,10 +4613,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   socialIcon: {
-    padding: 10,
-    borderRadius: 999,
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    minHeight: 44,
+    padding: 0,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 } as any);
 

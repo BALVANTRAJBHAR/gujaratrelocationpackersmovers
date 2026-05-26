@@ -8,6 +8,7 @@ import { Dimensions, Image, Platform, Pressable, ScrollView } from 'react-native
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import AppDateTimePicker from '@/components/AppDateTimePicker';
 import BookingMapPicker from '@/components/booking-map-picker';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -175,10 +176,39 @@ const TIME_SLOTS = [
   '5:00 PM', '6:00 PM', '7:00 PM',
 ];
 
+const parseDateDdMmYyyy = (value: string) => {
+  const v = String(value ?? '').trim();
+  const m = /^([0-9]{2})-([0-9]{2})-([0-9]{4})$/.exec(v);
+  if (!m) return null;
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+  if (!dd || !mm || !yyyy) return null;
+  const d = new Date(yyyy, mm - 1, dd);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return null;
+  return d;
+};
+
+const formatDateDdMmYyyy = (d: Date) => {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(d.getFullYear());
+  return `${dd}-${mm}-${yyyy}`;
+};
+
 const normalizeToIsoDate = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = parseDateDdMmYyyy(trimmed);
+  if (parsed) {
+    const yyyy = parsed.getFullYear();
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
   const m = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
   if (!m) return null;
@@ -187,6 +217,19 @@ const normalizeToIsoDate = (value: string) => {
   const mm = m[2].padStart(2, '0');
   const yyyy = m[3];
   return `${yyyy}-${mm}-${dd}`;
+};
+
+const shiftingMinDate = () => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+};
+
+const shiftingMaxDate = () => {
+  const t = new Date();
+  t.setFullYear(t.getFullYear() + 2);
+  t.setHours(23, 59, 59, 999);
+  return t;
 };
 
 export default function BookingWizardScreen() {
@@ -293,7 +336,7 @@ export default function BookingWizardScreen() {
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [mediaViewerList, setMediaViewerList] = useState<{ uri: string; type: 'photo' | 'video' }[]>([]);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [shiftingDateValue, setShiftingDateValue] = useState<Date | null>(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   useEffect(() => {
@@ -349,9 +392,6 @@ export default function BookingWizardScreen() {
   const mobileRef = useRef<any>(null);
   const pickupRef = useRef<any>(null);
   const vehicleFieldRef = useRef<any>(null);
-  const dayWheelRef = useRef<any>(null);
-  const monthWheelRef = useRef<any>(null);
-  const yearWheelRef = useRef<any>(null);
   const vehicleAutoOpenedRef = useRef(false);
   const locationStepMountedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
@@ -370,21 +410,6 @@ export default function BookingWizardScreen() {
     [form.vehicleId, vehicleTypes]
   );
 
-  const todayLabel = useMemo(() => {
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = d.toLocaleString('en', { month: 'short' });
-    return `${dd} ${mm} ${d.getFullYear()}`;
-  }, []);
-
-  const tomorrowLabel = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = d.toLocaleString('en', { month: 'short' });
-    return `${dd} ${mm} ${d.getFullYear()}`;
-  }, []);
-
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
     let timer: any;
     const timeout = new Promise<never>((_, reject) => {
@@ -395,16 +420,6 @@ export default function BookingWizardScreen() {
     } finally {
       clearTimeout(timer);
     }
-  };
-
-  const pickWheelFromOffset = (target: 'day' | 'month' | 'year', y: number) => {
-    const options = target === 'day' ? dayOptions : target === 'month' ? monthOptions : yearOptions;
-    const idx = Math.round(y / dateItemHeight);
-    const chosen = options[Math.max(0, Math.min(idx, options.length - 1))];
-    if (!chosen) return;
-    if (target === 'day') setWheelDay(chosen as any);
-    if (target === 'month') setWheelMonth(chosen as any);
-    if (target === 'year') setWheelYear(chosen as any);
   };
 
   const openMapPicker = (target: 'pickup' | 'drop') => {
@@ -623,116 +638,22 @@ export default function BookingWizardScreen() {
     };
   }, []);
 
-  const dateItemHeight = 46;
-  const wheelControlHeight = 40;
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-
-  const today = useMemo(() => new Date(), []);
-  const currentYear = useMemo(() => today.getFullYear(), [today]);
-  const yearOptions = useMemo(() => [currentYear, currentYear + 1, currentYear + 2], [currentYear]);
-  const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
-  const [wheelYear, setWheelYear] = useState(currentYear);
-  const [wheelMonth, setWheelMonth] = useState(new Date().getMonth() + 1);
-  const [wheelDay, setWheelDay] = useState(new Date().getDate());
-
   useEffect(() => {
-    if (!form.shiftingDate) return;
-    const m = /^([0-9]{2})-([0-9]{2})-([0-9]{4})$/.exec(form.shiftingDate.trim());
-    if (!m) return;
-    const dd = Number(m[1]);
-    const mm = Number(m[2]);
-    const yy = Number(m[3]);
-    if (yy) setWheelYear(yy);
-    if (mm) setWheelMonth(mm);
-    if (dd) setWheelDay(dd);
+    if (!form.shiftingDate) {
+      setShiftingDateValue(null);
+      return;
+    }
+    const parsed = parseDateDdMmYyyy(form.shiftingDate);
+    if (parsed) setShiftingDateValue(parsed);
   }, [form.shiftingDate]);
 
-  const daysInMonth = useMemo(() => {
-    return new Date(wheelYear, wheelMonth, 0).getDate();
-  }, [wheelMonth, wheelYear]);
-  const dayOptions = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
-
-  useEffect(() => {
-    if (wheelDay > daysInMonth) setWheelDay(daysInMonth);
-  }, [daysInMonth, wheelDay]);
-
-  const shiftingDatePreview = useMemo(() => {
-    return `${pad2(wheelDay)}-${pad2(wheelMonth)}-${wheelYear}`;
-  }, [wheelDay, wheelMonth, wheelYear]);
-
-  const scrollWheelTo = (target: 'day' | 'month' | 'year', value: number) => {
-    const ref = target === 'day' ? dayWheelRef : target === 'month' ? monthWheelRef : yearWheelRef;
-    const options = target === 'day' ? dayOptions : target === 'month' ? monthOptions : yearOptions;
-    const idx = Math.max(0, options.indexOf(value));
-    const y = idx * dateItemHeight;
-    try {
-      ref.current?.scrollTo?.({ y, animated: true });
-    } catch {
-      // ignore
-    }
-  };
-
-  const bumpWheel = (target: 'day' | 'month' | 'year', dir: -1 | 1) => {
-    if (target === 'day') {
-      const next = Math.max(1, Math.min(wheelDay + dir, dayOptions[dayOptions.length - 1] ?? wheelDay));
-      setWheelDay(next);
-      scrollWheelTo('day', next);
-      return;
-    }
-    if (target === 'month') {
-      const next = Math.max(1, Math.min(wheelMonth + dir, 12));
-      setWheelMonth(next);
-      scrollWheelTo('month', next);
-      return;
-    }
-    const minY = yearOptions[0] ?? wheelYear;
-    const maxY = yearOptions[yearOptions.length - 1] ?? wheelYear;
-    const next = Math.max(minY, Math.min(wheelYear + dir, maxY));
-    setWheelYear(next);
-    scrollWheelTo('year', next);
-  };
-
-  useEffect(() => {
-    if (!datePickerOpen) return;
-    const t = setTimeout(() => {
-      scrollWheelTo('day', wheelDay);
-      scrollWheelTo('month', wheelMonth);
-      scrollWheelTo('year', wheelYear);
-    }, 50);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datePickerOpen]);
-
-  useEffect(() => {
-    if (!datePickerOpen) return;
-    const t = setTimeout(() => {
-      scrollWheelTo('day', wheelDay);
-    }, 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datePickerOpen, wheelDay, dayOptions.length]);
-
-  useEffect(() => {
-    if (!datePickerOpen) return;
-    const t = setTimeout(() => {
-      scrollWheelTo('month', wheelMonth);
-    }, 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datePickerOpen, wheelMonth]);
-
-  useEffect(() => {
-    if (!datePickerOpen) return;
-    const t = setTimeout(() => {
-      scrollWheelTo('year', wheelYear);
-    }, 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datePickerOpen, wheelYear]);
-
-  const confirmShiftingDate = () => {
-    setForm((p) => ({ ...p, shiftingDate: shiftingDatePreview }));
-    setDatePickerOpen(false);
+  const onShiftingDateChange = (_e: any, picked?: Date) => {
+    if (!picked) return;
+    const min = shiftingMinDate();
+    const max = shiftingMaxDate();
+    const clamped = new Date(Math.min(Math.max(picked.getTime(), min.getTime()), max.getTime()));
+    setShiftingDateValue(clamped);
+    setForm((p) => ({ ...p, shiftingDate: formatDateDdMmYyyy(clamped) }));
   };
 
   const selectedVehicleLabel = useMemo(() => {
@@ -1511,31 +1432,6 @@ export default function BookingWizardScreen() {
     }
   };
 
-  const istDateLabel = (date: Date) => {
-    const dtf = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    const parts = dtf.formatToParts(date);
-    const dd = parts.find((p) => p.type === 'day')?.value ?? '';
-    const mm = parts.find((p) => p.type === 'month')?.value ?? '';
-    const yyyy = parts.find((p) => p.type === 'year')?.value ?? '';
-    return `${dd}-${mm}-${yyyy}`;
-  };
-
-  const dateOptions = useMemo(() => {
-    const list: string[] = [];
-    const now = new Date();
-    for (let i = 0; i < 60; i += 1) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + i);
-      list.push(istDateLabel(d));
-    }
-    return Array.from(new Set(list));
-  }, []);
-
   const timeOptions = useMemo(
     () => ['08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'],
     []
@@ -2214,11 +2110,39 @@ export default function BookingWizardScreen() {
                       <Text fontSize={12} fontWeight="700" color={theme.text}>
                         Shifting Date
                       </Text>
-                      <Pressable onPress={() => setDatePickerOpen(true)}>
-                        <YStack pointerEvents="none">
-                          <Input {...inputUi} value={form.shiftingDate} placeholder="Select date" />
+                      <YStack
+                        borderWidth={1}
+                        borderColor={theme.inputBorder}
+                        borderRadius={12}
+                        overflow="hidden"
+                        backgroundColor={theme.inputBg}
+                        position="relative">
+                        <YStack padding={12}>
+                          <Text color={theme.inputText} fontWeight="700">
+                            {shiftingDateValue
+                              ? formatDateDdMmYyyy(shiftingDateValue)
+                              : form.shiftingDate || 'Select date'}
+                          </Text>
                         </YStack>
-                      </Pressable>
+                        <YStack
+                          position="absolute"
+                          top={0}
+                          left={0}
+                          right={0}
+                          bottom={0}
+                          opacity={Platform.OS === 'web' ? 0.02 : 0.01}
+                          pointerEvents="auto">
+                          <AppDateTimePicker
+                            value={shiftingDateValue ?? shiftingMinDate()}
+                            mode="date"
+                            display="default"
+                            minimumDate={shiftingMinDate()}
+                            maximumDate={shiftingMaxDate()}
+                            onChange={onShiftingDateChange}
+                            style={{ height: 48, padding: '0 12px' }}
+                          />
+                        </YStack>
+                      </YStack>
                     </YStack>
                     <YStack flex={1} minWidth={240} gap="$2">
                       <Text fontSize={12} fontWeight="700" color={theme.text}>
@@ -2295,230 +2219,6 @@ export default function BookingWizardScreen() {
                   <Button backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => setLaborPickerOpen(false)}>
                     Close
                   </Button>
-                </YStack>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog>
-
-          <Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <Dialog.Portal>
-              <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
-              <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width={isWide ? 520 : '92%'}>
-                <YStack gap="$3">
-                  <Text fontSize={16} fontWeight="900" color={theme.text}>
-                    Select Shifting Date (IST)
-                  </Text>
-                  <XStack gap="$2" flexWrap="wrap">
-                    <Button
-                      flex={1}
-                      backgroundColor={form.shiftingDate === todayLabel ? '#1F4E79' : theme.bgSecondary}
-                      color={form.shiftingDate === todayLabel ? '#FFFFFF' : theme.text}
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      borderRadius={12}
-                      onPress={() => {
-                        setForm((p) => ({ ...p, shiftingDate: todayLabel }));
-                        setDatePickerOpen(false);
-                      }}>
-                      Today ({todayLabel})
-                    </Button>
-                    <Button
-                      flex={1}
-                      backgroundColor={form.shiftingDate === tomorrowLabel ? '#1F4E79' : theme.bgSecondary}
-                      color={form.shiftingDate === tomorrowLabel ? '#FFFFFF' : theme.text}
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      borderRadius={12}
-                      onPress={() => {
-                        setForm((p) => ({ ...p, shiftingDate: tomorrowLabel }));
-                        setDatePickerOpen(false);
-                      }}>
-                      Tomorrow ({tomorrowLabel})
-                    </Button>
-                  </XStack>
-                  <XStack gap="$2">
-                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
-                      <XStack
-                        position="absolute"
-                        top={6}
-                        left={10}
-                        right={10}
-                        height={wheelControlHeight}
-                        justifyContent="space-between"
-                        alignItems="center"
-                        zIndex={5}>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('day', -1)}>
-                          ↑
-                        </Button>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('day', 1)}>
-                          ↓
-                        </Button>
-                      </XStack>
-                      <ScrollView
-                        ref={dayWheelRef}
-                        showsVerticalScrollIndicator={false}
-                        snapToInterval={dateItemHeight}
-                        decelerationRate="fast"
-                        contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
-                        onScrollEndDrag={(e) => {
-                          pickWheelFromOffset('day', e.nativeEvent.contentOffset.y);
-                        }}
-                        onMomentumScrollEnd={(e) => {
-                          pickWheelFromOffset('day', e.nativeEvent.contentOffset.y);
-                        }}>
-                        {dayOptions.map((d) => {
-                          const selected = wheelDay === d;
-                          return (
-                            <YStack
-                              key={d}
-                              height={dateItemHeight}
-                              justifyContent="center"
-                              alignItems="center"
-                              backgroundColor={selected ? theme.bgSecondary : '#FFFFFF'}>
-                              <Text color={selected ? '#1F4E79' : theme.text} fontWeight={selected ? '900' : '700'}>
-                                {pad2(d)}
-                              </Text>
-                            </YStack>
-                          );
-                        })}
-                      </ScrollView>
-                      <YStack
-                        position="absolute"
-                        left={0}
-                        right={0}
-                        top={wheelControlHeight + dateItemHeight * 3}
-                        height={dateItemHeight}
-                        borderTopWidth={1}
-                        borderBottomWidth={1}
-                        borderColor="#1F4E79"
-                        pointerEvents="none"
-                      />
-                    </YStack>
-
-                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
-                      <XStack
-                        position="absolute"
-                        top={6}
-                        left={10}
-                        right={10}
-                        height={wheelControlHeight}
-                        justifyContent="space-between"
-                        alignItems="center"
-                        zIndex={5}>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('month', -1)}>
-                          ↑
-                        </Button>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('month', 1)}>
-                          ↓
-                        </Button>
-                      </XStack>
-                      <ScrollView
-                        ref={monthWheelRef}
-                        showsVerticalScrollIndicator={false}
-                        snapToInterval={dateItemHeight}
-                        decelerationRate="fast"
-                        contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
-                        onScrollEndDrag={(e) => {
-                          pickWheelFromOffset('month', e.nativeEvent.contentOffset.y);
-                        }}
-                        onMomentumScrollEnd={(e) => {
-                          pickWheelFromOffset('month', e.nativeEvent.contentOffset.y);
-                        }}>
-                        {monthOptions.map((m) => {
-                          const selected = wheelMonth === m;
-                          return (
-                            <YStack
-                              key={m}
-                              height={dateItemHeight}
-                              justifyContent="center"
-                              alignItems="center"
-                              backgroundColor={selected ? theme.bgSecondary : '#FFFFFF'}>
-                              <Text color={selected ? '#1F4E79' : theme.text} fontWeight={selected ? '900' : '700'}>
-                                {pad2(m)}
-                              </Text>
-                            </YStack>
-                          );
-                        })}
-                      </ScrollView>
-                      <YStack
-                        position="absolute"
-                        left={0}
-                        right={0}
-                        top={wheelControlHeight + dateItemHeight * 3}
-                        height={dateItemHeight}
-                        borderTopWidth={1}
-                        borderBottomWidth={1}
-                        borderColor="#1F4E79"
-                        pointerEvents="none"
-                      />
-                    </YStack>
-
-                    <YStack flex={1.2} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
-                      <XStack
-                        position="absolute"
-                        top={6}
-                        left={10}
-                        right={10}
-                        height={wheelControlHeight}
-                        justifyContent="space-between"
-                        alignItems="center"
-                        zIndex={5}>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('year', -1)}>
-                          ↑
-                        </Button>
-                        <Button size="$2" backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => bumpWheel('year', 1)}>
-                          ↓
-                        </Button>
-                      </XStack>
-                      <ScrollView
-                        ref={yearWheelRef}
-                        showsVerticalScrollIndicator={false}
-                        snapToInterval={dateItemHeight}
-                        decelerationRate="fast"
-                        contentContainerStyle={{ paddingVertical: dateItemHeight * 3 + wheelControlHeight } as any}
-                        onScrollEndDrag={(e) => {
-                          pickWheelFromOffset('year', e.nativeEvent.contentOffset.y);
-                        }}
-                        onMomentumScrollEnd={(e) => {
-                          pickWheelFromOffset('year', e.nativeEvent.contentOffset.y);
-                        }}>
-                        {yearOptions.map((y) => {
-                          const selected = wheelYear === y;
-                          return (
-                            <YStack
-                              key={y}
-                              height={dateItemHeight}
-                              justifyContent="center"
-                              alignItems="center"
-                              backgroundColor={selected ? theme.bgSecondary : '#FFFFFF'}>
-                              <Text color={selected ? '#1F4E79' : theme.text} fontWeight={selected ? '900' : '700'}>
-                                {y}
-                              </Text>
-                            </YStack>
-                          );
-                        })}
-                      </ScrollView>
-                      <YStack
-                        position="absolute"
-                        left={0}
-                        right={0}
-                        top={wheelControlHeight + dateItemHeight * 3}
-                        height={dateItemHeight}
-                        borderTopWidth={1}
-                        borderBottomWidth={1}
-                        borderColor="#1F4E79"
-                        pointerEvents="none"
-                      />
-                    </YStack>
-                  </XStack>
-                  <XStack gap="$2" justifyContent="flex-end">
-                    <Button backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => setDatePickerOpen(false)}>
-                      Close
-                    </Button>
-                    <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={confirmShiftingDate}>
-                      OK
-                    </Button>
-                  </XStack>
                 </YStack>
               </Dialog.Content>
             </Dialog.Portal>
