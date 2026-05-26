@@ -424,6 +424,8 @@ export default function BookingWizardScreen() {
 
   const openMapPicker = (target: 'pickup' | 'drop') => {
     setError(null);
+    setActiveLocationField(null);
+    setPlaceResults([]);
     setMapPickerTarget(target);
     const existing = target === 'pickup' ? form.pickupCoords : form.dropCoords;
     if (existing?.length === 2) {
@@ -1907,6 +1909,7 @@ export default function BookingWizardScreen() {
           <BookingMapPicker
             open={mapPickerOpen}
             onOpenChange={setMapPickerOpen}
+            resetKey={mapPickerTarget}
             title={`Select ${mapPickerTarget === 'pickup' ? 'Pickup' : 'Drop'} Location`}
             token={mapboxToken}
             coord={mapPickerCoord}
@@ -1926,30 +1929,38 @@ export default function BookingWizardScreen() {
                 width={isWide ? 520 : '92%'}>
                 <YStack gap="$3">
                   <Text fontSize={16} fontWeight="900" color="#3a5fafff">
-                    Select Floor
+                    Select Floor — {floorPickerTarget === 'pickup' ? 'Pickup' : 'Drop'}
                   </Text>
-                  <YStack gap="$2">
-                    {(floorOptions.length ? floorOptions : [{ id: 'default', label: 'Ground Floor' } as any]).map((opt: any) => {
-                      const label = String(opt.label ?? '');
-                      const selected =
-                        floorPickerTarget === 'pickup'
-                          ? label === form.pickupFloor
-                          : label === form.dropFloor;
-                      return (
-                        <Button
-                          key={String(opt.id)}
-                          backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
-                          color={selected ? '#FFFFFF' : '#4163adff'}
-                          borderWidth={1}
-                          borderColor={theme.border}
-                          borderRadius={12}
-                          justifyContent="flex-start"
-                          onPress={() => selectFloorLabel(label)}>
-                          {label}
-                        </Button>
-                      );
-                    })}
-                  </YStack>
+                  {loadingFloors ? <Text color={theme.textMuted}>Loading floors…</Text> : null}
+                  {floorError ? <Text color={theme.danger}>{floorError}</Text> : null}
+                  <ScrollView
+                    style={{ maxHeight: 320 }}
+                    showsVerticalScrollIndicator
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled">
+                    <YStack gap="$2" paddingBottom={4}>
+                      {(floorOptions.length ? floorOptions : [{ id: 'default', label: 'Ground Floor' } as any]).map((opt: any) => {
+                        const label = String(opt.label ?? '');
+                        const selected =
+                          floorPickerTarget === 'pickup'
+                            ? label === form.pickupFloor
+                            : label === form.dropFloor;
+                        return (
+                          <Button
+                            key={String(opt.id)}
+                            backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
+                            color={selected ? '#FFFFFF' : '#4163adff'}
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            borderRadius={12}
+                            justifyContent="flex-start"
+                            onPress={() => selectFloorLabel(label)}>
+                            {label}
+                          </Button>
+                        );
+                      })}
+                    </YStack>
+                  </ScrollView>
                   <Button backgroundColor={theme.bgSecondary} color="#4163adff" onPress={() => setFloorPickerOpen(false)}>
                     Close
                   </Button>

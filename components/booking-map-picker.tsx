@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable } from 'react-native';
+import { Platform, Pressable, ScrollView } from 'react-native';
 import { Button, Dialog, Input, Text, XStack, YStack } from 'tamagui';
 
 import mapboxgl from 'mapbox-gl';
@@ -24,12 +24,16 @@ export default function BookingMapPicker(props: {
   onConfirm: () => Promise<void> | void;
   busy: boolean;
   isWide: boolean;
+  /** Changes when pickup/drop opens — clears search state */
+  resetKey?: string;
 }) {
   const isWeb = Platform.OS === 'web';
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const skipNextSearchRef = useRef(false);
+  const selectedPlaceRef = useRef('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodeFeature[]>([]);
@@ -40,8 +44,26 @@ export default function BookingMapPicker(props: {
   }, []);
 
   useEffect(() => {
+    if (!props.open) return;
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearching(false);
+    skipNextSearchRef.current = false;
+    selectedPlaceRef.current = '';
+  }, [props.open, props.resetKey]);
+
+  useEffect(() => {
     if (!isWeb) return;
     if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
+    if (selectedPlaceRef.current && searchQuery.trim() === selectedPlaceRef.current) {
       setSearchResults([]);
       setSearching(false);
       return;
@@ -64,8 +86,11 @@ export default function BookingMapPicker(props: {
     (result: GeocodeFeature) => {
       const [lng, lat] = result.center;
       props.onCoordChange({ lat, lng });
+      selectedPlaceRef.current = result.place_name;
+      skipNextSearchRef.current = true;
       setSearchQuery(result.place_name);
       setSearchResults([]);
+      setSearching(false);
       const map = mapRef.current;
       if (map) {
         map.flyTo({ center: [lng, lat], zoom: 14 });
@@ -73,6 +98,12 @@ export default function BookingMapPicker(props: {
     },
     [props.onCoordChange]
   );
+
+  const showNoResults =
+    Boolean(searchQuery.trim()) &&
+    !searching &&
+    searchResults.length === 0 &&
+    searchQuery.trim() !== selectedPlaceRef.current;
 
   React.useEffect(() => {
     if (!isWeb) return;
@@ -175,7 +206,10 @@ export default function BookingMapPicker(props: {
                 {searching ? (
                   <Text color="#64748B" fontSize={12}>Searching...</Text>
                 ) : searchResults.length > 0 ? (
-                  <YStack backgroundColor="#FFFFFF" borderColor="#E5E7EB" borderWidth={1} borderRadius={8} maxHeight={160} overflow="scroll">
+                  <ScrollView
+                    style={{ maxHeight: 160, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: '#FFFFFF' }}
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled>
                     {searchResults.map((result) => (
                       <Pressable key={result.id} onPress={() => handleSelectResult(result)}>
                         <YStack padding={10} borderBottomWidth={1} borderBottomColor="#F1F5F9">
@@ -183,9 +217,9 @@ export default function BookingMapPicker(props: {
                         </YStack>
                       </Pressable>
                     ))}
-                  </YStack>
+                  </ScrollView>
                 ) : null}
-                {searchQuery && !searching && searchResults.length === 0 ? (
+                {showNoResults ? (
                   <Text color="#64748B" fontSize={12}>No results found.</Text>
                 ) : null}
                 <YStack height={280} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB">
