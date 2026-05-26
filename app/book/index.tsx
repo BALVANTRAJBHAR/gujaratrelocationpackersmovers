@@ -1,10 +1,11 @@
-import { Audio, Video } from 'expo-av';
+import { Audio, ResizeMode, Video } from 'expo-av';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
+import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Image, Platform, Pressable, ScrollView } from 'react-native';
+import { Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
@@ -235,8 +236,10 @@ const shiftingMaxDate = () => {
 export default function BookingWizardScreen() {
   const router = useRouter();
   const { session, profile, refreshProfile } = useSession();
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isWide = screenWidth >= 820;
+  const mediaViewerWidth = Math.min(screenWidth - 32, 720);
+  const mediaViewerHeight = Math.min(screenHeight * 0.65, 520);
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
@@ -336,6 +339,9 @@ export default function BookingWizardScreen() {
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [mediaViewerList, setMediaViewerList] = useState<{ uri: string; type: 'photo' | 'video' }[]>([]);
+  const [viewerVideoPlaying, setViewerVideoPlaying] = useState(true);
+  const viewerVideoRef = useRef<Video>(null);
+  const viewerWebVideoRef = useRef<HTMLVideoElement | null>(null);
   const [shiftingDateValue, setShiftingDateValue] = useState<Date | null>(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
 
@@ -868,6 +874,14 @@ export default function BookingWizardScreen() {
     const opt = floorOptions.find((f) => f.label === form.dropFloor) ?? null;
     return typeof opt?.sort_order === 'number' ? opt.sort_order : 0;
   }, [floorOptions, form.dropFloor]);
+
+  const summaryMediaList = useMemo(
+    () => [
+      ...form.photos.map((uri) => ({ uri, type: 'photo' as const })),
+      ...form.videos.map((uri) => ({ uri, type: 'video' as const })),
+    ],
+    [form.photos, form.videos]
+  );
 
   const subtotal = useMemo(() => {
     if (!vehiclePricing) return 0;
@@ -1525,8 +1539,132 @@ export default function BookingWizardScreen() {
   const openMediaViewer = (list: { uri: string; type: 'photo' | 'video' }[], index: number) => {
     setMediaViewerList(list);
     setMediaViewerIndex(index);
+    setViewerVideoPlaying(true);
     setMediaViewerOpen(true);
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (!mediaViewerOpen) return;
+    setViewerVideoPlaying(true);
+    const item = mediaViewerList[mediaViewerIndex];
+    if (item?.type !== 'video') return;
+    if (Platform.OS === 'web') {
+      const el = viewerWebVideoRef.current;
+      if (el) {
+        void el.play().catch(() => {});
+      }
+      return;
+    }
+    void viewerVideoRef.current?.playAsync?.().catch(() => {});
+  }, [mediaViewerOpen, mediaViewerIndex, mediaViewerList]);
+
+  const toggleViewerVideo = async (play: boolean) => {
+    setViewerVideoPlaying(play);
+    if (Platform.OS === 'web') {
+      const el = viewerWebVideoRef.current;
+      if (!el) return;
+      if (play) void el.play().catch(() => {});
+      else el.pause();
+      return;
+    }
+    if (play) await viewerVideoRef.current?.playAsync?.().catch(() => {});
+    else await viewerVideoRef.current?.pauseAsync?.().catch(() => {});
+  };
+
+  const renderSquareMediaThumb = (item: { uri: string; type: 'photo' | 'video' }, size = 64) => {
+    if (item.type === 'photo') {
+      return <ExpoImage source={{ uri: item.uri }} style={{ width: size, height: size }} contentFit="cover" />;
+    }
+    if (Platform.OS === 'web') {
+      return (
+        <video
+          src={item.uri}
+          muted
+          playsInline
+          style={{ width: size, height: size, objectFit: 'cover', backgroundColor: '#000' } as any}
+        />
+      );
+    }
+    return (
+      <Video
+        source={{ uri: item.uri }}
+        style={{ width: size, height: size, backgroundColor: '#000' }}
+        resizeMode={ResizeMode.COVER}
+        isMuted
+        shouldPlay={false}
+      />
+    );
+  };
+
+  const renderMediaViewerContent = () => {
+    const item = mediaViewerList[mediaViewerIndex];
+    if (!item?.uri) return null;
+
+    if (Platform.OS === 'web') {
+      if (item.type === 'video') {
+        return (
+          <video
+            key={item.uri}
+            ref={viewerWebVideoRef}
+            src={item.uri}
+            controls
+            playsInline
+            autoPlay
+            onPlay={() => setViewerVideoPlaying(true)}
+            onPause={() => setViewerVideoPlaying(false)}
+            style={{
+              width: mediaViewerWidth,
+              height: mediaViewerHeight,
+              borderRadius: 12,
+              backgroundColor: '#000',
+              objectFit: 'contain',
+            }}
+          />
+        );
+      }
+      return (
+        <img
+          key={item.uri}
+          src={item.uri}
+          alt="Item preview"
+          style={{
+            width: mediaViewerWidth,
+            height: mediaViewerHeight,
+            objectFit: 'contain',
+            borderRadius: 12,
+            backgroundColor: '#0F172A',
+          }}
+        />
+      );
+    }
+
+    if (item.type === 'video') {
+      return (
+        <Video
+          key={item.uri}
+          ref={viewerVideoRef}
+          source={{ uri: item.uri }}
+          style={{ width: mediaViewerWidth, height: mediaViewerHeight, borderRadius: 12, backgroundColor: '#000' }}
+          useNativeControls
+          resizeMode={ResizeMode.CONTAIN}
+          shouldPlay={viewerVideoPlaying}
+          onPlaybackStatusUpdate={(status) => {
+            if (!status.isLoaded) return;
+            setViewerVideoPlaying(status.isPlaying);
+          }}
+        />
+      );
+    }
+
+    return (
+      <ExpoImage
+        key={item.uri}
+        source={{ uri: item.uri }}
+        style={{ width: mediaViewerWidth, height: mediaViewerHeight, borderRadius: 12, backgroundColor: '#0F172A' }}
+        contentFit="contain"
+      />
+    );
   };
 
   const containerWidth = isWide ? 980 : '100%';
@@ -2028,7 +2166,7 @@ export default function BookingWizardScreen() {
                                 gap="$2">
                                 <XStack gap="$3" alignItems="center">
                                   {v.image_url ? (
-                                    <Image source={{ uri: v.image_url }} width={64} height={52} borderRadius={10} />
+                                    <ExpoImage source={{ uri: v.image_url }} style={{ width: 64, height: 52, borderRadius: 10 }} contentFit="cover" />
                                   ) : (
                                     <YStack
                                       width={64}
@@ -2304,7 +2442,7 @@ export default function BookingWizardScreen() {
                               openMediaViewer(list, idx);
                             }}>
                             <YStack width={74} height={74} borderRadius={12} overflow="hidden" backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
-                              <Image source={{ uri }} style={{ width: 74, height: 74 }} />
+                              <ExpoImage source={{ uri }} style={{ width: 74, height: 74 }} contentFit="cover" />
                             </YStack>
                           </Pressable>
                         ))}
@@ -2335,13 +2473,44 @@ export default function BookingWizardScreen() {
                             const list = form.videos.map((u) => ({ uri: u, type: 'video' as const }));
                             openMediaViewer(list, idx);
                           }}>
-                          <YStack backgroundColor={theme.bgSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                            <Text color={theme.text} fontWeight="700" fontSize={12}>
-                              VIDEO
-                            </Text>
-                            <Text color="#64748B" fontSize={11} numberOfLines={2}>
-                              {uri}
-                            </Text>
+                          <YStack
+                            width={140}
+                            height={88}
+                            borderRadius={12}
+                            overflow="hidden"
+                            backgroundColor="#000"
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            alignItems="center"
+                            justifyContent="center">
+                            {Platform.OS === 'web' ? (
+                              <video
+                                src={uri}
+                                muted
+                                playsInline
+                                style={{ width: 140, height: 88, objectFit: 'cover' } as any}
+                              />
+                            ) : (
+                              <Video
+                                source={{ uri }}
+                                style={{ width: 140, height: 88 }}
+                                resizeMode={ResizeMode.COVER}
+                                isMuted
+                                shouldPlay={false}
+                              />
+                            )}
+                            <YStack
+                              position="absolute"
+                              bottom={4}
+                              right={4}
+                              backgroundColor="rgba(0,0,0,0.65)"
+                              paddingHorizontal={6}
+                              paddingVertical={2}
+                              borderRadius={6}>
+                              <Text color="#FFFFFF" fontSize={10} fontWeight="800">
+                                VIDEO
+                              </Text>
+                            </YStack>
                           </YStack>
                         </Pressable>
                       ))}
@@ -2407,7 +2576,62 @@ export default function BookingWizardScreen() {
                       {form.laborers} worker
                     </Text>
                   </XStack>
+                  {form.itemDescription?.trim() ? (
+                    <XStack justifyContent="space-between" alignItems="flex-start" gap="$2">
+                      <Text color="#64748B">Items note</Text>
+                      <Text fontWeight="700" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
+                        {form.itemDescription.trim()}
+                      </Text>
+                    </XStack>
+                  ) : null}
                 </YStack>
+
+                {summaryMediaList.length > 0 ? (
+                  <YStack gap="$2" marginTop={4}>
+                    <Text color="#64748B" fontSize={12} fontWeight="700">
+                      Photos & Videos ({summaryMediaList.length})
+                    </Text>
+                    <Text color={theme.textMuted} fontSize={11}>
+                      Tap to preview · swipe arrows for next/prev
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <XStack gap="$2" paddingVertical={4}>
+                        {summaryMediaList.map((item, idx) => (
+                          <Pressable
+                            key={`${item.type}-${item.uri}-${idx}`}
+                            onPress={() => openMediaViewer(summaryMediaList, idx)}>
+                            <YStack
+                              width={64}
+                              height={64}
+                              borderRadius={10}
+                              overflow="hidden"
+                              backgroundColor={theme.bgSecondary}
+                              borderWidth={1}
+                              borderColor={theme.border}
+                              alignItems="center"
+                              justifyContent="center">
+                              {renderSquareMediaThumb(item, 64)}
+                              {item.type === 'video' ? (
+                                <YStack
+                                  position="absolute"
+                                  bottom={3}
+                                  right={3}
+                                  backgroundColor="rgba(0,0,0,0.7)"
+                                  paddingHorizontal={5}
+                                  paddingVertical={2}
+                                  borderRadius={4}>
+                                  <Text color="#FFFFFF" fontSize={9} fontWeight="800">
+                                    ▶
+                                  </Text>
+                                </YStack>
+                              ) : null}
+                            </YStack>
+                          </Pressable>
+                        ))}
+                      </XStack>
+                    </ScrollView>
+                  </YStack>
+                ) : null}
               </YStack>
 
               <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
@@ -2814,77 +3038,86 @@ export default function BookingWizardScreen() {
         </Dialog.Portal>
       </Dialog>
 
-      <Dialog open={mediaViewerOpen} onOpenChange={setMediaViewerOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay backgroundColor="#000000" opacity={0.95} />
-          <Dialog.Content backgroundColor="transparent" borderRadius={0} padding={0} width="100%" height="100%">
-            <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="transparent">
-              <XStack position="absolute" top={50} left={0} right={0} justifyContent="space-between" paddingHorizontal={16} zIndex={10}>
+      <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 16 }}
+          onPress={() => setMediaViewerOpen(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 760, alignItems: 'center' }}>
+            <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom={12}>
+              <Button
+                backgroundColor="rgba(255,255,255,0.15)"
+                color="#FFFFFF"
+                borderRadius={20}
+                width={44}
+                height={44}
+                padding={0}
+                onPress={() => {
+                  if (mediaViewerIndex > 0) setMediaViewerIndex((i) => i - 1);
+                }}
+                disabled={mediaViewerIndex <= 0}
+                opacity={mediaViewerIndex <= 0 ? 0.35 : 1}>
+                ←
+              </Button>
+              <Button
+                backgroundColor="rgba(255,255,255,0.15)"
+                color="#FFFFFF"
+                borderRadius={20}
+                width={44}
+                height={44}
+                padding={0}
+                onPress={() => setMediaViewerOpen(false)}>
+                ✕
+              </Button>
+              <Button
+                backgroundColor="rgba(255,255,255,0.15)"
+                color="#FFFFFF"
+                borderRadius={20}
+                width={44}
+                height={44}
+                padding={0}
+                onPress={() => {
+                  if (mediaViewerIndex < mediaViewerList.length - 1) setMediaViewerIndex((i) => i + 1);
+                }}
+                disabled={mediaViewerIndex >= mediaViewerList.length - 1}
+                opacity={mediaViewerIndex >= mediaViewerList.length - 1 ? 0.35 : 1}>
+                →
+              </Button>
+            </XStack>
+            <YStack
+              width={mediaViewerWidth}
+              height={mediaViewerHeight}
+              alignItems="center"
+              justifyContent="center"
+              borderRadius={12}
+              overflow="hidden">
+              {renderMediaViewerContent()}
+            </YStack>
+            {mediaViewerList[mediaViewerIndex]?.type === 'video' ? (
+              <XStack gap="$2" marginTop={12}>
                 <Button
-                  backgroundColor="rgba(0,0,0,0.5)"
+                  backgroundColor={viewerVideoPlaying ? 'rgba(255,255,255,0.2)' : '#F97316'}
                   color="#FFFFFF"
-                  borderRadius={20}
-                  width={40}
-                  height={40}
-                  padding={0}
-                  onPress={() => {
-                    if (mediaViewerIndex > 0) setMediaViewerIndex((i) => i - 1);
-                  }}
-                  disabled={mediaViewerIndex <= 0}
-                  opacity={mediaViewerIndex <= 0 ? 0.3 : 1}>
-                  ←
+                  borderRadius={10}
+                  onPress={() => void toggleViewerVideo(true)}>
+                  Play
                 </Button>
                 <Button
-                  backgroundColor="rgba(0,0,0,0.5)"
+                  backgroundColor={!viewerVideoPlaying ? 'rgba(255,255,255,0.2)' : '#64748B'}
                   color="#FFFFFF"
-                  borderRadius={20}
-                  width={40}
-                  height={40}
-                  padding={0}
-                  onPress={() => setMediaViewerOpen(false)}>
-                  ✕
-                </Button>
-                <Button
-                  backgroundColor="rgba(0,0,0,0.5)"
-                  color="#FFFFFF"
-                  borderRadius={20}
-                  width={40}
-                  height={40}
-                  padding={0}
-                  onPress={() => {
-                    if (mediaViewerIndex < mediaViewerList.length - 1) setMediaViewerIndex((i) => i + 1);
-                  }}
-                  disabled={mediaViewerIndex >= mediaViewerList.length - 1}
-                  opacity={mediaViewerIndex >= mediaViewerList.length - 1 ? 0.3 : 1}>
-                  →
+                  borderRadius={10}
+                  onPress={() => void toggleViewerVideo(false)}>
+                  Pause
                 </Button>
               </XStack>
-              <YStack flex={1} justifyContent="center" alignItems="center" padding={16}>
-                {mediaViewerList[mediaViewerIndex]?.type === 'video' ? (
-                  <Video
-                    source={{ uri: mediaViewerList[mediaViewerIndex]?.uri ?? '' }}
-                    style={{ width: '100%', maxWidth: 600, aspectRatio: 1, borderRadius: 12 }}
-                    useNativeControls
-                    resizeMode="contain"
-                    shouldPlay
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: mediaViewerList[mediaViewerIndex]?.uri ?? '' }}
-                    style={{ width: '100%', maxWidth: 600, aspectRatio: 1, borderRadius: 12 }}
-                    resizeMode="contain"
-                  />
-                )}
-              </YStack>
-              <YStack position="absolute" bottom={40} alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>
-                  {mediaViewerIndex + 1} / {mediaViewerList.length}
-                </Text>
-              </YStack>
-            </YStack>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
+            ) : null}
+            <Text color="#CBD5E1" fontSize={13} fontWeight="700" marginTop={14}>
+              {mediaViewerIndex + 1} / {mediaViewerList.length}
+              {mediaViewerList[mediaViewerIndex]?.type === 'photo' ? ' · Photo' : ''}
+              {mediaViewerList[mediaViewerIndex]?.type === 'video' ? ' · Video' : ''}
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </YStack>
   );
 }

@@ -133,6 +133,7 @@ const cleanParts = (parts: string[]) => parts.map((p) => stripIndianPin(p)).map(
 
 export default function HomeServiceRequestScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ service?: string }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const { session, profile } = useSession();
