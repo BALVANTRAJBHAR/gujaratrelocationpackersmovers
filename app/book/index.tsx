@@ -1628,7 +1628,7 @@ export default function BookingWizardScreen() {
         </XStack>
       </YStack>
 
-      <YStack backgroundColor={theme.bgCard} padding={14} borderBottomWidth={1} borderBottomColor=theme.border>
+      <YStack backgroundColor={theme.bgCard} padding={14} borderBottomWidth={1} borderBottomColor={theme.border}>
         <XStack justifyContent="space-between" alignItems="center">
           {stepOrder.map((k, idx) => {
             const done = idx < stepIndex;
@@ -1672,7 +1672,7 @@ export default function BookingWizardScreen() {
         <YStack width={containerWidth} gap="$4">
           {step === 'info' ? (
             <>
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <XStack alignItems="center" gap="$2">
                   <Text fontSize={16} fontWeight="800" color="#2d56afff">
                     Customer Information
@@ -1738,7 +1738,7 @@ export default function BookingWizardScreen() {
                 </YStack>
               </YStack>
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color="#3c5ea8ff">
                   Type of Shifting
                 </Text>
@@ -1773,7 +1773,7 @@ export default function BookingWizardScreen() {
           ) : null}
 
           {step === 'location' ? (
-            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
               <Text fontSize={16} fontWeight="800" color="#355cafff">
                 Location
               </Text>
@@ -1799,7 +1799,7 @@ export default function BookingWizardScreen() {
                   <Button
                     size="$3"
                     backgroundColor={theme.bgSecondary}
-                    borderColor=theme.border
+                    borderColor={theme.border}
                     borderWidth={1}
                     color="#0F172A"
                     onPress={() => openMapPicker('pickup')}>
@@ -1843,7 +1843,7 @@ export default function BookingWizardScreen() {
                         borderRadius={12}
                         paddingHorizontal={14}
                         borderWidth={1}
-                        borderColor=theme.border
+                        borderColor={theme.border}
                         height={48}
                         justifyContent="center"
                         flexDirection="row"
@@ -1892,7 +1892,7 @@ export default function BookingWizardScreen() {
                   <Button
                     size="$3"
                     backgroundColor={theme.bgSecondary}
-                    borderColor=theme.border
+                    borderColor={theme.border}
                     borderWidth={1}
                     color="#0F172A"
                     onPress={() => openMapPicker('drop')}>
@@ -1931,7 +1931,7 @@ export default function BookingWizardScreen() {
                         borderRadius={12}
                         paddingHorizontal={14}
                         borderWidth={1}
-                        borderColor=theme.border
+                        borderColor={theme.border}
                         height={48}
                         justifyContent="center"
                         flexDirection="row"
@@ -2014,7 +2014,7 @@ export default function BookingWizardScreen() {
                           backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
                           color={selected ? '#FFFFFF' : '#4163adff'}
                           borderWidth={1}
-                          borderColor=theme.border
+                          borderColor={theme.border}
                           borderRadius={12}
                           justifyContent="flex-start"
                           onPress={() => selectFloorLabel(label)}>
@@ -2033,7 +2033,7 @@ export default function BookingWizardScreen() {
 
           {step === 'vehicle' ? (
             <>
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color="#4163adff">
                   Select Vehicle
                 </Text>
@@ -2098,7 +2098,7 @@ export default function BookingWizardScreen() {
                                       borderRadius={10}
                                       backgroundColor={theme.bgSecondary}
                                       borderWidth={1}
-                                      borderColor=theme.border
+                                      borderColor={theme.border}
                                       alignItems="center"
                                       justifyContent="center">
                                       <Text color="#64748B" fontSize={10} fontWeight="700">
@@ -2154,7 +2154,7 @@ export default function BookingWizardScreen() {
                 </Dialog.Portal>
               </Dialog>
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Schedule & Labor
                 </Text>
@@ -2247,7 +2247,7 @@ export default function BookingWizardScreen() {
                           backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
                           color={selected ? '#FFFFFF' : theme.text}
                           borderWidth={1}
-                          borderColor=theme.border
+                          borderColor={theme.border}
                           borderRadius={12}
                           justifyContent="flex-start"
                           onPress={() => {
@@ -2283,7 +2283,7 @@ export default function BookingWizardScreen() {
                       backgroundColor={form.shiftingDate === todayLabel ? '#1F4E79' : theme.bgSecondary}
                       color={form.shiftingDate === todayLabel ? '#FFFFFF' : theme.text}
                       borderWidth={1}
-                      borderColor=theme.border
+                      borderColor={theme.border}
                       borderRadius={12}
                       onPress={() => {
                         setForm((p) => ({ ...p, shiftingDate: todayLabel }));
@@ -2296,7 +2296,7 @@ export default function BookingWizardScreen() {
                       backgroundColor={form.shiftingDate === tomorrowLabel ? '#1F4E79' : theme.bgSecondary}
                       color={form.shiftingDate === tomorrowLabel ? '#FFFFFF' : theme.text}
                       borderWidth={1}
-                      borderColor=theme.border
+                      borderColor={theme.border}
                       borderRadius={12}
                       onPress={() => {
                         setForm((p) => ({ ...p, shiftingDate: tomorrowLabel }));
@@ -2306,7 +2306,7 @@ export default function BookingWizardScreen() {
                     </Button>
                   </XStack>
                   <XStack gap="$2">
-                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor=theme.border>
+                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
                       <XStack
                         position="absolute"
                         top={6}
@@ -2364,7 +2364,7 @@ export default function BookingWizardScreen() {
                       />
                     </YStack>
 
-                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor=theme.border>
+                    <YStack flex={1} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
                       <XStack
                         position="absolute"
                         top={6}
@@ -2422,7 +2422,7 @@ export default function BookingWizardScreen() {
                       />
                     </YStack>
 
-                    <YStack flex={1.2} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor=theme.border>
+                    <YStack flex={1.2} height={dateItemHeight * 7} overflow="hidden" borderRadius={14} borderWidth={1} borderColor={theme.border}>
                       <XStack
                         position="absolute"
                         top={6}
@@ -2533,7 +2533,7 @@ export default function BookingWizardScreen() {
           </Dialog>
 
           {step === 'items' ? (
-            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
               <Text fontSize={16} fontWeight="800" color={theme.text}>
                 Items
               </Text>
@@ -2561,7 +2561,7 @@ export default function BookingWizardScreen() {
                               const list = form.photos.map((u) => ({ uri: u, type: 'photo' as const }));
                               openMediaViewer(list, idx);
                             }}>
-                            <YStack width={74} height={74} borderRadius={12} overflow="hidden" backgroundColor={theme.bgSecondary} borderWidth={1} borderColor=theme.border>
+                            <YStack width={74} height={74} borderRadius={12} overflow="hidden" backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
                               <Image source={{ uri }} width={74} height={74} />
                             </YStack>
                           </Pressable>
@@ -2593,7 +2593,7 @@ export default function BookingWizardScreen() {
                             const list = form.videos.map((u) => ({ uri: u, type: 'video' as const }));
                             openMediaViewer(list, idx);
                           }}>
-                          <YStack backgroundColor={theme.bgSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor=theme.border>
+                          <YStack backgroundColor={theme.bgSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
                             <Text color={theme.text} fontWeight="700" fontSize={12}>
                               VIDEO
                             </Text>
@@ -2630,7 +2630,7 @@ export default function BookingWizardScreen() {
 
           {step === 'payment' ? (
             <YStack gap="$4">
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Booking Summary
                 </Text>
@@ -2668,7 +2668,7 @@ export default function BookingWizardScreen() {
                 </YStack>
               </YStack>
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Payment Type
                 </Text>
@@ -2678,7 +2678,7 @@ export default function BookingWizardScreen() {
                     backgroundColor={paymentMode === 'advance' ? '#1F4E79' : theme.bgSecondary}
                     color={paymentMode === 'advance' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
-                    borderColor=theme.border
+                    borderColor={theme.border}
                     borderRadius={12}
                     onPress={() => setPaymentMode('advance')}>
                     Advance
@@ -2688,7 +2688,7 @@ export default function BookingWizardScreen() {
                     backgroundColor={paymentMode === 'full' ? '#1F4E79' : theme.bgSecondary}
                     color={paymentMode === 'full' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
-                    borderColor=theme.border
+                    borderColor={theme.border}
                     borderRadius={12}
                     onPress={() => setPaymentMode('full')}>
                     Full Payment
@@ -2699,7 +2699,7 @@ export default function BookingWizardScreen() {
                 </Text>
               </YStack>
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Apply Coupon
                 </Text>
@@ -2717,7 +2717,7 @@ export default function BookingWizardScreen() {
                 </XStack>
 
                 {couponApplied ? (
-                  <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor=theme.success>
+                  <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor={theme.success}>
                     <Text color="#166534" fontWeight="800">
                       Applied: {couponApplied.code}
                     </Text>
@@ -2730,7 +2730,7 @@ export default function BookingWizardScreen() {
                 ) : null}
               </YStack>
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Price Breakdown
                 </Text>
@@ -2782,7 +2782,7 @@ export default function BookingWizardScreen() {
               </YStack>
 
               {paymentMode === 'advance' ? (
-                <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+                <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                   <Text fontSize={16} fontWeight="800" color={theme.text}>
                     Select Advance Amount
                   </Text>
@@ -2863,12 +2863,12 @@ export default function BookingWizardScreen() {
                 </YStack>
               ) : null}
 
-              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor=theme.border gap="$3">
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={16} fontWeight="800" color={theme.text}>
                   Payment Method
                 </Text>
 
-                <YStack backgroundColor="#DCFCE7" borderRadius={14} padding={14} borderWidth={1} borderColor=theme.success>
+                <YStack backgroundColor="#DCFCE7" borderRadius={14} padding={14} borderWidth={1} borderColor={theme.success}>
                   <Text color="#166534" fontWeight="900">
                     100% Secure Payment
                   </Text>
@@ -2889,7 +2889,7 @@ export default function BookingWizardScreen() {
           ) : null}
 
           {bookingId ? (
-            <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor=theme.success>
+            <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor={theme.success}>
               <Text color="#166534" fontWeight="900">
                 Booking created: {bookingId}
               </Text>
@@ -2912,7 +2912,7 @@ export default function BookingWizardScreen() {
             flex={1}
             backgroundColor={theme.bgCard}
             borderWidth={1}
-            borderColor=theme.border
+            borderColor={theme.border}
             color={theme.text}
             borderRadius={12}
             onPress={handleBack}
@@ -3045,7 +3045,7 @@ export default function BookingWizardScreen() {
                   flex={1}
                   backgroundColor={theme.bgCard}
                   borderWidth={1}
-                  borderColor=theme.border
+                  borderColor={theme.border}
                   color={theme.text}
                   borderRadius={12}
                   hoverStyle={{ backgroundColor: '#FFFFFF', borderColor: theme.border } as any}
