@@ -4,6 +4,7 @@ import { Alert, FlatList, Platform, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -57,15 +58,7 @@ export default function SupportChatScreen() {
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const { session } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#0F172A' : '#F3F4F6';
-  const panelBgStrong = isDark ? '#111827' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const accent = '#F97316';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const bookingIdRaw = String(params.bookingId ?? '').trim();
   const bookingId = isUuid(bookingIdRaw) ? bookingIdRaw : '';
@@ -214,26 +207,26 @@ export default function SupportChatScreen() {
   }, [messages]);
 
   return (
-    <YStack flex={1} backgroundColor={pageBg}>
+    <YStack flex={1} backgroundColor={theme.bg}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={980} alignSelf="center">
           <YStack gap="$1">
-            <Text color={accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
               AI Support
             </Text>
-            <H2 color={titleColor}>Help & Chat</H2>
-            <Paragraph color={muted}>
+            <H2 color={theme.text}>Help & Chat</H2>
+            <Paragraph color={theme.textMuted}>
               Select a quick query, or type your message. If urgent, use WhatsApp/Call from Support screen.
             </Paragraph>
             {bookingId ? (
-              <Text color={muted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={12}>
                 Booking: {bookingId}
               </Text>
             ) : null}
           </YStack>
 
-          <YStack backgroundColor={panelBg} borderColor={border} borderWidth={1} borderRadius={18} padding={14} gap="$2">
-            <Text color={titleColor} fontWeight="800">
+          <YStack backgroundColor={theme.bgSecondary} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={14} gap="$2">
+            <Text color={theme.text} fontWeight="800">
               Quick options
             </Text>
             <XStack gap="$2" flexWrap="wrap">
@@ -241,10 +234,10 @@ export default function SupportChatScreen() {
                 <Button
                   key={opt.label}
                   size="$3"
-                  backgroundColor={panelBgStrong}
-                  borderColor={border}
+                  backgroundColor={theme.bgCard}
+                  borderColor={theme.border}
                   borderWidth={1}
-                  color={titleColor}
+                  color={theme.text}
                   disabled={loading}
                   onPress={() => void sendMessage(opt.prompt)}>
                   {opt.label}
@@ -254,27 +247,27 @@ export default function SupportChatScreen() {
           </YStack>
 
           {error ? (
-            <YStack backgroundColor={panelBg} borderColor={border} borderWidth={1} borderRadius={18} padding={14} gap="$1">
-              <Text color={titleColor} fontWeight="800">
+            <YStack backgroundColor={theme.bgSecondary} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={14} gap="$1">
+              <Text color={theme.text} fontWeight="800">
                 Error
               </Text>
-              <Text color={muted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={12}>
                 {error}
               </Text>
             </YStack>
           ) : null}
 
-          <YStack backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} borderRadius={18} padding={14} gap="$2">
+          <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={14} gap="$2">
             <XStack alignItems="center" justifyContent="space-between">
-              <Text color={titleColor} fontWeight="800">
+              <Text color={theme.text} fontWeight="800">
                 Conversation
               </Text>
               <Button
                 size="$2"
-                backgroundColor={panelBg}
-                borderColor={border}
+                backgroundColor={theme.bgSecondary}
+                borderColor={theme.border}
                 borderWidth={1}
-                color={titleColor}
+                color={theme.text}
                 disabled={loading}
                 onPress={() => void fetchMessages()}>
                 Refresh
@@ -290,7 +283,7 @@ export default function SupportChatScreen() {
               scrollEnabled={false}
               contentContainerStyle={{ gap: 10, paddingVertical: 10 } as any}
               ListEmptyComponent={
-                <Text color={muted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={12}>
                   No messages yet. Start by selecting a quick option.
                 </Text>
               }
@@ -299,16 +292,16 @@ export default function SupportChatScreen() {
                 return (
                   <YStack
                     alignSelf={isUser ? 'flex-end' : 'flex-start'}
-                    backgroundColor={isUser ? accent : panelBg}
-                    borderColor={border}
+                    backgroundColor={isUser ? theme.accent : theme.bgSecondary}
+                    borderColor={theme.border}
                     borderWidth={1}
                     borderRadius={16}
                     padding={12}
                     maxWidth="92%">
-                    <Text color={isUser ? '#0B0B12' : titleColor} fontSize={13}>
+                    <Text color={theme.text} fontSize={13}>
                       {item.message}
                     </Text>
-                    <Text color={isUser ? '#0B0B12' : muted} fontSize={10} opacity={0.85} paddingTop={6}>
+                    <Text color={isUser ? theme.text : theme.textMuted} fontSize={10} opacity={0.85} paddingTop={6}>
                       {new Date(item.created_at).toLocaleString()}
                     </Text>
                   </YStack>
@@ -322,20 +315,20 @@ export default function SupportChatScreen() {
                 value={text}
                 onChangeText={setText}
                 placeholder="Type your message..."
-                placeholderTextColor={muted}
+                placeholderTextColor={theme.textMuted}
                 multiline
                 numberOfLines={3}
-                backgroundColor={panelBgStrong}
-                borderColor={border}
-                color={titleColor}
+                backgroundColor={theme.bgCard}
+                borderColor={theme.border}
+                color={theme.text}
               />
-              <Button backgroundColor={accent} color="#0B0B12" onPress={() => void sendMessage()} disabled={loading}>
+              <Button backgroundColor={theme.accent} color="#FFFFFF" onPress={() => void sendMessage()} disabled={loading}>
                 {loading ? 'Sending…' : 'Send'}
               </Button>
-              {loading ? <Spinner color={accent} /> : null}
+              {loading ? <Spinner color={theme.accent} /> : null}
             </XStack>
 
-            <Text color={muted} fontSize={11} paddingTop={8}>
+            <Text color={theme.textMuted} fontSize={11} paddingTop={8}>
               AI responses may be incorrect. For urgent help, use WhatsApp/Call.
             </Text>
           </YStack>

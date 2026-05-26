@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, FlatList, Linking, Platform, ScrollView } from 'react-native';
 import { Button, H2, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasLiveLocationTrackingStarted, startDriverLiveLocation, stopDriverLiveLocation } from '@/lib/driver-location-task';
 import { supabase } from '@/lib/supabase';
@@ -10,14 +11,7 @@ import { useSession } from '@/providers/session-provider';
 export default function DriverScreen() {
   const { profile, session } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F3F4F6';
-  const panelBgStrong = isDark ? '#0F172A' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const accent = '#F97316';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,24 +269,24 @@ export default function DriverScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={pageBg}>
+    <YStack flex={1} backgroundColor={theme.bg}>
       <ScrollView style={{ flex: 1 } as any} contentContainerStyle={{ padding: 24, paddingBottom: 60, gap: 16 } as any}>
         <XStack justifyContent="space-between" alignItems="center">
           <YStack gap="$1">
-            <Text color={accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
               Driver
             </Text>
-            <H2 color={titleColor}>Upcoming & attended moves</H2>
-            <Paragraph color={muted}>
+            <H2 color={theme.text}>Upcoming & attended moves</H2>
+            <Paragraph color={theme.textMuted}>
               Track upcoming assignments and past attended moves in one place.
             </Paragraph>
           </YStack>
         </XStack>
 
         {profile?.role && !['driver'].includes(profile.role) ? (
-          <YStack backgroundColor={panelBg} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={border}>
-            <Text color={titleColor} fontWeight="700">Driver access only</Text>
-            <Text color={muted} fontSize={12}>
+          <YStack backgroundColor={theme.bgCardSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
+            <Text color={theme.text} fontWeight="700">Driver access only</Text>
+            <Text color={theme.textMuted} fontSize={12}>
               Complete your profile as a driver to access this module.
             </Text>
           </YStack>
@@ -302,18 +296,18 @@ export default function DriverScreen() {
               <XStack gap="$2" flexWrap="wrap">
                 <Button
                   size="$3"
-                  backgroundColor={filter === 'upcoming' ? accent : panelBg}
-                  color={filter === 'upcoming' ? '#0B0B12' : titleColor}
-                  borderColor={border}
+                  backgroundColor={filter === 'upcoming' ? theme.accent : theme.bgCardSecondary}
+                  color={filter === 'upcoming' ? '#FFFFFF' : theme.text}
+                  borderColor={theme.border}
                   borderWidth={1}
                   onPress={() => setFilter('upcoming')}>
                   Upcoming
                 </Button>
                 <Button
                   size="$3"
-                  backgroundColor={filter === 'completed' ? accent : panelBg}
-                  color={filter === 'completed' ? '#0B0B12' : titleColor}
-                  borderColor={border}
+                  backgroundColor={filter === 'completed' ? theme.accent : theme.bgCardSecondary}
+                  color={filter === 'completed' ? '#FFFFFF' : theme.text}
+                  borderColor={theme.border}
                   borderWidth={1}
                   onPress={() => setFilter('completed')}>
                   Completed
@@ -322,9 +316,9 @@ export default function DriverScreen() {
 
               <Button
                 size="$3"
-                backgroundColor={panelBgStrong}
-                color={titleColor}
-                borderColor={border}
+                backgroundColor={theme.bgCard}
+                color={theme.text}
+                borderColor={theme.border}
                 borderWidth={1}
                 onPress={() => void fetchDriverBookings()}
                 disabled={loading}>
@@ -333,19 +327,19 @@ export default function DriverScreen() {
             </XStack>
 
             {error ? (
-              <YStack backgroundColor={panelBg} padding={14} borderRadius={16} borderWidth={1} borderColor={border}>
-                <Text color={titleColor} fontWeight="700">Error</Text>
-                <Text color={muted} fontSize={12}>
+              <YStack backgroundColor={theme.bgCardSecondary} padding={14} borderRadius={16} borderWidth={1} borderColor={theme.border}>
+                <Text color={theme.text} fontWeight="700">Error</Text>
+                <Text color={theme.textMuted} fontSize={12}>
                   {error}
                 </Text>
               </YStack>
             ) : null}
 
             {loading ? (
-              <YStack backgroundColor={panelBgStrong} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={border}>
+              <YStack backgroundColor={theme.bgCard} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                 <XStack gap="$2" alignItems="center">
-                  <Spinner color={accent} />
-                  <Text color={muted} fontSize={12}>
+                  <Spinner color={theme.accent} />
+                  <Text color={theme.textMuted} fontSize={12}>
                     Loading assignments...
                   </Text>
                 </XStack>
@@ -358,11 +352,11 @@ export default function DriverScreen() {
               scrollEnabled={false}
               contentContainerStyle={{ gap: 12, paddingBottom: 24 } as any}
               ListEmptyComponent={
-                <YStack backgroundColor={panelBgStrong} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={border}>
-                  <Text color={titleColor} fontWeight="700">
+                <YStack backgroundColor={theme.bgCard} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700">
                     No bookings
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     {filter === 'upcoming'
                       ? 'No upcoming assignments found.'
                       : 'No completed moves found.'}
@@ -400,27 +394,27 @@ export default function DriverScreen() {
                 });
 
                 return (
-                  <YStack backgroundColor={panelBgStrong} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={border}>
+                  <YStack backgroundColor={theme.bgCard} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                     <XStack justifyContent="space-between" alignItems="flex-start" gap="$2" flexWrap="wrap">
                       <YStack flex={1} gap="$1">
-                        <Text color={titleColor} fontWeight="700">
+                        <Text color={theme.text} fontWeight="700">
                           Booking #{String(item.id).slice(0, 8).toUpperCase()}
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           {customerName}{customerPhone ? ` · ${customerPhone}` : ''}
                         </Text>
                       </YStack>
 
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Status: {status || '—'}
                       </Text>
                     </XStack>
 
                     <YStack gap="$1">
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Pickup: {item.pickup_address ?? '—'}
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Drop: {item.drop_address ?? '—'}
                       </Text>
                     </YStack>
@@ -428,9 +422,9 @@ export default function DriverScreen() {
                     <XStack gap="$2" flexWrap="wrap" alignItems="center">
                       <Button
                         size="$3"
-                        backgroundColor={panelBg}
-                        color={titleColor}
-                        borderColor={border}
+                        backgroundColor={theme.bgCardSecondary}
+                        color={theme.text}
+                        borderColor={theme.border}
                         borderWidth={1}
                         disabled={isBusy}
                         onPress={() => void openDirections(navigateToPickupUrl)}>
@@ -438,9 +432,9 @@ export default function DriverScreen() {
                       </Button>
                       <Button
                         size="$3"
-                        backgroundColor={panelBg}
-                        color={titleColor}
-                        borderColor={border}
+                        backgroundColor={theme.bgCardSecondary}
+                        color={theme.text}
+                        borderColor={theme.border}
                         borderWidth={1}
                         disabled={isBusy}
                         onPress={() => void openDirections(navigateToDropUrl)}>
@@ -452,9 +446,9 @@ export default function DriverScreen() {
                       {isTrackingThis ? (
                         <Button
                           size="$3"
-                          backgroundColor={accent}
-                          color="#0B0B12"
-                          borderColor={border}
+                          backgroundColor={theme.accent}
+                          color="#FFFFFF"
+                          borderColor={theme.border}
                           borderWidth={1}
                           disabled={isBusy}
                           onPress={() => void onPressStopTracking()}>
@@ -463,9 +457,9 @@ export default function DriverScreen() {
                       ) : (
                         <Button
                           size="$3"
-                          backgroundColor={canTrack ? accent : panelBg}
-                          color={canTrack ? '#0B0B12' : muted}
-                          borderColor={border}
+                          backgroundColor={canTrack ? theme.accent : theme.bgCardSecondary}
+                          color={canTrack ? '#FFFFFF' : theme.textMuted}
+                          borderColor={theme.border}
                           borderWidth={1}
                           disabled={!canTrack || isBusy}
                           onPress={() => void onPressStartTracking(bookingId)}>
@@ -477,9 +471,9 @@ export default function DriverScreen() {
                     <XStack gap="$2" flexWrap="wrap" alignItems="center">
                       <Button
                         size="$3"
-                        backgroundColor={canSetPickupReached(status) ? accent : panelBg}
-                        color={canSetPickupReached(status) ? '#0B0B12' : muted}
-                        borderColor={border}
+                        backgroundColor={canSetPickupReached(status) ? theme.accent : theme.bgCardSecondary}
+                        color={canSetPickupReached(status) ? '#FFFFFF' : theme.textMuted}
+                        borderColor={theme.border}
                         borderWidth={1}
                         disabled={!canSetPickupReached(status) || isBusy}
                         onPress={() => void onPressPickupReached(item)}>
@@ -488,9 +482,9 @@ export default function DriverScreen() {
 
                       <Button
                         size="$3"
-                        backgroundColor={canSetInTransit(status) ? accent : panelBg}
-                        color={canSetInTransit(status) ? '#0B0B12' : muted}
-                        borderColor={border}
+                        backgroundColor={canSetInTransit(status) ? theme.accent : theme.bgCardSecondary}
+                        color={canSetInTransit(status) ? '#FFFFFF' : theme.textMuted}
+                        borderColor={theme.border}
                         borderWidth={1}
                         disabled={!canSetInTransit(status) || isBusy}
                         onPress={() => void onPressInTransit(item)}>
@@ -499,9 +493,9 @@ export default function DriverScreen() {
 
                       <Button
                         size="$3"
-                        backgroundColor={canSetDelivered(status) ? accent : panelBg}
-                        color={canSetDelivered(status) ? '#0B0B12' : muted}
-                        borderColor={border}
+                        backgroundColor={canSetDelivered(status) ? theme.accent : theme.bgCardSecondary}
+                        color={canSetDelivered(status) ? '#FFFFFF' : theme.textMuted}
+                        borderColor={theme.border}
                         borderWidth={1}
                         disabled={!canSetDelivered(status) || isBusy}
                         onPress={() => void onPressDelivered(item)}>

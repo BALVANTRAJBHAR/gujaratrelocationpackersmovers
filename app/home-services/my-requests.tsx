@@ -6,6 +6,8 @@ import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 
 type HomeServiceRequestRow = {
   id: string;
@@ -47,6 +49,7 @@ const labelForService = (key: string) => {
 };
 
 export default function MyHomeServiceRequestsScreen() {
+  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const { session } = useSession();
 
@@ -141,12 +144,12 @@ export default function MyHomeServiceRequestsScreen() {
     }, [session?.user?.id])
   );
 
-  const pageBg = '#FFFFFF';
-  const panelBg = '#F8FAFC';
-  const panelBgStrong = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
+  const pageBg = theme.bg;
+  const panelBg = theme.bgSecondary;
+  const panelBgStrong = theme.bgCard;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
@@ -167,7 +170,7 @@ export default function MyHomeServiceRequestsScreen() {
             <Text color="#FFFFFF" fontSize={16} fontWeight="800">
               My Home Service Requests
             </Text>
-            <Text color="#CFE3F4" fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
               Track your requests
             </Text>
           </YStack>
@@ -181,31 +184,31 @@ export default function MyHomeServiceRequestsScreen() {
               value={searchText}
               onChangeText={setSearchText}
               placeholder="Search by service/status/city"
-              backgroundColor="#FFFFFF"
-              borderColor={border}
-              color={titleColor}
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
               flexGrow={1}
               minWidth={220}
             />
-            <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => router.push('/home-services/request' as any)}>
+            <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => router.push('/home-services/request' as any)}>
               New Request
             </Button>
           </XStack>
 
           {loading ? <Text color={muted}>Loading...</Text> : null}
-          {error ? <Text color="#EF4444">{error}</Text> : null}
+          {error ? <Text color={theme.danger}>{error}</Text> : null}
 
           {filteredItems.map((r) => {
             const isOpen = openId === r.id;
             const statusText = String(r.status ?? 'pending').replaceAll('_', ' ');
             const statusColor =
               r.status === 'completed'
-                ? '#10B981'
+                ? theme.success
                 : r.status === 'cancelled'
-                  ? '#EF4444'
+                  ? theme.danger
                   : r.status === 'assigned'
-                    ? '#3B82F6'
-                    : '#F59E0B';
+                    ? theme.info
+                    : theme.warning;
 
             return (
               <YStack
@@ -296,8 +299,8 @@ export default function MyHomeServiceRequestsScreen() {
                         </Text>
                         <Button
                           size="$2"
-                          backgroundColor="#E5E7EB"
-                          color="#111827"
+                          backgroundColor={theme.border}
+                          color={theme.text}
                           borderRadius={10}
                           disabled={uploadsBusyId === r.id}
                           onPress={() => void fetchUploads(r.id)}>
@@ -322,7 +325,7 @@ export default function MyHomeServiceRequestsScreen() {
                                 paddingVertical={8}
                                 paddingHorizontal={10}
                                 borderRadius={10}
-                                backgroundColor="#FFFFFF"
+                                backgroundColor={theme.bgCard}
                                 borderWidth={1}
                                 borderColor={border}
                                 gap="$2">
@@ -357,12 +360,12 @@ export default function MyHomeServiceRequestsScreen() {
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor="#FFFFFF" padding={14} borderTopWidth={1} borderTopColor="#E5E7EB">
+      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.headerBg} padding={14} borderTopWidth={1} borderTopColor={theme.border}>
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
-          <Button backgroundColor="#E5E7EB" color="#111827" onPress={() => router.replace('/home' as any)}>
+          <Button backgroundColor={theme.border} color={theme.text} onPress={() => router.replace('/home' as any)}>
             Home
           </Button>
-          <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => router.push('/home-services/request' as any)}>
+          <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => router.push('/home-services/request' as any)}>
             New Request
           </Button>
         </XStack>

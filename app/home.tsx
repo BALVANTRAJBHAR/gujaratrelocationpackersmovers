@@ -22,6 +22,7 @@ import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
 import { searchPlaces } from '@/lib/mapbox';
 import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
@@ -147,54 +148,7 @@ const AppButton = ({
   );
 };
 
-const themes = {
-  light: {
-    bg: '#FFFFFF',
-    bgSecondary: '#F8F9FA',
-    bgCard: '#FFFFFF',
-    bgCardSecondary: '#F3F4F6',
-    text: '#1A1A1A',
-    textSecondary: '#4A5568',
-    textMuted: '#718096',
-    primary: '#4F46E5',
-    primaryHover: '#4338CA',
-    accent: '#F59E0B',
-    accentHover: '#D97706',
-    border: '#E2E8F0',
-    shadow: 'rgba(0, 0, 0, 0.08)',
-    couponBg: '#DCFCE7',
-    couponBorder: '#22C55E',
-    couponText: '#166534',
-    menuBg: '#4F46E5',
-    menuText: '#FFFFFF',
-    gradient1: '#EEF2FF',
-    gradient2: '#E0E7FF',
-    headerBg: '#FFFFFF',
-  },
-  dark: {
-    bg: '#0F172A',
-    bgSecondary: '#1E293B',
-    bgCard: '#1E293B',
-    bgCardSecondary: '#334155',
-    text: '#F1F5F9',
-    textSecondary: '#CBD5E1',
-    textMuted: '#94A3B8',
-    primary: '#6366F1',
-    primaryHover: '#818CF8',
-    accent: '#F59E0B',
-    accentHover: '#FBBF24',
-    border: '#334155',
-    shadow: 'rgba(0, 0, 0, 0.3)',
-    couponBg: '#065F46',
-    couponBorder: '#10B981',
-    couponText: '#D1FAE5',
-    menuBg: '#1E293B',
-    menuText: '#F1F5F9',
-    gradient1: '#1E293B',
-    gradient2: '#334155',
-    headerBg: '#1E293B',
-  },
-};
+
 
 const brandTextKeyframes = {
   '0%': { color: '#1877F2' },
@@ -1797,26 +1751,30 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </Pressable>
 
                     {Platform.OS !== 'android' && (
-                      <YStack
-                        paddingHorizontal={22}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor="rgba(255,255,255,0.12)"
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}>
-                        <Text
-                          color={theme.menuText}
-                          fontSize={15}
-                          fontWeight="700"
-                          style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
-                          Welcome, {welcomeName}
-                        </Text>
-                      </YStack>
+                      <Pressable onPress={() => router.push('/auth/profile')}>
+                        <YStack
+                          paddingHorizontal={16}
+                          paddingVertical={12}
+                          borderRadius={14}
+                          backgroundColor={theme.menuBg}
+                          borderWidth={1}
+                          borderColor="rgba(255,255,255,0.12)"
+                          shadowColor={theme.shadow}
+                          shadowOffset={{ width: 0, height: 3 }}
+                          shadowOpacity={0.12}
+                          shadowRadius={6}
+                          elevation={3}
+                          alignItems="center"
+                          justifyContent="center">
+                          <Text
+                            color={theme.menuText}
+                            fontSize={15}
+                            fontWeight="700"
+                            style={{ fontFamily: 'Georgia' }}>
+                            👤 Profile
+                          </Text>
+                        </YStack>
+                      </Pressable>
                     )}
 
                     <Pressable onPress={handleLogout}>
@@ -2012,6 +1970,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 <Pressable
                   onPress={() => {
                     setMobileMenuOpen(false);
+                    router.push('/auth/profile');
+                  }}>
+                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
+                    My Profile
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              {session ? (
+                <Pressable
+                  onPress={() => {
+                    setMobileMenuOpen(false);
                     handleLogout();
                   }}>
                   <Text color={theme.accent} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Georgia' }}>
@@ -2052,7 +2022,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}
-                style={[styles.heroBg, isSmallScreen && { height: 300 }]}
+                style={[styles.heroBg, isSmallScreen && { height: 300, marginLeft: 16, marginRight: 16 }]}
                 imageStyle={styles.heroBgImage}>
                 <YStack style={styles.heroOverlay} alignItems="center" justifyContent="center" gap="$3.5">
                   <YStack alignItems="center" gap="$2.5">
@@ -2148,7 +2118,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         label="Call Now"
                         onPress={handleCallNow}
                         backgroundColor="#12a3a3ff"
-                        textColor="#e4ebecff"
+                        textColor="#FFFFFF"
                         containerStyle={styles.heroCta}
                         labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
                         glowOnHover
@@ -2157,7 +2127,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         label="WhatsApp"
                         onPress={handleWhatsApp}
                         backgroundColor="#22C55E"
-                        textColor="#e4ebecff"
+                        textColor="#FFFFFF"
                         containerStyle={styles.heroCta}
                         labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
                         glowOnHover
@@ -2166,7 +2136,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         label="Get Quote"
                         onPress={handleOpenQuote}
                         backgroundColor="#3a53e2ff"
-                        textColor="#e4ebecff"
+                        textColor="#FFFFFF"
                         containerStyle={styles.heroCta}
                         labelStyle={{ fontFamily: 'Georgia', fontSize: 20, fontWeight: '900' }}
                         glowOnHover
@@ -2894,24 +2864,24 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   </YStack>
                   <Button
                     backgroundColor={activeService === 'property' ? '#FFFFFF' : '#F59E0B'}
-                    color={activeService === 'property' ? '#0B0B12' : '#FFFFFF'}
+                    color={activeService === 'property' ? theme.text : '#FFFFFF'}
                     fontWeight="900"
                     borderRadius={14}
                     borderWidth={activeService === 'property' ? 1 : 0}
                     borderColor={activeService === 'property' ? theme.border : 'transparent'}
                     hoverStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: '#F3F4F6', color: '#0B0B12' }
+                        ? { backgroundColor: theme.bgSecondary, color: theme.text }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     pressStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: '#E5E7EB', color: '#0B0B12' }
+                        ? { backgroundColor: theme.border, color: theme.text }
                         : { backgroundColor: '#16A34A', color: '#FFFFFF' }) as any
                     }
                     focusStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: '#F3F4F6', color: '#0B0B12' }
+                        ? { backgroundColor: theme.bgSecondary, color: theme.text }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     onPress={handlePrimaryServiceAction}>

@@ -7,6 +7,7 @@ import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import DateTimePicker from '@/components/AppDateTimePicker';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -469,22 +470,9 @@ export default function AdminScreen() {
   const { session, profile, refreshProfile } = useSession();
 
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const maxContentWidth = 1100;
-
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F8FAFC';
-  const panelBgStrong = isDark ? '#0F172A' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const inputBg = isDark ? '#0B1220' : '#FFFFFF';
-  const inputText = isDark ? '#FFFFFF' : '#0F172A';
-  const titleColor = isDark ? '#FFFFFF' : '#0F172A';
-  const muted = isDark ? '#94A3B8' : '#64748B';
-  const activeBtnBg = '#28b467ff';
-  const activeBtnText = '#0B0B12';
-  const idleBtnBg = isDark ? '#0F172A' : '#F1F5F9';
-  const idleBtnText = isDark ? '#E2E8F0' : '#0F172A';
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1559,12 +1547,12 @@ export default function AdminScreen() {
                 paddingHorizontal={10}
                 paddingVertical={6}
                 borderRadius={999}
-                backgroundColor={isActive ? '#F97316' : '#0F172A'}
-                color={isActive ? '#0B0B12' : '#94A3B8'}>
+                backgroundColor={isActive ? theme.accent : theme.bg}
+                color={isActive ? '#FFFFFF' : theme.textMuted}>
                 {step.label}
               </Text>
               {idx !== BOOKING_STATUS_STEPS.length - 1 ? (
-                <Text color="#374151" fontSize={12}>
+                <Text color={theme.textMuted} fontSize={12}>
                   —
                 </Text>
               ) : null}
@@ -2251,17 +2239,17 @@ export default function AdminScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: pageBg }}
+      style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={{ padding: 24, paddingBottom: 40 } as any}
       keyboardShouldPersistTaps="handled">
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap="$3">
           <YStack gap="$1">
-            <Text color={activeBtnBg} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
               Admin
             </Text>
-            <H2 color={titleColor}>Admin dashboard</H2>
-            <Paragraph color={muted}>Manage staff, bookings, approvals, and reports.</Paragraph>
+            <H2 color={theme.text}>Admin dashboard</H2>
+            <Paragraph color={theme.textMuted}>Manage staff, bookings, approvals, and reports.</Paragraph>
           </YStack>
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
             <Pressable
@@ -2274,11 +2262,11 @@ export default function AdminScreen() {
                 width={40}
                 height={40}
                 borderRadius={12}
-                backgroundColor={idleBtnBg}
+                backgroundColor={theme.bgCardSecondary}
                 borderWidth={1}
-                borderColor={border}
+                borderColor={theme.border}
                 position="relative">
-                <IconSymbol name="bell.fill" size={20} color={idleBtnText} />
+                <IconSymbol name="bell.fill" size={20} color={theme.text} />
                 {unreadCount > 0 ? (
                   <View
                     style={{
@@ -2288,7 +2276,7 @@ export default function AdminScreen() {
                       minWidth: 16,
                       height: 16,
                       borderRadius: 99,
-                      backgroundColor: '#EF4444',
+                      backgroundColor: theme.danger,
                       paddingHorizontal: 4,
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -2302,16 +2290,16 @@ export default function AdminScreen() {
             </Pressable>
             <Button
               size="$2"
-              backgroundColor={idleBtnBg}
-              color={idleBtnText}
+              backgroundColor={theme.bgCardSecondary}
+              color={theme.text}
               borderRadius={10}
               onPress={() => router.push('/admin/locations' as any)}>
               Manage Locations
             </Button>
             <Button
               size="$2"
-              backgroundColor={idleBtnBg}
-              color={idleBtnText}
+              backgroundColor={theme.bgCardSecondary}
+              color={theme.text}
               borderRadius={10}
               onPress={() => {
                 fetchDrivers();
@@ -2330,9 +2318,9 @@ export default function AdminScreen() {
         </XStack>
 
         {!canManage ? (
-          <YStack backgroundColor={panelBg} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={border}>
-            <Text color={titleColor} fontWeight="700">Admin access only</Text>
-            <Text color={muted} fontSize={12}>
+          <YStack backgroundColor={theme.bgCardSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
+            <Text color={theme.text} fontWeight="700">Admin access only</Text>
+            <Text color={theme.textMuted} fontSize={12}>
               You do not have permission to manage drivers.
             </Text>
           </YStack>
@@ -2341,13 +2329,13 @@ export default function AdminScreen() {
             {activeSection === 'users' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$3"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="800" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="800" fontSize={14}>
                     User management
                   </Text>
 
@@ -2362,9 +2350,9 @@ export default function AdminScreen() {
                       value={userSearchText}
                       onChangeText={setUserSearchText}
                       placeholder="Search by name/phone/email"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={260}
                       flexGrow={2}
                       flexBasis={260}
@@ -2382,8 +2370,8 @@ export default function AdminScreen() {
                         <Button
                           key={opt.value}
                           size="$2"
-                          backgroundColor={userRoleFilter === opt.value ? activeBtnBg : idleBtnBg}
-                          color={userRoleFilter === opt.value ? activeBtnText : idleBtnText}
+                          backgroundColor={userRoleFilter === opt.value ? theme.accent : theme.bgCardSecondary}
+                          color={userRoleFilter === opt.value ? '#FFFFFF' : theme.text}
                           borderRadius={999}
                           onPress={() => setUserRoleFilter(opt.value)}>
                           {opt.label}
@@ -2394,9 +2382,9 @@ export default function AdminScreen() {
                 </YStack>
 
                 {!filteredManagedUsers.length ? (
-                  <YStack backgroundColor={panelBgStrong} borderRadius={18} padding={16} borderWidth={1} borderColor={border} gap="$1">
-                    <Text color={titleColor} fontWeight="800">No users found</Text>
-                    <Text color={muted} fontSize={12}>
+                  <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
+                    <Text color={theme.text} fontWeight="800">No users found</Text>
+                    <Text color={theme.textMuted} fontSize={12}>
                       Try changing filters or ensure users exist with role driver/staff/admin/worker.
                     </Text>
                   </YStack>
@@ -2407,60 +2395,60 @@ export default function AdminScreen() {
                   const roleKey = (item.role ?? 'staff').toString().toLowerCase();
                   const badgeColor =
                     roleKey === 'worker'
-                      ? '#0EA5E9'
+                      ? theme.info
                       : roleKey === 'customer'
-                        ? '#94A3B8'
+                        ? theme.textMuted
                         : roleKey === 'admin'
-                          ? '#F97316'
+                          ? theme.accent
                           : roleKey === 'driver'
                             ? '#A78BFA'
-                            : '#22C55E';
+                            : theme.success;
 
                   return (
                     <YStack key={`${String(item.id ?? '').trim() || 'managed-user'}-${idx}`} gap="$2">
                       <Pressable onPress={() => selectManagedUser(item)}>
                         <YStack
-                          backgroundColor={isSelected ? panelBg : panelBgStrong}
+                          backgroundColor={isSelected ? theme.bgCardSecondary : theme.bgCard}
                           borderRadius={18}
                           padding={16}
                           gap="$2"
                           borderWidth={1}
-                          borderColor={isSelected ? activeBtnBg : border}>
+                          borderColor={isSelected ? theme.accent : theme.border}>
                           <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                             <YStack gap={6} flexShrink={1}>
                               <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                                <Text color={titleColor} fontWeight="900" fontSize={15}>
+                                <Text color={theme.text} fontWeight="900" fontSize={15}>
                                   {item.name ?? '—'}
                                 </Text>
                                 <YStack backgroundColor={badgeColor} paddingHorizontal={10} paddingVertical={5} borderRadius={999}>
-                                  <Text color="#0B0B12" fontWeight="900" fontSize={11}>
+                                  <Text color={theme.text} fontWeight="900" fontSize={11}>
                                     {(item.role ?? 'staff').toString().toUpperCase()}
                                   </Text>
                                 </YStack>
                               </XStack>
-                              <Text color={muted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
-                              <Text color={muted} fontSize={12}>Email: {item.email ?? '—'}</Text>
+                              <Text color={theme.textMuted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
+                              <Text color={theme.textMuted} fontSize={12}>Email: {item.email ?? '—'}</Text>
                             </YStack>
                             <YStack alignItems="flex-end" gap="$2">
-                              <Text color={item.is_verified ? '#22C55E' : '#FCA5A5'} fontSize={12} fontWeight="800">
+                              <Text color={item.is_verified ? theme.success : '#FCA5A5'} fontSize={12} fontWeight="800">
                                 {item.is_verified ? 'ACTIVE' : 'INACTIVE'}
                               </Text>
-                              <Text color={muted} fontSize={12}>{isSelected ? 'Tap to close' : 'Tap to edit'}</Text>
+                              <Text color={theme.textMuted} fontSize={12}>{isSelected ? 'Tap to close' : 'Tap to edit'}</Text>
                             </YStack>
                           </XStack>
                         </YStack>
                       </Pressable>
 
                       {isSelected && managedUserForm.id === item.id ? (
-                        <YStack backgroundColor={panelBgStrong} borderRadius={18} padding={16} gap="$3" borderWidth={1} borderColor={border}>
+                        <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$3" borderWidth={1} borderColor={theme.border}>
                           <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                            <Text color={titleColor} fontWeight="800" fontSize={14}>
+                            <Text color={theme.text} fontWeight="800" fontSize={14}>
                               Edit user
                             </Text>
                             <Button
                               size="$2"
-                              backgroundColor={inputBg}
-                              color={inputText}
+                              backgroundColor={theme.inputBg}
+                              color={theme.inputText}
                               borderRadius={10}
                               onPress={() => selectManagedUser(item)}>
                               Close
@@ -2472,9 +2460,9 @@ export default function AdminScreen() {
                               value={managedUserForm.name}
                               onChangeText={(v) => setManagedUserForm((p) => ({ ...p, name: v }))}
                               placeholder="Name"
-                              backgroundColor={inputBg}
-                              borderColor={border}
-                              color={inputText}
+                              backgroundColor={theme.inputBg}
+                              borderColor={theme.border}
+                              color={theme.inputText}
                               minWidth={220}
                               flexGrow={2}
                               flexBasis={260}
@@ -2483,9 +2471,9 @@ export default function AdminScreen() {
                               value={managedUserForm.phone}
                               onChangeText={(v) => setManagedUserForm((p) => ({ ...p, phone: v }))}
                               placeholder="Phone"
-                              backgroundColor={inputBg}
-                              borderColor={border}
-                              color={inputText}
+                              backgroundColor={theme.inputBg}
+                              borderColor={theme.border}
+                              color={theme.inputText}
                               minWidth={180}
                               flexGrow={1}
                               flexBasis={200}
@@ -2494,9 +2482,9 @@ export default function AdminScreen() {
                               value={managedUserForm.email}
                               editable={false as any}
                               placeholder="Email"
-                              backgroundColor={inputBg}
-                              borderColor={border}
-                              color={muted}
+                              backgroundColor={theme.inputBg}
+                              borderColor={theme.border}
+                              color={theme.textMuted}
                               minWidth={240}
                               flexGrow={2}
                               flexBasis={260}
@@ -2504,15 +2492,17 @@ export default function AdminScreen() {
                           </XStack>
 
                           <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                            <Text color={titleColor} fontSize={12} fontWeight="800">
+                            <Text color={theme.text} fontSize={12} fontWeight="800">
                               Role:
                             </Text>
                             {(['customer', 'driver', 'staff', 'admin', 'worker'] as const).map((r) => (
                               <Button
                                 key={r}
                                 size="$2"
-                                backgroundColor={managedUserForm.role === r ? activeBtnBg : idleBtnBg}
-                                color={managedUserForm.role === r ? activeBtnText : idleBtnText}
+                                backgroundColor={managedUserForm.role === r ? theme.accent : theme.bgCardSecondary}
+                                color={managedUserForm.role === r ? '#FFFFFF' : theme.text}
+                                hoverStyle={managedUserForm.role === r ? { backgroundColor: theme.accent } : { backgroundColor: theme.bgCardSecondary }}
+                                pressStyle={managedUserForm.role === r ? { backgroundColor: theme.accent } : { backgroundColor: theme.bgCardSecondary }}
                                 borderRadius={999}
                                 onPress={() => setManagedUserForm((p) => ({ ...p, role: r }))}>
                                 {r.toUpperCase()}
@@ -2520,16 +2510,16 @@ export default function AdminScreen() {
                             ))}
                             <Button
                               size="$2"
-                              backgroundColor={managedUserForm.is_verified ? '#22C55E' : '#EF4444'}
-                              color="#0B0B12"
+                              backgroundColor={managedUserForm.is_verified ? theme.success : theme.danger}
+                              color="#FFFFFF"
                               borderRadius={999}
                               onPress={() => setManagedUserForm((p) => ({ ...p, is_verified: !p.is_verified }))}>
                               {managedUserForm.is_verified ? 'Active' : 'Inactive'}
                             </Button>
                           </XStack>
 
-                          <YStack gap="$2" backgroundColor={panelBg} borderRadius={14} padding={12} borderWidth={1} borderColor={border}>
-                            <Text color={titleColor} fontSize={12} fontWeight="800">
+                          <YStack gap="$2" backgroundColor={theme.bgCardSecondary} borderRadius={14} padding={12} borderWidth={1} borderColor={theme.border}>
+                            <Text color={theme.text} fontSize={12} fontWeight="800">
                               Documents
                             </Text>
 
@@ -2542,24 +2532,24 @@ export default function AdminScreen() {
                                     alignItems="center"
                                     flexWrap="wrap"
                                     gap="$2"
-                                    backgroundColor={panelBgStrong}
+                                    backgroundColor={theme.bgCard}
                                     borderRadius={12}
                                     padding={10}
                                     borderWidth={1}
-                                    borderColor={border}>
+                                    borderColor={theme.border}>
                                     <YStack gap={4} flexShrink={1}>
-                                      <Text color={titleColor} fontWeight="800" fontSize={12}>
+                                      <Text color={theme.text} fontWeight="800" fontSize={12}>
                                         {(doc.document_type ?? '').toString().toUpperCase()}
                                       </Text>
-                                      <Text color={muted} fontSize={12}>
+                                      <Text color={theme.textMuted} fontSize={12}>
                                         {doc.document_number}
                                       </Text>
                                     </YStack>
                                     {doc.image_url ? (
                                       <Button
                                         size="$2"
-                                        backgroundColor={inputBg}
-                                        color={inputText}
+                                        backgroundColor={theme.inputBg}
+                                        color={theme.inputText}
                                         borderRadius={10}
                                         onPress={() => {
                                           const u = resolveUserDocumentImageUrl(doc.image_url);
@@ -2572,13 +2562,13 @@ export default function AdminScreen() {
                                 ))}
                               </YStack>
                             ) : (
-                              <Text color={muted} fontSize={12}>
+                              <Text color={theme.textMuted} fontSize={12}>
                                 No documents added.
                               </Text>
                             )}
 
                             <YStack gap="$2" paddingTop={4}>
-                              <Text color={titleColor} fontSize={12} fontWeight="800">
+                              <Text color={theme.text} fontSize={12} fontWeight="800">
                                 Add document
                               </Text>
 
@@ -2593,8 +2583,8 @@ export default function AdminScreen() {
                                   <Button
                                     key={opt.value}
                                     size="$2"
-                                    backgroundColor={documentFormType === opt.value ? activeBtnBg : idleBtnBg}
-                                    color={documentFormType === opt.value ? activeBtnText : idleBtnText}
+                                    backgroundColor={documentFormType === opt.value ? theme.accent : theme.bgCardSecondary}
+                                    color={documentFormType === opt.value ? '#FFFFFF' : theme.text}
                                     borderRadius={999}
                                     onPress={() => setDocumentFormType(opt.value)}>
                                     {opt.label}
@@ -2607,17 +2597,17 @@ export default function AdminScreen() {
                                   value={documentFormNumber}
                                   onChangeText={setDocumentFormNumber}
                                   placeholder="Document number"
-                                  backgroundColor={inputBg}
-                                  borderColor={border}
-                                  color={inputText}
+                                  backgroundColor={theme.inputBg}
+                                  borderColor={theme.border}
+                                  color={theme.inputText}
                                   minWidth={240}
                                   flexGrow={2}
                                   flexBasis={260}
                                 />
                                 <Button
                                   size="$2"
-                                  backgroundColor={idleBtnBg}
-                                  color={idleBtnText}
+                                  backgroundColor={theme.bgCardSecondary}
+                                  color={theme.text}
                                   borderRadius={10}
                                   onPress={() => pickDocumentImage('gallery')}
                                   disabled={documentBusy}>
@@ -2626,8 +2616,8 @@ export default function AdminScreen() {
                                 {Platform.OS !== 'web' ? (
                                   <Button
                                     size="$2"
-                                    backgroundColor={idleBtnBg}
-                                    color={idleBtnText}
+                                    backgroundColor={theme.bgCardSecondary}
+                                    color={theme.text}
                                     borderRadius={10}
                                     onPress={() => pickDocumentImage('camera')}
                                     disabled={documentBusy}>
@@ -2636,12 +2626,12 @@ export default function AdminScreen() {
                                 ) : null}
                                 <Button
                                   size="$2"
-                                  backgroundColor="#F97316"
-                                  color="#0B0B12"
-                                  borderRadius={10}
-                                  onPress={stageUserDocument}
-                                  disabled={documentBusy}>
-                                  Add Document
+                                backgroundColor={theme.accent}
+                                color="#FFFFFF"
+                                borderRadius={10}
+                                onPress={stageUserDocument}
+                                disabled={documentBusy}>
+                                Add Document
                                 </Button>
                               </XStack>
 
@@ -2649,10 +2639,10 @@ export default function AdminScreen() {
                                 <XStack gap="$2" alignItems="center">
                                   <Image
                                     source={{ uri: documentFormImageUri }}
-                                    style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: panelBg }}
+                                    style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: theme.bgCardSecondary }}
                                     resizeMode="cover"
                                   />
-                                  <Text color={muted} fontSize={11}>
+                                  <Text color={theme.textMuted} fontSize={11}>
                                     Image selected.
                                   </Text>
                                 </XStack>
@@ -2663,8 +2653,8 @@ export default function AdminScreen() {
                           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
                             <Button
                               size="$3"
-                              backgroundColor={idleBtnBg}
-                              color={idleBtnText}
+                              backgroundColor={theme.bgCardSecondary}
+                              color={theme.text}
                               borderRadius={12}
                               onPress={() => {
                                 setSelectedManagedUserId(null);
@@ -2683,8 +2673,8 @@ export default function AdminScreen() {
                             </Button>
                             <Button
                               size="$3"
-                              backgroundColor="#F97316"
-                              color="#0B0B12"
+                              backgroundColor={theme.accent}
+                              color="#FFFFFF"
                               borderRadius={12}
                               onPress={saveManagedUser}
                               disabled={loading || documentBusy}>
@@ -2702,23 +2692,23 @@ export default function AdminScreen() {
             {activeSection === 'properties' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Properties moderation
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     View, publish/unpublish, or delete properties.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
-                      backgroundColor={activeBtnBg}
-                      color={activeBtnText}
+                      backgroundColor={theme.accent}
+                      color={'#FFFFFF'}
                       borderRadius={10}
                       onPress={fetchProperties}
                       disabled={loading}>
@@ -2731,10 +2721,10 @@ export default function AdminScreen() {
                   const statusText = String(p.status ?? 'draft').replaceAll('_', ' ');
                   const statusColor =
                     p.status === 'published'
-                      ? '#10B981'
+                      ? theme.success
                       : p.status === 'draft'
-                        ? '#F59E0B'
-                        : '#94A3B8';
+                        ? theme.warning
+                        : theme.textMuted;
                   const location = `${p.locality ?? ''}${p.locality ? ', ' : ''}${p.city ?? ''}${p.city ? ', ' : ''}${p.state ?? ''}`;
                   const busy = propertyStatusBusyId === p.id;
                   const open = propertyUploadsOpenId === p.id;
@@ -2742,21 +2732,21 @@ export default function AdminScreen() {
                   return (
                     <YStack
                       key={p.id}
-                      backgroundColor={panelBgStrong}
+                      backgroundColor={theme.bgCard}
                       borderRadius={18}
                       padding={16}
                       gap="$2"
-                      borderColor={border}
+                      borderColor={theme.border}
                       borderWidth={1}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack flex={1} gap={4}>
-                          <Text color={titleColor} fontWeight="800" fontSize={14} numberOfLines={1}>
+                          <Text color={theme.text} fontWeight="800" fontSize={14} numberOfLines={1}>
                             {p.title ?? 'Property'}
                           </Text>
-                          <Text color={muted} fontSize={12} numberOfLines={1}>
+                          <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
                             {location.trim() || '—'}
                           </Text>
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Owner: {p.owner_user_id}
                           </Text>
                         </YStack>
@@ -2765,13 +2755,13 @@ export default function AdminScreen() {
                           <Text color={statusColor} fontSize={12} fontWeight="700">
                             Status: {statusText}
                           </Text>
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
                           </Text>
                           <Button
                             size="$2"
-                            backgroundColor={inputBg}
-                            color={inputText}
+                            backgroundColor={theme.inputBg}
+                            color={theme.inputText}
                             borderRadius={10}
                             disabled={propertyUploadsBusyId === p.id}
                             onPress={async () => {
@@ -2789,8 +2779,8 @@ export default function AdminScreen() {
                           <Button
                             key={s}
                             size="$2"
-                            backgroundColor={String(p.status ?? 'draft') === s ? activeBtnBg : idleBtnBg}
-                            color={String(p.status ?? 'draft') === s ? activeBtnText : idleBtnText}
+                            backgroundColor={String(p.status ?? 'draft') === s ? theme.accent : theme.bgCardSecondary}
+                            color={String(p.status ?? 'draft') === s ? '#FFFFFF' : theme.text}
                             borderRadius={999}
                             disabled={busy}
                             onPress={() => updatePropertyStatus(p.id, s)}>
@@ -2800,8 +2790,8 @@ export default function AdminScreen() {
 
                         <Button
                           size="$2"
-                          backgroundColor={inputBg}
-                          color={inputText}
+                          backgroundColor={theme.inputBg}
+                          color={theme.inputText}
                           borderRadius={999}
                           disabled={busy}
                           onPress={() =>
@@ -2812,8 +2802,8 @@ export default function AdminScreen() {
 
                         <Button
                           size="$2"
-                          backgroundColor="#EF4444"
-                          color="#0B0B12"
+                          backgroundColor={theme.danger}
+                          color="#FFFFFF"
                           borderRadius={999}
                           disabled={busy}
                           onPress={() => {
@@ -2828,13 +2818,13 @@ export default function AdminScreen() {
 
                       {open ? (
                         <YStack
-                          backgroundColor={panelBg}
+                          backgroundColor={theme.bgCardSecondary}
                           borderRadius={14}
                           padding={12}
                           gap="$2"
                           borderWidth={1}
-                          borderColor={border}>
-                          <Text color={muted} fontSize={12}>
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Uploaded files
                           </Text>
                           {(propertyUploads[p.id] ?? []).length ? (
@@ -2854,19 +2844,19 @@ export default function AdminScreen() {
                                     paddingVertical={8}
                                     paddingHorizontal={10}
                                     borderRadius={10}
-                                    backgroundColor={panelBgStrong}
+                                    backgroundColor={theme.bgCard}
                                     borderWidth={1}
-                                    borderColor={border}
+                                    borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
                                         {u.file_type || '—'}
                                       </Text>
                                     </YStack>
-                                    <Text color={muted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={11}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -2874,7 +2864,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               No uploads.
                             </Text>
                           )}
@@ -2885,9 +2875,9 @@ export default function AdminScreen() {
                 })}
 
                 {!properties.length ? (
-                  <YStack backgroundColor={panelBgStrong} borderRadius={18} padding={16} borderWidth={1} borderColor={border} gap="$1">
-                    <Text color={titleColor} fontWeight="800">No properties found</Text>
-                    <Text color={muted} fontSize={12}>
+                  <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
+                    <Text color={theme.text} fontWeight="800">No properties found</Text>
+                    <Text color={theme.textMuted} fontSize={12}>
                       Post a property as customer, then come back here to publish.
                     </Text>
                   </YStack>
@@ -2898,16 +2888,16 @@ export default function AdminScreen() {
             {activeSection === 'vehicles' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Manage vehicle types
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     Add or update vehicles shown in the booking wizard.
                   </Text>
 
@@ -2916,9 +2906,9 @@ export default function AdminScreen() {
                       value={vehicleForm.name}
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, name: v }))}
                       placeholder="Vehicle name (e.g., Tata Ace)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={220}
                       flexGrow={2}
                       flexBasis={260}
@@ -2927,9 +2917,9 @@ export default function AdminScreen() {
                       value={vehicleForm.capacity}
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, capacity: v }))}
                       placeholder="Capacity (e.g., 750 kg)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -2941,9 +2931,9 @@ export default function AdminScreen() {
                       value={vehicleForm.vehicle_type}
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, vehicle_type: v }))}
                       placeholder="Vehicle type"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -2952,9 +2942,9 @@ export default function AdminScreen() {
                       value={vehicleForm.vehicle_number}
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, vehicle_number: v }))}
                       placeholder="Vehicle number"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -2963,9 +2953,9 @@ export default function AdminScreen() {
                       value={vehicleForm.vehicle_model}
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, vehicle_model: v }))}
                       placeholder="Vehicle model"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -2976,9 +2966,9 @@ export default function AdminScreen() {
                     value={vehicleForm.description}
                     onChangeText={(v) => setVehicleForm((p) => ({ ...p, description: v }))}
                     placeholder="Description"
-                    backgroundColor={inputBg}
-                    borderColor={border}
-                    color={inputText}
+                    backgroundColor={theme.inputBg}
+                    borderColor={theme.border}
+                    color={theme.inputText}
                   />
 
                   <XStack gap="$2" flexWrap="wrap">
@@ -2987,9 +2977,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, base_price: v }))}
                       placeholder="Base price"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={150}
                       flexGrow={1}
                       flexBasis={160}
@@ -2999,9 +2989,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, per_km_price: v }))}
                       placeholder="Per km price"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={150}
                       flexGrow={1}
                       flexBasis={160}
@@ -3011,9 +3001,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setVehicleForm((p) => ({ ...p, labor_price: v }))}
                       placeholder="Labor price"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={150}
                       flexGrow={1}
                       flexBasis={160}
@@ -3028,7 +3018,7 @@ export default function AdminScreen() {
                       }}>
                       <Image
                         source={{ uri: resolveVehicleImageUrl(vehicleForm.image_url) }}
-                        style={{ width: 96, height: 64, borderRadius: 12, backgroundColor: inputBg as any }}
+                        style={{ width: 96, height: 64, borderRadius: 12, backgroundColor: theme.inputBg as any }}
                         resizeMode="cover"
                       />
                     </Pressable>
@@ -3037,8 +3027,8 @@ export default function AdminScreen() {
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
-                      backgroundColor={inputBg}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      color={theme.inputText}
                       borderRadius={10}
                       onPress={pickVehicleImage}
                       disabled={loading}>
@@ -3046,16 +3036,16 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={vehicleForm.is_active ? '#22C55E' : '#111827'}
-                      color={vehicleForm.is_active ? '#0B0B12' : '#E5E7EB'}
+                      backgroundColor={vehicleForm.is_active ? theme.success : theme.bgCardSecondary}
+                      color={vehicleForm.is_active ? '#FFFFFF' : theme.text}
                       borderRadius={999}
                       onPress={() => setVehicleForm((p) => ({ ...p, is_active: !p.is_active }))}>
                       {vehicleForm.is_active ? 'Active' : 'Inactive'}
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor="#F97316"
-                      color="#0B0B12"
+                      backgroundColor={theme.accent}
+                      color="#FFFFFF"
                       borderRadius={10}
                       onPress={upsertVehicleType}
                       disabled={loading}>
@@ -3063,8 +3053,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={resetVehicleForm}
                       disabled={loading}>
@@ -3072,8 +3062,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={inputBg}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      color={theme.inputText}
                       borderRadius={10}
                       onPress={fetchVehicleTypes}
                       disabled={loading}>
@@ -3086,18 +3076,18 @@ export default function AdminScreen() {
                   {vehicleTypes.map((item, idx) => (
                     <YStack
                       key={`${String(item.id ?? '').trim() || 'vehicle-type'}-${idx}`}
-                      backgroundColor={panelBgStrong}
+                      backgroundColor={theme.bgCard}
                       borderRadius={18}
                       padding={16}
                       gap="$2"
                       borderWidth={1}
-                      borderColor={border}>
+                      borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={titleColor} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={14}>
                             {item.name}
                           </Text>
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             {item.description ?? '—'}
                           </Text>
                         </YStack>
@@ -3109,35 +3099,35 @@ export default function AdminScreen() {
                             }}>
                             <Image
                               source={{ uri: resolveVehicleImageUrl(item.image_url) }}
-                              style={{ width: 72, height: 48, borderRadius: 12, backgroundColor: inputBg as any }}
+                              style={{ width: 72, height: 48, borderRadius: 12, backgroundColor: theme.inputBg as any }}
                               resizeMode="cover"
                             />
                           </Pressable>
                         ) : null}
                         <Button
                           size="$2"
-                          backgroundColor={item.is_active ? '#22C55E' : '#EF4444'}
-                          color="#0B0B12"
+                          backgroundColor={item.is_active ? theme.success : theme.danger}
+                          color="#FFFFFF"
                           borderRadius={10}
                           onPress={() => toggleVehicleActive(item.id, !(item.is_active ?? true))}
                           disabled={loading}>
                           {item.is_active ? 'Disable' : 'Enable'}
                         </Button>
                       </XStack>
-                      <Text color={muted} fontSize={12}>Capacity: {item.capacity ?? '—'}</Text>
+                      <Text color={theme.textMuted} fontSize={12}>Capacity: {item.capacity ?? '—'}</Text>
                       {(item.vehicle_type || item.vehicle_number || item.vehicle_model) ? (
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Type: {item.vehicle_type ?? '—'} • No: {item.vehicle_number ?? '—'} • Model: {item.vehicle_model ?? '—'}
                         </Text>
                       ) : null}
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Base: {item.base_price ?? '—'} • Per km: {item.per_km_price ?? '—'} • Labor: {item.labor_price ?? '—'}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
                         <Button
                           size="$2"
-                          backgroundColor={inputBg}
-                          color={inputText}
+                          backgroundColor={theme.inputBg}
+                          color={theme.inputText}
                           borderRadius={10}
                           onPress={() => {
                             setVehicleForm({
@@ -3167,16 +3157,16 @@ export default function AdminScreen() {
             {activeSection === 'coupons' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Manage coupons
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     Create discount codes for bookings.
                   </Text>
 
@@ -3186,9 +3176,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, code: v }))}
                       placeholder="Code (e.g., SAVE50)"
                       autoCapitalize="characters"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -3197,9 +3187,9 @@ export default function AdminScreen() {
                       value={couponForm.title}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, title: v }))}
                       placeholder="Title (optional)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={220}
                       flexGrow={2}
                       flexBasis={260}
@@ -3211,9 +3201,9 @@ export default function AdminScreen() {
                       value={couponForm.discount_type}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, discount_type: v }))}
                       placeholder="Type (percent/flat)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -3223,9 +3213,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, discount_value: v }))}
                       placeholder="Discount value"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -3235,9 +3225,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, max_discount: v }))}
                       placeholder="Max discount (optional)"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -3250,9 +3240,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, min_order_amount: v }))}
                       placeholder="Min order amount"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -3262,9 +3252,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, usage_limit: v }))}
                       placeholder="Usage limit (optional)"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={200}
@@ -3276,9 +3266,9 @@ export default function AdminScreen() {
                       value={couponForm.valid_from}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, valid_from: v }))}
                       placeholder="Valid from (YYYY-MM-DD)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -3287,9 +3277,9 @@ export default function AdminScreen() {
                       value={couponForm.valid_until}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, valid_until: v }))}
                       placeholder="Valid until (YYYY-MM-DD)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={220}
@@ -3299,16 +3289,16 @@ export default function AdminScreen() {
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
-                      backgroundColor={couponForm.is_active ? '#22C55E' : idleBtnBg}
-                      color={couponForm.is_active ? '#0B0B12' : idleBtnText}
+                      backgroundColor={couponForm.is_active ? theme.success : theme.bgCardSecondary}
+                      color={couponForm.is_active ? '#FFFFFF' : theme.text}
                       borderRadius={999}
                       onPress={() => setCouponForm((p) => ({ ...p, is_active: !p.is_active }))}>
                       {couponForm.is_active ? 'Active' : 'Inactive'}
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor="#F97316"
-                      color="#0B0B12"
+                      backgroundColor={theme.accent}
+                      color="#FFFFFF"
                       borderRadius={10}
                       onPress={upsertCoupon}
                       disabled={loading}>
@@ -3316,8 +3306,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={resetCouponForm}
                       disabled={loading}>
@@ -3325,8 +3315,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={inputBg}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      color={theme.inputText}
                       borderRadius={10}
                       onPress={fetchCoupons}
                       disabled={loading}>
@@ -3337,13 +3327,13 @@ export default function AdminScreen() {
 
                 <YStack gap="$3">
                   {coupons.map((item) => (
-                    <YStack key={item.id} backgroundColor={panelBgStrong} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={border}>
+                    <YStack key={item.id} backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={titleColor} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={14}>
                             {item.code}
                           </Text>
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             {item.discount_type ?? '—'} • {item.discount_value ?? '—'}
                             {item.max_discount ? ` (max ${item.max_discount})` : ''}
                           </Text>
@@ -3351,8 +3341,8 @@ export default function AdminScreen() {
                         <XStack gap="$2" flexWrap="wrap">
                           <Button
                             size="$2"
-                            backgroundColor={item.is_active ? '#22C55E' : '#EF4444'}
-                            color="#0B0B12"
+                            backgroundColor={item.is_active ? theme.success : theme.danger}
+                            color="#FFFFFF"
                             borderRadius={10}
                             onPress={() => toggleCouponActive(item.id, !(item.is_active ?? true))}
                             disabled={loading}>
@@ -3360,8 +3350,8 @@ export default function AdminScreen() {
                           </Button>
                           <Button
                             size="$2"
-                            backgroundColor={inputBg}
-                            color={inputText}
+                            backgroundColor={theme.inputBg}
+                            color={theme.inputText}
                             borderRadius={10}
                             onPress={() => {
                               setCouponForm({
@@ -3394,11 +3384,11 @@ export default function AdminScreen() {
                           </Button>
                         </XStack>
                       </XStack>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Min order: {item.min_order_amount ?? 0} • Used: {item.used_count ?? 0}
                         {item.usage_limit ? ` / ${item.usage_limit}` : ''}
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Valid: {item.valid_from ?? '—'} → {item.valid_until ?? '—'}
                       </Text>
                     </YStack>
@@ -3410,16 +3400,16 @@ export default function AdminScreen() {
             {activeSection === 'floors' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Manage floors
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     Add or update floor charges used in the booking wizard.
                   </Text>
 
@@ -3428,9 +3418,9 @@ export default function AdminScreen() {
                       value={floorForm.label}
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, label: v }))}
                       placeholder="Label (e.g., Ground, 1st, 2nd)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={220}
                       flexGrow={2}
                       flexBasis={260}
@@ -3440,9 +3430,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, sort_order: v }))}
                       placeholder={nextFloorSortOrder}
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={140}
                       flexGrow={1}
                       flexBasis={160}
@@ -3455,9 +3445,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, charge_with_lift: v }))}
                       placeholder="Charge (with lift)"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={160}
                       flexGrow={1}
                       flexBasis={200}
@@ -3467,9 +3457,9 @@ export default function AdminScreen() {
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, charge_without_lift: v }))}
                       placeholder="Charge (without lift)"
                       keyboardType="numeric"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={220}
@@ -3479,16 +3469,16 @@ export default function AdminScreen() {
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
-                      backgroundColor={floorForm.is_active ? '#22C55E' : idleBtnBg}
-                      color={floorForm.is_active ? '#0B0B12' : idleBtnText}
+                      backgroundColor={floorForm.is_active ? theme.success : theme.bgCardSecondary}
+                      color={floorForm.is_active ? '#FFFFFF' : theme.text}
                       borderRadius={999}
                       onPress={() => setFloorForm((p) => ({ ...p, is_active: !p.is_active }))}>
                       {floorForm.is_active ? 'Active' : 'Inactive'}
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor="#F97316"
-                      color="#0B0B12"
+                      backgroundColor={theme.accent}
+                      color="#FFFFFF"
                       borderRadius={10}
                       onPress={upsertFloorOption}
                       disabled={loading}>
@@ -3496,8 +3486,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={resetFloorForm}
                       disabled={loading}>
@@ -3505,8 +3495,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={inputBg}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      color={theme.inputText}
                       borderRadius={10}
                       onPress={fetchFloorOptions}
                       disabled={loading}>
@@ -3517,21 +3507,21 @@ export default function AdminScreen() {
 
                 <YStack gap="$3">
                   {floorOptions.map((item) => (
-                    <YStack key={item.id} backgroundColor={panelBgStrong} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={border}>
+                    <YStack key={item.id} backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={titleColor} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={14}>
                             {item.label}
                           </Text>
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Sort: {item.sort_order ?? 0} • With lift: {item.charge_with_lift ?? 0} • Without lift: {item.charge_without_lift ?? 0}
                           </Text>
                         </YStack>
                         <XStack gap="$2" flexWrap="wrap">
                           <Button
                             size="$2"
-                            backgroundColor={item.is_active ? '#22C55E' : '#EF4444'}
-                            color="#0B0B12"
+                            backgroundColor={item.is_active ? theme.success : theme.danger}
+                            color="#FFFFFF"
                             borderRadius={10}
                             onPress={() => toggleFloorActive(item.id, !(item.is_active ?? true))}
                             disabled={loading}>
@@ -3539,8 +3529,8 @@ export default function AdminScreen() {
                           </Button>
                           <Button
                             size="$2"
-                            backgroundColor={inputBg}
-                            color={inputText}
+                            backgroundColor={theme.inputBg}
+                            color={theme.inputText}
                             borderRadius={10}
                             onPress={() => {
                               setFloorForm({
@@ -3571,16 +3561,16 @@ export default function AdminScreen() {
             {activeSection === 'bookings' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Bookings
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     Filter and manage bookings.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -3588,17 +3578,17 @@ export default function AdminScreen() {
                       value={bookingStartDate}
                       onChangeText={setBookingStartDate}
                       placeholder="Start date YYYY-MM-DD"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={180}
                     />
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         if (Platform.OS === 'web') {
@@ -3612,17 +3602,17 @@ export default function AdminScreen() {
                       value={bookingEndDate}
                       onChangeText={setBookingEndDate}
                       placeholder="End date YYYY-MM-DD"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={180}
                       flexGrow={1}
                       flexBasis={180}
                     />
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         if (Platform.OS === 'web') {
@@ -3636,9 +3626,9 @@ export default function AdminScreen() {
                       value={bookingUserFilter}
                       onChangeText={setBookingUserFilter}
                       placeholder="Filter by user name/phone/email"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={220}
                       flexGrow={2}
                       flexBasis={220}
@@ -3647,17 +3637,17 @@ export default function AdminScreen() {
                       value={rescheduleDate}
                       onChangeText={setRescheduleDate}
                       placeholder="Reschedule date/time (ISO)"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
                       minWidth={200}
                       flexGrow={1}
                       flexBasis={200}
                     />
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         if (Platform.OS === 'web') {
@@ -3681,8 +3671,8 @@ export default function AdminScreen() {
                       <Button
                         key={filter.value}
                         size="$2"
-                        backgroundColor={bookingFilter === filter.value ? activeBtnBg : idleBtnBg}
-                        color={bookingFilter === filter.value ? activeBtnText : idleBtnText}
+                        backgroundColor={bookingFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                        color={bookingFilter === filter.value ? '#FFFFFF' : theme.text}
                         borderRadius={999}
                         onPress={() => {
                           const next = filter.value as typeof bookingFilter;
@@ -3708,29 +3698,29 @@ export default function AdminScreen() {
                   const statusText = String(item.status ?? '—').replaceAll('_', ' ');
                   const statusColor =
                     item.status === 'assigned'
-                      ? '#3B82F6'
+                      ? theme.info
                       : item.status === 'cancelled'
-                        ? '#EF4444'
+                        ? theme.danger
                         : item.status === 'delivered'
-                          ? '#10B981'
-                          : '#94A3B8';
+                          ? theme.success
+                          : theme.textMuted;
                   return (
                     <YStack
                       key={item.id}
-                      backgroundColor={panelBgStrong}
+                      backgroundColor={theme.bgCard}
                       borderRadius={18}
                       padding={16}
                       gap="$2"
-                      borderColor={border}
+                      borderColor={theme.border}
                       borderWidth={1}>
                       <YStack gap="$1">
-                        <Text color={titleColor} fontWeight="800" fontSize={14}>
+                        <Text color={theme.text} fontWeight="800" fontSize={14}>
                           {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           User: {user.name ?? '—'} • {user.phone ?? '—'} • {user.email ?? '—'}
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
                         </Text>
                       </YStack>
@@ -3742,8 +3732,8 @@ export default function AdminScreen() {
                           <XStack gap="$2" flexWrap="wrap" alignItems="center" justifyContent="space-between">
                             <Button
                               size="$2"
-                              backgroundColor={inputBg}
-                              color={inputText}
+                              backgroundColor={theme.inputBg}
+                              color={theme.inputText}
                               borderRadius={10}
                               onPress={() => setAssigningBookingId((prev) => (prev === item.id ? null : item.id))}
                               disabled={loading || assignDriverBusy === item.id}>
@@ -3752,8 +3742,8 @@ export default function AdminScreen() {
                             {hasAssignedDriver ? (
                               <Button
                                 size="$2"
-                                backgroundColor={idleBtnBg}
-                                color={idleBtnText}
+                                backgroundColor={theme.bgCardSecondary}
+                                color={theme.text}
                                 borderRadius={10}
                                 onPress={() => assignDriverToBooking(item.id, null, currentDriverId)}
                                 disabled={loading || assignDriverBusy === item.id}>
@@ -3764,13 +3754,13 @@ export default function AdminScreen() {
 
                           {assigningBookingId === item.id ? (
                             <YStack
-                              backgroundColor={panelBg}
+                              backgroundColor={theme.bgCardSecondary}
                               borderRadius={14}
                               padding={12}
                               gap="$2"
                               borderWidth={1}
-                              borderColor={border}>
-                              <Text color={muted} fontSize={12}>
+                              borderColor={theme.border}>
+                              <Text color={theme.textMuted} fontSize={12}>
                                 Select driver
                               </Text>
                               <XStack gap="$2" flexWrap="wrap">
@@ -3778,8 +3768,8 @@ export default function AdminScreen() {
                                   <Button
                                     key={d.id}
                                     size="$2"
-                                    backgroundColor={d.id === currentDriverId ? activeBtnBg : idleBtnBg}
-                                    color={d.id === currentDriverId ? activeBtnText : idleBtnText}
+                                    backgroundColor={d.id === currentDriverId ? theme.accent : theme.bgCardSecondary}
+                                    color={d.id === currentDriverId ? '#FFFFFF' : theme.text}
                                     borderRadius={999}
                                     onPress={() => assignDriverToBooking(item.id, d.id, currentDriverId)}
                                     disabled={loading || assignDriverBusy === item.id}>
@@ -3788,7 +3778,7 @@ export default function AdminScreen() {
                                 ))}
                               </XStack>
                               {!drivers.length ? (
-                                <Text color={muted} fontSize={12}>
+                                <Text color={theme.textMuted} fontSize={12}>
                                   No drivers found.
                                 </Text>
                               ) : null}
@@ -3800,8 +3790,8 @@ export default function AdminScreen() {
                       <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
                         <Button
                           size="$2"
-                          backgroundColor={inputBg}
-                          color={inputText}
+                          backgroundColor={theme.inputBg}
+                          color={theme.inputText}
                           borderRadius={10}
                           minWidth={120}
                           disabled={bookingUploadsBusyId === item.id}
@@ -3816,13 +3806,13 @@ export default function AdminScreen() {
 
                       {bookingUploadsOpenId === item.id ? (
                         <YStack
-                          backgroundColor={panelBg}
+                          backgroundColor={theme.bgCardSecondary}
                           borderRadius={14}
                           padding={12}
                           gap="$2"
                           borderWidth={1}
-                          borderColor={border}>
-                          <Text color={muted} fontSize={12}>
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Uploaded files
                           </Text>
                           {(bookingUploads[item.id] ?? []).length ? (
@@ -3842,19 +3832,19 @@ export default function AdminScreen() {
                                     paddingVertical={8}
                                     paddingHorizontal={10}
                                     borderRadius={10}
-                                    backgroundColor={panelBgStrong}
+                                    backgroundColor={theme.bgCard}
                                     borderWidth={1}
-                                    borderColor={border}
+                                    borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
                                         {u.file_type ?? 'file'}
                                       </Text>
                                     </YStack>
-                                    <Text color={muted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={11}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -3862,7 +3852,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               No uploads.
                             </Text>
                           )}
@@ -3873,16 +3863,16 @@ export default function AdminScreen() {
                         <Text color={statusColor} fontSize={12} fontWeight="700">
                           Status: {statusText}
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Payment: {String(item.payment_status ?? '—').replaceAll('_', ' ')}
                           {paymentModeLabel ? ` (${paymentModeLabel})` : ''}
                         </Text>
                       </XStack>
                       <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Paid: {paidAmount !== null ? `₹${paidAmount.toFixed(2)}` : '—'}
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Updated: {item.updated_at ? new Date(item.updated_at).toLocaleString() : '—'}
                         </Text>
                       </XStack>
@@ -3891,8 +3881,8 @@ export default function AdminScreen() {
                           {item.status === 'assigned' ? (
                             <Button
                               size="$2"
-                              backgroundColor="#3B82F6"
-                              color="#0B0B12"
+                              backgroundColor={theme.info}
+                              color="#FFFFFF"
                               borderRadius={10}
                               minWidth={120}
                               onPress={() => updateBookingStatus(item.id, 'not_started')}>
@@ -3901,8 +3891,8 @@ export default function AdminScreen() {
                           ) : null}
                           <Button
                             size="$2"
-                            backgroundColor={inputBg}
-                            color={inputText}
+                            backgroundColor={theme.inputBg}
+                            color={theme.inputText}
                             borderRadius={10}
                             minWidth={120}
                             onPress={() =>
@@ -3915,8 +3905,8 @@ export default function AdminScreen() {
                           </Button>
                           <Button
                             size="$2"
-                            backgroundColor="#EF4444"
-                            color="#0B0B12"
+                            backgroundColor={theme.danger}
+                            color="#FFFFFF"
                             borderRadius={10}
                             minWidth={120}
                             onPress={() => updateBookingStatus(item.id, 'cancelled')}>
@@ -3924,8 +3914,8 @@ export default function AdminScreen() {
                           </Button>
                           <Button
                             size="$2"
-                            backgroundColor="#F97316"
-                            color="#0B0B12"
+                            backgroundColor={theme.accent}
+                            color="#FFFFFF"
                             borderRadius={10}
                             minWidth={120}
                             onPress={() => {
@@ -3966,23 +3956,23 @@ export default function AdminScreen() {
             {activeSection === 'home_services' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$2"
                   borderWidth={1}
-                  borderColor={border}>
-                  <Text color={titleColor} fontWeight="700" fontSize={14}>
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
                     Home Services requests
                   </Text>
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     View and manage home service requests.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
-                      backgroundColor={activeBtnBg}
-                      color={activeBtnText}
+                      backgroundColor={theme.accent}
+                      color={'#FFFFFF'}
                       borderRadius={10}
                       onPress={fetchHomeServiceRequests}
                       disabled={loading}>
@@ -3995,39 +3985,39 @@ export default function AdminScreen() {
                   const statusText = String(r.status ?? 'pending').replaceAll('_', ' ');
                   const statusColor =
                     r.status === 'completed'
-                      ? '#10B981'
+                      ? theme.success
                       : r.status === 'cancelled'
-                        ? '#EF4444'
+                        ? theme.danger
                         : r.status === 'assigned'
-                          ? '#3B82F6'
-                          : '#F59E0B';
+                          ? theme.info
+                          : theme.warning;
                   const open = homeServiceUploadsOpenId === r.id;
                   const slot = `${r.preferred_date ?? '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
 
                   return (
                     <YStack
                       key={r.id}
-                      backgroundColor={panelBgStrong}
+                      backgroundColor={theme.bgCard}
                       borderRadius={18}
                       padding={16}
                       gap="$2"
-                      borderColor={border}
+                      borderColor={theme.border}
                       borderWidth={1}>
                       <YStack gap="$1">
                         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                           <YStack flex={1} gap={4}>
-                            <Text color={titleColor} fontWeight="800" fontSize={14}>
+                            <Text color={theme.text} fontWeight="800" fontSize={14}>
                               {homeServiceLabel(r.service_key)}
                             </Text>
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               Customer: {r.customer_name ?? '—'} • {r.customer_phone ?? '—'}
                             </Text>
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               {r.locality || r.city || r.state
                                 ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}`
                                 : 'Location not provided'}
                             </Text>
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               Slot: {slot}
                             </Text>
                           </YStack>
@@ -4038,8 +4028,8 @@ export default function AdminScreen() {
                             </Text>
                             <Button
                               size="$2"
-                              backgroundColor={inputBg}
-                              color={inputText}
+                              backgroundColor={theme.inputBg}
+                              color={theme.inputText}
                               borderRadius={10}
                               disabled={homeServiceUploadsBusyId === r.id}
                               onPress={async () => {
@@ -4053,7 +4043,7 @@ export default function AdminScreen() {
                         </XStack>
 
                         {r.notes ? (
-                          <Text color={muted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Notes: {r.notes}
                           </Text>
                         ) : null}
@@ -4064,8 +4054,8 @@ export default function AdminScreen() {
                           <Button
                             key={s}
                             size="$2"
-                            backgroundColor={String(r.status ?? 'pending') === s ? activeBtnBg : idleBtnBg}
-                            color={String(r.status ?? 'pending') === s ? activeBtnText : idleBtnText}
+                            backgroundColor={String(r.status ?? 'pending') === s ? theme.accent : theme.bgCardSecondary}
+                            color={String(r.status ?? 'pending') === s ? '#FFFFFF' : theme.text}
                             borderRadius={999}
                             disabled={homeServiceStatusBusyId === r.id}
                             onPress={() => updateHomeServiceStatus(r.id, s)}>
@@ -4076,13 +4066,13 @@ export default function AdminScreen() {
 
                       {open ? (
                         <YStack
-                          backgroundColor={panelBg}
+                          backgroundColor={theme.bgCardSecondary}
                           borderRadius={14}
                           padding={12}
                           gap="$2"
                           borderWidth={1}
-                          borderColor={border}>
-                          <Text color={muted} fontSize={12}>
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={12}>
                             Uploaded files
                           </Text>
                           {(homeServiceUploads[r.id] ?? []).length ? (
@@ -4102,19 +4092,19 @@ export default function AdminScreen() {
                                     paddingVertical={8}
                                     paddingHorizontal={10}
                                     borderRadius={10}
-                                    backgroundColor={panelBgStrong}
+                                    backgroundColor={theme.bgCard}
                                     borderWidth={1}
-                                    borderColor={border}
+                                    borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={titleColor} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={muted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
                                         {u.file_type ?? 'file'}
                                       </Text>
                                     </YStack>
-                                    <Text color={muted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={11}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -4122,7 +4112,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={muted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={12}>
                               No uploads.
                             </Text>
                           )}
@@ -4133,7 +4123,7 @@ export default function AdminScreen() {
                 })}
 
                 {!homeServiceRequests.length ? (
-                  <Text color={muted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>
                     No home service requests.
                   </Text>
                 ) : null}
@@ -4143,26 +4133,26 @@ export default function AdminScreen() {
             {activeSection === 'reports' ? (
               <YStack gap="$3">
                 <YStack
-                  backgroundColor={panelBgStrong}
+                  backgroundColor={theme.bgCard}
                   borderRadius={18}
                   padding={16}
                   gap="$3"
                   borderWidth={1}
-                  borderColor={border}>
+                  borderColor={theme.border}>
                   <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                     <YStack gap={4}>
-                      <Text color={titleColor} fontWeight="800" fontSize={14}>
+                      <Text color={theme.text} fontWeight="800" fontSize={14}>
                         Reports & analytics
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         Bookings summary between selected dates.
                       </Text>
                     </YStack>
                     <XStack gap="$2" flexWrap="wrap">
                       <Button
                         size="$2"
-                        backgroundColor={idleBtnBg}
-                        color={idleBtnText}
+                        backgroundColor={theme.bgCardSecondary}
+                        color={theme.text}
                         borderRadius={10}
                         onPress={() => {
                           ensureReportsDefaultDates();
@@ -4173,8 +4163,8 @@ export default function AdminScreen() {
                       </Button>
                       <Button
                         size="$2"
-                        backgroundColor={activeBtnBg}
-                        color={activeBtnText}
+                        backgroundColor={theme.accent}
+                        color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsBookingsCsv}
                         disabled={reportsLoading || !reportsBookings.length}>
@@ -4182,8 +4172,8 @@ export default function AdminScreen() {
                       </Button>
                       <Button
                         size="$2"
-                        backgroundColor={activeBtnBg}
-                        color={activeBtnText}
+                        backgroundColor={theme.accent}
+                        color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsPaymentsCsv}
                         disabled={reportsLoading || !reportsPayments.length}>
@@ -4191,8 +4181,8 @@ export default function AdminScreen() {
                       </Button>
                       <Button
                         size="$2"
-                        backgroundColor={idleBtnBg}
-                        color={idleBtnText}
+                        backgroundColor={theme.bgCardSecondary}
+                        color={theme.text}
                         borderRadius={10}
                         onPress={() => (router as any).push('/(tabs)/admin-history' as any)}>
                         Audit logs
@@ -4202,21 +4192,21 @@ export default function AdminScreen() {
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     <YStack gap="$1">
-                      <Text color={muted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
+                      <Text color={theme.textMuted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
                       <Input
                         value={reportsStartDate}
                         onChangeText={setReportsStartDate}
                         placeholder="2024-01-01"
-                        backgroundColor={inputBg}
-                        borderColor={border}
-                        color={inputText}
+                        backgroundColor={theme.inputBg}
+                        borderColor={theme.border}
+                        color={theme.inputText}
                         width={160}
                       />
                     </YStack>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         if (Platform.OS === 'web') {
@@ -4227,21 +4217,21 @@ export default function AdminScreen() {
                       Pick
                     </Button>
                     <YStack gap="$1">
-                      <Text color={muted} fontSize={11}>End date (YYYY-MM-DD)</Text>
+                      <Text color={theme.textMuted} fontSize={11}>End date (YYYY-MM-DD)</Text>
                       <Input
                         value={reportsEndDate}
                         onChangeText={setReportsEndDate}
                         placeholder="2024-12-31"
-                        backgroundColor={inputBg}
-                        borderColor={border}
-                        color={inputText}
+                        backgroundColor={theme.inputBg}
+                        borderColor={theme.border}
+                        color={theme.inputText}
                         width={160}
                       />
                     </YStack>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         if (Platform.OS === 'web') {
@@ -4253,8 +4243,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={activeBtnBg}
-                      color={activeBtnText}
+                      backgroundColor={theme.accent}
+                      color={'#FFFFFF'}
                       borderRadius={10}
                       onPress={() => {
                         fetchReportsBookings();
@@ -4265,8 +4255,8 @@ export default function AdminScreen() {
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={idleBtnBg}
-                      color={idleBtnText}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={() => {
                         setReportsStartDate('');
@@ -4281,7 +4271,7 @@ export default function AdminScreen() {
                     </Button>
                   </XStack>
 
-                  {reportsLoading ? <Text color={muted}>Loading report...</Text> : null}
+                  {reportsLoading ? <Text color={theme.textMuted}>Loading report...</Text> : null}
                   {reportsError ? <Text color="#FCA5A5">{reportsError}</Text> : null}
                 </YStack>
 
@@ -4420,73 +4410,73 @@ export default function AdminScreen() {
                     <YStack gap="$3">
                       <XStack gap="$2" flexWrap="wrap">
                         <YStack
-                          backgroundColor={panelBgStrong}
+                          backgroundColor={theme.bgCard}
                           borderRadius={18}
                           padding={16}
                           gap="$1"
                           borderWidth={1}
-                          borderColor={border}
+                          borderColor={theme.border}
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={muted} fontSize={12}>Total bookings</Text>
-                          <Text color={titleColor} fontWeight="900" fontSize={22}>{String(total)}</Text>
+                          <Text color={theme.textMuted} fontSize={12}>Total bookings</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={22}>{String(total)}</Text>
                         </YStack>
 
                         <YStack
-                          backgroundColor={panelBgStrong}
+                          backgroundColor={theme.bgCard}
                           borderRadius={18}
                           padding={16}
                           gap="$1"
                           borderWidth={1}
-                          borderColor={border}
+                          borderColor={theme.border}
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={muted} fontSize={12}>Advance collected</Text>
-                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(advanceSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={12}>Advance collected</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(advanceSum).toLocaleString('en-IN')}</Text>
                         </YStack>
 
                         <YStack
-                          backgroundColor={panelBgStrong}
+                          backgroundColor={theme.bgCard}
                           borderRadius={18}
                           padding={16}
                           gap="$1"
                           borderWidth={1}
-                          borderColor={border}
+                          borderColor={theme.border}
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={muted} fontSize={12}>Remaining amount</Text>
-                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(remainingSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={12}>Remaining amount</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(remainingSum).toLocaleString('en-IN')}</Text>
                         </YStack>
 
                         <YStack
-                          backgroundColor={panelBgStrong}
+                          backgroundColor={theme.bgCard}
                           borderRadius={18}
                           padding={16}
                           gap="$1"
                           borderWidth={1}
-                          borderColor={border}
+                          borderColor={theme.border}
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={muted} fontSize={12}>Payments (paid)</Text>
-                          <Text color={titleColor} fontWeight="900" fontSize={22}>₹{Math.round(paidAmountSum).toLocaleString('en-IN')}</Text>
-                          <Text color={muted} fontSize={11}>From {String(paymentCount)} payment record(s)</Text>
+                          <Text color={theme.textMuted} fontSize={12}>Payments (paid)</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(paidAmountSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>From {String(paymentCount)} payment record(s)</Text>
                         </YStack>
                       </XStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Bookings by status</Text>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Bookings by status</Text>
                         {!statusEntries.length ? (
-                          <Text color={muted} fontSize={12}>No data for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No data for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {statusEntries.map(([st, count]) => {
@@ -4494,11 +4484,11 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={st} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={titleColor} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
-                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
                                   </XStack>
-                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
-                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
                                   </YStack>
                                 </YStack>
                               );
@@ -4508,15 +4498,15 @@ export default function AdminScreen() {
                       </YStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Payments by status</Text>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Payments by status</Text>
                         {!paymentStatusEntries.length ? (
-                          <Text color={muted} fontSize={12}>No payments for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No payments for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {paymentStatusEntries.map(([st, count]) => {
@@ -4524,11 +4514,11 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={st} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={titleColor} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
-                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
                                   </XStack>
-                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
-                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
                                   </YStack>
                                 </YStack>
                               );
@@ -4538,15 +4528,15 @@ export default function AdminScreen() {
                       </YStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Payments by method</Text>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Payments by method</Text>
                         {!paymentMethodEntries.length ? (
-                          <Text color={muted} fontSize={12}>No payment methods found.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No payment methods found.</Text>
                         ) : (
                           <YStack gap={10}>
                             {paymentMethodEntries.slice(0, 8).map(([method, count]) => {
@@ -4554,11 +4544,11 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={method} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={titleColor} fontSize={12} fontWeight="800">{method.replaceAll('_', ' ')}</Text>
-                                    <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={12} fontWeight="800">{method.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
                                   </XStack>
-                                  <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
-                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                  <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
+                                    <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
                                   </YStack>
                                 </YStack>
                               );
@@ -4568,30 +4558,30 @@ export default function AdminScreen() {
                       </YStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Driver performance (approx.)</Text>
-                        <Text color={muted} fontSize={11}>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Driver performance (approx.)</Text>
+                        <Text color={theme.textMuted} fontSize={11}>
                           Avg completion time uses created_at → updated_at for delivered bookings.
                         </Text>
                         {!driverPerfEntries.length ? (
-                          <Text color={muted} fontSize={12}>No driver data found for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No driver data found for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {driverPerfEntries.map((d) => (
-                              <YStack key={d.name} gap={6} paddingBottom={6} borderBottomWidth={1} borderColor={border}>
+                              <YStack key={d.name} gap={6} paddingBottom={6} borderBottomWidth={1} borderColor={theme.border}>
                                 <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                                  <Text color={titleColor} fontSize={12} fontWeight="900">{d.name}</Text>
-                                  <Text color={muted} fontSize={12}>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900">{d.name}</Text>
+                                  <Text color={theme.textMuted} fontSize={12}>
                                     Delivered: {String(d.delivered)} | Cancelled: {String(d.cancelled)} | Cancel rate:{' '}
                                     {`${Math.round(d.cancelRate * 100)}%`}
                                   </Text>
                                 </XStack>
-                                <Text color={muted} fontSize={12}>Avg completion: {formatDuration(d.avgMs)}</Text>
+                                <Text color={theme.textMuted} fontSize={12}>Avg completion: {formatDuration(d.avgMs)}</Text>
                               </YStack>
                             ))}
                           </YStack>
@@ -4599,30 +4589,30 @@ export default function AdminScreen() {
                       </YStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Monthly trends</Text>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Monthly trends</Text>
                         {!allMonths.length ? (
-                          <Text color={muted} fontSize={12}>No monthly data for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No monthly data for selected range.</Text>
                         ) : (
                           <YStack gap={12}>
                             <YStack gap={10}>
-                              <Text color={muted} fontSize={12}>Bookings per month</Text>
+                              <Text color={theme.textMuted} fontSize={12}>Bookings per month</Text>
                               {allMonths.map((m) => {
                                 const count = monthlyBookings[m] ?? 0;
                                 const pct = Math.max(0.06, count / monthMaxBookings);
                                 return (
                                   <YStack key={`b-${m}`} gap={6}>
                                     <XStack justifyContent="space-between" alignItems="center">
-                                      <Text color={titleColor} fontSize={12} fontWeight="800">{m}</Text>
-                                      <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                      <Text color={theme.text} fontSize={12} fontWeight="800">{m}</Text>
+                                      <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
                                     </XStack>
-                                    <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
-                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                    <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
+                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
                                     </YStack>
                                   </YStack>
                                 );
@@ -4630,18 +4620,18 @@ export default function AdminScreen() {
                             </YStack>
 
                             <YStack gap={10}>
-                              <Text color={muted} fontSize={12}>Paid amount per month</Text>
+                              <Text color={theme.textMuted} fontSize={12}>Paid amount per month</Text>
                               {allMonths.map((m) => {
                                 const amt = monthlyPaidAmount[m] ?? 0;
                                 const pct = Math.max(0.06, amt / monthMaxPaid);
                                 return (
                                   <YStack key={`p-${m}`} gap={6}>
                                     <XStack justifyContent="space-between" alignItems="center">
-                                      <Text color={titleColor} fontSize={12} fontWeight="800">{m}</Text>
-                                      <Text color={muted} fontSize={12}>₹{Math.round(amt).toLocaleString('en-IN')}</Text>
+                                      <Text color={theme.text} fontSize={12} fontWeight="800">{m}</Text>
+                                      <Text color={theme.textMuted} fontSize={12}>₹{Math.round(amt).toLocaleString('en-IN')}</Text>
                                     </XStack>
-                                    <YStack height={10} backgroundColor={panelBg} borderRadius={999} overflow="hidden">
-                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={activeBtnBg} />
+                                    <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
+                                      <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
                                     </YStack>
                                   </YStack>
                                 );
@@ -4652,21 +4642,21 @@ export default function AdminScreen() {
                       </YStack>
 
                       <YStack
-                        backgroundColor={panelBgStrong}
+                        backgroundColor={theme.bgCard}
                         borderRadius={18}
                         padding={16}
                         gap="$2"
                         borderWidth={1}
-                        borderColor={border}>
-                        <Text color={titleColor} fontWeight="800">Top drivers (by assigned bookings)</Text>
+                        borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">Top drivers (by assigned bookings)</Text>
                         {!topDrivers.length ? (
-                          <Text color={muted} fontSize={12}>No driver assignments found.</Text>
+                          <Text color={theme.textMuted} fontSize={12}>No driver assignments found.</Text>
                         ) : (
                           <YStack gap={10}>
                             {topDrivers.map(([name, count]) => (
                               <XStack key={name} justifyContent="space-between" alignItems="center">
-                                <Text color={titleColor} fontSize={12} fontWeight="800">{name}</Text>
-                                <Text color={muted} fontSize={12}>{String(count)}</Text>
+                                <Text color={theme.text} fontSize={12} fontWeight="800">{name}</Text>
+                                <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
                               </XStack>
                             ))}
                           </YStack>

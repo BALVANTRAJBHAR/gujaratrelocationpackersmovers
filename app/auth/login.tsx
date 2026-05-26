@@ -2,38 +2,35 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ redirectTo?: string }>();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const cardBg = isDark ? '#0F172A' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#94A3B8' : '#6B7280';
-  const label = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#3B82F6'; // Light blue
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const activeBtnBg = '#3B82F6';
   const activeBtnText = '#FFFFFF';
   const activeBtnHoverBg = '#2563EB';
   const activeBtnPressBg = '#1D4ED8';
-  const idleBtnBg = isDark ? '#1F2937' : '#F9FAFB';
-  const idleBtnText = isDark ? '#D1D5DB' : '#6B7280';
-  const idleBtnHoverBg = isDark ? '#374151' : '#F3F4F6';
-  const idleBtnPressBg = isDark ? '#4B5563' : '#E5E7EB';
+  const idleBtnBg = theme.bgCardSecondary;
+  const idleBtnText = theme.textMuted;
+  const idleBtnHoverBg = theme.border;
+  const idleBtnPressBg = theme.border;
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [forgotStep, setForgotStep] = useState<'request' | 'set_password'>('request');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
@@ -543,23 +540,23 @@ export default function LoginScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: pageBg } as any}
+      style={{ flex: 1, backgroundColor: theme.bg } as any}
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 } as any}
       keyboardShouldPersistTaps="handled">
       <YStack
         width="100%"
         maxWidth={420}
-        backgroundColor={cardBg}
+        backgroundColor={theme.bgCard}
         borderRadius={20}
         padding={24}
         gap="$4"
         borderWidth={1}
-        borderColor={border}>
+        borderColor={theme.border}>
         <YStack gap="$2" alignItems="center">
-          <H2 color={titleColor} textAlign="center">
+          <H2 color={theme.text} textAlign="center">
             {title}
           </H2>
-          <Paragraph color={muted} textAlign="center">
+          <Paragraph color={theme.textMuted} textAlign="center">
             {subtitle}
           </Paragraph>
         </YStack>
@@ -622,12 +619,12 @@ export default function LoginScreen() {
         {mode !== 'forgot' ? (
           <YStack gap="$2">
             <Button
-              backgroundColor="#FFFFFF"
-              color="#111827"
+              backgroundColor={theme.bgCard}
+              color={theme.text}
               borderWidth={1}
-              borderColor={border}
-              hoverStyle={{ backgroundColor: '#F3F4F6' }}
-              pressStyle={{ backgroundColor: '#E5E7EB' }}
+              borderColor={theme.border}
+              hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
+              pressStyle={{ backgroundColor: theme.border }}
               onPress={() => handleOAuth('google')}
               disabled={loading || oauthLoading !== null}>
               {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
@@ -650,7 +647,7 @@ export default function LoginScreen() {
         <YStack gap="$3">
           {mode === 'signup' && showEmailSignup ? (
             <YStack gap="$2">
-              <Text color={label}>Name (optional)</Text>
+              <Text color={theme.textSecondary}>Name (optional)</Text>
               <Input
                 value={name}
                 onChangeText={setName}
@@ -662,14 +659,14 @@ export default function LoginScreen() {
 
           {mode === 'signup' && showEmailSignup ? (
             <YStack gap="$2">
-              <Text color={label}>You are a</Text>
+              <Text color={theme.textSecondary}>You are a</Text>
               <XStack gap="$2">
                 <Button
                   flex={1}
                   backgroundColor={signupRole === 'customer' ? activeBtnBg : idleBtnBg}
                   color={signupRole === 'customer' ? activeBtnText : idleBtnText}
                   borderWidth={1}
-                  borderColor={signupRole === 'customer' ? activeBtnBg : border}
+                  borderColor={signupRole === 'customer' ? activeBtnBg : theme.border}
                   hoverStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
@@ -684,7 +681,7 @@ export default function LoginScreen() {
                   backgroundColor={signupRole === 'provider' ? activeBtnBg : idleBtnBg}
                   color={signupRole === 'provider' ? activeBtnText : idleBtnText}
                   borderWidth={1}
-                  borderColor={signupRole === 'provider' ? activeBtnBg : border}
+                  borderColor={signupRole === 'provider' ? activeBtnBg : theme.border}
                   hoverStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
@@ -700,14 +697,14 @@ export default function LoginScreen() {
 
           {mode === 'signup' && showEmailSignup && signupRole === 'provider' ? (
             <YStack gap="$2">
-              <Text color={label}>Provider type</Text>
+              <Text color={theme.textSecondary}>Provider type</Text>
               <XStack gap="$2" flexWrap="wrap">
                 <Button
                   flex={1}
                   backgroundColor={signupProviderSubtype === 'home_service' ? activeBtnBg : idleBtnBg}
                   color={signupProviderSubtype === 'home_service' ? activeBtnText : idleBtnText}
                   borderWidth={1}
-                  borderColor={signupProviderSubtype === 'home_service' ? activeBtnBg : border}
+                  borderColor={signupProviderSubtype === 'home_service' ? activeBtnBg : theme.border}
                   hoverStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
@@ -722,7 +719,7 @@ export default function LoginScreen() {
                   backgroundColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : idleBtnBg}
                   color={signupProviderSubtype === 'property_owner' ? activeBtnText : idleBtnText}
                   borderWidth={1}
-                  borderColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : border}
+                  borderColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : theme.border}
                   hoverStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnHoverBg : idleBtnHoverBg }}
                   pressStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnPressBg : idleBtnPressBg }}
                   onPress={() => {
@@ -739,7 +736,7 @@ export default function LoginScreen() {
 
           {mode === 'signup' && showEmailSignup && !pendingOAuthUser ? (
             <YStack gap="$2">
-              <Text color={label}>Email</Text>
+              <Text color={theme.textSecondary}>Email</Text>
               <Input
                 value={email}
                 onChangeText={setEmail}
@@ -752,7 +749,7 @@ export default function LoginScreen() {
           ) : null}
           {mode !== 'signup' ? (
             <YStack gap="$2">
-              <Text color={label}>Email</Text>
+              <Text color={theme.textSecondary}>Email</Text>
               <Input
                 value={email}
                 onChangeText={setEmail}
@@ -766,32 +763,54 @@ export default function LoginScreen() {
 
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
             <YStack gap="$2">
-              <Text color={label}>Password</Text>
-              <Input
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="Password"
-                fontFamily="Times New Roman"
-              />
+              <Text color={theme.textSecondary}>Password</Text>
+              <XStack alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+                <Input
+                  flex={1}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  placeholder="Password"
+                  fontFamily="Times New Roman"
+                  borderWidth={0}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
+                  <Text color={theme.textMuted} fontSize={13} fontWeight="700" userSelect="none">
+                    {showPassword ? 'Hide' : 'Show'}
+                  </Text>
+                </Pressable>
+              </XStack>
             </YStack>
           ) : null}
 
           {mode === 'forgot' && forgotStep === 'set_password' ? (
             <YStack gap="$2">
-              <Text color={label}>New Password</Text>
-              <Input
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-                placeholder="Enter new password"
-                fontFamily="Times New Roman"
-              />
+              <Text color={theme.textSecondary}>New Password</Text>
+              <XStack alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+                <Input
+                  flex={1}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
+                  placeholder="Enter new password"
+                  fontFamily="Times New Roman"
+                  borderWidth={0}
+                />
+                <Pressable
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                  style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
+                  <Text color={theme.textMuted} fontSize={13} fontWeight="700" userSelect="none">
+                    {showNewPassword ? 'Hide' : 'Show'}
+                  </Text>
+                </Pressable>
+              </XStack>
             </YStack>
           ) : null}
 
-          {error ? <Paragraph color="#F87171">{error}</Paragraph> : null}
-          {info ? <Paragraph color="#34D399">{info}</Paragraph> : null}
+          {error ? <Paragraph color={theme.danger}>{error}</Paragraph> : null}
+          {info ? <Paragraph color={theme.success}>{info}</Paragraph> : null}
 
           {mode !== 'signup' || showEmailSignup ? (
             <Button
@@ -823,7 +842,7 @@ export default function LoginScreen() {
           {mode === 'forgot' && forgotStep !== 'request' ? (
             <Button
               chromeless
-              color={muted}
+              color={theme.textMuted}
               onPress={() => {
                 setForgotStep('request');
                 setNewPassword('');
@@ -836,7 +855,7 @@ export default function LoginScreen() {
 
           <Button
             chromeless
-            color={muted}
+            color={theme.textMuted}
             onPress={() => {
               setPendingOAuthUser(null);
               router.back();

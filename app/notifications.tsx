@@ -5,6 +5,7 @@ import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 
 type NotificationRow = {
@@ -23,13 +24,7 @@ type NotificationRow = {
 export default function NotificationsScreen() {
   const { session } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F8FAFC';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const muted = isDark ? '#94A3B8' : '#64748B';
-  const text = isDark ? '#FFFFFF' : '#0F172A';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -119,18 +114,18 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={16} gap="$3">
+    <YStack flex={1} backgroundColor={theme.bg} padding={16} gap="$3">
       <XStack alignItems="center" justifyContent="space-between">
         <XStack alignItems="center" gap="$2">
-          <IconSymbol name="bell.fill" size={24} color={text} />
-          <H2 color={text}>Notifications</H2>
+          <IconSymbol name="bell.fill" size={24} color={theme.text} />
+          <H2 color={theme.text}>Notifications</H2>
         </XStack>
-        <Button onPress={markAllRead} disabled={!unreadCount} backgroundColor={panelBg} borderWidth={1} borderColor={border}>
-          <Text color={text}>Mark all read</Text>
+        <Button onPress={markAllRead} disabled={!unreadCount} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
+          <Text color={theme.text}>Mark all read</Text>
         </Button>
       </XStack>
 
-      <Paragraph color={muted}>
+      <Paragraph color={theme.textMuted}>
         Unread: {unreadCount}
       </Paragraph>
 
@@ -140,8 +135,8 @@ export default function NotificationsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingBottom: 40 } as any}
         ListEmptyComponent={
-          <YStack padding={16} borderRadius={12} backgroundColor={panelBg} borderWidth={1} borderColor={border}>
-            <Text color={muted}>{loading ? 'Loading…' : 'No notifications yet.'}</Text>
+          <YStack padding={16} borderRadius={12} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
+            <Text color={theme.textMuted}>{loading ? 'Loading…' : 'No notifications yet.'}</Text>
           </YStack>
         }
         renderItem={({ item }) => {
@@ -155,20 +150,20 @@ export default function NotificationsScreen() {
                 marginBottom={10}
                 padding={12}
                 borderRadius={12}
-                backgroundColor={panelBg}
+                backgroundColor={theme.bgSecondary}
                 borderWidth={1}
-                borderColor={isUnread ? '#28b467ff' : border}
+                borderColor={isUnread ? theme.success : theme.border}
                 gap="$1">
                 <XStack alignItems="center" justifyContent="space-between" gap="$2">
-                  <Text fontSize={14} fontWeight={isUnread ? '700' : '600'} color={text} flex={1}>
+                  <Text fontSize={14} fontWeight={isUnread ? '700' : '600'} color={theme.text} flex={1}>
                     {item.title}
                   </Text>
                   {isUnread ? (
-                    <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: '#28b467ff' }} />
+                    <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: theme.success }} />
                   ) : null}
                 </XStack>
-                <Text color={muted}>{item.body}</Text>
-                <Text color={muted} fontSize={12}>
+                <Text color={theme.textMuted}>{item.body}</Text>
+                <Text color={theme.textMuted} fontSize={12}>
                   {new Date(item.created_at).toLocaleString()}
                 </Text>
               </YStack>

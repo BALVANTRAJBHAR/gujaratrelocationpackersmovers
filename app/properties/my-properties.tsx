@@ -7,6 +7,8 @@ import { formatPropertyListingTitle } from '@/lib/properties/property-listing-la
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 
 type PropertyRow = {
   id: string;
@@ -33,6 +35,7 @@ type UploadRow = {
 };
 
 export default function MyPropertiesScreen() {
+  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const { session } = useSession();
 
@@ -132,15 +135,15 @@ export default function MyPropertiesScreen() {
     router.push({ pathname: '/properties/post', params: { editId: id } } as any);
   };
 
-  const pageBg = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
-  const panelBg = '#F8FAFC';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const panelBg = theme.bgSecondary;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#111827" padding={16} paddingTop={18}>
+      <YStack backgroundColor={theme.primary} padding={16} paddingTop={18}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
             ‹
@@ -149,7 +152,7 @@ export default function MyPropertiesScreen() {
             <Text color="#FFFFFF" fontSize={16} fontWeight="800">
               My Properties
             </Text>
-            <Text color="#9CA3AF" fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
               Manage your listings
             </Text>
           </YStack>
@@ -163,15 +166,15 @@ export default function MyPropertiesScreen() {
           </Text>
 
           <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-            <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => void load()} disabled={loading}>
+            <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => void load()} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </Button>
-            <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/properties/post' as any)}>
+            <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => router.push('/properties/post' as any)}>
               Post New
             </Button>
           </XStack>
 
-          {error ? <Text color="#EF4444">{error}</Text> : null}
+          {error ? <Text color={theme.danger}>{error}</Text> : null}
           {loading && !items.length ? <Text color={muted}>Loading…</Text> : null}
 
           {items.map((p) => {
@@ -182,7 +185,7 @@ export default function MyPropertiesScreen() {
             const listingTitle = formatPropertyListingTitle(p);
 
             return (
-              <YStack key={p.id} backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack key={p.id} backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <XStack justifyContent="space-between" alignItems="flex-start" gap="$2">
                   <YStack flex={1} gap="$1">
                     <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={2}>
@@ -193,7 +196,7 @@ export default function MyPropertiesScreen() {
                     </Text>
                   </YStack>
                   <YStack alignItems="flex-end" gap="$1">
-                    <Text color={isPublished ? '#10B981' : '#F59E0B'} fontWeight="900" fontSize={12}>
+                    <Text color={isPublished ? theme.success : theme.warning} fontWeight="900" fontSize={12}>
                       {isPublished ? 'PUBLISHED' : 'DRAFT'}
                     </Text>
                     <Text color={muted} fontSize={11}>
@@ -210,7 +213,7 @@ export default function MyPropertiesScreen() {
                 ) : null}
 
                 <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                  <Text color="#10B981" fontWeight="900">
+                  <Text color={theme.success} fontWeight="900">
                     {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
                   </Text>
 
@@ -219,13 +222,13 @@ export default function MyPropertiesScreen() {
                       onPress={() => {
                         router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
                       }}>
-                      <Text color="#2563EB" fontWeight="900" fontSize={12}>
+                      <Text color={theme.info} fontWeight="900" fontSize={12}>
                         View
                       </Text>
                     </Pressable>
 
                     <Pressable onPress={() => openEditWizard(p.id)}>
-                      <Text color="#0EA5E9" fontWeight="900" fontSize={12}>
+                      <Text color={theme.info} fontWeight="900" fontSize={12}>
                         Edit
                       </Text>
                     </Pressable>
@@ -246,13 +249,13 @@ export default function MyPropertiesScreen() {
                             ]
                           );
                         }}>
-                        <Text color="#EF4444" fontWeight="900" fontSize={12}>
+                        <Text color={theme.danger} fontWeight="900" fontSize={12}>
                           Unpublish
                         </Text>
                       </Pressable>
                     ) : (
                       <Pressable onPress={() => openEditWizard(p.id)}>
-                        <Text color="#10B981" fontWeight="900" fontSize={12}>
+                        <Text color={theme.success} fontWeight="900" fontSize={12}>
                           Edit & Publish
                         </Text>
                       </Pressable>

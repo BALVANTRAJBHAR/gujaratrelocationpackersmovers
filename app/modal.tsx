@@ -6,6 +6,7 @@ import { FlatList, Share } from 'react-native';
 import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 type Payment = {
@@ -21,15 +22,16 @@ export default function ModalScreen() {
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const cardBg = isDark ? '#111827' : '#F3F4F6';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const text = isDark ? '#E5E7EB' : '#111827';
-  const idleBtnBg = isDark ? '#111827' : '#E5E7EB';
-  const idleBtnText = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#F97316';
-  const activeBtnText = '#0B0B12';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const pageBg = theme.bg;
+  const cardBg = theme.bgCardSecondary;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const text = theme.text;
+  const idleBtnBg = theme.border;
+  const idleBtnText = theme.text;
+  const activeBtnBg = theme.accent;
+  const activeBtnText = '#FFFFFF';
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export default function ModalScreen() {
       </YStack>
 
       {loading ? <Text color={muted}>Loading...</Text> : null}
-      {error ? <Text color="#FCA5A5">{error}</Text> : null}
+      {error ? <Text color={theme.danger}>{error}</Text> : null}
 
       <FlatList
         data={filteredPayments}

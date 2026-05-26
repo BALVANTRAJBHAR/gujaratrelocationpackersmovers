@@ -4,6 +4,7 @@ import { Alert, Linking, Platform, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 
 export default function SupportScreen() {
@@ -11,15 +12,7 @@ export default function SupportScreen() {
   const router = useRouter();
   const { profile, session } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#0F172A' : '#F3F4F6';
-  const panelBgStrong = isDark ? '#111827' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const accent = '#F97316';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [message, setMessage] = useState('');
 
@@ -70,77 +63,77 @@ export default function SupportScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={pageBg}>
+    <YStack flex={1} backgroundColor={theme.bg}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={900} alignSelf="center">
           <YStack gap="$1">
-            <Text color={accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
               Support
             </Text>
-            <H2 color={titleColor}>Chat with us</H2>
-            <Paragraph color={muted}>
+            <H2 color={theme.text}>Chat with us</H2>
+            <Paragraph color={theme.textMuted}>
               Send a WhatsApp message, call, or email—our team will help you quickly.
             </Paragraph>
             {bookingId ? (
-              <Text color={muted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={12}>
                 Booking: {bookingId}
               </Text>
             ) : null}
           </YStack>
 
-          <YStack backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
-            <Text color={titleColor} fontWeight="800">
+          <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
+            <Text color={theme.text} fontWeight="800">
               In-app AI support
             </Text>
-            <Text color={muted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={12}>
               Use quick options or type your question to get instant guidance.
             </Text>
             <XStack>
-              <Button backgroundColor={accent} color="#0B0B12" onPress={() => router.push({ pathname: '/support-chat', params: bookingId ? { bookingId } : {} } as any)}>
+              <Button backgroundColor={theme.accent} color="#FFFFFF" onPress={() => router.push({ pathname: '/support-chat', params: bookingId ? { bookingId } : {} } as any)}>
                 Open AI Chat
               </Button>
             </XStack>
           </YStack>
 
-          <YStack backgroundColor={panelBg} borderColor={border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
-            <Text color={titleColor} fontWeight="800">
+          <YStack backgroundColor={theme.bgSecondary} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
+            <Text color={theme.text} fontWeight="800">
               Message
             </Text>
-            <Text color={muted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={12}>
               You can keep this blank—default details will be included.
             </Text>
             <Input
               value={message}
               onChangeText={setMessage}
               placeholder={defaultMessage}
-              placeholderTextColor={muted}
+              placeholderTextColor={theme.textMuted}
               multiline
               numberOfLines={5}
-              backgroundColor={panelBgStrong}
-              borderColor={border}
-              color={titleColor}
+              backgroundColor={theme.bgCard}
+              borderColor={theme.border}
+              color={theme.text}
               padding={12}
               borderRadius={14}
             />
 
             <XStack gap="$2" flexWrap="wrap" paddingTop={4}>
-              <Button backgroundColor={accent} color="#0B0B12" onPress={() => void onWhatsApp()}>
+              <Button backgroundColor={theme.accent} color="#FFFFFF" onPress={() => void onWhatsApp()}>
                 WhatsApp
               </Button>
-              <Button backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} color={titleColor} onPress={() => void onCall()}>
+              <Button backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} color={theme.text} onPress={() => void onCall()}>
                 Call
               </Button>
-              <Button backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} color={titleColor} onPress={() => void onEmail()}>
+              <Button backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} color={theme.text} onPress={() => void onEmail()}>
                 Email
               </Button>
             </XStack>
           </YStack>
 
-          <YStack backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
-            <Text color={titleColor} fontWeight="800">
+          <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
+            <Text color={theme.text} fontWeight="800">
               Tip
             </Text>
-            <Text color={muted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={12}>
               If your booking is assigned, the driver can update status and you can track movement in the Tracking tab.
             </Text>
           </YStack>

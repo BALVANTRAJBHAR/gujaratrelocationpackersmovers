@@ -24,6 +24,8 @@ import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPl
 import { getMapboxToken } from '@/lib/public-config';
 import { hydratePropertyForm, loadPropertyForEdit } from '@/lib/load-property-for-edit';
 import { supabase } from '@/lib/supabase';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -48,6 +50,9 @@ function isRemoteMediaUri(uri: string) {
 }
 
 export default function PostPropertyScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string }>();
   const editId = String(params.editId ?? '').trim();
@@ -2014,11 +2019,11 @@ export default function PostPropertyScreen() {
     }
   };
 
-  const pageBg = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
-  const valueColor = '#475569';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const valueColor = theme.textSecondary;
   const valueWeight: any = '400';
 
   const clampAvailableFromDate = (d: Date) => {
@@ -2130,8 +2135,8 @@ export default function PostPropertyScreen() {
   const reviewRow = (label: string, value: string) => {
     return (
       <XStack flexWrap="wrap">
-        <Text color="#374151">{label}: </Text>
-        <Text color="#60A5FA" fontWeight={valueWeight}>
+        <Text color={theme.textSecondary}>{label}: </Text>
+        <Text color={theme.info} fontWeight={valueWeight}>
           {value}
         </Text>
       </XStack>
@@ -2410,38 +2415,38 @@ export default function PostPropertyScreen() {
 
   const renderYesNo = (value: 0 | 1 | null, onChange: (v: 0 | 1 | null) => void) => {
     return (
-      <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+      <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
         <Button
           flex={1}
           borderRadius={0}
-          backgroundColor={value === 1 ? '#059669' : 'transparent'}
-          color={value === 1 ? '#FFFFFF' : '#111827'}
+          backgroundColor={value === 1 ? theme.success : 'transparent'}
+          color={value === 1 ? '#FFFFFF' : theme.text}
           fontWeight="800"
           hoverStyle={{
-            backgroundColor: value === 1 ? '#059669' : 'transparent',
+            backgroundColor: value === 1 ? theme.success : 'transparent',
           }}
           pressStyle={{
-            backgroundColor: value === 1 ? '#059669' : 'transparent',
+            backgroundColor: value === 1 ? theme.success : 'transparent',
           }}
           onPress={() => onChange(1)}>
-          <Text color={value === 1 ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+          <Text color={value === 1 ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
             Yes
           </Text>
         </Button>
         <Button
           flex={1}
           borderRadius={0}
-          backgroundColor={value === 0 ? '#059669' : 'transparent'}
-          color={value === 0 ? '#FFFFFF' : '#111827'}
+          backgroundColor={value === 0 ? theme.success : 'transparent'}
+          color={value === 0 ? '#FFFFFF' : theme.text}
           fontWeight="800"
           hoverStyle={{
-            backgroundColor: value === 0 ? '#059669' : 'transparent',
+            backgroundColor: value === 0 ? theme.success : 'transparent',
           }}
           pressStyle={{
-            backgroundColor: value === 0 ? '#059669' : 'transparent',
+            backgroundColor: value === 0 ? theme.success : 'transparent',
           }}
           onPress={() => onChange(0)}>
-          <Text color={value === 0 ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+          <Text color={value === 0 ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
             No
           </Text>
         </Button>
@@ -2451,16 +2456,16 @@ export default function PostPropertyScreen() {
 
   const renderCounter = (value: number, setValue: (n: number) => void) => {
     return (
-      <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#FFFFFF" alignItems="center">
+      <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCard} alignItems="center">
         <Button
           size="$3"
           borderRadius={0}
-          backgroundColor="#F3F4F6"
-          color="#111827"
+          backgroundColor={theme.bgCardSecondary}
+          color={theme.text}
           fontWeight="900"
-          hoverStyle={{ backgroundColor: '#F3F4F6' }}
+          hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
           onPress={() => setValue(Math.max(0, value - 1))}>
-          <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+          <Text color={theme.text} fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
             -
           </Text>
         </Button>
@@ -2472,12 +2477,12 @@ export default function PostPropertyScreen() {
         <Button
           size="$3"
           borderRadius={0}
-          backgroundColor="#F3F4F6"
-          color="#111827"
+          backgroundColor={theme.bgCardSecondary}
+          color={theme.text}
           fontWeight="900"
-          hoverStyle={{ backgroundColor: '#F3F4F6' }}
+          hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
           onPress={() => setValue(value + 1)}>
-          <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+          <Text color={theme.text} fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
             +
           </Text>
         </Button>
@@ -2521,7 +2526,7 @@ export default function PostPropertyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#ECFDF5" padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
+      <YStack backgroundColor={theme.couponBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button
             size="$3"
@@ -2559,7 +2564,7 @@ export default function PostPropertyScreen() {
             <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', padding: 16 }} onPress={() => setPreviewOpen(false)}>
               <Pressable
                 onPress={() => {}}
-                style={{ backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 520 }}>
+                style={{ backgroundColor: theme.bgCard, borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 520 }}>
                 <YStack gap="$3">
                   <XStack alignItems="center" justifyContent="space-between">
                     <Text color={titleColor} fontWeight="900">
@@ -2567,16 +2572,16 @@ export default function PostPropertyScreen() {
                     </Text>
                     <Button
                       size="$2"
-                      backgroundColor="#E5E7EB"
-                      color="#111827"
-                      hoverStyle={{ backgroundColor: '#E5E7EB' }}
+                      backgroundColor={theme.border}
+                      color={theme.text}
+                      hoverStyle={{ backgroundColor: theme.border }}
                       onPress={() => setPreviewOpen(false)}>
-                      <Text color="#111827" fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
+                      <Text color={theme.text} fontWeight="900" hoverStyle={{ color: '#FFFFFF' }}>
                         Close
                       </Text>
                     </Button>
                   </XStack>
-                  <YStack height={420} borderRadius={12} overflow="hidden" backgroundColor="#0B0B12" alignItems="center" justifyContent="center">
+                  <YStack height={420} borderRadius={12} overflow="hidden" backgroundColor={theme.bg} alignItems="center" justifyContent="center">
                     {previewKind === 'photo' ? (
                       <Image source={{ uri: previewUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
                     ) : (
@@ -2595,7 +2600,7 @@ export default function PostPropertyScreen() {
 
           <Modal visible={pickerOpen !== null} transparent animationType="fade" onRequestClose={() => setPickerOpen(null)}>
             <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', padding: 18 }} onPress={() => setPickerOpen(null)}>
-              <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 420 }}>
+              <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 14, padding: 12, marginTop: 60, borderWidth: 1, borderColor: border, maxHeight: 420 }}>
                 <ScrollView>
                   {pickerOpen === 'apartmentType'
                     ? ((adType === 'resale'
@@ -3512,7 +3517,7 @@ export default function PostPropertyScreen() {
           </Modal>
 
           {step === 'basic' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900">
                 Basic
               </Text>
@@ -3522,49 +3527,49 @@ export default function PostPropertyScreen() {
                   Property type
                 </Text>
 
-                <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+                <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
                   <Button
                     flex={1}
                     borderRadius={0}
-                    backgroundColor={propertyCategory === 'residential' ? '#059669' : 'transparent'}
-                    color={propertyCategory === 'residential' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={propertyCategory === 'residential' ? theme.success : 'transparent'}
+                    color={propertyCategory === 'residential' ? '#FFFFFF' : theme.text}
                     fontWeight="800"
-                    hoverStyle={{ backgroundColor: propertyCategory === 'residential' ? '#059669' : 'transparent' }}
-                    pressStyle={{ backgroundColor: propertyCategory === 'residential' ? '#059669' : 'transparent' }}
+                    hoverStyle={{ backgroundColor: propertyCategory === 'residential' ? theme.success : 'transparent' }}
+                    pressStyle={{ backgroundColor: propertyCategory === 'residential' ? theme.success : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('residential')}>
-                    <Text color={propertyCategory === 'residential' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                    <Text color={propertyCategory === 'residential' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                       Residential
                     </Text>
                   </Button>
                   <Button
                     flex={1}
                     borderRadius={0}
-                    backgroundColor={propertyCategory === 'commercial' ? '#059669' : 'transparent'}
-                    color={propertyCategory === 'commercial' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={propertyCategory === 'commercial' ? theme.success : 'transparent'}
+                    color={propertyCategory === 'commercial' ? '#FFFFFF' : theme.text}
                     fontWeight="800"
-                    hoverStyle={{ backgroundColor: propertyCategory === 'commercial' ? '#059669' : 'transparent' }}
-                    pressStyle={{ backgroundColor: propertyCategory === 'commercial' ? '#059669' : 'transparent' }}
+                    hoverStyle={{ backgroundColor: propertyCategory === 'commercial' ? theme.success : 'transparent' }}
+                    pressStyle={{ backgroundColor: propertyCategory === 'commercial' ? theme.success : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('commercial')}>
-                    <Text color={propertyCategory === 'commercial' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                    <Text color={propertyCategory === 'commercial' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                       Commercial
                     </Text>
                   </Button>
                   <Button
                     flex={1}
                     borderRadius={0}
-                    backgroundColor={propertyCategory === 'land_plot' ? '#059669' : 'transparent'}
-                    color={propertyCategory === 'land_plot' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={propertyCategory === 'land_plot' ? theme.success : 'transparent'}
+                    color={propertyCategory === 'land_plot' ? '#FFFFFF' : theme.text}
                     fontWeight="800"
-                    hoverStyle={{ backgroundColor: propertyCategory === 'land_plot' ? '#059669' : 'transparent' }}
-                    pressStyle={{ backgroundColor: propertyCategory === 'land_plot' ? '#059669' : 'transparent' }}
+                    hoverStyle={{ backgroundColor: propertyCategory === 'land_plot' ? theme.success : 'transparent' }}
+                    pressStyle={{ backgroundColor: propertyCategory === 'land_plot' ? theme.success : 'transparent' }}
                     onPress={() => setCategoryAndDefaultAdType('land_plot')}>
-                    <Text color={propertyCategory === 'land_plot' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                    <Text color={propertyCategory === 'land_plot' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                       Land/Plot
                     </Text>
                   </Button>
                 </XStack>
 
-                <YStack borderWidth={1} borderColor={border} borderRadius={14} padding={12} backgroundColor="#FFFFFF" gap="$2">
+                <YStack borderWidth={1} borderColor={border} borderRadius={14} padding={12} backgroundColor={theme.bgCard} gap="$2">
                   <Text color={titleColor} fontWeight="800" textAlign="center">
                     Select Property Ad Type
                   </Text>
@@ -3581,13 +3586,13 @@ export default function PostPropertyScreen() {
                           key={x.value}
                           size="$3"
                           minWidth={120}
-                          backgroundColor={adType === x.value ? '#059669' : '#F3F4F6'}
-                          color={adType === x.value ? '#FFFFFF' : '#111827'}
+                          backgroundColor={adType === x.value ? theme.success : theme.bgCardSecondary}
+                          color={adType === x.value ? '#FFFFFF' : theme.text}
                           fontWeight="800"
                           borderRadius={12}
-                          hoverStyle={{ backgroundColor: adType === x.value ? '#059669' : '#F3F4F6' }}
+                          hoverStyle={{ backgroundColor: adType === x.value ? theme.success : theme.bgCardSecondary }}
                           onPress={() => setAdTypeAndListingType(x.value)}>
-                          <Text color={adType === x.value ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                          <Text color={adType === x.value ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                             {x.label}
                           </Text>
                         </Button>
@@ -3603,13 +3608,13 @@ export default function PostPropertyScreen() {
                           key={x.value}
                           size="$3"
                           minWidth={140}
-                          backgroundColor={adType === x.value ? '#059669' : '#F3F4F6'}
-                          color={adType === x.value ? '#FFFFFF' : '#111827'}
+                          backgroundColor={adType === x.value ? theme.success : theme.bgCardSecondary}
+                          color={adType === x.value ? '#FFFFFF' : theme.text}
                           fontWeight="800"
                           borderRadius={12}
-                          hoverStyle={{ backgroundColor: adType === x.value ? '#059669' : '#F3F4F6' }}
+                          hoverStyle={{ backgroundColor: adType === x.value ? theme.success : theme.bgCardSecondary }}
                           onPress={() => setAdTypeAndListingType(x.value)}>
-                          <Text color={adType === x.value ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                          <Text color={adType === x.value ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                             {x.label}
                           </Text>
                         </Button>
@@ -3620,15 +3625,15 @@ export default function PostPropertyScreen() {
                       <Button
                         size="$3"
                         minWidth={160}
-                        backgroundColor={adType === 'resale' ? '#059669' : '#F3F4F6'}
-                        color={adType === 'resale' ? '#FFFFFF' : '#111827'}
+                        backgroundColor={adType === 'resale' ? theme.success : theme.bgCardSecondary}
+                        color={adType === 'resale' ? '#FFFFFF' : theme.text}
                         fontWeight="800"
                         borderRadius={12}
                         hoverStyle={{
-                          backgroundColor: adType === 'resale' ? '#059669' : '#F3F4F6',
+                          backgroundColor: adType === 'resale' ? theme.success : theme.bgCardSecondary,
                         }}
                         onPress={() => setAdTypeAndListingType('resale')}>
-                        <Text color={adType === 'resale' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                        <Text color={adType === 'resale' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                           Resale
                         </Text>
                       </Button>
@@ -3640,7 +3645,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'pg_details' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 PG Details
               </Text>
@@ -3668,11 +3673,11 @@ export default function PostPropertyScreen() {
                           width={18}
                           height={18}
                           borderWidth={2}
-                          borderColor={pgPlaceAvailableFor === it.value ? '#059669' : border}
+                          borderColor={pgPlaceAvailableFor === it.value ? theme.success : border}
                           borderRadius={20}
                           alignItems="center"
                           justifyContent="center">
-                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgPlaceAvailableFor === it.value ? '#059669' : 'transparent'} />
+                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgPlaceAvailableFor === it.value ? theme.success : 'transparent'} />
                         </YStack>
                         <Text color={titleColor} fontWeight="800">
                           {it.label}
@@ -3689,7 +3694,7 @@ export default function PostPropertyScreen() {
                     Preferred Guests*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('pgPreferredGuests')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {pgPreferredGuestText(pgPreferredGuests)}
                       </Text>
@@ -3701,7 +3706,7 @@ export default function PostPropertyScreen() {
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Available From*
                   </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                     <YStack padding={12}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {pgAvailableFromDate ? formatDateDdMmYyyy(pgAvailableFromDate) : pgAvailableFromText || 'Select date'}
@@ -3750,11 +3755,11 @@ export default function PostPropertyScreen() {
                           width={18}
                           height={18}
                           borderWidth={2}
-                          borderColor={pgFoodIncluded === it.value ? '#059669' : border}
+                          borderColor={pgFoodIncluded === it.value ? theme.success : border}
                           borderRadius={20}
                           alignItems="center"
                           justifyContent="center">
-                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgFoodIncluded === it.value ? '#059669' : 'transparent'} />
+                          <YStack width={10} height={10} borderRadius={10} backgroundColor={pgFoodIncluded === it.value ? theme.success : 'transparent'} />
                         </YStack>
                         <Text color={titleColor} fontWeight="800">
                           {it.label}
@@ -3779,9 +3784,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={it.v ? '#059669' : border}
+                            borderColor={it.v ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={it.v ? '#059669' : '#FFFFFF'}
+                            backgroundColor={it.v ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -3816,9 +3821,9 @@ export default function PostPropertyScreen() {
                     .filter((x) => x.show)
                     .map((it) => (
                       <Pressable key={it.label} onPress={() => it.setV(!it.v)}>
-                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" minWidth={240}>
+                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor={theme.bgCard} minWidth={240}>
                           <XStack alignItems="center" gap="$2">
-                            <MaterialCommunityIcons name={it.icon as any} size={20} color={it.v ? '#059669' : '#374151'} />
+                            <MaterialCommunityIcons name={it.icon as any} size={20} color={it.v ? theme.success : theme.textSecondary} />
                             <Text color={titleColor} fontWeight="800">
                               {it.label}
                             </Text>
@@ -3827,9 +3832,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={it.v ? '#059669' : border}
+                            borderColor={it.v ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={it.v ? '#059669' : '#FFFFFF'}
+                            backgroundColor={it.v ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -3846,7 +3851,7 @@ export default function PostPropertyScreen() {
                 <Text color={muted} fontSize={12} fontWeight="700">
                   Gate Closing Time*
                 </Text>
-                <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                   <YStack padding={12}>
                     <Text color={valueColor} fontWeight={valueWeight}>
                       {pgGateClosingTime ? formatTimeHhMm(pgGateClosingTime) : 'Gate Closing Time'}
@@ -3875,7 +3880,7 @@ export default function PostPropertyScreen() {
                   value={pgDescription}
                   onChangeText={setPgDescription}
                   placeholder="Write a few lines about your property. Please do not mention your contact details."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.textMuted}
                   multiline
                   style={{
                     borderWidth: 1,
@@ -3884,7 +3889,7 @@ export default function PostPropertyScreen() {
                     paddingHorizontal: 12,
                     paddingVertical: 10,
                     minHeight: 90,
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: theme.bgCard,
                     color: valueColor,
                     textAlignVertical: 'top',
                   }}
@@ -3894,7 +3899,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'pg_room_types' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Room Details
               </Text>
@@ -3916,22 +3921,22 @@ export default function PostPropertyScreen() {
                       width={160}
                       minHeight={120}
                       borderWidth={1}
-                      borderColor={it.value ? '#059669' : border}
+                      borderColor={it.value ? theme.success : border}
                       borderRadius={14}
                       padding={12}
-                      backgroundColor={it.value ? '#ECFDF5' : '#FFFFFF'}
+                      backgroundColor={it.value ? theme.couponBg : theme.bgCard}
                       alignItems="center"
                       justifyContent="center"
                       gap="$2">
-                      <MaterialCommunityIcons name={it.icon as any} size={34} color={it.value ? '#059669' : '#374151'} />
+                      <MaterialCommunityIcons name={it.icon as any} size={34} color={it.value ? theme.success : theme.textSecondary} />
                       <XStack alignItems="center" gap="$2">
                         <YStack
                           width={18}
                           height={18}
                           borderWidth={1}
-                          borderColor={it.value ? '#059669' : border}
+                          borderColor={it.value ? theme.success : border}
                           borderRadius={4}
-                          backgroundColor={it.value ? '#059669' : '#FFFFFF'}
+                          backgroundColor={it.value ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
                           <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -3950,7 +3955,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'pg_room_details' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Room Details
               </Text>
@@ -3961,13 +3966,13 @@ export default function PostPropertyScreen() {
                     <YStack
                       minWidth={140}
                       borderWidth={1}
-                      borderColor={pgActiveRoom === k ? '#059669' : border}
+                      borderColor={pgActiveRoom === k ? theme.success : border}
                       borderRadius={12}
                       padding={12}
-                      backgroundColor={pgActiveRoom === k ? '#ECFDF5' : '#FFFFFF'}
+                      backgroundColor={pgActiveRoom === k ? theme.couponBg : theme.bgCard}
                       alignItems="center"
                       justifyContent="center">
-                      <Text color={pgActiveRoom === k ? '#059669' : titleColor} fontWeight="900">
+                      <Text color={pgActiveRoom === k ? theme.success : titleColor} fontWeight="900">
                         {pgRoomLabel(k)}
                       </Text>
                     </YStack>
@@ -3984,7 +3989,7 @@ export default function PostPropertyScreen() {
                   onChangeText={(t) => pgRoomMoneyState(pgActiveRoom).rent[1](sanitizeSingleDecimal(String(t ?? '')))}
                   placeholder="Enter amount"
                   keyboardType="numeric"
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={theme.bgCard}
                   borderColor={border}
                   color={valueColor}
                 />
@@ -3999,7 +4004,7 @@ export default function PostPropertyScreen() {
                   onChangeText={(t) => pgRoomMoneyState(pgActiveRoom).deposit[1](sanitizeSingleDecimal(String(t ?? '')))}
                   placeholder="Enter amount"
                   keyboardType="numeric"
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={theme.bgCard}
                   borderColor={border}
                   color={valueColor}
                 />
@@ -4026,9 +4031,9 @@ export default function PostPropertyScreen() {
                   const setChecked = v[1];
                   return (
                     <Pressable key={it.k} onPress={() => setChecked(!checked)}>
-                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF">
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderWidth={1} borderColor={border} borderRadius={12} backgroundColor={theme.bgCard}>
                         <XStack alignItems="center" gap="$2">
-                          <MaterialCommunityIcons name={it.icon as any} size={20} color={checked ? '#059669' : '#374151'} />
+                          <MaterialCommunityIcons name={it.icon as any} size={20} color={checked ? theme.success : theme.textSecondary} />
                           <Text color={titleColor} fontWeight="800">
                             {it.label}
                           </Text>
@@ -4037,9 +4042,9 @@ export default function PostPropertyScreen() {
                           width={18}
                           height={18}
                           borderWidth={1}
-                          borderColor={checked ? '#059669' : border}
+                          borderColor={checked ? theme.success : border}
                           borderRadius={4}
-                          backgroundColor={checked ? '#059669' : '#FFFFFF'}
+                          backgroundColor={checked ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
                           <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -4055,7 +4060,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'additional_info' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Additional Information
               </Text>
@@ -4070,7 +4075,7 @@ export default function PostPropertyScreen() {
                       value={description}
                       onChangeText={setDescription}
                       placeholder="Provide any specific description you want to add about your property like furnishing and other amenities..."
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -4079,7 +4084,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 100,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -4092,7 +4097,7 @@ export default function PostPropertyScreen() {
                         Previous Occupancy
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialPreviousOccupancy')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialPreviousOccupancy
                               ? commercialPreviousOccupancy === 'first_time_rental'
@@ -4111,7 +4116,7 @@ export default function PostPropertyScreen() {
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {whoWillShowProperty || 'Select'}
                           </Text>
@@ -4142,7 +4147,7 @@ export default function PostPropertyScreen() {
                     <XStack gap="$2" flexWrap="wrap">
                       <YStack minWidth={220} flexGrow={1} gap="$2">
                         <Pressable onPress={() => setPickerOpen('secondaryCountryCode')}>
-                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {secondaryCountryCodeLabel}
                             </Text>
@@ -4155,7 +4160,7 @@ export default function PostPropertyScreen() {
                           onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
                           placeholder="Secondary Number"
                           keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -4170,7 +4175,7 @@ export default function PostPropertyScreen() {
                       Ownership*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('landOwnership')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {landOwnership
                             ? landOwnership === 'freehold'
@@ -4196,7 +4201,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setLandLeaseTermYears(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 2))}
                         placeholder="Enter years"
                         keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -4209,7 +4214,7 @@ export default function PostPropertyScreen() {
                         Sale Deed Certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landSaleDeedCertificate')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landSaleDeedCertificate ? yesNoDontKnowText(landSaleDeedCertificate as any) : 'Select'}
                           </Text>
@@ -4222,7 +4227,7 @@ export default function PostPropertyScreen() {
                         Encumbrance certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landEncumbranceCertificate')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landEncumbranceCertificate ? yesNoDontKnowText(landEncumbranceCertificate as any) : 'Select'}
                           </Text>
@@ -4237,7 +4242,7 @@ export default function PostPropertyScreen() {
                         Conversion certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landConversionCertificate')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landConversionCertificate
                               ? landConversionCertificate === 'yes'
@@ -4258,7 +4263,7 @@ export default function PostPropertyScreen() {
                         Is the property RERA Approved?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landReraApproved')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landReraApproved ? (landReraApproved === 'yes' ? 'Yes' : 'No') : 'Select'}
                           </Text>
@@ -4272,7 +4277,7 @@ export default function PostPropertyScreen() {
                       Khata certificate*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('landKhataCertificate')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {landKhataCertificate
                             ? landKhataCertificate === 'yes_a_khata'
@@ -4295,7 +4300,7 @@ export default function PostPropertyScreen() {
                       Do you have Khata Certificate?*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('khataCertificate')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {khataCertificateText(khataCertificate)}
                         </Text>
@@ -4309,7 +4314,7 @@ export default function PostPropertyScreen() {
                         Do you have Sale Deed Certificate?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('saleDeedCertificate')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {yesNoDontKnowText(saleDeedCertificate)}
                           </Text>
@@ -4323,7 +4328,7 @@ export default function PostPropertyScreen() {
                           Do you have Sale Agreement?*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('saleAgreement')}>
-                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {yesNoDontKnowText(saleAgreement)}
                             </Text>
@@ -4339,7 +4344,7 @@ export default function PostPropertyScreen() {
                         Have you paid Property Tax?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyTaxPaid')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {yesNoDontKnowText(propertyTaxPaid)}
                           </Text>
@@ -4352,7 +4357,7 @@ export default function PostPropertyScreen() {
                         Do you have Occupancy Certificate?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('occupancyCertificate')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {yesNoDontKnowText(occupancyCertificate)}
                           </Text>
@@ -4366,7 +4371,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'schedule' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Schedule
               </Text>
@@ -4378,7 +4383,7 @@ export default function PostPropertyScreen() {
                       Who will show the plot?*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('whoWillShow')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {whoWillShowProperty || 'Select'}
                         </Text>
@@ -4395,7 +4400,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
                       placeholder="10 digit number"
                       keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                     />
@@ -4410,63 +4415,63 @@ export default function PostPropertyScreen() {
                 <XStack gap="$2" flexWrap="wrap">
                   <Button
                     size="$3"
-                    backgroundColor={scheduleAvailability === 'everyday' ? '#059669' : '#F3F4F6'}
-                    color={scheduleAvailability === 'everyday' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={scheduleAvailability === 'everyday' ? theme.success : theme.bgCardSecondary}
+                    color={scheduleAvailability === 'everyday' ? '#FFFFFF' : theme.text}
                     fontWeight="900"
                     hoverStyle={{
-                      backgroundColor: scheduleAvailability === 'everyday' ? '#059669' : '#F3F4F6',
+                      backgroundColor: scheduleAvailability === 'everyday' ? theme.success : theme.bgCardSecondary,
                     }}
                     onPress={() => setScheduleAvailability('everyday')}>
                     <YStack alignItems="center" gap={2}>
                       <Text
-                        color={scheduleAvailability === 'everyday' ? '#FFFFFF' : '#111827'}
+                        color={scheduleAvailability === 'everyday' ? '#FFFFFF' : theme.text}
                         fontWeight="900"
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Everyday
                       </Text>
-                      <Text color={scheduleAvailability === 'everyday' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                      <Text color={scheduleAvailability === 'everyday' ? theme.couponText : muted} fontSize={11} fontWeight="700">
                         Mon-Sun
                       </Text>
                     </YStack>
                   </Button>
                   <Button
                     size="$3"
-                    backgroundColor={scheduleAvailability === 'weekday' ? '#059669' : '#F3F4F6'}
-                    color={scheduleAvailability === 'weekday' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={scheduleAvailability === 'weekday' ? theme.success : theme.bgCardSecondary}
+                    color={scheduleAvailability === 'weekday' ? '#FFFFFF' : theme.text}
                     fontWeight="900"
                     hoverStyle={{
-                      backgroundColor: scheduleAvailability === 'weekday' ? '#059669' : '#F3F4F6',
+                      backgroundColor: scheduleAvailability === 'weekday' ? theme.success : theme.bgCardSecondary,
                     }}
                     onPress={() => setScheduleAvailability('weekday')}>
                     <YStack alignItems="center" gap={2}>
                       <Text
-                        color={scheduleAvailability === 'weekday' ? '#FFFFFF' : '#111827'}
+                        color={scheduleAvailability === 'weekday' ? '#FFFFFF' : theme.text}
                         fontWeight="900"
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Weekday
                       </Text>
-                      <Text color={scheduleAvailability === 'weekday' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                      <Text color={scheduleAvailability === 'weekday' ? theme.couponText : muted} fontSize={11} fontWeight="700">
                         Mon-Fri
                       </Text>
                     </YStack>
                   </Button>
                   <Button
                     size="$3"
-                    backgroundColor={scheduleAvailability === 'weekend' ? '#059669' : '#F3F4F6'}
-                    color={scheduleAvailability === 'weekend' ? '#FFFFFF' : '#111827'}
+                    backgroundColor={scheduleAvailability === 'weekend' ? theme.success : theme.bgCardSecondary}
+                    color={scheduleAvailability === 'weekend' ? '#FFFFFF' : theme.text}
                     fontWeight="900"
                     hoverStyle={{
-                      backgroundColor: scheduleAvailability === 'weekend' ? '#059669' : '#F3F4F6',
+                      backgroundColor: scheduleAvailability === 'weekend' ? theme.success : theme.bgCardSecondary,
                     }}
                     onPress={() => setScheduleAvailability('weekend')}>
                     <YStack alignItems="center" gap={2}>
                       <Text
-                        color={scheduleAvailability === 'weekend' ? '#FFFFFF' : '#111827'}
+                        color={scheduleAvailability === 'weekend' ? '#FFFFFF' : theme.text}
                         fontWeight="900"
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Weekend
                       </Text>
-                      <Text color={scheduleAvailability === 'weekend' ? '#D1FAE5' : muted} fontSize={11} fontWeight="700">
+                      <Text color={scheduleAvailability === 'weekend' ? theme.couponText : muted} fontSize={11} fontWeight="700">
                         Sat-Sun
                       </Text>
                     </YStack>
@@ -4479,7 +4484,7 @@ export default function PostPropertyScreen() {
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Select Time Schedule
                   </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                     <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {scheduleStart ? formatTimeHhMm(scheduleStart) : 'Start time'}
@@ -4502,7 +4507,7 @@ export default function PostPropertyScreen() {
 
                 <YStack flexGrow={1} minWidth={220} gap="$2">
                   <YStack height={16} />
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                     <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {scheduleEnd ? formatTimeHhMm(scheduleEnd) : 'End time'}
@@ -4547,9 +4552,9 @@ export default function PostPropertyScreen() {
                     width={18}
                     height={18}
                     borderWidth={1}
-                    borderColor={scheduleAllDay ? '#059669' : border}
+                    borderColor={scheduleAllDay ? theme.success : border}
                     borderRadius={4}
-                    backgroundColor={scheduleAllDay ? '#059669' : '#FFFFFF'}
+                    backgroundColor={scheduleAllDay ? theme.success : theme.bgCard}
                     alignItems="center"
                     justifyContent="center">
                     <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -4639,7 +4644,7 @@ export default function PostPropertyScreen() {
           />
 
           {step === 'details' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900">
                 Property Details
               </Text>
@@ -4675,7 +4680,7 @@ export default function PostPropertyScreen() {
                       }}
                       placeholder="Minimum 100 sq.ft"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                     />
@@ -4701,7 +4706,7 @@ export default function PostPropertyScreen() {
                         }}
                         placeholder="Enter length"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -4716,7 +4721,7 @@ export default function PostPropertyScreen() {
                         editable={false}
                         placeholder="Auto calculated (Plot Area / Length)"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -4748,7 +4753,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setFloorsAllowed(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 3))}
                         placeholder="Enter floors"
                         keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -4770,7 +4775,7 @@ export default function PostPropertyScreen() {
                         value={gatedProjectName}
                         onChangeText={setGatedProjectName}
                         placeholder="Project Name"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -4782,7 +4787,7 @@ export default function PostPropertyScreen() {
                       Facing*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('facing')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {facing || 'Select'}
                         </Text>
@@ -4801,7 +4806,7 @@ export default function PostPropertyScreen() {
                         setPickerOpen('commercialPropertyType');
                         setAreaUnit('sqft');
                       }}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {commercialPropertyTypeOptions.find((x) => x.value === (propertyType as any))?.label ?? 'Select'}
                         </Text>
@@ -4814,7 +4819,7 @@ export default function PostPropertyScreen() {
                       Building Type*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('commercialBuildingType')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {commercialBuildingTypeOptions.find((x) => x.value === (commercialBuildingType as any))?.label ?? 'Select'}
                         </Text>
@@ -4828,7 +4833,7 @@ export default function PostPropertyScreen() {
                         Age of Property*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {propertyAge || 'Select'}
                           </Text>
@@ -4843,7 +4848,7 @@ export default function PostPropertyScreen() {
                         Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {floor || 'Select'}
                           </Text>
@@ -4855,7 +4860,7 @@ export default function PostPropertyScreen() {
                         Total Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('totalFloors')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {totalFloors || 'Select'}
                           </Text>
@@ -4878,7 +4883,7 @@ export default function PostPropertyScreen() {
                           }}
                           placeholder="Enter area"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -4892,7 +4897,7 @@ export default function PostPropertyScreen() {
                           onChangeText={(t) => setCarpetAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                           placeholder="Enter carpet area"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -4912,7 +4917,7 @@ export default function PostPropertyScreen() {
                           }}
                           placeholder="Enter area"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -4925,7 +4930,7 @@ export default function PostPropertyScreen() {
                       Furnishing*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('furnishing')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {furnishing === 'furnished'
                             ? 'Fully Furnished'
@@ -4950,9 +4955,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={commercialOnMainRoad ? '#059669' : border}
+                            borderColor={commercialOnMainRoad ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={commercialOnMainRoad ? '#059669' : '#FFFFFF'}
+                            backgroundColor={commercialOnMainRoad ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -4971,9 +4976,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={commercialCornerProperty ? '#059669' : border}
+                            borderColor={commercialCornerProperty ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={commercialCornerProperty ? '#059669' : '#FFFFFF'}
+                            backgroundColor={commercialCornerProperty ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -4994,7 +4999,7 @@ export default function PostPropertyScreen() {
                     Property Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('apartmentType')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {apartmentType === 'apartment'
                           ? 'Apartment'
@@ -5011,14 +5016,14 @@ export default function PostPropertyScreen() {
 
               {isLandPlot ? null : adType === 'flatmates' ? (
                 apartmentType === 'apartment' || apartmentType === 'gated_community_villa' ? (
-                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
+                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor={theme.bgCard} borderColor={border} color={valueColor} />
                 ) : null
               ) : adType === 'resale' ? (
                 apartmentType === 'apartment' || apartmentType === 'gated_community_villa' || apartmentType === 'standalone_building' ? (
-                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
+                  <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor={theme.bgCard} borderColor={border} color={valueColor} />
                 ) : null
               ) : isCommercialAny ? null : apartmentType !== 'independent_house_villa' ? (
-                <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor="#FFFFFF" borderColor={border} color={valueColor} />
+                <Input value={apartmentName} onChangeText={setApartmentName} placeholder="Apartment Name" backgroundColor={theme.bgCard} borderColor={border} color={valueColor} />
               ) : null}
 
               {isCommercialAny || isLandPlot ? null : (
@@ -5027,7 +5032,7 @@ export default function PostPropertyScreen() {
                     BHK Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('bhkType')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {bhkType || 'Select'}
                       </Text>
@@ -5044,7 +5049,7 @@ export default function PostPropertyScreen() {
                         Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {floor || 'Select'}
                           </Text>
@@ -5056,7 +5061,7 @@ export default function PostPropertyScreen() {
                         Total Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('totalFloors')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {totalFloors || 'Select'}
                           </Text>
@@ -5074,8 +5079,8 @@ export default function PostPropertyScreen() {
                         <Button
                           size="$2"
                           borderWidth={1}
-                          borderColor={flatmatesRoomType === 'single_room' ? '#059669' : border}
-                          backgroundColor={flatmatesRoomType === 'single_room' ? '#ECFDF5' : '#FFFFFF'}
+                          borderColor={flatmatesRoomType === 'single_room' ? theme.success : border}
+                          backgroundColor={flatmatesRoomType === 'single_room' ? theme.couponBg : theme.bgCard}
                           color={titleColor}
                           fontWeight="800"
                           onPress={() => setFlatmatesRoomType('single_room')}>
@@ -5084,8 +5089,8 @@ export default function PostPropertyScreen() {
                         <Button
                           size="$2"
                           borderWidth={1}
-                          borderColor={flatmatesRoomType === 'shared_room' ? '#059669' : border}
-                          backgroundColor={flatmatesRoomType === 'shared_room' ? '#ECFDF5' : '#FFFFFF'}
+                          borderColor={flatmatesRoomType === 'shared_room' ? theme.success : border}
+                          backgroundColor={flatmatesRoomType === 'shared_room' ? theme.couponBg : theme.bgCard}
                           color={titleColor}
                           fontWeight="800"
                           onPress={() => setFlatmatesRoomType('shared_room')}>
@@ -5102,8 +5107,8 @@ export default function PostPropertyScreen() {
                         <Button
                           size="$2"
                           borderWidth={1}
-                          borderColor={flatmatesTenantType === 'male' ? '#059669' : border}
-                          backgroundColor={flatmatesTenantType === 'male' ? '#ECFDF5' : '#FFFFFF'}
+                          borderColor={flatmatesTenantType === 'male' ? theme.success : border}
+                          backgroundColor={flatmatesTenantType === 'male' ? theme.couponBg : theme.bgCard}
                           color={titleColor}
                           fontWeight="800"
                           onPress={() => setFlatmatesTenantType('male')}>
@@ -5112,8 +5117,8 @@ export default function PostPropertyScreen() {
                         <Button
                           size="$2"
                           borderWidth={1}
-                          borderColor={flatmatesTenantType === 'female' ? '#059669' : border}
-                          backgroundColor={flatmatesTenantType === 'female' ? '#ECFDF5' : '#FFFFFF'}
+                          borderColor={flatmatesTenantType === 'female' ? theme.success : border}
+                          backgroundColor={flatmatesTenantType === 'female' ? theme.couponBg : theme.bgCard}
                           color={titleColor}
                           fontWeight="800"
                           onPress={() => setFlatmatesTenantType('female')}>
@@ -5129,7 +5134,7 @@ export default function PostPropertyScreen() {
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {propertyAge || 'Select'}
                           </Text>
@@ -5141,7 +5146,7 @@ export default function PostPropertyScreen() {
                         Facing
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {facing || 'Select'}
                           </Text>
@@ -5160,7 +5165,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter area"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5174,7 +5179,7 @@ export default function PostPropertyScreen() {
                           setAreaUnit('sqft');
                           setPickerOpen('areaUnit');
                         }}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             Sq ft
                           </Text>
@@ -5191,7 +5196,7 @@ export default function PostPropertyScreen() {
                     Ownership Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('ownershipType')}>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                     <Text color={valueColor} fontWeight={valueWeight}>
                       {ownershipType === 'on_lease' ? 'On Lease' : ownershipType === 'self_owned' ? 'Self Owned' : 'Select'}
                     </Text>
@@ -5204,35 +5209,35 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={12} fontWeight="700">
                       Property available for
                     </Text>
-                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
                       <Button
                         flex={1}
                         borderRadius={0}
-                        backgroundColor={propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent'}
-                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'}
+                        backgroundColor={propertyAvailableFor === 'only_rent' ? theme.success : 'transparent'}
+                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : theme.text}
                         fontWeight="800"
-                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
-                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? theme.success : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? theme.success : 'transparent' }}
                         onPress={() => {
                           setPropertyAvailableFor('only_rent');
                         }}>
-                        <Text color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                        <Text color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                           Only rent
                         </Text>
                       </Button>
                       <Button
                         flex={1}
                         borderRadius={0}
-                        backgroundColor={propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent'}
-                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'}
+                        backgroundColor={propertyAvailableFor === 'only_lease' ? theme.success : 'transparent'}
+                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : theme.text}
                         fontWeight="800"
-                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
-                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? theme.success : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? theme.success : 'transparent' }}
                         onPress={() => {
                           setPropertyAvailableFor('only_lease');
                           setDeposit('');
                         }}>
-                        <Text color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
+                        <Text color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : theme.text} fontWeight="800" hoverStyle={{ color: '#FFFFFF' }}>
                           Only lease
                         </Text>
                       </Button>
@@ -5245,7 +5250,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
                       placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                       flexGrow={1}
@@ -5257,7 +5262,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Expected Deposit *"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                         flexGrow={1}
@@ -5272,9 +5277,9 @@ export default function PostPropertyScreen() {
                         width={18}
                         height={18}
                         borderWidth={1}
-                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderColor={rentNegotiable ? theme.success : border}
                         borderRadius={4}
-                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
                         <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -5301,7 +5306,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter area"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5311,7 +5316,7 @@ export default function PostPropertyScreen() {
                         Unit
                       </Text>
                       <Pressable onPress={() => setPickerOpen('areaUnit')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             Sq ft
                           </Text>
@@ -5326,7 +5331,7 @@ export default function PostPropertyScreen() {
                         No. of Floor(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {floor || 'Select'}
                           </Text>
@@ -5340,7 +5345,7 @@ export default function PostPropertyScreen() {
                           Total Floor(s)*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('totalFloors')}>
-                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {totalFloors || 'Select'}
                             </Text>
@@ -5356,7 +5361,7 @@ export default function PostPropertyScreen() {
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {propertyAge || 'Select'}
                           </Text>
@@ -5368,7 +5373,7 @@ export default function PostPropertyScreen() {
                         Facing*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {facing || 'Select'}
                           </Text>
@@ -5391,7 +5396,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setLeaseYears(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 2))}
                         placeholder="Enter years"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5403,7 +5408,7 @@ export default function PostPropertyScreen() {
                       Floor Type*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('floorType')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {floorType === 'verified_tiles'
                             ? 'Verified Tiles'
@@ -5431,7 +5436,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter area"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5441,7 +5446,7 @@ export default function PostPropertyScreen() {
                         Unit
                       </Text>
                       <Pressable onPress={() => setPickerOpen('areaUnit')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             Sq ft
                           </Text>
@@ -5460,7 +5465,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setCarpetAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter carpet area"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5475,7 +5480,7 @@ export default function PostPropertyScreen() {
                           onChangeText={(t) => setPlotAreaSqft(sanitizeSingleDecimal(String(t ?? '')))}
                           placeholder="Enter plot area"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -5489,7 +5494,7 @@ export default function PostPropertyScreen() {
                         No. of Floor(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {floor || 'Select'}
                           </Text>
@@ -5502,7 +5507,7 @@ export default function PostPropertyScreen() {
                           Total Floor(s)*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('totalFloors')}>
-                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {totalFloors || 'Select'}
                             </Text>
@@ -5518,7 +5523,7 @@ export default function PostPropertyScreen() {
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {propertyAge || 'Select'}
                           </Text>
@@ -5530,7 +5535,7 @@ export default function PostPropertyScreen() {
                         Facing*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {facing || 'Select'}
                           </Text>
@@ -5548,7 +5553,7 @@ export default function PostPropertyScreen() {
                       Monthly Maintenance
                     </Text>
                     <Pressable onPress={() => setPickerOpen('maintenanceType')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {monthlyMaintenanceType === 'included'
                             ? 'Maintenance Included'
@@ -5569,7 +5574,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter amount"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5583,7 +5588,7 @@ export default function PostPropertyScreen() {
                   <Text color={muted} fontSize={12} fontWeight="700">
                     Available From*
                   </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                     <YStack padding={12}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
@@ -5615,8 +5620,8 @@ export default function PostPropertyScreen() {
                     <Button
                       size="$2"
                       borderWidth={1}
-                      borderColor={preferredAnyone ? '#059669' : border}
-                      backgroundColor={preferredAnyone ? '#ECFDF5' : '#FFFFFF'}
+                      borderColor={preferredAnyone ? theme.success : border}
+                      backgroundColor={preferredAnyone ? theme.couponBg : theme.bgCard}
                       color={titleColor}
                       fontWeight="800"
                       onPress={togglePreferredAnyone}>
@@ -5625,9 +5630,9 @@ export default function PostPropertyScreen() {
                     <Button
                       size="$2"
                       borderWidth={1}
-                      borderColor={preferredFamily ? '#059669' : border}
-                      backgroundColor={preferredFamily ? '#ECFDF5' : '#FFFFFF'}
-                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      borderColor={preferredFamily ? theme.success : border}
+                      backgroundColor={preferredFamily ? theme.couponBg : theme.bgCard}
+                      color={preferredAnyone ? theme.textMuted : titleColor}
                       fontWeight="800"
                       disabled={preferredAnyone}
                       onPress={() => togglePreferredOne(preferredFamily, setPreferredFamily, !preferredFamily)}>
@@ -5636,9 +5641,9 @@ export default function PostPropertyScreen() {
                     <Button
                       size="$2"
                       borderWidth={1}
-                      borderColor={preferredBachelorFemale ? '#059669' : border}
-                      backgroundColor={preferredBachelorFemale ? '#ECFDF5' : '#FFFFFF'}
-                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      borderColor={preferredBachelorFemale ? theme.success : border}
+                      backgroundColor={preferredBachelorFemale ? theme.couponBg : theme.bgCard}
+                      color={preferredAnyone ? theme.textMuted : titleColor}
                       fontWeight="800"
                       disabled={preferredAnyone}
                       onPress={() => togglePreferredOne(preferredBachelorFemale, setPreferredBachelorFemale, !preferredBachelorFemale)}>
@@ -5647,9 +5652,9 @@ export default function PostPropertyScreen() {
                     <Button
                       size="$2"
                       borderWidth={1}
-                      borderColor={preferredBachelorMale ? '#059669' : border}
-                      backgroundColor={preferredBachelorMale ? '#ECFDF5' : '#FFFFFF'}
-                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      borderColor={preferredBachelorMale ? theme.success : border}
+                      backgroundColor={preferredBachelorMale ? theme.couponBg : theme.bgCard}
+                      color={preferredAnyone ? theme.textMuted : titleColor}
                       fontWeight="800"
                       disabled={preferredAnyone}
                       onPress={() => togglePreferredOne(preferredBachelorMale, setPreferredBachelorMale, !preferredBachelorMale)}>
@@ -5658,9 +5663,9 @@ export default function PostPropertyScreen() {
                     <Button
                       size="$2"
                       borderWidth={1}
-                      borderColor={preferredCompany ? '#059669' : border}
-                      backgroundColor={preferredCompany ? '#ECFDF5' : '#FFFFFF'}
-                      color={preferredAnyone ? '#9CA3AF' : titleColor}
+                      borderColor={preferredCompany ? theme.success : border}
+                      backgroundColor={preferredCompany ? theme.couponBg : theme.bgCard}
+                      color={preferredAnyone ? theme.textMuted : titleColor}
                       fontWeight="800"
                       disabled={preferredAnyone}
                       onPress={() => togglePreferredOne(preferredCompany, setPreferredCompany, !preferredCompany)}>
@@ -5673,7 +5678,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'location' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Location
               </Text>
@@ -5684,7 +5689,7 @@ export default function PostPropertyScreen() {
                     State*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('state')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {stateValue || 'Select'}
                       </Text>
@@ -5697,7 +5702,7 @@ export default function PostPropertyScreen() {
                     City*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('city')}>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                       <Text color={valueColor} fontWeight={valueWeight}>
                         {cityValue || 'Select'}
                       </Text>
@@ -5717,7 +5722,7 @@ export default function PostPropertyScreen() {
                     setLocalityTyped(true);
                   }}
                   placeholder="Enter locality"
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={theme.bgCard}
                   borderColor={border}
                   color={valueColor}
                 />
@@ -5731,7 +5736,7 @@ export default function PostPropertyScreen() {
                   value={address1}
                   onChangeText={setAddress1}
                   placeholder="Landmark / street"
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={theme.bgCard}
                   borderColor={border}
                   color={valueColor}
                 />
@@ -5746,14 +5751,14 @@ export default function PostPropertyScreen() {
                   onChangeText={(t) => setPincode(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 6))}
                   placeholder="6 digit pincode"
                   keyboardType="numeric"
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={theme.bgCard}
                   borderColor={border}
                   color={valueColor}
                 />
               </YStack>
 
               <XStack gap="$2" flexWrap="wrap" alignItems="center" justifyContent="space-between">
-                <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => setMapPickerOpen(true)}>
+                <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => setMapPickerOpen(true)}>
                   Select on Map
                 </Button>
                 <Text color={muted} fontSize={12}>
@@ -5764,7 +5769,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'pricing' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 {adType === 'resale'
                   ? 'Resale Details'
@@ -5783,7 +5788,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
                       placeholder="Expected Price *"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                       flexGrow={1}
@@ -5799,9 +5804,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={rentNegotiable ? '#059669' : border}
+                            borderColor={rentNegotiable ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                            backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -5822,9 +5827,9 @@ export default function PostPropertyScreen() {
                             width={18}
                             height={18}
                             borderWidth={1}
-                            borderColor={currentlyUnderLoan ? '#059669' : border}
+                            borderColor={currentlyUnderLoan ? theme.success : border}
                             borderRadius={4}
-                            backgroundColor={currentlyUnderLoan ? '#059669' : '#FFFFFF'}
+                            backgroundColor={currentlyUnderLoan ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
                             <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -5843,7 +5848,7 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={12} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                       <YStack padding={12}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
@@ -5888,7 +5893,7 @@ export default function PostPropertyScreen() {
                             Kitchen Type*
                           </Text>
                           <Pressable onPress={() => setPickerOpen('kitchenType')}>
-                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                               <Text color={valueColor} fontWeight={valueWeight}>
                                 {kitchenType === 'modular'
                                   ? 'Modular'
@@ -5907,7 +5912,7 @@ export default function PostPropertyScreen() {
                             Furnishing*
                           </Text>
                           <Pressable onPress={() => setPickerOpen('furnishing')}>
-                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                               <Text color={valueColor} fontWeight={valueWeight}>
                                 {furnishing === 'furnished' ? 'Fully Furnished' : furnishing === 'semi_furnished' ? 'Semi Furnished' : furnishing === 'unfurnished' ? 'Unfurnished' : 'Select'}
                               </Text>
@@ -5921,7 +5926,7 @@ export default function PostPropertyScreen() {
                           Parking*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('parking')}>
-                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {parking === 'bike' ? 'Bike' : parking === 'car' ? 'Car' : parking === 'both' ? 'Both' : parking === 'none' ? 'None' : 'Select'}
                             </Text>
@@ -5939,7 +5944,7 @@ export default function PostPropertyScreen() {
                       value={description}
                       onChangeText={setDescription}
                       placeholder="Describe your property"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -5948,7 +5953,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 90,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -5967,7 +5972,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter amount"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -5978,7 +5983,7 @@ export default function PostPropertyScreen() {
                         Ownership Type*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('ownershipType')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {ownershipType === 'self_owned' ? 'Self Owned' : ownershipType === 'on_lease' ? 'On Lease' : 'Select'}
                           </Text>
@@ -5993,9 +5998,9 @@ export default function PostPropertyScreen() {
                         width={18}
                         height={18}
                         borderWidth={1}
-                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderColor={rentNegotiable ? theme.success : border}
                         borderRadius={4}
-                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
                         <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -6012,7 +6017,7 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={12} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                       <YStack padding={12}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
@@ -6060,14 +6065,14 @@ export default function PostPropertyScreen() {
                           <Button
                             key={tag}
                             size="$2"
-                            backgroundColor={selected ? '#059669' : '#F3F4F6'}
-                            color={selected ? '#FFFFFF' : '#111827'}
+                            backgroundColor={selected ? theme.success : theme.bgCardSecondary}
+                            color={selected ? '#FFFFFF' : theme.text}
                             fontWeight="800"
-                            hoverStyle={{ backgroundColor: selected ? '#059669' : '#E5E7EB' }}
-                            pressStyle={{ backgroundColor: selected ? '#059669' : '#E5E7EB' }}
+                            hoverStyle={{ backgroundColor: selected ? theme.success : theme.border }}
+                            pressStyle={{ backgroundColor: selected ? theme.success : theme.border }}
                             onPress={() => toggleCommercialIdealTag(tag)}>
                             <XStack alignItems="center" gap="$2">
-                              <Text color={selected ? '#FFFFFF' : '#111827'} fontWeight="800">
+                              <Text color={selected ? '#FFFFFF' : theme.text} fontWeight="800">
                                 {tag}
                               </Text>
                               {!commercialIdealForBaseTags.includes(tag as any) && selected ? (
@@ -6075,7 +6080,7 @@ export default function PostPropertyScreen() {
                                   onPress={() => {
                                     removeCommercialIdealTag(tag);
                                   }}>
-                                  <MaterialCommunityIcons name="close" size={14} color={selected ? '#FFFFFF' : '#111827'} />
+                                  <MaterialCommunityIcons name="close" size={14} color={selected ? '#FFFFFF' : theme.text} />
                                 </Pressable>
                               ) : null}
                             </XStack>
@@ -6088,11 +6093,11 @@ export default function PostPropertyScreen() {
                           <Button
                             key={tag}
                             size="$2"
-                            backgroundColor="#F3F4F6"
-                            color="#111827"
+                            backgroundColor={theme.bgCardSecondary}
+                            color={theme.text}
                             fontWeight="800"
-                            hoverStyle={{ backgroundColor: '#E5E7EB' }}
-                            pressStyle={{ backgroundColor: '#E5E7EB' }}
+                            hoverStyle={{ backgroundColor: theme.border }}
+                            pressStyle={{ backgroundColor: theme.border }}
                             onPress={() => toggleCommercialIdealTag(tag)}>
                             {tag}
                           </Button>
@@ -6104,13 +6109,13 @@ export default function PostPropertyScreen() {
                         value={commercialIdealForInput}
                         onChangeText={setCommercialIdealForInput}
                         placeholder="Add other tags"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                         flexGrow={1}
                       />
                       <Pressable onPress={addCommercialIdealTag}>
-                        <Text color="#059669" fontWeight="800">
+                        <Text color={theme.success} fontWeight="800">
                           create new tag
                         </Text>
                       </Pressable>
@@ -6125,7 +6130,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
                       placeholder="Expected Rent *"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                       flexGrow={1}
@@ -6143,9 +6148,9 @@ export default function PostPropertyScreen() {
                           width={18}
                           height={18}
                           borderWidth={1}
-                          borderColor={rentNegotiable ? '#059669' : border}
+                          borderColor={rentNegotiable ? theme.success : border}
                           borderRadius={4}
-                          backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                          backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
                           <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -6172,9 +6177,9 @@ export default function PostPropertyScreen() {
                           width={18}
                           height={18}
                           borderWidth={1}
-                          borderColor={monthlyMaintenanceType === 'extra' ? '#059669' : border}
+                          borderColor={monthlyMaintenanceType === 'extra' ? theme.success : border}
                           borderRadius={4}
-                          backgroundColor={monthlyMaintenanceType === 'extra' ? '#059669' : '#FFFFFF'}
+                          backgroundColor={monthlyMaintenanceType === 'extra' ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
                           <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -6195,7 +6200,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Monthly Maintenance *"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                         flexGrow={1}
@@ -6213,7 +6218,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
                       placeholder="Deposit *"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                       flexGrow={1}
@@ -6227,9 +6232,9 @@ export default function PostPropertyScreen() {
                         width={18}
                         height={18}
                         borderWidth={1}
-                        borderColor={depositNegotiable ? '#059669' : border}
+                        borderColor={depositNegotiable ? theme.success : border}
                         borderRadius={4}
-                        backgroundColor={depositNegotiable ? '#059669' : '#FFFFFF'}
+                        backgroundColor={depositNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
                         <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -6248,7 +6253,7 @@ export default function PostPropertyScreen() {
                         Lease Duration (Years)
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLeaseDurationYears')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialLeaseDurationYears || 'Select'}
                           </Text>
@@ -6261,7 +6266,7 @@ export default function PostPropertyScreen() {
                         Lockin Period (Years)
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLockinPeriodYears')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialLockinPeriodYears || 'Select'}
                           </Text>
@@ -6274,7 +6279,7 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={12} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                       <YStack padding={12}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
@@ -6333,14 +6338,14 @@ export default function PostPropertyScreen() {
                           <Button
                             key={tag}
                             size="$2"
-                            backgroundColor={selected ? '#059669' : '#F3F4F6'}
-                            color={selected ? '#FFFFFF' : '#111827'}
+                            backgroundColor={selected ? theme.success : theme.bgCardSecondary}
+                            color={selected ? '#FFFFFF' : theme.text}
                             fontWeight="800"
-                            hoverStyle={{ backgroundColor: selected ? '#059669' : '#E5E7EB' }}
-                            pressStyle={{ backgroundColor: selected ? '#059669' : '#E5E7EB' }}
+                            hoverStyle={{ backgroundColor: selected ? theme.success : theme.border }}
+                            pressStyle={{ backgroundColor: selected ? theme.success : theme.border }}
                             onPress={() => toggleCommercialIdealTag(tag)}>
                             <XStack alignItems="center" gap="$2">
-                              <Text color={selected ? '#FFFFFF' : '#111827'} fontWeight="800">
+                              <Text color={selected ? '#FFFFFF' : theme.text} fontWeight="800">
                                 {tag}
                               </Text>
                               {!commercialIdealForBaseTags.includes(tag as any) && selected ? (
@@ -6348,7 +6353,7 @@ export default function PostPropertyScreen() {
                                   onPress={() => {
                                     removeCommercialIdealTag(tag);
                                   }}>
-                                  <MaterialCommunityIcons name="close" size={14} color={selected ? '#FFFFFF' : '#111827'} />
+                                  <MaterialCommunityIcons name="close" size={14} color={selected ? '#FFFFFF' : theme.text} />
                                 </Pressable>
                               ) : null}
                             </XStack>
@@ -6362,13 +6367,13 @@ export default function PostPropertyScreen() {
                         value={commercialIdealForInput}
                         onChangeText={setCommercialIdealForInput}
                         placeholder="Add other tags"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                         flexGrow={1}
                       />
                       <Pressable onPress={addCommercialIdealTag}>
-                        <Text color="#059669" fontWeight="800">
+                        <Text color={theme.success} fontWeight="800">
                           create new tag
                         </Text>
                       </Pressable>
@@ -6381,15 +6386,15 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={12} fontWeight="700">
                       Property available for
                     </Text>
-                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor="#F3F4F6">
+                    <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
                       <Button
                         flex={1}
                         borderRadius={0}
-                        backgroundColor={propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent'}
-                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : '#111827'}
+                        backgroundColor={propertyAvailableFor === 'only_rent' ? theme.success : 'transparent'}
+                        color={propertyAvailableFor === 'only_rent' ? '#FFFFFF' : theme.text}
                         fontWeight="800"
-                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
-                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? '#059669' : 'transparent' }}
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? theme.success : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_rent' ? theme.success : 'transparent' }}
                         onPress={() => {
                           setPropertyAvailableFor('only_rent');
                         }}>
@@ -6398,11 +6403,11 @@ export default function PostPropertyScreen() {
                       <Button
                         flex={1}
                         borderRadius={0}
-                        backgroundColor={propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent'}
-                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : '#111827'}
+                        backgroundColor={propertyAvailableFor === 'only_lease' ? theme.success : 'transparent'}
+                        color={propertyAvailableFor === 'only_lease' ? '#FFFFFF' : theme.text}
                         fontWeight="800"
-                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
-                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? '#059669' : 'transparent' }}
+                        hoverStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? theme.success : 'transparent' }}
+                        pressStyle={{ backgroundColor: propertyAvailableFor === 'only_lease' ? theme.success : 'transparent' }}
                         onPress={() => {
                           setPropertyAvailableFor('only_lease');
                           setDeposit('');
@@ -6418,7 +6423,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setPrice(sanitizeSingleDecimal(String(t ?? '')))}
                       placeholder={propertyAvailableFor === 'only_lease' ? 'Expected Lease Amount *' : 'Expected Rent *'}
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                       flexGrow={1}
@@ -6430,7 +6435,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setDeposit(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Expected Deposit *"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                         flexGrow={1}
@@ -6445,9 +6450,9 @@ export default function PostPropertyScreen() {
                         width={18}
                         height={18}
                         borderWidth={1}
-                        borderColor={rentNegotiable ? '#059669' : border}
+                        borderColor={rentNegotiable ? theme.success : border}
                         borderRadius={4}
-                        backgroundColor={rentNegotiable ? '#059669' : '#FFFFFF'}
+                        backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
                         <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
@@ -6468,7 +6473,7 @@ export default function PostPropertyScreen() {
                             Monthly Maintenance
                           </Text>
                           <Pressable onPress={() => setPickerOpen('maintenanceType')}>
-                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                            <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                               <Text color={valueColor} fontWeight={valueWeight}>
                                 {monthlyMaintenanceType === 'included'
                                   ? 'Maintenance Included'
@@ -6489,7 +6494,7 @@ export default function PostPropertyScreen() {
                               onChangeText={(t) => setMaintenanceAmount(sanitizeSingleDecimal(String(t ?? '')))}
                               placeholder="Enter amount"
                               keyboardType="numeric"
-                              backgroundColor="#FFFFFF"
+                              backgroundColor={theme.bgCard}
                               borderColor={border}
                               color={valueColor}
                             />
@@ -6501,7 +6506,7 @@ export default function PostPropertyScreen() {
                         <Text color={muted} fontSize={12} fontWeight="700">
                           Available From*
                         </Text>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor="#FFFFFF" position="relative">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
                           <YStack padding={12}>
                             <Text color={valueColor} fontWeight={valueWeight}>
                               {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
@@ -6542,8 +6547,8 @@ export default function PostPropertyScreen() {
                         <XStack gap="$2" flexWrap="wrap">
                           <Button
                             size="$2"
-                            backgroundColor="#F3F4F6"
-                            color="#111827"
+                            backgroundColor={theme.bgCardSecondary}
+                            color={theme.text}
                             fontWeight="800"
                             onPress={() => {
                               const t = new Date();
@@ -6555,8 +6560,8 @@ export default function PostPropertyScreen() {
                           </Button>
                           <Button
                             size="$2"
-                            backgroundColor="#F3F4F6"
-                            color="#111827"
+                            backgroundColor={theme.bgCardSecondary}
+                            color={theme.text}
                             fontWeight="800"
                             onPress={() => {
                               const t = new Date();
@@ -6580,8 +6585,8 @@ export default function PostPropertyScreen() {
                               <Button
                                 size="$2"
                                 borderWidth={1}
-                                borderColor={preferredAnyone ? '#059669' : border}
-                                backgroundColor={preferredAnyone ? '#ECFDF5' : '#FFFFFF'}
+                                borderColor={preferredAnyone ? theme.success : border}
+                                backgroundColor={preferredAnyone ? theme.couponBg : theme.bgCard}
                                 color={titleColor}
                                 fontWeight="800"
                                 onPress={togglePreferredAnyone}>
@@ -6590,9 +6595,9 @@ export default function PostPropertyScreen() {
                               <Button
                                 size="$2"
                                 borderWidth={1}
-                                borderColor={preferredFamily ? '#059669' : border}
-                                backgroundColor={preferredFamily ? '#ECFDF5' : '#FFFFFF'}
-                                color={preferredAnyone ? '#9CA3AF' : titleColor}
+                                borderColor={preferredFamily ? theme.success : border}
+                                backgroundColor={preferredFamily ? theme.couponBg : theme.bgCard}
+                                color={preferredAnyone ? theme.textMuted : titleColor}
                                 fontWeight="800"
                                 disabled={preferredAnyone}
                                 onPress={() => togglePreferredOne(preferredFamily, setPreferredFamily, !preferredFamily)}>
@@ -6601,9 +6606,9 @@ export default function PostPropertyScreen() {
                               <Button
                                 size="$2"
                                 borderWidth={1}
-                                borderColor={preferredBachelorFemale ? '#059669' : border}
-                                backgroundColor={preferredBachelorFemale ? '#ECFDF5' : '#FFFFFF'}
-                                color={preferredAnyone ? '#9CA3AF' : titleColor}
+                                borderColor={preferredBachelorFemale ? theme.success : border}
+                                backgroundColor={preferredBachelorFemale ? theme.couponBg : theme.bgCard}
+                                color={preferredAnyone ? theme.textMuted : titleColor}
                                 fontWeight="800"
                                 disabled={preferredAnyone}
                                 onPress={() => togglePreferredOne(preferredBachelorFemale, setPreferredBachelorFemale, !preferredBachelorFemale)}>
@@ -6612,9 +6617,9 @@ export default function PostPropertyScreen() {
                               <Button
                                 size="$2"
                                 borderWidth={1}
-                                borderColor={preferredBachelorMale ? '#059669' : border}
-                                backgroundColor={preferredBachelorMale ? '#ECFDF5' : '#FFFFFF'}
-                                color={preferredAnyone ? '#9CA3AF' : titleColor}
+                                borderColor={preferredBachelorMale ? theme.success : border}
+                                backgroundColor={preferredBachelorMale ? theme.couponBg : theme.bgCard}
+                                color={preferredAnyone ? theme.textMuted : titleColor}
                                 fontWeight="800"
                                 disabled={preferredAnyone}
                                 onPress={() => togglePreferredOne(preferredBachelorMale, setPreferredBachelorMale, !preferredBachelorMale)}>
@@ -6623,9 +6628,9 @@ export default function PostPropertyScreen() {
                               <Button
                                 size="$2"
                                 borderWidth={1}
-                                borderColor={preferredCompany ? '#059669' : border}
-                                backgroundColor={preferredCompany ? '#ECFDF5' : '#FFFFFF'}
-                                color={preferredAnyone ? '#9CA3AF' : titleColor}
+                                borderColor={preferredCompany ? theme.success : border}
+                                backgroundColor={preferredCompany ? theme.couponBg : theme.bgCard}
+                                color={preferredAnyone ? theme.textMuted : titleColor}
                                 fontWeight="800"
                                 disabled={preferredAnyone}
                                 onPress={() => togglePreferredOne(preferredCompany, setPreferredCompany, !preferredCompany)}>
@@ -6640,7 +6645,7 @@ export default function PostPropertyScreen() {
                                 Furnishing*
                               </Text>
                               <Pressable onPress={() => setPickerOpen('furnishing')}>
-                                <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                                <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                                   <Text color={valueColor} fontWeight={valueWeight}>
                                     {furnishing === 'furnished'
                                       ? 'Fully Furnished'
@@ -6658,7 +6663,7 @@ export default function PostPropertyScreen() {
                                 Parking*
                               </Text>
                               <Pressable onPress={() => setPickerOpen('parking')}>
-                                <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                                <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                                   <Text color={valueColor} fontWeight={valueWeight}>
                                     {parking === 'bike'
                                       ? 'Bike'
@@ -6683,7 +6688,7 @@ export default function PostPropertyScreen() {
                               value={description}
                               onChangeText={setDescription}
                               placeholder="Write a few lines about your property"
-                              placeholderTextColor="#9CA3AF"
+                              placeholderTextColor={theme.textMuted}
                               multiline
                               style={{
                                 borderWidth: 1,
@@ -6704,7 +6709,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'amenities' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$3">
               <Text color={titleColor} fontWeight="900">
                 Amenities
               </Text>
@@ -6717,7 +6722,7 @@ export default function PostPropertyScreen() {
                         Water Supply*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landWaterSupply')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landWaterSupply === 'corporation'
                               ? 'Corporation'
@@ -6738,7 +6743,7 @@ export default function PostPropertyScreen() {
                         Electricity Connection*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landElectricityConnection')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landElectricityConnection === 'electricity'
                               ? 'Electricity'
@@ -6759,7 +6764,7 @@ export default function PostPropertyScreen() {
                         Sewage Connection*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landSewageConnection')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {landSewageConnection === 'open'
                               ? 'Open'
@@ -6782,7 +6787,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setLandFacingRoadWidthFt(sanitizeSingleDecimal(String(t ?? '')))}
                         placeholder="Enter road width"
                         keyboardType="numeric"
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -6812,7 +6817,7 @@ export default function PostPropertyScreen() {
                     });
                   }}>
                     <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                      <YStack width={18} height={18} borderWidth={1} borderColor={landAddDirectionTip ? '#059669' : border} borderRadius={4} backgroundColor={landAddDirectionTip ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                      <YStack width={18} height={18} borderWidth={1} borderColor={landAddDirectionTip ? theme.success : border} borderRadius={4} backgroundColor={landAddDirectionTip ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
                         <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
                           {landAddDirectionTip ? '✓' : ''}
                         </Text>
@@ -6829,7 +6834,7 @@ export default function PostPropertyScreen() {
                         value={directionTip}
                         onChangeText={setDirectionTip}
                         placeholder="Eg. Take the road opposite to ..., take right after 300m..."
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={theme.textMuted}
                         multiline
                         style={{
                           borderWidth: 1,
@@ -6838,7 +6843,7 @@ export default function PostPropertyScreen() {
                           paddingHorizontal: 12,
                           paddingVertical: 10,
                           minHeight: 80,
-                          backgroundColor: '#FFFFFF',
+                          backgroundColor: theme.bgCard,
                           color: valueColor,
                           textAlignVertical: 'top',
                         }}
@@ -6866,12 +6871,12 @@ export default function PostPropertyScreen() {
                         return (
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? 0 : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
                                 <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
-                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? theme.success : titleColor} />
                               <Text color={titleColor} fontWeight="800">
                                 {it.label}
                               </Text>
@@ -6900,7 +6905,7 @@ export default function PostPropertyScreen() {
                         Power Backup*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialPowerBackupType')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialPowerBackupType === 'full'
                               ? 'Full'
@@ -6919,7 +6924,7 @@ export default function PostPropertyScreen() {
                         Lift*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLiftType')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialLiftType === 'none' ? 'None' : commercialLiftType === 'personal' ? 'Personal' : commercialLiftType === 'common' ? 'Common' : 'Select'}
                           </Text>
@@ -6934,7 +6939,7 @@ export default function PostPropertyScreen() {
                         Parking*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialParkingType')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialParkingType === 'none'
                               ? 'None'
@@ -6956,7 +6961,7 @@ export default function PostPropertyScreen() {
                           onChangeText={(t) => setCommercialParkingSlots(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 3))}
                           placeholder="No of Available Slots"
                           keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
-                          backgroundColor="#FFFFFF"
+                          backgroundColor={theme.bgCard}
                           borderColor={border}
                           color={valueColor}
                         />
@@ -6968,7 +6973,7 @@ export default function PostPropertyScreen() {
                         Washroom(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialWashroomType')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialWashroomType === 'shared'
                               ? 'Shared'
@@ -7004,7 +7009,7 @@ export default function PostPropertyScreen() {
                         Current Property Condition?
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyCondition')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {currentPropertyCondition || 'Select'}
                           </Text>
@@ -7017,7 +7022,7 @@ export default function PostPropertyScreen() {
                         What business is currently running?
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialBusinessRunning')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {commercialBusinessRunning || 'Select'}
                           </Text>
@@ -7041,7 +7046,7 @@ export default function PostPropertyScreen() {
                       value={directionTip}
                       onChangeText={setDirectionTip}
                       placeholder="Eg. Take the road opposite to ..., take right after 300m..."
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -7050,7 +7055,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 80,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -7100,7 +7105,7 @@ export default function PostPropertyScreen() {
                       value={directionTip}
                       onChangeText={setDirectionTip}
                       placeholder="Eg. Take the road opposite to ..., take right after 300m..."
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -7109,7 +7114,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 80,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -7139,12 +7144,12 @@ export default function PostPropertyScreen() {
                         return (
                           <Pressable key={it.label} onPress={() => it.setValue(!checked)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
                                 <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
-                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? theme.success : titleColor} />
                               <Text color={titleColor} fontWeight="800">
                                 {it.label}
                               </Text>
@@ -7170,7 +7175,7 @@ export default function PostPropertyScreen() {
                       Parking
                     </Text>
                     <Pressable onPress={() => setPickerOpen('parking')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {parking === 'bike' ? 'Bike' : parking === 'car' ? 'Car' : parking === 'both' ? 'Both' : parking === 'none' ? 'None' : 'Select'}
                         </Text>
@@ -7204,9 +7209,9 @@ export default function PostPropertyScreen() {
                           <Button
                             flexGrow={1}
                             minWidth={140}
-                            backgroundColor={flatmatesBathroomType === 'private' ? '#E0F2FE' : '#FFFFFF'}
+                            backgroundColor={flatmatesBathroomType === 'private' ? theme.couponBg : theme.bgCard}
                             borderWidth={1}
-                            borderColor={flatmatesBathroomType === 'private' ? '#0891B2' : border}
+                            borderColor={flatmatesBathroomType === 'private' ? theme.info : border}
                             onPress={() => setFlatmatesBathroomType('private')}
                           >
                             <Text color={titleColor} fontWeight="900">
@@ -7216,9 +7221,9 @@ export default function PostPropertyScreen() {
                           <Button
                             flexGrow={1}
                             minWidth={140}
-                            backgroundColor={flatmatesBathroomType === 'shared' ? '#E0F2FE' : '#FFFFFF'}
+                            backgroundColor={flatmatesBathroomType === 'shared' ? theme.couponBg : theme.bgCard}
                             borderWidth={1}
-                            borderColor={flatmatesBathroomType === 'shared' ? '#0891B2' : border}
+                            borderColor={flatmatesBathroomType === 'shared' ? theme.info : border}
                             onPress={() => setFlatmatesBathroomType('shared')}
                           >
                             <Text color={titleColor} fontWeight="900">
@@ -7319,7 +7324,7 @@ export default function PostPropertyScreen() {
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {whoWillShowProperty || 'Select'}
                           </Text>
@@ -7336,7 +7341,7 @@ export default function PostPropertyScreen() {
                         onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
                         placeholder="10 digit number"
                         keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                        backgroundColor="#FFFFFF"
+                        backgroundColor={theme.bgCard}
                         borderColor={border}
                         color={valueColor}
                       />
@@ -7347,7 +7352,7 @@ export default function PostPropertyScreen() {
                         Water Supply
                       </Text>
                       <Pressable onPress={() => setPickerOpen('waterSupply')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
                           </Text>
@@ -7364,7 +7369,7 @@ export default function PostPropertyScreen() {
                       value={directionTip}
                       onChangeText={setDirectionTip}
                       placeholder="Eg. Take the road opposite to ..., take right after 300m..."
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -7373,7 +7378,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 80,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -7407,12 +7412,12 @@ export default function PostPropertyScreen() {
                         return (
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
                                 <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
-                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? theme.success : titleColor} />
                               <Text color={titleColor} fontWeight="800">
                                 {it.label}
                               </Text>
@@ -7455,7 +7460,7 @@ export default function PostPropertyScreen() {
                       Water Supply
                     </Text>
                     <Pressable onPress={() => setPickerOpen('waterSupply')}>
-                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                         <Text color={valueColor} fontWeight={valueWeight}>
                           {waterSupply === 'corporation' ? 'Corporation' : waterSupply === 'borewell' ? 'Borewell' : waterSupply === 'both' ? 'Both' : 'Select'}
                         </Text>
@@ -7499,7 +7504,7 @@ export default function PostPropertyScreen() {
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {whoWillShowProperty || 'Select'}
                           </Text>
@@ -7511,7 +7516,7 @@ export default function PostPropertyScreen() {
                         Current Property Condition?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyCondition')}>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor="#FFFFFF">
+                        <YStack borderWidth={1} borderColor={border} borderRadius={12} padding={12} backgroundColor={theme.bgCard}>
                           <Text color={valueColor} fontWeight={valueWeight}>
                             {currentPropertyCondition || 'Select'}
                           </Text>
@@ -7529,7 +7534,7 @@ export default function PostPropertyScreen() {
                       onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
                       placeholder="10 digit number"
                       keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
-                      backgroundColor="#FFFFFF"
+                      backgroundColor={theme.bgCard}
                       borderColor={border}
                       color={valueColor}
                     />
@@ -7550,7 +7555,7 @@ export default function PostPropertyScreen() {
                       value={directionTip}
                       onChangeText={setDirectionTip}
                       placeholder="Any directions to reach the property"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       style={{
                         borderWidth: 1,
@@ -7559,7 +7564,7 @@ export default function PostPropertyScreen() {
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         minHeight: 80,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: theme.bgCard,
                         color: valueColor,
                         textAlignVertical: 'top',
                       }}
@@ -7615,12 +7620,12 @@ export default function PostPropertyScreen() {
                         return (
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
-                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? '#059669' : border} borderRadius={4} backgroundColor={checked ? '#059669' : '#FFFFFF'} alignItems="center" justifyContent="center">
+                              <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
                                 <Text color="#FFFFFF" fontWeight="900" fontSize={12}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
-                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? '#059669' : titleColor} />
+                              <MaterialCommunityIcons name={it.icon} size={18} color={checked ? theme.success : titleColor} />
                               <Text color={titleColor} fontWeight="800">
                                 {it.label}
                               </Text>
@@ -7646,7 +7651,7 @@ export default function PostPropertyScreen() {
           ) : null}
 
           {step === 'uploads' ? (
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900">
                 Uploads
               </Text>
@@ -7655,10 +7660,10 @@ export default function PostPropertyScreen() {
               </Paragraph>
 
               <XStack gap="$2" flexWrap="wrap">
-                <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => void pickPhotos()}>
+                <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => void pickPhotos()}>
                   Add Photos ({photos.length}/10)
                 </Button>
-                <Button backgroundColor="#111827" color="#FFFFFF" onPress={() => void pickVideo()}>
+                <Button backgroundColor={theme.bgSecondary} color="#FFFFFF" onPress={() => void pickVideo()}>
                   Add Video ({videos.length}/2)
                 </Button>
               </XStack>
@@ -7689,7 +7694,7 @@ export default function PostPropertyScreen() {
                       <Button
                         key={`rm-photo-${u}`}
                         size="$2"
-                        backgroundColor="#EF4444"
+                        backgroundColor={theme.danger}
                         color="#FFFFFF"
                         onPress={() => setPhotos((p) => p.filter((x) => x !== u))}>
                         Remove photo
@@ -7699,7 +7704,7 @@ export default function PostPropertyScreen() {
                       <Button
                         key={`rm-video-${u}`}
                         size="$2"
-                        backgroundColor="#EF4444"
+                        backgroundColor={theme.danger}
                         color="#FFFFFF"
                         onPress={() => setVideos((p) => p.filter((x) => x !== u))}>
                         Remove video
@@ -7717,7 +7722,7 @@ export default function PostPropertyScreen() {
                 const isCommercialRent = propertyCategory === 'commercial' && adType === 'rent';
                 return null;
               })()}
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">
                   Review
                 </Text>
@@ -7726,14 +7731,14 @@ export default function PostPropertyScreen() {
                 </Text>
               </YStack>
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Basic</Text>
                 {reviewRow('Property Category', reviewValue(propertyCategory))}
                 {reviewRow('Ad Type', reviewValue(adType))}
               </YStack>
 
               {adType === 'pg_hostel' ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">PG Room Details</Text>
                   {pgRoomSingle ? reviewRow('Single Room', `Rent: ${reviewValue(pgSingleRent)}, Deposit: ${reviewValue(pgSingleDeposit)}`) : null}
                   {pgRoomDouble ? reviewRow('Double Room (per person)', `Rent: ${reviewValue(pgDoubleRent)}, Deposit: ${reviewValue(pgDoubleDeposit)}`) : null}
@@ -7743,7 +7748,7 @@ export default function PostPropertyScreen() {
               ) : null}
 
               {adType === 'pg_hostel' ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">PG Details</Text>
                   {reviewRow('Place available for', reviewValue(pgPlaceAvailableFor))}
                   {reviewRow('Preferred Guests', pgPreferredGuestText(pgPreferredGuests))}
@@ -7760,7 +7765,7 @@ export default function PostPropertyScreen() {
                 </YStack>
               ) : null}
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Property Details</Text>
                 {propertyCategory === 'commercial' && (adType === 'rent' || adType === 'sale') ? (
                   <>
@@ -7840,7 +7845,7 @@ export default function PostPropertyScreen() {
                 )}
               </YStack>
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Location</Text>
                 {reviewRow('State', reviewValue(stateValue))}
                 {reviewRow('City', reviewValue(cityValue))}
@@ -7851,7 +7856,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               {adType === 'resale' ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Resale Details</Text>
                   {reviewRow('Expected Price', reviewValue(price))}
                   {reviewRow('Price Negotiable', reviewValue(rentNegotiable ? 'Yes' : 'No'))}
@@ -7868,7 +7873,7 @@ export default function PostPropertyScreen() {
                   {reviewRow('Description', reviewValue(description))}
                 </YStack>
               ) : isCommercialSale ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Commercial Sale Resale Details</Text>
                   {reviewRow('Expected Price', reviewValue(price))}
                   {reviewRow('Ownership Type', ownershipType === 'self_owned' ? 'Self Owned' : ownershipType === 'on_lease' ? 'On Lease' : '—')}
@@ -7877,7 +7882,7 @@ export default function PostPropertyScreen() {
                   {reviewRow('Ideal For', commercialIdealForTags.length ? commercialIdealForTags.join(', ') : '—')}
                 </YStack>
               ) : isCommercialRent ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Commercial Rent Pricing</Text>
                   {reviewRow('Expected Rent', reviewValue(price))}
                   {reviewRow('Rent Negotiable', reviewValue(rentNegotiable ? 'Yes' : 'No'))}
@@ -7891,7 +7896,7 @@ export default function PostPropertyScreen() {
                   {reviewRow('Ideal For', commercialIdealForTags.length ? commercialIdealForTags.join(', ') : '—')}
                 </YStack>
               ) : (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Rental Details</Text>
                   {reviewRow('Available for', reviewValue(propertyAvailableFor === 'only_rent' ? 'Only rent' : 'Only lease'))}
                   {reviewRow('Expected Amount', reviewValue(price))}
@@ -7907,7 +7912,7 @@ export default function PostPropertyScreen() {
                 </YStack>
               )}
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Schedule</Text>
                 {reviewRow('Availability', scheduleAvailability === 'everyday' ? 'Everyday (Mon-Sun)' : scheduleAvailability === 'weekday' ? 'Weekday (Mon-Fri)' : 'Weekend (Sat-Sun)')}
                 {reviewRow('Available All Day', scheduleAllDay ? 'Yes' : 'No')}
@@ -7915,7 +7920,7 @@ export default function PostPropertyScreen() {
                 {!scheduleAllDay ? reviewRow('End time', scheduleEnd ? formatTimeHhMm(scheduleEnd) : '—') : null}
               </YStack>
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Amenities</Text>
 
                 {adType === 'pg_hostel' ? (
@@ -8084,7 +8089,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               {adType === 'resale' ? (
-                <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                   <Text color={titleColor} fontWeight="900">Additional Information</Text>
                   {isLandPlot ? (
                     <>
@@ -8117,7 +8122,7 @@ export default function PostPropertyScreen() {
                 </YStack>
               ) : null}
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Uploads</Text>
                 <Text color={muted}>Photos: {photos.length}</Text>
                 {photos.length ? (
@@ -8145,7 +8150,7 @@ export default function PostPropertyScreen() {
                 ) : null}
               </YStack>
 
-              <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+              <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <Text color={titleColor} fontWeight="900">Contact</Text>
                 <Text color={muted}>Name: {reviewValue(contactName)}</Text>
                 <Text color={muted}>Phone: {reviewValue(primaryContactPhone)}</Text>
@@ -8163,13 +8168,13 @@ export default function PostPropertyScreen() {
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor="#FFFFFF" padding={14} borderTopWidth={1} borderTopColor="#E5E7EB">
+      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.bgCard} padding={14} borderTopWidth={1} borderTopColor={theme.border}>
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
           <Button
             disabled={saving || editLoading}
-            backgroundColor="#0EA5E9"
+            backgroundColor={theme.info}
             color="#FFFFFF"
-            hoverStyle={{ backgroundColor: '#9CA3AF' }}
+            hoverStyle={{ backgroundColor: theme.textMuted }}
             onPress={back}>
             <Text color="#FFFFFF" fontWeight="900" fontFamily="Times New Roman">
               Back
@@ -8177,13 +8182,13 @@ export default function PostPropertyScreen() {
           </Button>
 
           {step !== 'review' ? (
-            <Button disabled={saving || editLoading} backgroundColor="#10B981" color="#FFFFFF" onPress={next}>
+            <Button disabled={saving || editLoading} backgroundColor={theme.success} color="#FFFFFF" onPress={next}>
               <Text color="#FFFFFF" fontWeight="900" fontFamily="Times New Roman">
                 Next
               </Text>
             </Button>
           ) : (
-            <Button disabled={saving || editLoading} backgroundColor="#10B981" color="#FFFFFF" onPress={() => void submit()}>
+            <Button disabled={saving || editLoading} backgroundColor={theme.success} color="#FFFFFF" onPress={() => void submit()}>
               <Text color="#FFFFFF" fontWeight="900" fontFamily="Times New Roman">
                 {saving ? 'Publishing…' : isEditMode ? 'Publish' : 'Post Property'}
               </Text>

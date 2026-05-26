@@ -5,6 +5,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
@@ -33,6 +35,7 @@ Madhya Pradesh,Jabalpur
 Madhya Pradesh,Gwalior`;
 
 export default function AdminLocationsScreen() {
+  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
@@ -192,16 +195,16 @@ export default function AdminLocationsScreen() {
     }
   };
 
-  const pageBg = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
-  const panelBg = '#F8FAFC';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const panelBg = theme.bgSecondary;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
       <YStack gap="$4">
-        <YStack backgroundColor="#111827" padding={16} paddingTop={18} borderRadius={16}>
+        <YStack backgroundColor={theme.primary} padding={16} paddingTop={18} borderRadius={16}>
           <XStack alignItems="center" justifyContent="center" position="relative">
             <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
               Back
@@ -212,8 +215,8 @@ export default function AdminLocationsScreen() {
           </XStack>
         </YStack>
 
-        {error ? <Text color="#EF4444">{error}</Text> : null}
-        {success ? <Text color="#10B981">{success}</Text> : null}
+        {error ? <Text color={theme.danger}>{error}</Text> : null}
+        {success ? <Text color={theme.success}>{success}</Text> : null}
 
         {/* Add State */}
         <YStack backgroundColor={panelBg} borderRadius={12} padding={16} borderWidth={1} borderColor={border} gap="$3">
@@ -226,11 +229,11 @@ export default function AdminLocationsScreen() {
               onChangeText={setNewState}
               placeholder="State name"
               flexGrow={1}
-              backgroundColor="#FFFFFF"
-              borderColor={border}
-              color={titleColor}
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
             />
-            <Button backgroundColor="#3B82F6" color="#FFFFFF" onPress={handleAddState} disabled={loading}>
+            <Button backgroundColor={theme.info} color="#FFFFFF" onPress={handleAddState} disabled={loading}>
               {loading ? 'Adding...' : 'Add'}
             </Button>
           </XStack>
@@ -248,13 +251,13 @@ export default function AdminLocationsScreen() {
               placeholder="Select state"
               flexGrow={1}
               minWidth={150}
-              backgroundColor="#FFFFFF"
-              borderColor={border}
-              color={titleColor}
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
             />
             <Button
-              backgroundColor="#E5E7EB"
-              color="#111827"
+              backgroundColor={theme.border}
+              color={theme.text}
               size="$3"
               onPress={() => {
                 Alert.alert(
@@ -275,11 +278,11 @@ export default function AdminLocationsScreen() {
               onChangeText={setNewCity}
               placeholder="City name"
               flexGrow={1}
-              backgroundColor="#FFFFFF"
-              borderColor={border}
-              color={titleColor}
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
             />
-            <Button backgroundColor="#3B82F6" color="#FFFFFF" onPress={handleAddCity} disabled={loading}>
+            <Button backgroundColor={theme.info} color="#FFFFFF" onPress={handleAddCity} disabled={loading}>
               {loading ? 'Adding...' : 'Add'}
             </Button>
           </XStack>
@@ -294,10 +297,10 @@ export default function AdminLocationsScreen() {
             Import states and cities from a CSV file. Format: state,city (one per line).
           </Text>
           <XStack gap="$2" flexWrap="wrap">
-            <Button backgroundColor="#10B981" color="#FFFFFF" onPress={handleExportSample}>
+            <Button backgroundColor={theme.success} color="#FFFFFF" onPress={handleExportSample}>
               Export Sample Format
             </Button>
-            <Button backgroundColor="#F59E0B" color="#FFFFFF" onPress={handleImportCSV} disabled={bulkLoading}>
+            <Button backgroundColor={theme.warning} color="#FFFFFF" onPress={handleImportCSV} disabled={bulkLoading}>
               {bulkLoading ? 'Importing...' : 'Import CSV'}
             </Button>
           </XStack>

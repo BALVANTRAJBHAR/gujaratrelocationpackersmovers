@@ -144,7 +144,9 @@ export default function BookingMapPicker(props: {
               <Button
                 size="$3"
                 backgroundColor="#F97316"
-                color="#0B0B12"
+                color="#FFFFFF"
+                hoverStyle={{ backgroundColor: '#EA580C' } as any}
+                pressStyle={{ backgroundColor: '#C2410C' } as any}
                 onPress={() => void props.onConfirm()}
                 disabled={props.busy || !props.coord || !props.token}>
                 {props.busy ? 'Saving…' : 'Confirm'}

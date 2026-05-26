@@ -2,19 +2,23 @@ import React from 'react';
 import { ScrollView } from 'react-native';
 import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} style={{ backgroundColor: '#0B0B12' }}>
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} style={{ backgroundColor: theme.bg }}>
       <YStack gap="$4">
         <YStack gap="$1">
-          <Text color="#F97316" fontSize={12} letterSpacing={2} textTransform="uppercase">
+          <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
             Explore
           </Text>
-          <H2 color="#F9FAFB">Services & support</H2>
-          <Paragraph color="#9CA3AF">
+          <H2 color={theme.text}>Services & support</H2>
+          <Paragraph color={theme.textMuted}>
             Everything you need for a premium move—before, during, and after.
           </Paragraph>
         </YStack>
@@ -28,7 +32,7 @@ export default function ExploreScreen() {
           ].map((card) => (
             <YStack
               key={card.title}
-              backgroundColor="#111827"
+              backgroundColor={theme.bgCard}
               borderRadius={18}
               padding={16}
               gap="$2"
@@ -36,26 +40,26 @@ export default function ExploreScreen() {
               flexGrow={1}
               flexBasis={260}
               borderWidth={1}
-              borderColor="#1F2937">
-              <Text color="#F9FAFB" fontSize={15} fontWeight="800">
+              borderColor={theme.border}>
+              <Text color={theme.text} fontSize={15} fontWeight="800">
                 {card.title}
               </Text>
-              <Text color="#9CA3AF" fontSize={12} lineHeight={16}>
+              <Text color={theme.textMuted} fontSize={12} lineHeight={16}>
                 {card.body}
               </Text>
             </YStack>
           ))}
         </XStack>
 
-        <YStack backgroundColor="#0F172A" borderRadius={18} padding={18} gap="$2" borderWidth={1} borderColor="#1F2937">
-          <Text color="#F9FAFB" fontWeight="800">
+        <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={18} gap="$2" borderWidth={1} borderColor={theme.border}>
+          <Text color={theme.text} fontWeight="800">
             Need help?
           </Text>
-          <Text color="#9CA3AF" fontSize={12} lineHeight={16}>
+          <Text color={theme.textMuted} fontSize={12} lineHeight={16}>
             Open the Contact section on Home for call/email support.
           </Text>
           <XStack paddingTop={8}>
-            <Button backgroundColor="#F97316" color="#0B0B12" onPress={() => router.push('/support' as any)}>
+            <Button backgroundColor={theme.accent} color="#FFFFFF" onPress={() => router.push('/support' as any)}>
               Open Support Chat
             </Button>
           </XStack>

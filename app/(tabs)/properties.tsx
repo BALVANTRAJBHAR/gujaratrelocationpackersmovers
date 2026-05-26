@@ -2,12 +2,16 @@ import React, { useEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 
 export default function PropertiesTabScreen() {
   const router = useRouter();
   const { session, profile } = useSession();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const role = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
@@ -21,15 +25,15 @@ export default function PropertiesTabScreen() {
     router.replace('/home' as any);
   }, [canUse, router]);
 
-  const pageBg = '#0B0B12';
-  const border = '#1F2937';
-  const titleColor = '#F9FAFB';
-  const muted = '#9CA3AF';
-  const panelBg = '#111827';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const panelBg = theme.bgCard;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#111827" padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
+      <YStack backgroundColor={theme.headerBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
         <Text color={titleColor} fontSize={18} fontWeight="900">
           Properties
         </Text>
@@ -45,13 +49,13 @@ export default function PropertiesTabScreen() {
               Quick Actions
             </Text>
             <XStack gap="$2" flexWrap="wrap">
-              <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/properties/my-properties' as any)}>
+              <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => router.push('/properties/my-properties' as any)}>
                 My Properties
               </Button>
-              <Button backgroundColor="#10B981" color="#0B0B12" onPress={() => router.push('/properties/post' as any)}>
+              <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => router.push('/properties/post' as any)}>
                 Post Property
               </Button>
-              <Button backgroundColor="#334155" color="#FFFFFF" onPress={() => router.push('/properties' as any)}>
+              <Button backgroundColor={theme.bgCardSecondary} color="#FFFFFF" onPress={() => router.push('/properties' as any)}>
                 Browse
               </Button>
             </XStack>

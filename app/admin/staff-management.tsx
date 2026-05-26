@@ -1,12 +1,17 @@
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
 import { Button, H1, Paragraph, YStack } from 'tamagui';
+import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
  import { supabase } from '@/lib/supabase';
 
 export default function StaffManagementScreen() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const styles = useMemo(() => useStyles(theme), [theme]);
   const [searchEmail, setSearchEmail] = useState('');
   const [formData, setFormData] = useState({
     role: 'staff',
@@ -324,16 +329,16 @@ export default function StaffManagementScreen() {
           resizeMode="contain"
         />
         
-        <H1 color="#F97316" fontSize={28} textAlign="center">
+        <H1 color={theme.accent} fontSize={28} textAlign="center">
           Add Staff Member
         </H1>
         
-        <Paragraph color="#6B7280" textAlign="center">
+        <Paragraph color={theme.textMuted} textAlign="center">
           Search an existing user and update their role with document verification
         </Paragraph>
 
         {submitError ? (
-          <YStack width="100%" maxWidth={400} backgroundColor="#1F2937" padding={12} borderRadius={12}>
+          <YStack width="100%" maxWidth={400} backgroundColor={theme.bgCard} padding={12} borderRadius={12}>
             <Text style={{ color: '#FCA5A5' }}>{submitError}</Text>
           </YStack>
         ) : null}
@@ -359,8 +364,8 @@ export default function StaffManagementScreen() {
 
           <Button
             size="$3"
-            backgroundColor="#111827"
-            color="#E5E7EB"
+            backgroundColor={theme.bgCard}
+            color={theme.text}
             onPress={() => findAndPrefillUser({ email: searchEmail })}
             disabled={saving || searching}
             width="100%"
@@ -455,8 +460,8 @@ export default function StaffManagementScreen() {
 
           <Button
             size="$3"
-            backgroundColor="#111827"
-            color="#E5E7EB"
+            backgroundColor={theme.bgCard}
+            color={theme.text}
             onPress={() => findAndPrefillUser({ phone: formData.mobile })}
             disabled={saving || searching}
             width="100%"
@@ -486,7 +491,7 @@ export default function StaffManagementScreen() {
                       handleInputChange('documentType', doc.value);
                       setDocTypeOpen(false);
                     }}>
-                    <Text style={{ color: '#E5E7EB' }}>{doc.label}</Text>
+                    <Text style={{ color: theme.text }}>{doc.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -523,8 +528,8 @@ export default function StaffManagementScreen() {
 
           <Button 
             size="$4" 
-            backgroundColor="#F97316" 
-            color="#0B0B12" 
+            backgroundColor={theme.accent} 
+            color="#FFFFFF" 
             onPress={handleSubmit}
             disabled={uploading || saving}
             width="100%"
@@ -539,10 +544,10 @@ export default function StaffManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B12',
+    backgroundColor: theme.bg,
   },
   contentContainer: {
     padding: 24,
@@ -557,18 +562,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    color: '#E5E7EB',
+    color: theme.text,
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
   input: {
-    backgroundColor: '#1F2937',
+    backgroundColor: theme.bgCard,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.border,
     borderRadius: 12,
     padding: 16,
-    color: '#F9FAFB',
+    color: theme.text,
     fontSize: 16,
     fontFamily: 'Times New Roman',
   },
@@ -579,56 +584,56 @@ const styles = StyleSheet.create({
   roleButton: {
     flex: 1,
     padding: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: theme.bgCard,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.border,
   },
   roleButtonActive: {
-    backgroundColor: '#F97316',
-    borderColor: '#F97316',
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   roleButtonText: {
-    color: '#E5E7EB',
+    color: theme.text,
     fontSize: 14,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
   roleButtonTextActive: {
-    color: '#0B0B12',
+    color: '#FFFFFF',
   },
   pickerContainer: {
     gap: 8,
   },
   docTypeButton: {
     padding: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: theme.bgCard,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.border,
     marginBottom: 8,
   },
   docTypeButtonActive: {
-    backgroundColor: '#F97316',
-    borderColor: '#F97316',
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   docTypeButtonText: {
-    color: '#E5E7EB',
+    color: theme.text,
     fontSize: 14,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
   docTypeButtonTextActive: {
-    color: '#0B0B12',
+    color: '#FFFFFF',
   },
   uploadButton: {
-    backgroundColor: '#374151',
+    backgroundColor: theme.bgSecondary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: theme.border,
   },
   uploadRow: {
     flexDirection: 'row',
@@ -642,13 +647,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   ocrText: {
-    color: '#F97316',
+    color: theme.accent,
     fontSize: 12,
     marginTop: 8,
     fontFamily: 'Times New Roman',
   },
   uploadButtonText: {
-    color: '#F9FAFB',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Times New Roman',

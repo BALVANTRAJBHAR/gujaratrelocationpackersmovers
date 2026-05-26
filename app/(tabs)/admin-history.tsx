@@ -4,6 +4,7 @@ import { FlatList, Platform, Share } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -29,18 +30,7 @@ export default function AdminHistoryScreen() {
   const { profile } = useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F3F4F6';
-  const panelBgStrong = isDark ? '#0F172A' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const inputBg = panelBgStrong;
-  const inputText = isDark ? '#E5E7EB' : '#111827';
-  const idleBtnBg = isDark ? '#111827' : '#E5E7EB';
-  const idleBtnText = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#F97316';
-  const activeBtnText = '#0B0B12';
+  const theme = isDark ? themes.dark : themes.light;
   const [records, setRecords] = useState<ApprovalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -222,19 +212,19 @@ export default function AdminHistoryScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={24} gap="$4">
+    <YStack flex={1} backgroundColor={theme.bg} padding={24} gap="$4">
       <XStack justifyContent="space-between" alignItems="center">
         <YStack gap="$1">
-          <Text color="#F97316" fontSize={12} letterSpacing={2} textTransform="uppercase">
+          <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
             Admin
           </Text>
-          <H2 color={titleColor}>Approval history</H2>
-          <Paragraph color={muted}>See who approved drivers and when.</Paragraph>
+          <H2 color={theme.text}>Approval history</H2>
+          <Paragraph color={theme.textMuted}>See who approved drivers and when.</Paragraph>
         </YStack>
         <Button
           size="$2"
-          backgroundColor={idleBtnBg}
-          color={idleBtnText}
+          backgroundColor={theme.bgCard}
+          color={theme.textSecondary}
           borderRadius={10}
           onPress={() => {
             fetchHistory();
@@ -246,21 +236,21 @@ export default function AdminHistoryScreen() {
 
       <XStack gap="$2" flexWrap="wrap" alignItems="center">
         <YStack gap="$1">
-          <Text color={muted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
+          <Text color={theme.textMuted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
           <Input
             value={startDate}
             onChangeText={setStartDate}
             placeholder="2024-01-01"
-            backgroundColor={inputBg}
-            borderColor={border}
-            color={inputText}
+            backgroundColor={theme.bgCard}
+            borderColor={theme.border}
+            color={theme.text}
             width={160}
           />
         </YStack>
         <Button
           size="$2"
-          backgroundColor={idleBtnBg}
-          color={idleBtnText}
+          backgroundColor={theme.bgCard}
+          color={theme.textSecondary}
           borderRadius={10}
           onPress={() => {
             openWebDatePicker(startDate, setStartDate);
@@ -269,21 +259,21 @@ export default function AdminHistoryScreen() {
           Pick
         </Button>
         <YStack gap="$1">
-          <Text color={muted} fontSize={11}>End date (YYYY-MM-DD)</Text>
+          <Text color={theme.textMuted} fontSize={11}>End date (YYYY-MM-DD)</Text>
           <Input
             value={endDate}
             onChangeText={setEndDate}
             placeholder="2024-12-31"
-            backgroundColor={inputBg}
-            borderColor={border}
-            color={inputText}
+            backgroundColor={theme.bgCard}
+            borderColor={theme.border}
+            color={theme.text}
             width={160}
           />
         </YStack>
         <Button
           size="$2"
-          backgroundColor={idleBtnBg}
-          color={idleBtnText}
+          backgroundColor={theme.bgCard}
+          color={theme.textSecondary}
           borderRadius={10}
           onPress={() => {
             openWebDatePicker(endDate, setEndDate);
@@ -293,16 +283,16 @@ export default function AdminHistoryScreen() {
         </Button>
         <Button
           size="$2"
-          backgroundColor={activeBtnBg}
-          color={activeBtnText}
+          backgroundColor={theme.accent}
+          color={'#FFFFFF'}
           borderRadius={10}
           onPress={fetchHistory}>
           Apply
         </Button>
         <Button
           size="$2"
-          backgroundColor={idleBtnBg}
-          color={idleBtnText}
+          backgroundColor={theme.bgCard}
+          color={theme.textSecondary}
           borderRadius={10}
           onPress={() => {
             setStartDate('');
@@ -314,15 +304,15 @@ export default function AdminHistoryScreen() {
       </XStack>
 
       {!canManage ? (
-        <YStack backgroundColor={panelBg} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={border}>
-          <Text color={titleColor} fontWeight="700">Admin access only</Text>
-          <Text color={muted} fontSize={12}>
+        <YStack backgroundColor={theme.bgSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
+          <Text color={theme.text} fontWeight="700">Admin access only</Text>
+          <Text color={theme.textMuted} fontSize={12}>
             You do not have permission to view approvals.
           </Text>
         </YStack>
       ) : (
         <>
-          {loading ? <Text color={muted}>Loading...</Text> : null}
+          {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
           {error ? <Text color="#FCA5A5">{error}</Text> : null}
           <FlatList
             data={records}
@@ -330,24 +320,24 @@ export default function AdminHistoryScreen() {
             contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
             ListFooterComponent={
               <YStack gap="$3" marginTop={12}>
-                <Text color={titleColor} fontWeight="700">Admin action logs</Text>
+                <Text color={theme.text} fontWeight="700">Admin action logs</Text>
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
                   <YStack gap="$1">
-                    <Text color={muted} fontSize={11}>Log start (YYYY-MM-DD)</Text>
+                    <Text color={theme.textMuted} fontSize={11}>Log start (YYYY-MM-DD)</Text>
                     <Input
                       value={logsStartDate}
                       onChangeText={setLogsStartDate}
                       placeholder="2024-01-01"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.bgCard}
+                      borderColor={theme.border}
+                      color={theme.text}
                       width={150}
                     />
                   </YStack>
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCard}
+                    color={theme.textSecondary}
                     borderRadius={10}
                     onPress={() => {
                       openWebDatePicker(logsStartDate, setLogsStartDate);
@@ -356,21 +346,21 @@ export default function AdminHistoryScreen() {
                     Pick
                   </Button>
                   <YStack gap="$1">
-                    <Text color={muted} fontSize={11}>Log end (YYYY-MM-DD)</Text>
+                    <Text color={theme.textMuted} fontSize={11}>Log end (YYYY-MM-DD)</Text>
                     <Input
                       value={logsEndDate}
                       onChangeText={setLogsEndDate}
                       placeholder="2024-12-31"
-                      backgroundColor={inputBg}
-                      borderColor={border}
-                      color={inputText}
+                      backgroundColor={theme.bgCard}
+                      borderColor={theme.border}
+                      color={theme.text}
                       width={150}
                     />
                   </YStack>
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCard}
+                    color={theme.textSecondary}
                     borderRadius={10}
                     onPress={() => {
                       openWebDatePicker(logsEndDate, setLogsEndDate);
@@ -380,16 +370,16 @@ export default function AdminHistoryScreen() {
                   </Button>
                   <Button
                     size="$2"
-                    backgroundColor={activeBtnBg}
-                    color={activeBtnText}
+                    backgroundColor={theme.accent}
+                    color={'#FFFFFF'}
                     borderRadius={10}
                     onPress={() => fetchActionLogs({ reset: true })}>
                     Apply
                   </Button>
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCard}
+                    color={theme.textSecondary}
                     borderRadius={10}
                     onPress={() => {
                       setLogsStartDate('');
@@ -400,8 +390,8 @@ export default function AdminHistoryScreen() {
                   </Button>
                   <Button
                     size="$2"
-                    backgroundColor={inputBg}
-                    color={inputText}
+                    backgroundColor={theme.bgCard}
+                    color={theme.text}
                     borderRadius={10}
                     onPress={exportActionLogsCsv}>
                     Export CSV
@@ -413,8 +403,8 @@ export default function AdminHistoryScreen() {
                       <Button
                         key={filter.value}
                         size="$2"
-                        backgroundColor={actionFilter === filter.value ? activeBtnBg : idleBtnBg}
-                        color={actionFilter === filter.value ? activeBtnText : idleBtnText}
+                        backgroundColor={actionFilter === filter.value ? theme.accent : theme.bgCard}
+                        color={actionFilter === filter.value ? '#FFFFFF' : theme.textSecondary}
                         borderRadius={999}
                         onPress={() => {
                           setActionFilter(filter.value as typeof actionFilter);
@@ -427,17 +417,17 @@ export default function AdminHistoryScreen() {
                 </XStack>
 
                 {logsError ? <Text color="#FCA5A5">{logsError}</Text> : null}
-                {logsLoading ? <Text color={muted}>Loading logs...</Text> : null}
+                {logsLoading ? <Text color={theme.textMuted}>Loading logs...</Text> : null}
 
                 {!actionLogs.length && !logsLoading ? (
-                  <Text color={muted} fontSize={12}>No action logs yet.</Text>
+                  <Text color={theme.textMuted} fontSize={12}>No action logs yet.</Text>
                 ) : (
                   actionLogs.map((log) => (
-                    <YStack key={log.id} backgroundColor={panelBgStrong} borderRadius={16} padding={14} gap="$1" borderWidth={1} borderColor={border}>
-                      <Text color={titleColor} fontSize={12} fontWeight="600">
+                    <YStack key={log.id} backgroundColor={theme.bgCard} borderRadius={16} padding={14} gap="$1" borderWidth={1} borderColor={theme.border}>
+                      <Text color={theme.text} fontSize={12} fontWeight="600">
                         {log.action_type ?? 'action'}
                       </Text>
-                      <Text color={muted} fontSize={11}>
+                      <Text color={theme.textMuted} fontSize={11}>
                         {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                       </Text>
                     </YStack>
@@ -447,8 +437,8 @@ export default function AdminHistoryScreen() {
                 {logsHasMore ? (
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCard}
+                    color={theme.textSecondary}
                     borderRadius={10}
                     onPress={() => fetchActionLogs()}>
                     Load more
@@ -457,12 +447,12 @@ export default function AdminHistoryScreen() {
               </YStack>
             }
             renderItem={({ item }) => (
-              <YStack backgroundColor={panelBgStrong} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={border}>
-                <Text color={titleColor} fontWeight="700" fontSize={14}>
+              <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                <Text color={theme.text} fontWeight="700" fontSize={14}>
                   {item.name ?? 'Driver'}
                 </Text>
-                <Text color={muted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
-                <Text color={muted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
+                <Text color={theme.textMuted} fontSize={12}>
                   Approved: {item.approved_at ? new Date(item.approved_at).toLocaleString() : '—'}
                 </Text>
               </YStack>

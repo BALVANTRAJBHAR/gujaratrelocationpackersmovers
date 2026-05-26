@@ -6,6 +6,8 @@ import { PropertyMediaGrid, uploadsToMediaItems } from '@/components/property-me
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 
 type PropertyRow = {
   id: string;
@@ -46,6 +48,7 @@ type UploadRow = {
 };
 
 export default function PropertyDetailScreen() {
+  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = String(params.id ?? '').trim();
@@ -103,15 +106,15 @@ export default function PropertyDetailScreen() {
     };
   }, [id]);
 
-  const pageBg = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
-  const panelBg = '#F8FAFC';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const panelBg = theme.bgSecondary;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#111827" padding={16} paddingTop={18}>
+      <YStack backgroundColor={theme.primary} padding={16} paddingTop={18}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
             ‹
@@ -120,7 +123,7 @@ export default function PropertyDetailScreen() {
             <Text color="#FFFFFF" fontSize={16} fontWeight="800">
               Property
             </Text>
-            <Text color="#9CA3AF" fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
               Details
             </Text>
           </YStack>
@@ -129,18 +132,18 @@ export default function PropertyDetailScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
         {loading ? <Text color={muted}>Loading...</Text> : null}
-        {error ? <Text color="#EF4444">{error}</Text> : null}
+        {error ? <Text color={theme.danger}>{error}</Text> : null}
 
         {item ? (
           <YStack gap="$3">
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900" fontSize={16}>
                 {formatPropertyListingTitle(item)}
               </Text>
               <Text color={muted} fontSize={12}>
                 {(item.locality ?? '') + (item.locality ? ', ' : '') + (item.city ?? '') + (item.city ? ', ' : '') + (item.state ?? '')}
               </Text>
-              <Text color="#10B981" fontWeight="900" fontSize={16}>
+              <Text color={theme.success} fontWeight="900" fontSize={16}>
                 {item.price ? `₹${Number(item.price).toLocaleString('en-IN')}` : 'Price on request'}
               </Text>
               <Text color={muted} fontSize={12}>
@@ -149,7 +152,7 @@ export default function PropertyDetailScreen() {
               {item.description ? <Text color={muted}>{item.description}</Text> : null}
             </YStack>
 
-            <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgSecondary} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900">
                 Contact
               </Text>
@@ -162,16 +165,16 @@ export default function PropertyDetailScreen() {
               {item.contact_phone ? (
                 <XStack gap="$2" flexWrap="wrap">
                   <Button
-                    backgroundColor="#10B981"
-                    color="#0B0B12"
+                    backgroundColor={theme.success}
+                    color="#FFFFFF"
                     onPress={() => {
                       Linking.openURL(`tel:${item.contact_phone}`);
                     }}>
                     Call
                   </Button>
                   <Button
-                    backgroundColor="#22C55E"
-                    color="#0B0B12"
+                    backgroundColor={theme.success}
+                    color="#FFFFFF"
                     onPress={() => {
                       const digits = String(item.contact_phone ?? '').replace(/\D/g, '');
                       Linking.openURL(`https://wa.me/${digits}`);
@@ -182,7 +185,7 @@ export default function PropertyDetailScreen() {
               ) : null}
             </YStack>
 
-            <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <Text color={titleColor} fontWeight="900">
                 Media
               </Text>

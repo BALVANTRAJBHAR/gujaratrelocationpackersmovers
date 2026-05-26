@@ -4,11 +4,15 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { getSupabaseUserSafe, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 import { findExistingUserByAadhaar, findExistingUserByPhone } from '@/lib/user-duplicate-check';
 
 export default function RegisterDetailsScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +35,11 @@ export default function RegisterDetailsScreen() {
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
   const [aadhaarExtracted, setAadhaarExtracted] = useState<string>('');
   const extractingAadhaarRef = useRef(false);
+  const [aadhaarDuplicateError, setAadhaarDuplicateError] = useState<string | null>(null);
+  const [aadhaarChecking, setAadhaarChecking] = useState(false);
 
-  const labelColor = useMemo(() => '#9CA3AF', []);
-  const border = useMemo(() => '#374151', []);
+  const labelColor = useMemo(() => theme.textMuted, [theme]);
+  const border = useMemo(() => theme.border, [theme]);
 
   const verhoeffValidate = (num: string) => {
     const s = String(num ?? '').replace(/\D/g, '');
@@ -538,6 +544,7 @@ export default function RegisterDetailsScreen() {
             name: name.trim() || null,
             phone: digits,
             role: 'provider',
+            provider_services: ['home_service'],
             is_verified: true,
           },
           { onConflict: 'id' }
@@ -594,6 +601,27 @@ export default function RegisterDetailsScreen() {
     }
   };
 
+  const checkAadhaarDuplicate = async (value: string) => {
+    const digits = String(value ?? '').replace(/\D/g, '').slice(0, 12);
+    if (digits.length !== 12 || !userId) {
+      setAadhaarDuplicateError(null);
+      return;
+    }
+    setAadhaarChecking(true);
+    try {
+      const existing = await findExistingUserByAadhaar(supabase, digits, userId);
+      if (existing) {
+        setAadhaarDuplicateError('This Aadhaar number is already registered with another account.');
+      } else {
+        setAadhaarDuplicateError(null);
+      }
+    } catch {
+      setAadhaarDuplicateError(null);
+    } finally {
+      setAadhaarChecking(false);
+    }
+  };
+
   const uploadAadhaarAndSave = async () => {
     setError(null);
     setInfo(null);
@@ -606,6 +634,11 @@ export default function RegisterDetailsScreen() {
     const aadhaarDigits = String(aadhaarNumber ?? '').replace(/\D/g, '').slice(0, 12);
     if (aadhaarDigits.length !== 12) {
       setError('Enter valid 12-digit Aadhaar number.');
+      return;
+    }
+
+    if (aadhaarDuplicateError) {
+      setError(aadhaarDuplicateError);
       return;
     }
 
@@ -662,7 +695,12 @@ export default function RegisterDetailsScreen() {
           } as any,
           { onConflict: 'user_id,document_type' } as any
         );
-      if (updateError) throw new Error(updateError.message);
+      if (updateError) {
+        if (String(updateError.message ?? '').toLowerCase().includes('duplicate') || String(updateError.code ?? '') === '23505') {
+          throw new Error('This Aadhaar number is already registered with another account.');
+        }
+        throw new Error(updateError.message);
+      }
 
       setInfo('Saved.');
       if (Platform.OS !== 'web') {
@@ -680,21 +718,21 @@ export default function RegisterDetailsScreen() {
 
   if (loading) {
     return (
-      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="#111827" padding="$4">
-        <Paragraph color="#9CA3AF">Loading…</Paragraph>
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor={theme.bg} padding="$4">
+        <Paragraph color={theme.textMuted}>Loading…</Paragraph>
       </YStack>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#111827' } as any}>
+    <View style={{ flex: 1, backgroundColor: theme.bg } as any}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 } as any} keyboardShouldPersistTaps="handled">
         <YStack gap="$4">
       <YStack gap="$2">
-        <Paragraph color="#FFFFFF" fontSize={22} fontWeight="700">
+        <Paragraph color={theme.text} fontSize={22} fontWeight="700">
           Provider verification
         </Paragraph>
-        <Paragraph color="#9CA3AF">
+        <Paragraph color={theme.textMuted}>
           Verify phone with OTP and upload Aadhaar details.
         </Paragraph>
       </YStack>
@@ -710,8 +748,8 @@ export default function RegisterDetailsScreen() {
           <XStack gap="$2" alignItems="center" flexWrap="wrap">
             <Button
               size="$3"
-              backgroundColor="#1F2937"
-              color="#FFFFFF"
+              backgroundColor={theme.bgCardSecondary}
+              color={theme.text}
               borderWidth={1}
               borderColor={border}
               disabled={otpVerified}
@@ -736,8 +774,8 @@ export default function RegisterDetailsScreen() {
                   <Button
                     key={cc}
                     size="$2"
-                    backgroundColor={normalizeCountryCode(countryCode) === cc ? '#10B981' : '#1F2937'}
-                    color={normalizeCountryCode(countryCode) === cc ? '#111827' : '#FFFFFF'}
+                    backgroundColor={normalizeCountryCode(countryCode) === cc ? '#10B981' : theme.bgCardSecondary}
+                    color={normalizeCountryCode(countryCode) === cc ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={border}
                     onPress={() => {
@@ -766,7 +804,7 @@ export default function RegisterDetailsScreen() {
               />
               <Button
                 backgroundColor="#10B981"
-                color="#111827"
+                color="#FFFFFF"
                 onPress={verifyOtp}
                 disabled={otpVerifying || otpVerified}>
                 {otpVerified ? 'Verified' : otpVerifying ? 'Verifying…' : 'Verify OTP'}
@@ -780,6 +818,8 @@ export default function RegisterDetailsScreen() {
             flex={1}
             backgroundColor="#1F4E79"
             color="#FFFFFF"
+            hoverStyle={{ backgroundColor: '#1F4E79' }}
+            pressStyle={{ backgroundColor: '#1F4E79' }}
             onPress={sendOtp}
             disabled={otpSending || otpVerified || otpResendCooldown > 0}>
             {otpVerified
@@ -794,12 +834,13 @@ export default function RegisterDetailsScreen() {
           </Button>
         </XStack>
 
-        {otpVerified ? <Paragraph color="#34D399">Mobile number verified.</Paragraph> : null}
+        {otpVerified ? <Paragraph color={theme.success}>Mobile number verified.</Paragraph> : null}
 
         {otpVerified ? (
           <YStack gap="$3">
             <YStack gap="$2">
               <Text color={labelColor}>Aadhaar Photo</Text>
+              <Text color={theme.warning} fontSize={11} fontWeight="600">Upload a well-cropped, clear image of your Aadhaar card</Text>
               <Pressable onPress={() => void pickAadhaarImage()} style={{ width: '100%' } as any}>
                 <View
                   style={{
@@ -808,13 +849,13 @@ export default function RegisterDetailsScreen() {
                     borderRadius: 12,
                     paddingHorizontal: 12,
                     paddingVertical: 12,
-                    backgroundColor: '#1F2937',
+                    backgroundColor: theme.bgCardSecondary,
                   } as any}>
-                  <Text color="#FFFFFF" fontWeight="700">
+                  <Text color={theme.text} fontWeight="700">
                     {aadhaarImageUri ? 'Photo selected' : 'Upload Aadhaar Photo'}
                   </Text>
                   {aadhaarImageUri ? (
-                    <Text color="#9CA3AF" fontSize={12} marginTop={2} numberOfLines={1}>
+                    <Text color={theme.textMuted} fontSize={12} marginTop={2} numberOfLines={1}>
                       {aadhaarImageUri}
                     </Text>
                   ) : null}
@@ -826,27 +867,38 @@ export default function RegisterDetailsScreen() {
               <Text color={labelColor}>Aadhaar Number</Text>
               <Input
                 value={aadhaarNumber}
-                onChangeText={(v) => setAadhaarNumber(String(v ?? '').replace(/\D/g, '').slice(0, 12))}
+                onChangeText={(v) => {
+                  const digits = String(v ?? '').replace(/\D/g, '').slice(0, 12);
+                  setAadhaarNumber(digits);
+                }}
+                onBlur={() => void checkAadhaarDuplicate(aadhaarNumber)}
                 placeholder="12-digit Aadhaar"
                 keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
                 maxLength={12}
               />
+              {aadhaarChecking ? (
+                <Text color={theme.warning} fontSize={11}>Checking...</Text>
+              ) : aadhaarDuplicateError ? (
+                <Text color={theme.danger} fontSize={11} fontWeight="700">{aadhaarDuplicateError}</Text>
+              ) : aadhaarNumber.length === 12 && !aadhaarDuplicateError ? (
+                <Text color={theme.success} fontSize={11} fontWeight="700">✓ Aadhaar verified</Text>
+              ) : null}
             </YStack>
           </YStack>
         ) : null}
 
-        {error ? <Paragraph color="#F87171">{error}</Paragraph> : null}
-        {info ? <Paragraph color="#34D399">{info}</Paragraph> : null}
+        {error ? <Paragraph color={theme.danger}>{error}</Paragraph> : null}
+        {info ? <Paragraph color={theme.success}>{info}</Paragraph> : null}
 
         <Button
           backgroundColor="#10B981"
-          color="#111827"
+          color="#FFFFFF"
           onPress={() => void uploadAadhaarAndSave()}
           disabled={saving || aadhaarUploading || !otpVerified}>
           {aadhaarUploading ? 'Saving…' : 'Save & Continue'}
         </Button>
 
-        <Button chromeless color="#9CA3AF" onPress={() => router.replace('/home')}>
+        <Button chromeless color={theme.textMuted} onPress={() => router.replace('/home')}>
           Skip for now
         </Button>
       </YStack>

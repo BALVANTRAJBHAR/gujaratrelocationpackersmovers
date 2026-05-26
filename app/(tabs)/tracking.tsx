@@ -4,6 +4,7 @@ import { FlatList } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import TrackingMap from '@/components/tracking-map';
+import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
@@ -32,18 +33,7 @@ export default function TrackingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#0F172A' : '#F3F4F6';
-  const panelBgStrong = isDark ? '#111827' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#9CA3AF' : '#6B7280';
-  const label = isDark ? '#E5E7EB' : '#111827';
-  const badgeIdleBg = isDark ? '#111827' : '#E5E7EB';
-  const badgeIdleText = isDark ? '#94A3B8' : '#111827';
-  const badgeActiveBg = '#F97316';
-  const badgeActiveText = '#0B0B12';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -147,25 +137,25 @@ export default function TrackingScreen() {
   }, [params.bookingId]);
 
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={24}>
+    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
-        <Text color="#F97316" fontSize={12} letterSpacing={2} textTransform="uppercase">
+        <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
           Live tracking
         </Text>
-        <H2 color={titleColor}>Driver signals</H2>
-        <Paragraph color={muted}>
+        <H2 color={theme.text}>Driver signals</H2>
+        <Paragraph color={theme.textMuted}>
           Realtime updates will appear here once driver starts the trip.
         </Paragraph>
 
         {!params.bookingId ? (
           <YStack
-            backgroundColor={panelBg}
-            borderColor={border}
+            backgroundColor={theme.bgCardSecondary}
+            borderColor={theme.border}
             borderWidth={1}
             borderRadius={18}
             padding={14}
             gap="$2">
-            <Text color={label} fontSize={12} fontWeight="700">
+            <Text color={theme.text} fontSize={12} fontWeight="700">
               Enter Tracking ID
             </Text>
             <Input
@@ -176,8 +166,8 @@ export default function TrackingScreen() {
               autoCorrect={false}
             />
             <Button
-              backgroundColor={badgeActiveBg}
-              color={badgeActiveText}
+              backgroundColor={theme.accent}
+              color="#FFFFFF"
               onPress={() => {
                 const id = String(trackingId ?? '').trim();
                 if (!id) return;
@@ -186,24 +176,24 @@ export default function TrackingScreen() {
               }}>
               Track Now
             </Button>
-            <Text color={muted} fontSize={11}>
+            <Text color={theme.textMuted} fontSize={11}>
               Customer can share this Tracking ID to view live status and driver location.
             </Text>
           </YStack>
         ) : null}
         {params.bookingId ? (
-          <Text color={muted} fontSize={12}>Tracking booking: {params.bookingId}</Text>
+          <Text color={theme.textMuted} fontSize={12}>Tracking booking: {params.bookingId}</Text>
         ) : null}
 
         {params.bookingId ? (
           <YStack
-            backgroundColor={panelBg}
-            borderColor={border}
+            backgroundColor={theme.bgCardSecondary}
+            borderColor={theme.border}
             borderWidth={1}
             borderRadius={18}
             padding={14}
             gap="$2">
-            <Text color={label} fontSize={12} fontWeight="700">
+            <Text color={theme.text} fontSize={12} fontWeight="700">
               Status
             </Text>
             <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -218,12 +208,12 @@ export default function TrackingScreen() {
                       paddingHorizontal={10}
                       paddingVertical={6}
                       borderRadius={999}
-                      backgroundColor={isActive ? badgeActiveBg : badgeIdleBg}
-                      color={isActive ? badgeActiveText : badgeIdleText}>
+                      backgroundColor={isActive ? theme.accent : theme.bgCardSecondary}
+                      color={isActive ? '#FFFFFF' : theme.textMuted}>
                       {step.label}
                     </Text>
                     {idx !== STATUS_STEPS.length - 1 ? (
-                      <Text color={muted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={12}>
                         —
                       </Text>
                     ) : null}
@@ -234,7 +224,7 @@ export default function TrackingScreen() {
           </YStack>
         ) : null}
 
-        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={panelBg}>
+        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
           <TrackingMap
             token={mapboxToken}
             latitude={mapLat}
@@ -248,12 +238,12 @@ export default function TrackingScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
           renderItem={({ item }) => (
-            <YStack backgroundColor={panelBgStrong} borderColor={border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
-              <Text color={label} fontSize={13}>Booking: {item.booking_id}</Text>
-              <Text color={muted} fontSize={12}>
+            <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
+              <Text color={theme.text} fontSize={13}>Booking: {item.booking_id}</Text>
+              <Text color={theme.textMuted} fontSize={12}>
                 Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
               </Text>
-              <Text color={muted} fontSize={11}>
+              <Text color={theme.textMuted} fontSize={11}>
                 {new Date(item.updated_at).toLocaleString()}
               </Text>
             </YStack>

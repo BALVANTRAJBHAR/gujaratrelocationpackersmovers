@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
@@ -11,20 +12,19 @@ export default function ProfileSetupScreen() {
   const router = useRouter();
   const { session, profile, refreshProfile } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B1220' : '#FFFFFF';
-  const cardBg = isDark ? '#0F172A' : '#FFFFFF';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F3F4F6' : '#111827';
-  const text = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#94A3B8' : '#6B7280';
-  const badgeBg = isDark ? '#111827' : '#F3F4F6';
-  const badgeText = isDark ? '#E5E7EB' : '#111827';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const activeBtnBg = '#F97316';
   const activeBtnText = '#0B1220';
   const [loading, setLoading] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,26 +108,64 @@ export default function ProfileSetupScreen() {
     }
   };
 
+  const savePassword = async () => {
+    setError(null);
+    if (!newPassword.trim()) {
+      setError('New password is required.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword.trim(),
+      });
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setEditingPassword(false);
+      alert('Password updated successfully!');
+    } catch (err) {
+      setError('Unable to update password. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={24} minHeight="100%" gap="$4">
+    <YStack flex={1} backgroundColor={theme.bg} padding={24} minHeight="100%" gap="$4">
       <XStack alignItems="center" justifyContent="space-between">
-        <H2 color={titleColor}>Profile</H2>
+        <H2 color={theme.text}>Profile</H2>
         <Pressable onPress={() => router.back()}>
-          <Text color="#93C5FD" fontWeight="700">
+          <Text color={theme.info} fontWeight="700">
             Back
           </Text>
         </Pressable>
       </XStack>
 
-      <Paragraph color={muted}>Your account details</Paragraph>
+      <Paragraph color={theme.textMuted}>Your account details</Paragraph>
 
-      <YStack backgroundColor={cardBg} borderRadius={22} padding={20} borderWidth={1} borderColor={border} gap="$4">
+      <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$4">
         <XStack alignItems="center" gap="$3">
           <YStack
             width={58}
             height={58}
             borderRadius={999}
-            backgroundColor="#1D4ED8"
+            backgroundColor={theme.primary}
             alignItems="center"
             justifyContent="center">
             <Text color="#FFFFFF" fontWeight="900" fontSize={18} letterSpacing={1}>
@@ -136,10 +174,10 @@ export default function ProfileSetupScreen() {
           </YStack>
 
           <YStack flex={1} gap="$1">
-            <Text color={text} fontSize={18} fontWeight="900">
+            <Text color={theme.text} fontSize={18} fontWeight="900">
               {profile?.name?.trim() || '—'}
             </Text>
-            <Text color={muted} fontSize={13} numberOfLines={1}>
+            <Text color={theme.textMuted} fontSize={13} numberOfLines={1}>
               {displayEmail}
             </Text>
           </YStack>
@@ -148,26 +186,26 @@ export default function ProfileSetupScreen() {
             paddingHorizontal={12}
             paddingVertical={6}
             borderRadius={999}
-            backgroundColor={badgeBg}
+            backgroundColor={theme.bgCardSecondary}
             borderWidth={1}
-            borderColor={border}>
-            <Text color={badgeText} fontSize={12} fontWeight="800">
+            borderColor={theme.border}>
+            <Text color={theme.text} fontSize={12} fontWeight="800">
               {displayRole}
             </Text>
           </YStack>
         </XStack>
 
-        <YStack height={1} backgroundColor={border} />
+        <YStack height={1} backgroundColor={theme.border} />
 
         <YStack gap="$2">
           <XStack justifyContent="space-between" alignItems="center">
-            <Text color={muted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
+            <Text color={theme.textMuted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
               Business Card
             </Text>
 
             <Button
               size="$2"
-              backgroundColor={editingName ? badgeBg : '#1D4ED8'}
+              backgroundColor={editingName ? theme.bgCardSecondary : theme.primary}
               color="#FFFFFF"
               borderRadius={999}
               onPress={() => {
@@ -187,9 +225,9 @@ export default function ProfileSetupScreen() {
                 value={nameDraft}
                 onChangeText={setNameDraft}
                 placeholder="Full name"
-                backgroundColor={pageBg}
-                color={text}
-                borderColor={border}
+                backgroundColor={theme.bg}
+                color={theme.text}
+                borderColor={theme.border}
               />
               <Button
                 onPress={saveName}
@@ -204,34 +242,129 @@ export default function ProfileSetupScreen() {
           ) : (
             <YStack gap="$2">
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted}>User ID</Text>
-                <Text color={badgeText} fontWeight="800" numberOfLines={1} maxWidth={180}>
+                <Text color={theme.textMuted}>User ID</Text>
+                <Text color={theme.text} fontWeight="800" numberOfLines={1} maxWidth={180}>
                   {session?.user?.id ?? '-'}
                 </Text>
               </XStack>
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted}>Email</Text>
-                <Text color={badgeText} fontWeight="800" numberOfLines={1} maxWidth={220}>
+                <Text color={theme.textMuted}>Email</Text>
+                <Text color={theme.text} fontWeight="800" numberOfLines={1} maxWidth={220}>
                   {displayEmail}
                 </Text>
               </XStack>
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted}>Role</Text>
-                <Text color={badgeText} fontWeight="800">
+                <Text color={theme.textMuted}>Role</Text>
+                <Text color={theme.text} fontWeight="800">
                   {displayRole}
                 </Text>
               </XStack>
             </YStack>
           )}
 
+          <YStack height={1} backgroundColor={theme.border} />
+
+        <YStack gap="$2">
+          <XStack justifyContent="space-between" alignItems="center">
+            <Text color={theme.textMuted} fontSize={12} textTransform="uppercase" letterSpacing={1.3}>
+              Security
+            </Text>
+
+            <Button
+              size="$2"
+              backgroundColor={editingPassword ? theme.bgCardSecondary : theme.primary}
+              color="#FFFFFF"
+              borderRadius={999}
+              onPress={() => {
+                setError(null);
+                if (editingPassword) {
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }
+                setEditingPassword((p) => !p);
+              }}>
+              {editingPassword ? 'Cancel' : 'Change password'}
+            </Button>
+          </XStack>
+
+          {editingPassword ? (
+            <YStack gap="$2">
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontSize={12}>
+                  New Password
+                </Text>
+                <XStack alignItems="center" gap="$1">
+                  <Input
+                    flex={1}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="Enter new password"
+                    secureTextEntry={!showNewPwd}
+                    backgroundColor={theme.bg}
+                    color={theme.text}
+                    borderColor={theme.border}
+                  />
+                  <Pressable
+                    onPress={() => setShowNewPwd(!showNewPwd)}
+                    style={{ padding: 12 }}>
+                    <Text color={theme.primary} fontSize={16}>
+                      {showNewPwd ? '👁️' : '👁️‍🗨️'}
+                    </Text>
+                  </Pressable>
+                </XStack>
+              </YStack>
+
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontSize={12}>
+                  Confirm Password
+                </Text>
+                <XStack alignItems="center" gap="$1">
+                  <Input
+                    flex={1}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Confirm password"
+                    secureTextEntry={!showConfirmPwd}
+                    backgroundColor={theme.bg}
+                    color={theme.text}
+                    borderColor={theme.border}
+                  />
+                  <Pressable
+                    onPress={() => setShowConfirmPwd(!showConfirmPwd)}
+                    style={{ padding: 12 }}>
+                    <Text color={theme.primary} fontSize={16}>
+                      {showConfirmPwd ? '👁️' : '👁️‍🗨️'}
+                    </Text>
+                  </Pressable>
+                </XStack>
+              </YStack>
+
+              <Button
+                onPress={savePassword}
+                disabled={submitting}
+                backgroundColor={activeBtnBg}
+                borderRadius={12}
+                color={activeBtnText}
+                fontWeight="800">
+                {submitting ? 'Updating...' : 'Update Password'}
+              </Button>
+            </YStack>
+          ) : (
+            <Text color={theme.textMuted} fontSize={13}>
+              Manage your account security
+            </Text>
+          )}
+        </YStack>
+
           {loading ? (
-            <Text color="#93C5FD" fontSize={12}>
+            <Text color={theme.info} fontSize={12}>
               Loading...
             </Text>
           ) : null}
 
           {error ? (
-            <Text color="#FCA5A5" fontSize={12}>
+            <Text color={theme.danger} fontSize={12}>
               {error}
             </Text>
           ) : null}
@@ -239,7 +372,7 @@ export default function ProfileSetupScreen() {
       </YStack>
 
       <YStack alignItems="center" marginTop={8}>
-        <Text color={muted} fontSize={11}>
+        <Text color={theme.textMuted} fontSize={11}>
           {Platform.OS === 'android' ? 'Android' : Platform.OS}
         </Text>
       </YStack>

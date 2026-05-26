@@ -17,6 +17,8 @@ import { searchPlaces } from '@/lib/mapbox';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySubscription } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -91,6 +93,9 @@ type SearchSnapshot = {
 };
 
 export default function PropertiesIndexScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const { session } = useSession();
   const params = useLocalSearchParams<{
@@ -1080,11 +1085,11 @@ export default function PropertiesIndexScreen() {
     void searchFnRef.current(true, pending);
   }, [filtersReady, paramsSearchKey]);
 
-  const pageBg = '#FFFFFF';
-  const border = '#E5E7EB';
-  const titleColor = '#0F172A';
-  const muted = '#64748B';
-  const panelBg = '#F8FAFC';
+  const pageBg = theme.bg;
+  const border = theme.border;
+  const titleColor = theme.text;
+  const muted = theme.textMuted;
+  const panelBg = theme.bgSecondary;
 
   const resetFilters = () => {
     setError(null);
@@ -1169,7 +1174,7 @@ export default function PropertiesIndexScreen() {
         name: 'Gujarat Relocation PackersMovers',
         description: plan.title,
         order_id: order.id,
-        theme: { color: '#0EA5E9' },
+        theme: { color: theme.info },
       };
 
       const paymentData: any = await openRazorpayCheckout(options);
@@ -1201,16 +1206,16 @@ export default function PropertiesIndexScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#111827" padding={16} paddingTop={18}>
+      <YStack backgroundColor={theme.bgSecondary} padding={16} paddingTop={18}>
         <XStack alignItems="center" justifyContent="center" position="relative">
-          <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
+          <Button size="$3" chromeless color={theme.text} position="absolute" left={0} onPress={() => router.back()}>
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={16} fontWeight="800">
+            <Text color={theme.text} fontSize={16} fontWeight="800">
               Properties
             </Text>
-            <Text color="#9CA3AF" fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
               Search listings
             </Text>
           </YStack>
@@ -1238,11 +1243,11 @@ export default function PropertiesIndexScreen() {
                     <YStack
                       paddingVertical={10}
                       borderRadius={12}
-                      backgroundColor={activeFilterTab === 'filters' ? '#0EA5E9' : '#FFFFFF'}
-                      borderWidth={1}
-                      borderColor={border}
-                      alignItems="center">
-                      <Text color={activeFilterTab === 'filters' ? '#FFFFFF' : titleColor} fontWeight="900">
+                  backgroundColor={activeFilterTab === 'filters' ? theme.info : theme.bgCard}
+                  borderWidth={1}
+                  borderColor={border}
+                  alignItems="center">
+                  <Text color={activeFilterTab === 'filters' ? '#FFFFFF' : titleColor} fontWeight="900">
                         Filters
                       </Text>
                     </YStack>
@@ -1251,7 +1256,7 @@ export default function PropertiesIndexScreen() {
                     <YStack
                       paddingVertical={10}
                       borderRadius={12}
-                      backgroundColor={activeFilterTab === 'premium' ? '#111827' : '#FFFFFF'}
+                      backgroundColor={activeFilterTab === 'premium' ? theme.bgCardSecondary : theme.bgCard}
                       borderWidth={1}
                       borderColor={border}
                       alignItems="center">
@@ -1267,21 +1272,21 @@ export default function PropertiesIndexScreen() {
                     Filter your search
                   </Text>
                   <Pressable onPress={resetFilters}>
-                    <Text color="#2563EB" fontSize={12} fontWeight="900">
+                    <Text color={theme.info} fontSize={12} fontWeight="900">
                       Reset
                     </Text>
                   </Pressable>
                 </XStack>
 
                 {activeFilterTab === 'premium' && !premiumUnlocked ? (
-                  <YStack gap="$3" backgroundColor="#FFFFFF" borderRadius={16} padding={12} borderWidth={1} borderColor={border}>
+                  <YStack gap="$3" backgroundColor={theme.bgCard} borderRadius={16} padding={12} borderWidth={1} borderColor={border}>
                     <Text color={titleColor} fontWeight="900">
                       Don’t scroll! Be Smart & Save Time!
                     </Text>
                     <Text color={muted} fontSize={12}>
                       Fasten your search using Exclusive Filters!
                     </Text>
-                    <Button backgroundColor="#0EA5E9" color="#FFFFFF" fontWeight="900" onPress={() => setUnlockModalOpen(true)}>
+                    <Button backgroundColor={theme.info} color="#FFFFFF" fontWeight="900" onPress={() => setUnlockModalOpen(true)}>
                       Unlock Filters
                     </Button>
                   </YStack>
@@ -1301,8 +1306,8 @@ export default function PropertiesIndexScreen() {
                       <Button
                         key={t.value}
                         size="$2"
-                        backgroundColor={listingType === t.value ? '#0EA5E9' : '#E5E7EB'}
-                        color="#111827"
+                        backgroundColor={listingType === t.value ? theme.info : theme.border}
+                        color={theme.text}
                         borderRadius={999}
                         onPress={() => setListingType(t.value)}>
                         {t.label}
@@ -1321,26 +1326,26 @@ export default function PropertiesIndexScreen() {
                     value={stateValue}
                     onChangeText={setStateValue}
                     placeholder="State"
-                    backgroundColor="#FFFFFF"
-                    borderColor={border}
-                    color={titleColor}
+                    backgroundColor={theme.inputBg}
+                    borderColor={theme.inputBorder}
+                    color={theme.inputText}
                   />
                   <Input
                     value={cityValue}
                     onChangeText={setCityValue}
                     placeholder="City"
-                    backgroundColor="#FFFFFF"
-                    borderColor={border}
-                    color={titleColor}
+                    backgroundColor={theme.inputBg}
+                    borderColor={theme.inputBorder}
+                    color={theme.inputText}
                   />
                   <XStack gap="$2" alignItems="center" flexWrap="wrap">
                     <Input
                       value={localityValue}
                       onChangeText={setLocalityValue}
                       placeholder="Search locality (max 3)"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
                       flexGrow={1}
                       minWidth={160}
                     />
@@ -1352,7 +1357,7 @@ export default function PropertiesIndexScreen() {
                   </XStack>
 
                   {localitySuggestions.length > 0 && localityValue.trim().length >= 2 && (
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} backgroundColor="#FFFFFF" maxHeight={200} overflow="hidden">
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} backgroundColor={theme.bgCard} maxHeight={200} overflow="hidden">
                       {localitySuggestions.map((s) => (
                         <Pressable
                           key={s.id}
@@ -1379,7 +1384,7 @@ export default function PropertiesIndexScreen() {
                     <XStack gap="$2" flexWrap="wrap">
                       {selectedLocalities.map((loc) => (
                         <Pressable key={loc} onPress={() => setSelectedLocalities((prev) => prev.filter((l) => l !== loc))}>
-                          <YStack backgroundColor="#0EA5E9" borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
+                          <YStack backgroundColor={theme.info} borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
                             <Text color="#FFFFFF" fontSize={11} fontWeight="700">
                               {loc} ×
                             </Text>
@@ -1407,9 +1412,9 @@ export default function PropertiesIndexScreen() {
                       onChangeText={setMinPrice}
                       placeholder="Min"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
                       flexGrow={1}
                       minWidth={120}
                     />
@@ -1418,9 +1423,9 @@ export default function PropertiesIndexScreen() {
                       onChangeText={setMaxPrice}
                       placeholder="Max"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
                       flexGrow={1}
                       minWidth={120}
                     />
@@ -1439,9 +1444,9 @@ export default function PropertiesIndexScreen() {
                       onChangeText={setMinCarpet}
                       placeholder="Min"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
                       flexGrow={1}
                       minWidth={120}
                     />
@@ -1450,9 +1455,9 @@ export default function PropertiesIndexScreen() {
                       onChangeText={setMaxCarpet}
                       placeholder="Max"
                       keyboardType="numeric"
-                      backgroundColor="#FFFFFF"
-                      borderColor={border}
-                      color={titleColor}
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
                       flexGrow={1}
                       minWidth={120}
                     />
@@ -1475,11 +1480,11 @@ export default function PropertiesIndexScreen() {
                     ] as const
                   ).map((a) => (
                     <Pressable key={a.label} onPress={() => a.setValue(!a.value)}>
-                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor={theme.bgCard} borderWidth={1} borderColor={border}>
                         <Text color={titleColor} fontWeight="800">
                           {a.label}
                         </Text>
-                        <Text color={a.value ? '#0EA5E9' : muted} fontWeight="900">
+                        <Text color={a.value ? theme.info : muted} fontWeight="900">
                           {a.value ? '✓' : ''}
                         </Text>
                       </XStack>
@@ -1500,9 +1505,9 @@ export default function PropertiesIndexScreen() {
                           onChangeText={setMinBuiltUp}
                           placeholder="Min"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
-                          borderColor={border}
-                          color={titleColor}
+                    backgroundColor={theme.inputBg}
+                    borderColor={theme.inputBorder}
+                    color={theme.inputText}
                           flexGrow={1}
                           minWidth={120}
                         />
@@ -1511,9 +1516,9 @@ export default function PropertiesIndexScreen() {
                           onChangeText={setMaxBuiltUp}
                           placeholder="Max"
                           keyboardType="numeric"
-                          backgroundColor="#FFFFFF"
-                          borderColor={border}
-                          color={titleColor}
+                    backgroundColor={theme.inputBg}
+                    borderColor={theme.inputBorder}
+                    color={theme.inputText}
                           flexGrow={1}
                           minWidth={120}
                         />
@@ -1531,11 +1536,11 @@ export default function PropertiesIndexScreen() {
                         { label: '< 10 years', value: 10 },
                       ] as const).map((o) => (
                         <Pressable key={o.label} onPress={() => setPropertyAgeMaxYears(propertyAgeMaxYears === o.value ? null : o.value)}>
-                          <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                          <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor={theme.bgCard} borderWidth={1} borderColor={border}>
                             <Text color={titleColor} fontWeight="800">
                               {o.label}
                             </Text>
-                            <Text color={propertyAgeMaxYears === o.value ? '#0EA5E9' : muted} fontWeight="900">
+                            <Text color={propertyAgeMaxYears === o.value ? theme.info : muted} fontWeight="900">
                               {propertyAgeMaxYears === o.value ? '✓' : ''}
                             </Text>
                           </XStack>
@@ -1548,11 +1553,11 @@ export default function PropertiesIndexScreen() {
                         Show Only
                       </Text>
                       <Pressable onPress={() => setWithPhotoOnly((v) => !v)}>
-                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                        <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor={theme.bgCard} borderWidth={1} borderColor={border}>
                           <Text color={titleColor} fontWeight="800">
                             With Photo
                           </Text>
-                          <Text color={withPhotoOnly ? '#0EA5E9' : muted} fontWeight="900">
+                          <Text color={withPhotoOnly ? theme.info : muted} fontWeight="900">
                             {withPhotoOnly ? '✓' : ''}
                           </Text>
                         </XStack>
@@ -1572,8 +1577,8 @@ export default function PropertiesIndexScreen() {
                           <Button
                             key={o.label}
                             size="$2"
-                            backgroundColor={minBathrooms === o.value ? '#0EA5E9' : '#E5E7EB'}
-                            color={minBathrooms === o.value ? '#FFFFFF' : '#111827'}
+                            backgroundColor={minBathrooms === o.value ? theme.info : theme.border}
+                            color={minBathrooms === o.value ? '#FFFFFF' : theme.text}
                             borderRadius={12}
                             onPress={() => setMinBathrooms(minBathrooms === o.value ? null : o.value)}>
                             {o.label}
@@ -1597,8 +1602,8 @@ export default function PropertiesIndexScreen() {
                           <Button
                             key={o.value}
                             size="$2"
-                            backgroundColor={floorBucket === o.value ? '#0EA5E9' : '#E5E7EB'}
-                            color={floorBucket === o.value ? '#FFFFFF' : '#111827'}
+                            backgroundColor={floorBucket === o.value ? theme.info : theme.border}
+                            color={floorBucket === o.value ? '#FFFFFF' : theme.text}
                             borderRadius={12}
                             onPress={() => setFloorBucket(floorBucket === o.value ? '' : o.value)}>
                             {o.label}
@@ -1608,11 +1613,11 @@ export default function PropertiesIndexScreen() {
                     </YStack>
 
                     <Pressable onPress={() => setRemoveSeen((v) => !v)}>
-                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor="#FFFFFF" borderWidth={1} borderColor={border}>
+                      <XStack alignItems="center" justifyContent="space-between" paddingVertical={10} paddingHorizontal={10} borderRadius={12} backgroundColor={theme.bgCard} borderWidth={1} borderColor={border}>
                         <Text color={titleColor} fontWeight="800">
                           Remove Seen Properties
                         </Text>
-                        <Text color={removeSeen ? '#0EA5E9' : muted} fontWeight="900">
+                        <Text color={removeSeen ? theme.info : muted} fontWeight="900">
                           {removeSeen ? '✓' : ''}
                         </Text>
                       </XStack>
@@ -1621,10 +1626,10 @@ export default function PropertiesIndexScreen() {
                 ) : null}
 
                 <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                  <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/properties/post' as any)}>
+                  <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => router.push('/properties/post' as any)}>
                     Post Property
                   </Button>
-                  <Button backgroundColor="#111827" color="#FFFFFF" size="$2" onPress={() => router.push('/properties/my-properties' as any)}>
+                  <Button backgroundColor={theme.bgSecondary} color={theme.text} size="$2" onPress={() => router.push('/properties/my-properties' as any)}>
                     My Properties
                   </Button>
                 </XStack>
@@ -1642,12 +1647,12 @@ export default function PropertiesIndexScreen() {
                   {loading ? 'Searching…' : `${results.length} listing(s)`}
                 </Text>
               </YStack>
-              <Button backgroundColor="#0EA5E9" color="#FFFFFF" onPress={() => void search(true)} disabled={loading}>
+              <Button backgroundColor={theme.info} color="#FFFFFF" onPress={() => void search(true)} disabled={loading}>
                 Search
               </Button>
             </XStack>
 
-            {error ? <Text color="#EF4444">{error}</Text> : null}
+            {error ? <Text color={theme.danger}>{error}</Text> : null}
 
             {results.map((p) => {
               const cardMedia = mediaByPropertyId[p.id] ?? [];
@@ -1664,7 +1669,7 @@ export default function PropertiesIndexScreen() {
                     }
                     router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
                   }}>
-                  <YStack backgroundColor="#FFFFFF" borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+                  <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                     <XStack gap="$3" alignItems="flex-start">
                       {cardMedia.length ? <PropertyMediaGrid items={cardMedia.slice(0, 4)} size={72} /> : null}
                       <YStack flex={1} gap="$1">
@@ -1674,7 +1679,7 @@ export default function PropertiesIndexScreen() {
                         <Text color={muted} fontSize={12} numberOfLines={2}>
                           {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
                         </Text>
-                        <Text color="#0EA5E9" fontWeight="900">
+                        <Text color={theme.info} fontWeight="900">
                           {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
                         </Text>
                         <Text color={muted} fontSize={11}>
@@ -1689,7 +1694,7 @@ export default function PropertiesIndexScreen() {
             })}
 
             {!loading && results.length > 0 && hasMore ? (
-              <Button backgroundColor="#111827" color="#FFFFFF" onPress={() => void search(false)}>
+              <Button backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => void search(false)}>
                 Load More
               </Button>
             ) : null}
@@ -1701,13 +1706,13 @@ export default function PropertiesIndexScreen() {
 
       <Modal visible={unlockModalOpen} transparent animationType="fade" onRequestClose={() => setUnlockModalOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', padding: 16, justifyContent: 'center' }} onPress={() => setUnlockModalOpen(false)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: theme.border }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color="#0F172A" fontSize={16} fontWeight="900">
+              <Text color={theme.text} fontSize={16} fontWeight="900">
                 Choose a plan
               </Text>
               <Pressable onPress={() => setUnlockModalOpen(false)}>
-                <Text color="#64748B" fontSize={22} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={22} fontWeight="900">
                   ×
                 </Text>
               </Pressable>
@@ -1715,18 +1720,18 @@ export default function PropertiesIndexScreen() {
 
             <YStack gap="$2">
               {planOptions.map((p) => (
-                <YStack key={p.code} backgroundColor="#F8FAFC" borderRadius={14} padding={12} borderWidth={1} borderColor="#E5E7EB" gap="$2">
+                <YStack key={p.code} backgroundColor={theme.bgSecondary} borderRadius={14} padding={12} borderWidth={1} borderColor={theme.border} gap="$2">
                   <XStack alignItems="center" justifyContent="space-between">
-                    <Text color="#0F172A" fontWeight="900">
+                    <Text color={theme.text} fontWeight="900">
                       {p.title}
                     </Text>
-                    <Text color="#0F172A" fontWeight="900">
+                    <Text color={theme.text} fontWeight="900">
                       ₹{p.price}
                     </Text>
                   </XStack>
                   <Button
                     disabled={unlocking}
-                    backgroundColor="#0EA5E9"
+                    backgroundColor={theme.info}
                     color="#FFFFFF"
                     fontWeight="900"
                     onPress={() => subscribeToPlan(p.code)}>

@@ -6,6 +6,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import DateTimePicker from '@/components/AppDateTimePicker';
+import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
@@ -74,17 +75,7 @@ export default function BookingsScreen() {
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
   const { session } = useSession();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const pageBg = isDark ? '#0B0B12' : '#FFFFFF';
-  const panelBg = isDark ? '#111827' : '#F3F4F6';
-  const border = isDark ? '#1F2937' : '#E5E7EB';
-  const titleColor = isDark ? '#F9FAFB' : '#111827';
-  const muted = isDark ? '#94A3B8' : '#6B7280';
-  const inputText = isDark ? '#E5E7EB' : '#111827';
-  const idleBtnBg = isDark ? '#111827' : '#E5E7EB';
-  const idleBtnText = isDark ? '#E5E7EB' : '#111827';
-  const activeBtnBg = '#F97316';
-  const activeBtnText = '#0B0B12';
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,12 +131,12 @@ export default function BookingsScreen() {
                 paddingHorizontal={10}
                 paddingVertical={6}
                 borderRadius={999}
-                backgroundColor={isActive ? activeBtnBg : panelBg}
-                color={isActive ? activeBtnText : muted}>
+                backgroundColor={isActive ? theme.accent : theme.bgCardSecondary}
+                color={isActive ? '#FFFFFF' : theme.textMuted}>
                 {step.label}
               </Text>
               {idx !== STATUS_STEPS.length - 1 ? (
-                <Text color={muted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={12}>
                   —
                 </Text>
               ) : null}
@@ -405,7 +396,7 @@ export default function BookingsScreen() {
         prefill: {
           name: 'Customer',
         },
-        theme: { color: '#F97316' },
+        theme: { color: theme.accent },
       };
 
       const paymentData = await RazorpayCheckout.open(options);
@@ -473,18 +464,18 @@ export default function BookingsScreen() {
   }, [bookings]);
 
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={24}>
+    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
       <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} style={{ minHeight: 0 }}>
         <YStack gap="$2" alignItems="center">
-          <H2 color={titleColor} textAlign="center">Your active moves</H2>
+          <H2 color={theme.text} textAlign="center">Your active moves</H2>
         </YStack>
 
         <YStack gap="$2">
           <XStack gap="$2" flexWrap="wrap" alignItems="center">
             {Platform.OS === 'web' ? (
               <YStack
-                backgroundColor={panelBg}
-                borderColor={border}
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
                 borderWidth={1}
                 borderRadius={10}
                 paddingHorizontal={12}
@@ -500,7 +491,7 @@ export default function BookingsScreen() {
                     width: '100%',
                     backgroundColor: 'transparent',
                     border: 'none',
-                    color: inputText,
+                    color: theme.inputText,
                     outline: 'none',
                   }}
                 />
@@ -517,17 +508,17 @@ export default function BookingsScreen() {
                   editable={false}
                   pointerEvents="none"
                   placeholder="Start date"
-                  backgroundColor={panelBg}
-                  borderColor={border}
-                  color={inputText}
+                  backgroundColor={theme.bgCardSecondary}
+                  borderColor={theme.border}
+                  color={theme.inputText}
                 />
               </Pressable>
             )}
 
             {Platform.OS === 'web' ? (
               <YStack
-                backgroundColor={panelBg}
-                borderColor={border}
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
                 borderWidth={1}
                 borderRadius={10}
                 paddingHorizontal={12}
@@ -543,7 +534,7 @@ export default function BookingsScreen() {
                     width: '100%',
                     backgroundColor: 'transparent',
                     border: 'none',
-                    color: inputText,
+                    color: theme.inputText,
                     outline: 'none',
                   }}
                 />
@@ -560,9 +551,9 @@ export default function BookingsScreen() {
                   editable={false}
                   pointerEvents="none"
                   placeholder="End date"
-                  backgroundColor={panelBg}
-                  borderColor={border}
-                  color={inputText}
+                  backgroundColor={theme.bgCardSecondary}
+                  borderColor={theme.border}
+                  color={theme.inputText}
                 />
               </Pressable>
             )}
@@ -570,17 +561,17 @@ export default function BookingsScreen() {
               value={searchText}
               onChangeText={setSearchText}
               placeholder="Search pickup/drop"
-              backgroundColor={panelBg}
-              borderColor={border}
-              color={inputText}
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              color={theme.inputText}
               minWidth={220}
               flexGrow={2}
               flexBasis={220}
             />
             <Button
               size="$2"
-              backgroundColor={idleBtnBg}
-              color={idleBtnText}
+              backgroundColor={theme.bgCardSecondary}
+              color={theme.text}
               borderRadius={10}
               onPress={exportBookingsCsv}
               disabled={!filteredBookings.length}>
@@ -603,8 +594,8 @@ export default function BookingsScreen() {
             renderItem={({ item }) => (
               <Button
                 size="$2"
-                backgroundColor={statusFilter === item.value ? '#F97316' : panelBg}
-                color={statusFilter === item.value ? '#0B0B12' : inputText}
+                backgroundColor={statusFilter === item.value ? theme.accent : theme.bgCardSecondary}
+                color={statusFilter === item.value ? '#FFFFFF' : theme.inputText}
                 borderRadius={999}
                 onPress={() => setStatusFilter(item.value as typeof statusFilter)}>
                 {item.label}
@@ -645,15 +636,15 @@ export default function BookingsScreen() {
         </YStack>
 
         {loading ? (
-          <Text color={muted}>Loading bookings...</Text>
+          <Text color={theme.textMuted}>Loading bookings...</Text>
         ) : error ? (
           <Text color="#FCA5A5">{error}</Text>
         ) : !filteredBookings.length ? (
-          <YStack backgroundColor={panelBg} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={border}>
-            <Text color={titleColor} fontWeight="800" fontSize={14}>
+          <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+            <Text color={theme.text} fontWeight="800" fontSize={14}>
               No moves found
             </Text>
-            <Text color={muted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={12}>
               Try adjusting filters or create a new booking.
             </Text>
           </YStack>
@@ -667,13 +658,13 @@ export default function BookingsScreen() {
           showsVerticalScrollIndicator
           contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
           renderItem={({ item }) => (
-            <YStack backgroundColor={panelBg} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={border}>
+            <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={titleColor} fontWeight="700" fontSize={14}>
+                <Text color={theme.text} fontWeight="700" fontSize={14}>
                   {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
                 </Text>
                 <Text
-                  color={STATUS_COLORS[item.status ?? 'pending'] ?? '#F97316'}
+                  color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent}
                   fontSize={12}
                   textTransform="uppercase">
                   {item.status ?? 'pending'}
@@ -683,30 +674,30 @@ export default function BookingsScreen() {
               {renderStatusStepper(item.status)}
 
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted} fontSize={12}>Payment</Text>
+                <Text color={theme.textMuted} fontSize={12}>Payment</Text>
                 <Text
-                  color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? '#F97316'}
+                  color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent}
                   fontSize={12}
                   textTransform="uppercase">
                   {item.payment_status ?? 'pending'}
                 </Text>
               </XStack>
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted} fontSize={12}>Paid</Text>
-                <Text color={inputText} fontSize={12} fontWeight="700">
+                <Text color={theme.textMuted} fontSize={12}>Paid</Text>
+                <Text color={theme.inputText} fontSize={12} fontWeight="700">
                   ₹{Number(item.advance_amount ?? 0).toFixed(2)}
                 </Text>
               </XStack>
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={muted} fontSize={12}>Updated</Text>
-                <Text color={inputText} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={12}>Updated</Text>
+                <Text color={theme.inputText} fontSize={12}>
                   {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
                 </Text>
               </XStack>
               {item.driver_id ? (
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={muted} fontSize={12}>Driver</Text>
-                  <Text color={inputText} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={12}>Driver</Text>
+                  <Text color={theme.inputText} fontSize={12}>
                     {item.driver?.[0]?.name ?? 'Assigned'}
                   </Text>
                 </XStack>
@@ -714,16 +705,16 @@ export default function BookingsScreen() {
 
               {!item.pickup_verified_at && item.pickup_otp ? (
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={muted} fontSize={12}>Pickup OTP</Text>
-                  <Text color={inputText} fontSize={12} fontWeight="700">
+                  <Text color={theme.textMuted} fontSize={12}>Pickup OTP</Text>
+                  <Text color={theme.inputText} fontSize={12} fontWeight="700">
                     {String(item.pickup_otp)}
                   </Text>
                 </XStack>
               ) : null}
               {item.pickup_verified_at && !item.delivered_verified_at && item.delivery_otp ? (
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={muted} fontSize={12}>Delivery OTP</Text>
-                  <Text color={inputText} fontSize={12} fontWeight="700">
+                  <Text color={theme.textMuted} fontSize={12}>Delivery OTP</Text>
+                  <Text color={theme.inputText} fontSize={12} fontWeight="700">
                     {String(item.delivery_otp)}
                   </Text>
                 </XStack>
@@ -732,8 +723,8 @@ export default function BookingsScreen() {
               <XStack gap="$2" flexWrap="wrap">
                 <Button
                   size="$2"
-                  backgroundColor={idleBtnBg}
-                  color={idleBtnText}
+                  backgroundColor={theme.bgCardSecondary}
+                  color={theme.text}
                   borderRadius={10}
                   onPress={() =>
                     router.push({
@@ -745,8 +736,8 @@ export default function BookingsScreen() {
                 </Button>
                 <Button
                   size="$2"
-                  backgroundColor={idleBtnBg}
-                  color={idleBtnText}
+                  backgroundColor={theme.bgCardSecondary}
+                  color={theme.text}
                   borderRadius={10}
                   onPress={async () => {
                     try {
@@ -764,16 +755,16 @@ export default function BookingsScreen() {
                   <>
                     <Button
                       size="$2"
-                      backgroundColor="#EF4444"
-                      color="#0B0B12"
+                      backgroundColor={theme.danger}
+                      color="#FFFFFF"
                       borderRadius={10}
                       onPress={() => confirmBookingUpdate(item.id, 'cancelled')}>
                       Cancel
                     </Button>
                     <Button
                       size="$2"
-                      backgroundColor={activeBtnBg}
-                      color={activeBtnText}
+                      backgroundColor={theme.accent}
+                      color={'#FFFFFF'}
                       borderRadius={10}
                       onPress={() => confirmBookingUpdate(item.id, 'rescheduled')}>
                       Reschedule
@@ -785,16 +776,16 @@ export default function BookingsScreen() {
                 <>
                   <Button
                     size="$2"
-                    backgroundColor={activeBtnBg}
-                    color={activeBtnText}
+                    backgroundColor={theme.accent}
+                    color={'#FFFFFF'}
                     borderRadius={10}
                     onPress={() => handleCreateOrder(item.id, Number(item.advance_amount ?? 500))}>
                     Pay Advance
                   </Button>
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCardSecondary}
+                    color={theme.text}
                     borderRadius={10}
                     onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>
                     Pay Full
@@ -802,13 +793,13 @@ export default function BookingsScreen() {
                 </>
               ) : null}
               {paymentInfo[item.id] ? (
-                <Text color={muted} fontSize={12}>{paymentInfo[item.id]}</Text>
+                <Text color={theme.textMuted} fontSize={12}>{paymentInfo[item.id]}</Text>
               ) : null}
               {paymentHistory[item.id]?.length ? (
                 <YStack gap="$1">
-                  <Text color={muted} fontSize={12}>Payment history</Text>
+                  <Text color={theme.textMuted} fontSize={12}>Payment history</Text>
                   {paymentHistory[item.id].slice(0, 2).map((payment) => (
-                    <Text key={payment.id} color={inputText} fontSize={11}>
+                    <Text key={payment.id} color={theme.inputText} fontSize={11}>
                       {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(
                         payment.created_at
                       ).toLocaleString()}
@@ -816,8 +807,8 @@ export default function BookingsScreen() {
                   ))}
                   <Button
                     size="$2"
-                    backgroundColor={idleBtnBg}
-                    color={idleBtnText}
+                    backgroundColor={theme.bgCardSecondary}
+                    color={theme.text}
                     borderRadius={10}
                     onPress={() =>
                       router.push({

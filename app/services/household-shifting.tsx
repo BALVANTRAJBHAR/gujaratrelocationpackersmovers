@@ -3,18 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Dimensions, ImageBackground, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
-
-const theme = {
-  bg: '#FFFFFF',
-  bgCard: '#FFFFFF',
-  text: '#111827',
-  textMuted: '#6B7280',
-  primary: '#4F46E5',
-  accent: '#F97316',
-  border: '#E5E7EB',
-};
 
 const FAQS = [
   { q: 'How much does house shifting cost?', a: 'Pricing depends on distance, items volume, and floor/lift availability. Request a callback for an exact quote.' },
@@ -30,6 +22,8 @@ const menuItems = ['Home', 'Services', 'Track', 'Contact'];
 export default function HouseholdShiftingScreen() {
   const router = useRouter();
   const { session, profile } = useSession();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isSmallScreen = screenWidth <= 768;
@@ -131,7 +125,7 @@ export default function HouseholdShiftingScreen() {
   const heroMeta = useMemo(() => ({ rating: '4.8', exp: '18+ Years Experience' }), []);
 
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <YStack paddingHorizontal={16} paddingTop={16} paddingBottom={10} gap="$3">
           <XStack alignItems="center" gap="$3" flexWrap="wrap" justifyContent="space-between">
@@ -175,8 +169,8 @@ export default function HouseholdShiftingScreen() {
                         </YStack>
                       </Pressable>
                       <Pressable onPress={handleLogout}>
-                        <YStack paddingHorizontal={14} paddingVertical={12} borderRadius={12} backgroundColor="#111827">
-                          <Text color="#FFFFFF" fontSize={14} fontWeight="800">
+                        <YStack paddingHorizontal={14} paddingVertical={12} borderRadius={12} backgroundColor={theme.bgSecondary}>
+                          <Text color={theme.menuText} fontSize={14} fontWeight="800">
                             Logout
                           </Text>
                         </YStack>
@@ -184,8 +178,8 @@ export default function HouseholdShiftingScreen() {
                     </>
                   ) : (
                     <Pressable onPress={() => router.push('/auth/login')}>
-                      <YStack paddingHorizontal={24} paddingVertical={12} borderRadius={12} backgroundColor="#111827">
-                        <Text color="#FFFFFF" fontSize={14} fontWeight="800">
+                      <YStack paddingHorizontal={24} paddingVertical={12} borderRadius={12} backgroundColor={theme.bgSecondary}>
+                        <Text color={theme.menuText} fontSize={14} fontWeight="800">
                           Login
                         </Text>
                       </YStack>
@@ -259,7 +253,7 @@ export default function HouseholdShiftingScreen() {
           <YStack padding={18} gap="$2">
             <H1 color="#FFFFFF" fontSize={28} fontWeight="900">Household Shifting</H1>
             <XStack gap="$3" alignItems="center" flexWrap="wrap">
-              <Text color="#FBBF24" fontWeight="900">★ {heroMeta.rating}</Text>
+              <Text color={theme.accent} fontWeight="900">★ {heroMeta.rating}</Text>
               <Text color="rgba(255,255,255,0.85)" fontWeight="700">|</Text>
               <Text color="rgba(255,255,255,0.92)" fontWeight="800">{heroMeta.exp}</Text>
             </XStack>
@@ -269,19 +263,19 @@ export default function HouseholdShiftingScreen() {
         <YStack paddingHorizontal={16} marginTop={14} gap="$3">
           <YStack backgroundColor="#1F3B63" borderRadius={16} padding={16} gap="$2" shadowColor="rgba(0,0,0,0.2)" shadowOffset={{ width: 0, height: 8 }} shadowOpacity={0.2} shadowRadius={16} elevation={6}>
             <YStack>
-              <Text color="#E5E7EB" fontSize={12} fontWeight="700">Starting from</Text>
+              <Text color={theme.textMuted} fontSize={12} fontWeight="700">Starting from</Text>
               <Text color="#FFFFFF" fontSize={22} fontWeight="900">₹3,000</Text>
               <Text color="rgba(255,255,255,0.85)" fontSize={11} fontWeight="700">Starting price for 1 BHK within 10km</Text>
             </YStack>
             <XStack gap="$2" flexWrap="wrap" marginTop={10}>
               <Pressable onPress={() => setQuoteModalOpen(true)}>
-                <YStack style={[styles.ctaBtn, { backgroundColor: '#FBBF24' }]}>
-                  <Text color="#111827" fontWeight="900" fontSize={13}>Request Callback</Text>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent }]}>
+                  <Text color={theme.text} fontWeight="900" fontSize={13}>Request Callback</Text>
                 </YStack>
               </Pressable>
               <Pressable onPress={handleBook}>
-                <YStack style={[styles.ctaBtn, { backgroundColor: '#111827' }]}>
-                  <Text color="#FFFFFF" fontWeight="900" fontSize={13}>Book Now</Text>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary }]}>
+                  <Text color={theme.menuText} fontWeight="900" fontSize={13}>Book Now</Text>
                 </YStack>
               </Pressable>
             </XStack>
@@ -309,7 +303,7 @@ export default function HouseholdShiftingScreen() {
               'Unpacking and arrangement at destination',
             ].map((t) => (
               <XStack key={t} gap="$2" alignItems="center">
-                <Text color="#22C55E" fontSize={14} fontWeight="900">✓</Text>
+                <Text color={theme.success} fontSize={14} fontWeight="900">✓</Text>
                 <Text color={theme.textMuted} fontSize={12} fontWeight="700" flex={1}>
                   {t}
                 </Text>
@@ -324,7 +318,7 @@ export default function HouseholdShiftingScreen() {
               return (
                 <YStack key={f.q} borderRadius={12} borderWidth={1} borderColor={theme.border} overflow="hidden">
                   <Pressable onPress={() => setOpenFaq(open ? null : idx)}>
-                    <XStack alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={12} backgroundColor="#F8FAFC">
+                    <XStack alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={12} backgroundColor={theme.bgSecondary}>
                       <Text color={theme.text} fontSize={12} fontWeight="800" flex={1}>
                         {f.q}
                       </Text>
@@ -332,7 +326,7 @@ export default function HouseholdShiftingScreen() {
                     </XStack>
                   </Pressable>
                   {open ? (
-                    <YStack paddingHorizontal={14} paddingVertical={12} backgroundColor="#FFFFFF">
+                    <YStack paddingHorizontal={14} paddingVertical={12} backgroundColor={theme.bgCard}>
                       <Text color={theme.textMuted} fontSize={12} fontWeight="700" lineHeight={18}>
                         {f.a}
                       </Text>
@@ -360,12 +354,12 @@ export default function HouseholdShiftingScreen() {
               letter: 'P',
             }].map((r) => (
               <XStack key={r.name} gap="$3" paddingVertical={10} borderBottomWidth={1} borderBottomColor={theme.border}>
-                <YStack width={34} height={34} borderRadius={17} backgroundColor="#111827" alignItems="center" justifyContent="center">
+                <YStack width={34} height={34} borderRadius={17} backgroundColor={theme.primary} alignItems="center" justifyContent="center">
                   <Text color="#FFFFFF" fontWeight="900">{r.letter}</Text>
                 </YStack>
                 <YStack flex={1} gap="$1">
                   <Text color={theme.text} fontSize={12} fontWeight="900">{r.name}</Text>
-                  <Text color="#D97706" fontSize={12} fontWeight="900">{r.rating}</Text>
+                  <Text color={theme.warning} fontSize={12} fontWeight="900">{r.rating}</Text>
                   <Text color={theme.textMuted} fontSize={12} fontWeight="700">{r.body}</Text>
                 </YStack>
               </XStack>
@@ -379,22 +373,22 @@ export default function HouseholdShiftingScreen() {
       <YStack style={styles.bottomBar}>
         <XStack alignItems="center" justifyContent="space-between" gap="$2" flexWrap="wrap">
           <YStack flex={1} minWidth={130}>
-            <Text color="#111827" fontSize={12} fontWeight="900">Ready to Book?</Text>
+            <Text color={theme.text} fontSize={12} fontWeight="900">Ready to Book?</Text>
           </YStack>
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
             <Pressable onPress={handleCallNow}>
-              <YStack style={[styles.bottomBtn, { backgroundColor: '#FFFFFF' }]}>
-                <Text color="#111827" fontWeight="900" fontSize={12}>Call Now</Text>
+              <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgCard }]}>
+                <Text color={theme.text} fontWeight="900" fontSize={12}>Call Now</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleWhatsApp}>
-              <YStack style={[styles.bottomBtn, { backgroundColor: '#22C55E' }]}>
+              <YStack style={[styles.bottomBtn, { backgroundColor: theme.success }]}>
                 <Text color="#FFFFFF" fontWeight="900" fontSize={12}>WhatsApp</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleBook}>
-              <YStack style={[styles.bottomBtn, { backgroundColor: '#111827' }]}>
-                <Text color="#FFFFFF" fontWeight="900" fontSize={12}>Book Online →</Text>
+              <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgSecondary }]}>
+                <Text color={theme.menuText} fontWeight="900" fontSize={12}>Book Online →</Text>
               </YStack>
             </Pressable>
           </XStack>
@@ -403,7 +397,7 @@ export default function HouseholdShiftingScreen() {
 
       <Modal visible={quoteModalOpen} transparent animationType="fade" onRequestClose={() => setQuoteModalOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: theme.bgCard }]}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={12}>
               <Text color={theme.text} fontSize={16} fontWeight="900">Request Callback</Text>
               <Pressable onPress={() => setQuoteModalOpen(false)}>
@@ -415,37 +409,37 @@ export default function HouseholdShiftingScreen() {
               value={quoteName}
               onChangeText={setQuoteName}
               placeholder="Your Name *"
-              placeholderTextColor="#9CA3AF"
-              style={styles.modalInput}
+              placeholderTextColor={theme.textMuted}
+              style={[styles.modalInput, { borderColor: theme.border, color: theme.inputText }]}
             />
             <TextInput
               value={quotePhone}
               onChangeText={setQuotePhone}
               placeholder="Phone Number *"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.textMuted}
               keyboardType="phone-pad"
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: theme.border, color: theme.inputText }]}
             />
             <TextInput
               value={quoteEmail}
               onChangeText={setQuoteEmail}
               placeholder="Email (Optional)"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: theme.border, color: theme.inputText }]}
             />
             <TextInput
               value={quoteMessage}
               onChangeText={setQuoteMessage}
               placeholder="Message"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.textMuted}
               multiline
-              style={[styles.modalInput, { height: 92, textAlignVertical: 'top' }]}
+              style={[styles.modalInput, { borderColor: theme.border, color: theme.inputText, height: 92, textAlignVertical: 'top' }]}
             />
 
             <Pressable disabled={quoteSubmitting} onPress={submitQuoteRequest}>
-              <YStack style={[styles.modalSubmit, { opacity: quoteSubmitting ? 0.7 : 1 }]}>
+              <YStack style={[styles.modalSubmit, { opacity: quoteSubmitting ? 0.7 : 1, backgroundColor: theme.primary }]}>
                 <Text color="#FFFFFF" fontSize={14} fontWeight="900">
                   {quoteSubmitting ? 'Submitting…' : 'Request Callback'}
                 </Text>
@@ -461,7 +455,6 @@ export default function HouseholdShiftingScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: theme.bg,
   },
   content: {
     paddingBottom: 12,
@@ -526,21 +519,17 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     borderRadius: 16,
     padding: 16,
-    backgroundColor: '#FFFFFF',
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 12 : 10,
     marginBottom: 10,
-    color: '#111827',
   },
   modalSubmit: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#4F46E5',
   },
 });
