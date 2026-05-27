@@ -402,6 +402,26 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       'Domestic Relocations',
       'Transportation Service',
       'Loading and Unloading',
+      'Full House Buy',
+      'Full House Rent',
+      '1 BHK Buy',
+      '2 BHK Buy',
+      '3 BHK Buy',
+      '4 BHK Buy',
+      '1 BHK Rent',
+      '2 BHK Rent',
+      '3 BHK Rent',
+      '4 BHK Rent',
+      'PG / Hostel',
+      'Flatmates',
+      'Office Space',
+      'Co-Working',
+      'Shop',
+      'Showroom',
+      'Industrial Building',
+      'Industrial Shed',
+      'Godown / Warehouse',
+      'Restaurant / Cafe',
     ] as const,
     []
   );
@@ -1408,12 +1428,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       }
 
       if ((fnData as any)?.sent === true) {
-        setQuoteSubmitNotice('Request submitted and email sent successfully.');
-        Alert.alert('Request submitted', 'Thank you! Our team will contact you shortly.');
+        setQuoteSubmitNotice('OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
+        Alert.alert('Request submitted', 'OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
       } else {
-        setQuoteSubmitNotice('Request submitted successfully.');
-        Alert.alert('Request submitted', 'Thank you! Our team will contact you shortly.');
+        setQuoteSubmitNotice('OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
+        Alert.alert('Request submitted', 'OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
       }
+      setQuoteName('');
+      setQuotePhone('');
+      setQuoteEmail('');
+      setQuoteService('');
+      setQuoteMessage('');
+      setQuoteModalOpen(false);
     } catch (e: any) {
       setQuoteSubmitNotice(e?.message ? String(e.message) : 'Could not submit your request.');
       Alert.alert('Failed', e?.message ? String(e.message) : 'Could not submit your request.');

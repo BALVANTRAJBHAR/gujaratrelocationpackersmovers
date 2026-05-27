@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
@@ -425,6 +426,20 @@ type HomeServiceRequestAdmin = {
   updated_at?: string | null;
 };
 
+type QuoteRequestAdmin = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  service: string | null;
+  message: string | null;
+  source: string | null;
+  status: string | null;
+  remark: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 type HomeServiceUploadAdmin = {
   id: string;
   request_id: string;
@@ -518,13 +533,18 @@ export default function AdminScreen() {
   }, [session?.user?.id]);
 
   const [activeSection, setActiveSection] = useState<
-    'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports' | 'home_services' | 'properties'
+    'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports' | 'home_services' | 'properties' | 'quote_requests'
   >('bookings');
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffProfile[]>([]);
   const [bookings, setBookings] = useState<BookingAdmin[]>([]);
+  const [quoteRequests, setQuoteRequests] = useState<QuoteRequestAdmin[]>([]);
+  const [quoteRequestSearch, setQuoteRequestSearch] = useState('');
+  const [quoteRequestStatusFilter, setQuoteRequestStatusFilter] = useState<'all' | 'pending' | 'complete' | 'cancelled'>('all');
+  const [quoteRequestStatusBusyId, setQuoteRequestStatusBusyId] = useState<string | null>(null);
+  const [quoteRequestRemarkDrafts, setQuoteRequestRemarkDrafts] = useState<Record<string, string>>({});
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeAdmin[]>([]);
   const [floorOptions, setFloorOptions] = useState<FloorOptionAdmin[]>([]);
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
@@ -721,6 +741,18 @@ export default function AdminScreen() {
     return ['admin', 'staff'].includes((profile?.role ?? '').toString().trim().toLowerCase());
   }, [profile?.role]);
 
+  const filteredQuoteRequests = useMemo(() => {
+    const search = quoteRequestSearch.trim().toLowerCase();
+    return quoteRequests.filter((item) => {
+      const haystack = [item.name, item.phone, item.email, item.service, item.source].join(' ').toLowerCase();
+      const normalizedStatus = String(item.status ?? '').trim().toLowerCase();
+      const statusValue = normalizedStatus === 'completed' ? 'complete' : normalizedStatus === 'canceled' ? 'cancelled' : normalizedStatus;
+      const statusMatches = quoteRequestStatusFilter === 'all' || statusValue === quoteRequestStatusFilter;
+      const searchMatches = !search || haystack.includes(search);
+      return statusMatches && searchMatches;
+    });
+  }, [quoteRequestSearch, quoteRequestStatusFilter, quoteRequests]);
+
   useEffect(() => {
     void refreshProfile();
   }, [refreshProfile]);
@@ -911,7 +943,8 @@ export default function AdminScreen() {
       normalized === 'users' ||
       normalized === 'reports' ||
       normalized === 'home_services' ||
-      normalized === 'properties'
+      normalized === 'properties' ||
+      normalized === 'quote_requests'
     ) {
       setActiveSection(normalized as typeof activeSection);
     }
@@ -1004,6 +1037,118 @@ export default function AdminScreen() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to fetch home service requests.');
+    }
+  };
+
+  const fetchQuoteRequests = async () => {
+    if (!canManage) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('quote_requests')
+        .select('id,name,phone,email,service,message,source,status,remark,created_at,updated_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setQuoteRequests(((data as any) ?? []) as QuoteRequestAdmin[]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch quote requests.');
+    }
+  };
+
+  const exportQuoteRequestsCsv = async () => {
+    if (!quoteRequests.length) {
+      setError('No quote requests available to export.');
+      return;
+    }
+    try {
+      const header = ['Name', 'Phone', 'Email', 'Service', 'Source', 'Status', 'Remark', 'Message', 'Created At'];
+      const rows = quoteRequests.map((item) => [
+        item.name ?? '',
+        item.phone ?? '',
+        item.email ?? '',
+        item.service ?? '',
+        item.source ?? '',
+        item.status ?? '',
+        item.remark ?? '',
+        item.message ?? '',
+        item.created_at ?? '',
+      ]);
+      const csv = [header, ...rows]
+        .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      const path = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}quote-requests.csv`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      Alert.alert('Export complete', `CSV exported to ${path}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to export CSV.');
+    }
+  };
+
+  const exportQuoteRequestsPdf = async () => {
+    if (!quoteRequests.length) {
+      setError('No quote requests available to export.');
+      return;
+    }
+    try {
+      const rows = quoteRequests
+        .map(
+          (item) => `<tr>
+              <td>${String(item.name ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.phone ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.email ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.service ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.source ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.status ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.remark ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.message ?? '').replace(/</g, '&lt;')}</td>
+              <td>${String(item.created_at ?? '').replace(/</g, '&lt;')}</td>
+            </tr>`
+        )
+        .join('');
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+              h1 { color: #1f2937; }
+              table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+              th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 12px; }
+              th { background: #f3f4f6; }
+              tr:nth-child(even) { background: #fafafa; }
+            </style>
+          </head>
+          <body>
+            <h1>Quote Requests Report</h1>
+            <p>Exported on ${new Date().toLocaleString()}</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Service</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Remark</th>
+                  <th>Message</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      await Print.printAsync({ html });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to export PDF.');
     }
   };
 
@@ -2233,6 +2378,7 @@ export default function AdminScreen() {
     if (activeSection === 'bookings') fetchBookings();
     if (activeSection === 'reports') fetchReportsBookings();
     if (activeSection === 'home_services') fetchHomeServiceRequests();
+    if (activeSection === 'quote_requests') fetchQuoteRequests();
     if (activeSection === 'properties') fetchProperties();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, canManage]);
@@ -2249,7 +2395,7 @@ export default function AdminScreen() {
               Admin
             </Text>
             <H2 color={theme.text}>Admin dashboard</H2>
-            <Paragraph color={theme.textMuted}>Manage staff, bookings, approvals, and reports.</Paragraph>
+            <Paragraph color={theme.textMuted}>Manage staff, bookings, approvals, quote requests and reports.</Paragraph>
           </YStack>
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
             <Pressable
@@ -2311,10 +2457,31 @@ export default function AdminScreen() {
                 fetchCoupons();
                 fetchHomeServiceRequests();
                 fetchProperties();
+                fetchQuoteRequests();
               }}>
               Refresh
             </Button>
           </XStack>
+        </XStack>
+
+        <XStack gap="$2" flexWrap="wrap" justifyContent="flex-start">
+          {[
+            { label: 'Bookings', value: 'bookings' },
+            { label: 'Home Services', value: 'home_services' },
+            { label: 'Quote Requests', value: 'quote_requests' },
+            { label: 'Reports', value: 'reports' },
+            { label: 'Properties', value: 'properties' },
+          ].map((tab) => (
+            <Button
+              key={tab.value}
+              size="$2"
+              backgroundColor={activeSection === tab.value ? theme.accent : theme.bgCardSecondary}
+              color={activeSection === tab.value ? '#FFFFFF' : theme.text}
+              borderRadius={999}
+              onPress={() => setActiveSection(tab.value as typeof activeSection)}>
+              {tab.label}
+            </Button>
+          ))}
         </XStack>
 
         {!canManage ? (
@@ -4125,6 +4292,180 @@ export default function AdminScreen() {
                 {!homeServiceRequests.length ? (
                   <Text color={theme.textMuted} fontSize={12}>
                     No home service requests.
+                  </Text>
+                ) : null}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'quote_requests' ? (
+              <YStack gap="$3">
+                <YStack
+                  backgroundColor={theme.bgCard}
+                  borderRadius={18}
+                  padding={16}
+                  gap="$2"
+                  borderWidth={1}
+                  borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                    Quote requests
+                  </Text>
+                  <Text color={theme.textMuted} fontSize={12}>
+                    View, search, filter and update callback request status.
+                  </Text>
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    <Input
+                      value={quoteRequestSearch}
+                      onChangeText={setQuoteRequestSearch}
+                      placeholder="Search by name, service, or phone"
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
+                      minWidth={220}
+                      flexGrow={2}
+                      flexBasis={220}
+                    />
+                    <XStack gap="$1" flexWrap="wrap">
+                      {([
+                        { label: 'All', value: 'all' },
+                        { label: 'Pending', value: 'pending' },
+                        { label: 'Complete', value: 'complete' },
+                        { label: 'Cancelled', value: 'cancelled' },
+                      ] as const).map((filter) => (
+                        <Button
+                          key={filter.value}
+                          size="$2"
+                          backgroundColor={quoteRequestStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                          color={quoteRequestStatusFilter === filter.value ? '#FFFFFF' : theme.text}
+                          borderRadius={999}
+                          onPress={() => setQuoteRequestStatusFilter(filter.value)}>
+                          {filter.label}
+                        </Button>
+                      ))}
+                    </XStack>
+                  </XStack>
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$2"
+                      backgroundColor={theme.accent}
+                      color="#FFFFFF"
+                      borderRadius={10}
+                      onPress={fetchQuoteRequests}
+                      disabled={loading}>
+                      Refresh
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
+                      borderRadius={10}
+                      onPress={exportQuoteRequestsCsv}
+                      disabled={!quoteRequests.length}>
+                      Export CSV
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
+                      borderRadius={10}
+                      onPress={exportQuoteRequestsPdf}
+                      disabled={!quoteRequests.length}>
+                      Export PDF
+                    </Button>
+                  </XStack>
+                </YStack>
+
+                {filteredQuoteRequests.map((request) => {
+                  const normalizedStatus = String(request.status ?? 'pending').trim().toLowerCase();
+                  const statusKey = normalizedStatus === 'completed' ? 'complete' : normalizedStatus === 'canceled' ? 'cancelled' : normalizedStatus;
+                  const statusText = statusKey.replaceAll('_', ' ');
+                  const statusColor =
+                    statusKey === 'complete'
+                      ? theme.success
+                      : statusKey === 'cancelled'
+                        ? theme.danger
+                        : theme.warning;
+                  const remarkDraft = quoteRequestRemarkDrafts[request.id] ?? request.remark ?? '';
+                  return (
+                    <YStack
+                      key={request.id}
+                      backgroundColor={theme.bgCard}
+                      borderRadius={18}
+                      padding={16}
+                      gap="$2"
+                      borderWidth={1}
+                      borderColor={theme.border}>
+                      <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                        <YStack flex={1} gap={4}>
+                          <Text color={theme.text} fontWeight="800" fontSize={14}>
+                            {request.name ?? 'Unknown'} • {request.service ?? 'Service'}
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12}>
+                            {request.phone ?? '—'} • {request.email ?? '—'}
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12} numberOfLines={2}>
+                            {request.message ?? 'No message provided.'}
+                          </Text>
+                          <Text color={theme.textMuted} fontSize={12}>
+                            Source: {request.source ?? 'Web'} • Created: {request.created_at ? new Date(request.created_at).toLocaleString() : '—'}
+                          </Text>
+                        </YStack>
+                        <Text color={statusColor} fontSize={12} fontWeight="700">
+                          {statusText}
+                        </Text>
+                      </XStack>
+
+                      <Input
+                        value={remarkDraft}
+                        onChangeText={(text) => setQuoteRequestRemarkDrafts((prev) => ({ ...prev, [request.id]: text }))}
+                        placeholder="Add remark"
+                        backgroundColor={theme.inputBg}
+                        borderColor={theme.border}
+                        color={theme.inputText}
+                        minWidth={200}
+                        flexGrow={1}
+                        flexBasis={200}
+                      />
+
+                      <XStack gap="$2" flexWrap="wrap">
+                        {(['pending', 'complete', 'cancelled'] as const).map((nextStatus) => (
+                          <Button
+                            key={nextStatus}
+                            size="$2"
+                            backgroundColor={statusKey === nextStatus ? theme.accent : theme.bgCardSecondary}
+                            color={statusKey === nextStatus ? '#FFFFFF' : theme.text}
+                            borderRadius={999}
+                            disabled={quoteRequestStatusBusyId === request.id}
+                            onPress={async () => {
+                              if (!request.id) return;
+                              setQuoteRequestStatusBusyId(request.id);
+                              try {
+                                const { error } = await supabase
+                                  .from('quote_requests')
+                                  .update({ status: nextStatus, remark: quoteRequestRemarkDrafts[request.id] ?? request.remark, updated_at: new Date().toISOString() })
+                                  .eq('id', request.id);
+                                if (error) {
+                                  setError(error.message);
+                                } else {
+                                  await fetchQuoteRequests();
+                                }
+                              } catch (e) {
+                                const message = e instanceof Error ? e.message : String(e);
+                                setError(message || 'Failed to update quote request.');
+                              } finally {
+                                setQuoteRequestStatusBusyId(null);
+                              }
+                            }}>
+                            {nextStatus.replaceAll('_', ' ')}
+                          </Button>
+                        ))}
+                      </XStack>
+                    </YStack>
+                  );
+                })}
+
+                {!filteredQuoteRequests.length ? (
+                  <Text color={theme.textMuted} fontSize={12}>
+                    No quote requests found.
                   </Text>
                 ) : null}
               </YStack>

@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -341,7 +341,11 @@ export default function ServiceDetailScreen() {
       }
 
       setQuoteModalOpen(false);
-      Alert.alert('Request submitted', 'Thank you! Our team will contact you shortly.');
+      setQuoteName('');
+      setQuotePhone('');
+      setQuoteEmail('');
+      setQuoteMessage('');
+      Alert.alert('Request submitted', 'OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
     } catch (e: any) {
       Alert.alert('Failed', e?.message ? String(e.message) : 'Could not submit your request.');
     } finally {

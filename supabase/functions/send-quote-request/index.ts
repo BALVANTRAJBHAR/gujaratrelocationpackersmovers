@@ -11,7 +11,10 @@ type QuoteRow = {
   service: string | null;
   message: string | null;
   source: string | null;
+  status: string | null;
+  remark: string | null;
   created_at: string | null;
+  updated_at: string | null;
 };
 
 type QuotePayload = {
@@ -21,6 +24,13 @@ type QuotePayload = {
   service?: string;
   message?: string;
   source?: string;
+};
+
+type UserRow = {
+  id: string;
+  expo_push_token: string | null;
+  name: string | null;
+  role: string | null;
 };
 
 function jsonResponse(payload: unknown, status = 200) {
@@ -76,6 +86,70 @@ function escapeHtml(input: string) {
     .replaceAll("'", '&#039;');
 }
 
+async function insertNotifications(
+  supabaseUrl: string,
+  serviceKey: string,
+  rows: Array<{
+    user_id: string;
+    title: string;
+    body: string;
+    type?: string;
+    data?: Record<string, unknown>;
+  }>
+) {
+  if (!rows.length) return;
+  await postRest(
+    `${supabaseUrl}/rest/v1/notifications`,
+    serviceKey,
+    rows.map((r) => ({
+      user_id: r.user_id,
+      title: r.title,
+      body: r.body,
+      type: r.type ?? null,
+      data: r.data ?? null,
+    }))
+  );
+}
+
+async function sendExpoPush(to: string, title: string, body: string, data: Record<string, unknown>) {
+  const res = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to,
+      title,
+      body,
+      data,
+      sound: 'default',
+      badge: 1,
+      priority: 'high',
+    }),
+  });
+
+  const text = await res.text();
+  let parsed: any = null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error(parsed?.errors?.[0]?.message || parsed?.error || text || `Expo push error (${res.status})`);
+  }
+
+  const expoStatus = parsed?.data?.status;
+  if (expoStatus && expoStatus !== 'ok') {
+    throw new Error(parsed?.data?.message || 'Expo push failed');
+  }
+
+  return parsed;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -105,7 +179,7 @@ serve(async (req) => {
 
     if (quoteId) {
       const [row] = await getRest<QuoteRow[]>(
-        `${supabaseUrl}/rest/v1/quote_requests?id=eq.${quoteId}&select=id,name,phone,email,service,message,source,created_at`,
+        `${supabaseUrl}/rest/v1/quote_requests?id=eq.${quoteId}&select=id,name,phone,email,service,message,source,status,remark,created_at,updated_at`,
         serviceKey
       );
 
@@ -130,7 +204,7 @@ serve(async (req) => {
       }
 
       const [inserted] = await postRest<QuoteRow[]>(
-        `${supabaseUrl}/rest/v1/quote_requests?select=id,name,phone,email,service,message,source,created_at`,
+        `${supabaseUrl}/rest/v1/quote_requests?select=id,name,phone,email,service,message,source,status,remark,created_at,updated_at`,
         serviceKey,
         {
           name,
@@ -139,6 +213,8 @@ serve(async (req) => {
           service: service || null,
           message: message || null,
           source: source || 'app',
+          status: 'pending',
+          remark: null,
         }
       );
 
@@ -171,17 +247,42 @@ serve(async (req) => {
     const subject = `New Quote Request - ${quote.id}`;
 
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
-        <h2 style="margin: 0 0 10px 0; color: #0f172a;">New Quote Request</h2>
-        <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px;">
-          <p style="margin: 0; color: #334155;"><b>Name:</b> ${escapeHtml(String(quote.name ?? '-'))}</p>
-          <p style="margin: 6px 0 0 0; color: #334155;"><b>Phone:</b> ${escapeHtml(String(quote.phone ?? '-'))}</p>
-          <p style="margin: 6px 0 0 0; color: #334155;"><b>Email:</b> ${escapeHtml(String(quote.email ?? '-'))}</p>
-          <p style="margin: 6px 0 0 0; color: #334155;"><b>Service:</b> ${escapeHtml(String(quote.service ?? '-'))}</p>
-          <p style="margin: 6px 0 0 0; color: #334155;"><b>Message:</b><br/>${escapeHtml(String(quote.message ?? '-'))}</p>
-          <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px;"><b>Source:</b> ${escapeHtml(String(quote.source ?? '-'))} • <b>Created:</b> ${escapeHtml(String(quote.created_at ?? '-'))}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8fafc; padding: 24px;">
+        <div style="background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);">
+          <div style="background: #0f172a; color: #ffffff; padding: 28px 24px;">
+            <h1 style="margin: 0; font-size: 24px; letter-spacing: 0.02em;">New Callback Request</h1>
+            <p style="margin: 10px 0 0 0; color: #cbd5e1; font-size: 14px;">A new request has been received. Please review the details below.</p>
+          </div>
+          <div style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
+              <div style="flex: 1; min-width: 220px;">
+                <p style="margin: 0; color: #334155; font-weight: 700;">Reference</p>
+                <p style="margin: 6px 0 0 0; color: #475569;">${escapeHtml(String(quote.id ?? '-'))}</p>
+              </div>
+              <div style="flex: 1; min-width: 220px;">
+                <p style="margin: 0; color: #334155; font-weight: 700;">Created</p>
+                <p style="margin: 6px 0 0 0; color: #475569;">${escapeHtml(String(quote.created_at ?? '-'))}</p>
+              </div>
+              <div style="flex: 1; min-width: 220px;">
+                <p style="margin: 0; color: #334155; font-weight: 700;">Status</p>
+                <p style="margin: 6px 0 0 0; color: #475569;">${escapeHtml(String(quote.status ?? 'pending'))}</p>
+              </div>
+            </div>
+            <div style="border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; background: #f8fafc;">
+              <p style="margin: 0; color: #334155; font-weight: 700;">Customer</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Name:</b> ${escapeHtml(String(quote.name ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Phone:</b> ${escapeHtml(String(quote.phone ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Email:</b> ${escapeHtml(String(quote.email ?? '-'))}</p>
+              <p style="margin: 14px 0 0 0; color: #334155; font-weight: 700;">Request details</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Service:</b> ${escapeHtml(String(quote.service ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Message:</b> ${escapeHtml(String(quote.message ?? '-'))}</p>
+              <p style="margin: 12px 0 0 0; color: #64748b; font-size: 13px;"><b>Source:</b> ${escapeHtml(String(quote.source ?? '-'))}</p>
+            </div>
+          </div>
+          <div style="padding: 20px 24px 28px 24px; background: #f8fafc;">
+            <p style="margin: 0; color: #64748b; font-size: 13px;">This email was generated automatically by the app.</p>
+          </div>
         </div>
-        <p style="margin: 14px 0 0 0; color: #94a3b8; font-size: 12px;">Automated email from the app.</p>
       </div>
     `;
 
@@ -202,6 +303,47 @@ serve(async (req) => {
       text: `New Quote Request\nName: ${quote.name ?? '-'}\nPhone: ${quote.phone ?? '-'}\nEmail: ${quote.email ?? '-'}\nService: ${quote.service ?? '-'}\nMessage: ${quote.message ?? '-'}`,
       html,
     });
+
+    try {
+      const adminUsers = await getRest<UserRow[]>(
+        `${supabaseUrl}/rest/v1/users?role=in.(admin,staff)&select=id,expo_push_token,name,role`,
+        serviceKey
+      );
+
+      const title = 'New Callback Request';
+      const body = `New request from ${escapeHtml(String(quote.name ?? 'Customer'))} for ${escapeHtml(String(quote.service ?? 'service'))}.`;
+      const notificationRows: Array<{ user_id: string; title: string; body: string; type: string; data: Record<string, unknown> }> = [];
+
+      for (const admin of adminUsers ?? []) {
+        const token = String(admin.expo_push_token ?? '').trim();
+        if (!token) continue;
+
+        try {
+          await sendExpoPush(token, title, body, {
+            quote_id: quote.id,
+            type: 'quote_request',
+          });
+        } catch (pushError) {
+          console.error('Failed to send admin push notification:', pushError);
+        }
+
+        if (admin.id) {
+          notificationRows.push({
+            user_id: admin.id,
+            title,
+            body,
+            type: 'quote_request',
+            data: { quote_id: quote.id, service: quote.service ?? null },
+          });
+        }
+      }
+
+      if (notificationRows.length) {
+        await insertNotifications(supabaseUrl, serviceKey, notificationRows);
+      }
+    } catch (notifyError) {
+      console.error('Admin push/notification error', notifyError);
+    }
 
     return jsonResponse({ sent: true, quote_id: quote.id });
   } catch (error) {
