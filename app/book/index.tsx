@@ -1,6 +1,6 @@
 import { Audio, ResizeMode, Video } from 'expo-av';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -2917,6 +2917,9 @@ export default function BookingWizardScreen() {
                     We&apos;ve sent a 6-digit OTP to {form.mobile ? `${form.mobile.slice(0, 2)}****${form.mobile.slice(-4)}` : 'your number'}
                   </Paragraph>
                 </Dialog.Description>
+                <Text color={theme.textMuted} fontSize={11} fontWeight="600">
+                  OTP expires in 5 minutes
+                </Text>
                 {error ? (
                   <Text color="#DC2626" fontSize={12} textAlign="center">
                     {error}
@@ -2932,13 +2935,13 @@ export default function BookingWizardScreen() {
                     value={d}
                     keyboardType="number-pad"
                     maxLength={6}
-                    width={46}
-                    height={54}
+                    width={52}
+                    height={60}
                     textAlign="center"
-                    fontSize={18}
-                    fontWeight="800"
+                    fontSize={20}
+                    fontWeight="900"
                     borderWidth={2}
-                    borderRadius={10}
+                    borderRadius={12}
                     ref={(r: any) => {
                       otpRefs.current[i] = r;
                     }}

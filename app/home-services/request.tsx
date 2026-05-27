@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ResizeMode, Video } from 'expo-av';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +18,15 @@ import { useSession } from '@/providers/session-provider';
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
+
+const getFileSizeAsync = async (uri: string): Promise<number | null> => {
+  try {
+    const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
+    return typeof info?.size === 'number' ? info.size : null;
+  } catch {
+    return null;
+  }
+};
 
 const isAllowedJpeg = (value: string) => {
   const v = String(value ?? '').toLowerCase();
@@ -188,6 +197,7 @@ export default function HomeServiceRequestScreen() {
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpExpiryTime, setOtpExpiryTime] = useState<Date | null>(null);
   const otpRefs = useRef<Array<any>>([]);
   const submitAfterOtpRef = useRef(false);
   const webDateInputRef = useRef<any>(null);
@@ -395,6 +405,11 @@ export default function HomeServiceRequestScreen() {
   const createdRequestIdRef = useRef<string | null>(null);
   const processedUploadsRef = useRef<any[]>([]);
 
+  const [backButtonBg, backButtonText] = useMemo(() => {
+    const isDark = colorScheme === 'dark';
+    return isDark ? ['#374151', '#FFFFFF'] : ['#E5E7EB', '#111827'];
+  }, [colorScheme]);
+
   const detailsBlocker = useMemo(() => {
     if (!customerName.trim()) return 'Name is required.';
     const digits = normalizePhoneDigits(customerPhone);
@@ -409,6 +424,24 @@ export default function HomeServiceRequestScreen() {
     if (!preferredTime.trim()) return 'Preferred time is required.';
     return '';
   }, [city, customerName, customerPhone, locality, preferredDate, preferredTime, state]);
+
+  const renderBackButton = () => {
+    return (
+      <Pressable onPress={() => (step !== 'service' ? setStep('service') : router.back())}>
+        <YStack
+          paddingHorizontal={16}
+          paddingVertical={12}
+          borderRadius={10}
+          backgroundColor={backButtonBg}
+          alignItems="center"
+          justifyContent="center">
+          <Text color={backButtonText} fontWeight="700" fontSize={14}>
+            Back
+          </Text>
+        </YStack>
+      </Pressable>
+    );
+  };
 
   const requireSession = () => {
     if (session?.user?.id) return true;
@@ -482,7 +515,12 @@ export default function HomeServiceRequestScreen() {
         purpose: 'booking',
         user_id: session?.user?.id ?? '',
       });
-      if (data?.error) setError(String(data.error));
+      if (data?.error) {
+        setError(String(data.error));
+      } else {
+        const expiryTime = new Date(Date.now() + 600 * 1000);
+        setOtpExpiryTime(expiryTime);
+      }
     } catch (e: any) {
       setError(e?.message ? String(e.message) : 'Failed to send OTP.');
     } finally {
@@ -1565,11 +1603,13 @@ export default function HomeServiceRequestScreen() {
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
           <Button
             disabled={saving}
-            backgroundColor={theme.textSecondary}
-            color="#FFFFFF"
-            hoverStyle={{ backgroundColor: theme.border, color: '#FFFFFF' } as any}
-            pressStyle={{ backgroundColor: theme.bgCardSecondary, color: '#FFFFFF' } as any}
-            focusStyle={{ backgroundColor: theme.border, color: '#FFFFFF' } as any}
+            backgroundColor={theme.bgSecondary}
+            borderWidth={1}
+            borderColor={theme.border}
+            color={theme.text}
+            hoverStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
+            pressStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
+            focusStyle={{ backgroundColor: theme.bgCard, borderColor: theme.border, color: theme.text } as any}
             onPress={goBack}>
             Back
           </Button>
@@ -1857,10 +1897,17 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
               </Pressable>
             </XStack>
 
-            <Paragraph color={theme.textSecondary} fontWeight="700" marginBottom={10}>
-              Enter the 6-digit code sent to {countryCode}
-              {normalizePhoneDigits(customerPhone)}
-            </Paragraph>
+            <YStack marginBottom={12} gap="$1">
+              <Paragraph color={theme.textSecondary} fontWeight="700">
+                Enter the 6-digit code sent to {countryCode}
+                {normalizePhoneDigits(customerPhone)}
+              </Paragraph>
+              {otpExpiryTime ? (
+                <Text color={theme.textMuted} fontSize={12} fontWeight="600">
+                  Code expires in 10 minutes
+                </Text>
+              ) : null}
+            </YStack>
 
             <XStack gap="$2" justifyContent="space-between" marginBottom={12}>
               {otpDigits.map((d, idx) => (
@@ -1923,11 +1970,11 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
             ) : null}
 
             <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-              <Button backgroundColor={theme.border} color={theme.text} disabled={otpSending || otpVerifying} onPress={() => void sendOtp()} style={{ minWidth: 140 }}>
-                {otpSending ? 'Sending...' : 'Resend OTP'}
+              <Button backgroundColor={theme.bgSecondary} color={theme.text} borderWidth={1} borderColor={theme.border} disabled={otpSending || otpVerifying} onPress={() => void sendOtp()} style={{ minWidth: 140, padding: 12, borderRadius: 10 }}>
+                <Text fontWeight="700" color={theme.text}>{otpSending ? 'Sending...' : 'Resend OTP'}</Text>
               </Button>
-              <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} disabled={otpVerifying} onPress={() => void verifyOtpAndSubmit()}>
-                {otpVerifying ? 'Verifying...' : 'Verify & Submit'}
+              <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1539AB' }} pressStyle={{ backgroundColor: '#0E2B5F' }} disabled={otpVerifying} style={{ padding: 12, borderRadius: 10 }}>
+                <Text fontWeight="700" color="#FFFFFF" onPress={() => void verifyOtpAndSubmit()}>{otpVerifying ? 'Verifying...' : 'Verify & Submit'}</Text>
               </Button>
             </XStack>
           </Pressable>
