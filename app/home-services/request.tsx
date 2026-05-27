@@ -9,10 +9,10 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -477,7 +477,11 @@ export default function HomeServiceRequestScreen() {
       if (session?.user?.id) {
         await supabase.from('users').update({ phone: digits }).eq('id', session.user.id);
       }
-      const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', { phone });
+      const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', {
+        phone,
+        purpose: 'booking',
+        user_id: session?.user?.id ?? '',
+      });
       if (data?.error) setError(String(data.error));
     } catch (e: any) {
       setError(e?.message ? String(e.message) : 'Failed to send OTP.');
@@ -1837,7 +1841,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
             if (otpVerifying) return;
             setOtpOpen(false);
           }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 18, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={8}>
               <Text color={theme.text} fontSize={16} fontWeight="900">
                 Verify OTP
@@ -1895,13 +1899,13 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
                   inputMode={Platform.OS === 'web' ? ('numeric' as any) : undefined}
                   maxLength={1}
                   style={{
-                    width: 46,
-                    height: 52,
+                    width: 56,
+                    height: 64,
                     borderWidth: 1,
                     borderColor: theme.border,
-                    borderRadius: 12,
+                    borderRadius: 14,
                     textAlign: 'center',
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: '900',
                     color: theme.text,
                     backgroundColor: theme.bgCard,
@@ -1911,15 +1915,15 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
             </XStack>
 
             {error ? (
-              <YStack backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={10} borderWidth={1} borderColor={theme.danger} marginBottom={10}>
-                <Text color={theme.danger} fontWeight="800">
+              <YStack backgroundColor={theme.danger} borderRadius={12} padding={10} borderWidth={0} marginBottom={12}>
+                <Text color="#FFFFFF" fontWeight="800">
                   {error}
                 </Text>
               </YStack>
             ) : null}
 
             <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-              <Button backgroundColor={theme.border} color={theme.text} disabled={otpSending || otpVerifying} onPress={() => void sendOtp()}>
+              <Button backgroundColor={theme.border} color={theme.text} disabled={otpSending || otpVerifying} onPress={() => void sendOtp()} style={{ minWidth: 140 }}>
                 {otpSending ? 'Sending...' : 'Resend OTP'}
               </Button>
               <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} disabled={otpVerifying} onPress={() => void verifyOtpAndSubmit()}>
