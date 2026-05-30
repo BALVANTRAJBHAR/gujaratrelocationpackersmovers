@@ -538,7 +538,7 @@ export default function BookingWizardScreen() {
       return (parsed ?? {}) as T;
     };
 
-    return await withTimeout(run(), 25000, name);
+    return await withTimeout(run(), 60000, name);
   };
 
   const sendOtp = async () => {
@@ -1338,6 +1338,7 @@ export default function BookingWizardScreen() {
         .single();
 
       if (insertError || !booking?.id) {
+        const reason = insertError?.message ?? 'Booking insert returned no ID';
         await supabase.from('payments').insert({
           booking_id: null,
           user_id: session.user.id,
@@ -1345,14 +1346,14 @@ export default function BookingWizardScreen() {
           status: 'paid',
           razorpay_order_id: order.id,
           razorpay_payment_id: paymentData.razorpay_payment_id,
-          error: { booking_insert_error: insertError?.message ?? 'Booking insert failed' },
+          error: { booking_insert_error: reason },
           metadata: {
             mode: paymentMode,
             razorpay_signature: paymentData.razorpay_signature,
           },
         });
 
-        setError('Payment succeeded, but booking creation failed. Please contact support.');
+        setError(`Payment succeeded, but booking creation failed: ${reason}. Please contact support.`);
         return;
       }
 

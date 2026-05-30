@@ -458,7 +458,7 @@ export default function HomeServiceRequestScreen() {
     }
 
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeout = setTimeout(() => ctrl?.abort(), 25000);
+    const timeout = setTimeout(() => ctrl?.abort(), 60000);
 
     try {
       const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
@@ -855,7 +855,7 @@ export default function HomeServiceRequestScreen() {
                         <Text fontWeight="800" color={theme.text}>
                           {s.label}
                         </Text>
-                        <Text fontSize={11} color={theme.textMuted} fontWeight="700">
+                        <Text fontSize={11} color={theme.textSecondary} fontWeight="700">
                           Tap to choose
                         </Text>
                       </YStack>
@@ -1274,6 +1274,7 @@ export default function HomeServiceRequestScreen() {
                   {Platform.OS === 'web'
                     ? React.createElement('input', {
                         type: 'date',
+                        min: new Date().toISOString().slice(0, 10),
                         value: toISODateFromDDMMYYYY(preferredDate) || '',
                         style: {
                           width: '100%',
@@ -1785,6 +1786,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
       {Platform.OS !== 'web' && datePickerOpen ? (
         <DateTimePicker
           value={parseDateDDMMYYYY(preferredDate) ?? new Date()}
+          minimumDate={new Date()}
           mode="date"
           display="default"
           onChange={(_, date) => {
@@ -1829,32 +1831,38 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
           <View style={{ backgroundColor: theme.bg, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.35)' }}>
             {mediaViewerKind === 'photo' ? (
               <Image
+                key={mediaViewerIndex}
                 source={{ uri: photos[mediaViewerIndex] }}
                 style={{ width: '100%', height: Math.min(520, Math.max(260, screenWidth * 0.5)) }}
                 resizeMode="contain"
               />
             ) : (
               <Video
+                key={mediaViewerIndex}
                 source={{ uri: videos[mediaViewerIndex] }}
                 style={{ width: '100%', height: Math.min(520, Math.max(260, screenWidth * 0.5)) }}
                 resizeMode={ResizeMode.CONTAIN}
                 useNativeControls
-                shouldPlay={false}
+                shouldPlay
               />
             )}
           </View>
 
           <XStack marginTop={12} gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
             <Button
-              backgroundColor={theme.bgCardSecondary}
-              color="#FFFFFF"
+              backgroundColor={theme.bgSecondary}
+              color={theme.text}
+              borderWidth={1}
+              borderColor={theme.border}
               disabled={mediaViewerIndex <= 0}
               onPress={() => setMediaViewerIndex((i) => Math.max(0, i - 1))}>
               Prev
             </Button>
             <Button
-              backgroundColor={theme.bgCardSecondary}
-              color="#FFFFFF"
+              backgroundColor={theme.bgSecondary}
+              color={theme.text}
+              borderWidth={1}
+              borderColor={theme.border}
               disabled={mediaViewerIndex >= (mediaViewerKind === 'photo' ? photos.length - 1 : videos.length - 1)}
               onPress={() =>
                 setMediaViewerIndex((i) =>
