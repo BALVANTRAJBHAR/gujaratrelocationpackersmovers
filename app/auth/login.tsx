@@ -7,8 +7,8 @@ import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
@@ -241,6 +241,14 @@ export default function LoginScreen() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  const commonInputProps = {
+    backgroundColor: 'transparent' as const,
+    borderWidth: 0 as const,
+    color: theme.inputText as const,
+    placeholderTextColor: theme.textMuted as const,
+    fontFamily: 'Times New Roman' as const,
+  };
 
   const title = useMemo(() => {
     if (mode === 'signup') return 'Create account';
@@ -649,6 +657,7 @@ export default function LoginScreen() {
             <YStack gap="$2">
               <Text color={theme.textSecondary}>Name (optional)</Text>
               <Input
+                {...commonInputProps}
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
@@ -738,6 +747,7 @@ export default function LoginScreen() {
             <YStack gap="$2">
               <Text color={theme.textSecondary}>Email</Text>
               <Input
+                {...commonInputProps}
                 value={email}
                 onChangeText={setEmail}
                 editable={forgotStep !== 'set_password'}
@@ -751,6 +761,7 @@ export default function LoginScreen() {
             <YStack gap="$2">
               <Text color={theme.textSecondary}>Email</Text>
               <Input
+                {...commonInputProps}
                 value={email}
                 onChangeText={setEmail}
                 editable={forgotStep !== 'set_password'}
@@ -764,21 +775,20 @@ export default function LoginScreen() {
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
             <YStack gap="$2">
               <Text color={theme.textSecondary}>Password</Text>
-              <XStack alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+              <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
                 <Input
+                  {...commonInputProps}
                   flex={1}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   placeholder="Password"
-                  fontFamily="Times New Roman"
-                  borderWidth={0}
                 />
                 <Pressable
                   onPress={() => setShowPassword(!showPassword)}
                   style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                  <Text color={theme.textMuted} fontSize={13} fontWeight="700" userSelect="none">
-                    {showPassword ? 'Hide' : 'Show'}
+                  <Text color={theme.textMuted} fontSize={18} userSelect="none">
+                    {showPassword ? '🙈' : '👁️'}
                   </Text>
                 </Pressable>
               </XStack>
@@ -788,21 +798,20 @@ export default function LoginScreen() {
           {mode === 'forgot' && forgotStep === 'set_password' ? (
             <YStack gap="$2">
               <Text color={theme.textSecondary}>New Password</Text>
-              <XStack alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+              <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
                 <Input
+                  {...commonInputProps}
                   flex={1}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry={!showNewPassword}
                   placeholder="Enter new password"
-                  fontFamily="Times New Roman"
-                  borderWidth={0}
                 />
                 <Pressable
                   onPress={() => setShowNewPassword(!showNewPassword)}
                   style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                  <Text color={theme.textMuted} fontSize={13} fontWeight="700" userSelect="none">
-                    {showNewPassword ? 'Hide' : 'Show'}
+                  <Text color={theme.textMuted} fontSize={18} userSelect="none">
+                    {showNewPassword ? '🙈' : '👁️'}
                   </Text>
                 </Pressable>
               </XStack>
