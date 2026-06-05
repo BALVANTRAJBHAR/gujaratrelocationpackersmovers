@@ -1,14 +1,14 @@
-import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
+import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { reverseGeocodeDetails, reverseGeocodeFeatures } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { themes } from '@/constants/theme';
 
 const SERVICE_OPTIONS = [
   { key: 'ac', label: 'AC Service' },
@@ -33,6 +33,7 @@ export default function ProviderProfileScreen() {
   const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const { session } = useSession();
+  const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedState, setSelectedState] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
@@ -129,8 +130,15 @@ export default function ProviderProfileScreen() {
 
       if (insertError) throw new Error(insertError.message);
 
+      const providerServices = providerSubtype === 'property_owner'
+        ? ['property owner']
+        : providerSubtype === 'home_service'
+          ? ['home_service', selectedService]
+          : [selectedService];
+
       await supabase.from('users').update({
-        provider_services: [selectedService],
+        provider_services: providerServices,
+        provider_type: providerSubtype === 'property_owner' ? 'property_owner' : providerSubtype === 'home_service' ? 'home_service' : null,
       }).eq('id', session.user.id);
 
       router.replace('/(tabs)');

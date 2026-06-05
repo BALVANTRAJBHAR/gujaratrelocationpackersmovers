@@ -11,6 +11,12 @@ type QuoteRow = {
   service: string | null;
   message: string | null;
   source: string | null;
+  request_ip: string | null;
+  request_device: string | null;
+  request_browser: string | null;
+  request_os: string | null;
+  request_language: string | null;
+  request_timezone: string | null;
   status: string | null;
   remark: string | null;
   created_at: string | null;
@@ -24,6 +30,13 @@ type QuotePayload = {
   service?: string;
   message?: string;
   source?: string;
+  metadata?: {
+    browser?: string;
+    device?: string;
+    os?: string;
+    language?: string;
+    timezone?: string;
+  };
 };
 
 type UserRow = {
@@ -155,6 +168,12 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const getRequestIp = (request: Request) => {
+    const forwarded = request.headers.get('x-forwarded-for') ?? request.headers.get('cf-connecting-ip') ?? request.headers.get('x-real-ip');
+    if (!forwarded) return null;
+    return String(forwarded).split(',')[0].trim();
+  };
+
   try {
     const body = await req.json();
     const quoteId = String(body.quote_id ?? '').trim();
@@ -179,7 +198,7 @@ serve(async (req) => {
 
     if (quoteId) {
       const [row] = await getRest<QuoteRow[]>(
-        `${supabaseUrl}/rest/v1/quote_requests?id=eq.${quoteId}&select=id,name,phone,email,service,message,source,status,remark,created_at,updated_at`,
+        `${supabaseUrl}/rest/v1/quote_requests?id=eq.${quoteId}&select=id,name,phone,email,service,message,source,request_ip,request_device,request_browser,request_os,request_language,request_timezone,status,remark,created_at,updated_at`,
         serviceKey
       );
 
@@ -203,8 +222,10 @@ serve(async (req) => {
         return jsonResponse({ error: 'phone must be exactly 10 digits' }, 400);
       }
 
+      const requestIp = getRequestIp(req);
+      const metadata = payload?.metadata ?? {};
       const [inserted] = await postRest<QuoteRow[]>(
-        `${supabaseUrl}/rest/v1/quote_requests?select=id,name,phone,email,service,message,source,status,remark,created_at,updated_at`,
+        `${supabaseUrl}/rest/v1/quote_requests?select=id,name,phone,email,service,message,source,request_ip,request_device,request_browser,request_os,request_language,request_timezone,status,remark,created_at,updated_at`,
         serviceKey,
         {
           name,
@@ -213,6 +234,12 @@ serve(async (req) => {
           service: service || null,
           message: message || null,
           source: source || 'app',
+          request_ip: requestIp,
+          request_device: metadata.device || null,
+          request_browser: metadata.browser || null,
+          request_os: metadata.os || null,
+          request_language: metadata.language || null,
+          request_timezone: metadata.timezone || null,
           status: 'pending',
           remark: null,
         }
@@ -276,6 +303,12 @@ serve(async (req) => {
               <p style="margin: 14px 0 0 0; color: #334155; font-weight: 700;">Request details</p>
               <p style="margin: 6px 0 0 0; color: #475569;"><b>Service:</b> ${escapeHtml(String(quote.service ?? '-'))}</p>
               <p style="margin: 6px 0 0 0; color: #475569;"><b>Message:</b> ${escapeHtml(String(quote.message ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>IP:</b> ${escapeHtml(String(quote.request_ip ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Device:</b> ${escapeHtml(String(quote.request_device ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Browser:</b> ${escapeHtml(String(quote.request_browser ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>OS:</b> ${escapeHtml(String(quote.request_os ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Language:</b> ${escapeHtml(String(quote.request_language ?? '-'))}</p>
+              <p style="margin: 6px 0 0 0; color: #475569;"><b>Timezone:</b> ${escapeHtml(String(quote.request_timezone ?? '-'))}</p>
               <p style="margin: 12px 0 0 0; color: #64748b; font-size: 13px;"><b>Source:</b> ${escapeHtml(String(quote.source ?? '-'))}</p>
             </div>
           </div>
@@ -300,7 +333,7 @@ serve(async (req) => {
       from: `${fromName} <${fromEmail}>`,
       to: adminEmail,
       subject,
-      text: `New Quote Request\nName: ${quote.name ?? '-'}\nPhone: ${quote.phone ?? '-'}\nEmail: ${quote.email ?? '-'}\nService: ${quote.service ?? '-'}\nMessage: ${quote.message ?? '-'}`,
+      text: `New Quote Request\nName: ${quote.name ?? '-'}\nPhone: ${quote.phone ?? '-'}\nEmail: ${quote.email ?? '-'}\nService: ${quote.service ?? '-'}\nMessage: ${quote.message ?? '-'}\nIP: ${quote.request_ip ?? '-'}\nDevice: ${quote.request_device ?? '-'}\nBrowser: ${quote.request_browser ?? '-'}\nOS: ${quote.request_os ?? '-'}\nLanguage: ${quote.request_language ?? '-'}\nTimezone: ${quote.request_timezone ?? '-'}`,
       html,
     });
 

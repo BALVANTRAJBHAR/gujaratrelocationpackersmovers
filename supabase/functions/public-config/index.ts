@@ -17,27 +17,13 @@ serve(async (req) => {
   try {
     const mapboxToken = Deno.env.get('MAPBOX_TOKEN') ?? '';
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
-
-    if (!mapboxToken || !razorpayKeyId) {
-      return new Response(
-        JSON.stringify({
-          error: 'Config missing',
-          missing: {
-            mapbox: !mapboxToken,
-            razorpayKeyId: !razorpayKeyId,
-          },
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 
     return new Response(
       JSON.stringify({
         mapbox_token: mapboxToken,
         razorpay_key_id: razorpayKeyId,
+        vapid_public_key: vapidPublicKey,
       }),
       {
         status: 200,

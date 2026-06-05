@@ -65,7 +65,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   const registerPushToken = async (userId: string) => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web') {
+      const { subscribeWebPush } = await import('@/lib/web-push');
+      void subscribeWebPush(userId);
+      return;
+    }
 
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();

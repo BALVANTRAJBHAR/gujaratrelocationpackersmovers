@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
+import { useRouter } from 'expo-router';
 
 type NotificationRow = {
   id: string;
@@ -22,6 +23,7 @@ type NotificationRow = {
 };
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const { session } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -145,6 +147,13 @@ export default function NotificationsScreen() {
             <Pressable
               onPress={() => {
                 if (isUnread) void markRead(item.id);
+                if (item.type === 'home_service_request_available') {
+                  router.push('/home-services/available-requests' as any);
+                } else if (item.type === 'provider_accepted') {
+                  router.push('/home-services/my-requests' as any);
+                } else if (item.type === 'booking_status' || item.type === 'booking_otp') {
+                  router.push('/(tabs)/bookings' as any);
+                }
               }}>
               <YStack
                 marginBottom={10}

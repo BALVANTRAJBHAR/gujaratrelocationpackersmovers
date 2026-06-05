@@ -138,6 +138,29 @@ async function sendExpoPush(to: string, title: string, body: string, data: Recor
   return parsed;
 }
 
+async function sendWebPushForUser(
+  supabaseUrl: string,
+  serviceKey: string,
+  userId: string,
+  title: string,
+  body: string,
+  url: string
+) {
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-web-push`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId, title, body, url }),
+    });
+  } catch {
+    // ignore web push failures
+  }
+}
+
 function getServiceLabel(serviceKey: string): string {
   const labels: Record<string, string> = {
     ac: 'AC',
@@ -193,8 +216,12 @@ serve(async (req) => {
     }
 
     // Fetch relevant service providers for this service + state + city combo
+    const encodedServiceKey = encodeURIComponent(requestServiceKey);
+    const encodedState = encodeURIComponent(requestState);
+    const encodedCity = encodeURIComponent(requestCity);
+    
     const providers = await getRest<HomeServiceProviderRow[]>(
-      `${supabaseUrl}/rest/v1/home_service_providers?service_key=eq.${requestServiceKey}&state=eq.${requestState}&city=eq.${requestCity}&is_active=eq.true&select=id,user_id,service_key,state,city`,
+      `${supabaseUrl}/rest/v1/home_service_providers?service_key=eq.${encodedServiceKey}&state=eq.${encodedState}&city=eq.${encodedCity}&is_active=eq.true&select=id,user_id,service_key,state,city`,
       serviceKey
     );
 
@@ -204,8 +231,9 @@ serve(async (req) => {
 
     // Fetch provider tokens
     const providerIds = providers.map((p) => p.user_id);
+    const quotedIds = providerIds.map((id) => `"${id}"`).join(',');
     const providerUsers = await getRest<UserRow[]>(
-      `${supabaseUrl}/rest/v1/users?id=in.(${providerIds.join(',')})&select=id,expo_push_token,name,role`,
+      `${supabaseUrl}/rest/v1/users?id=in.(${quotedIds})&select=id,expo_push_token,name,role`,
       serviceKey
     );
 
@@ -263,6 +291,20 @@ serve(async (req) => {
         });
       } catch (e) {
         console.error('Failed to send push to provider:', e);
+      }
+    }
+
+    // Send web push notifications to each provider
+    for (const provider of (providerUsers ?? [])) {
+      if (provider?.id) {
+        await sendWebPushForUser(
+          supabaseUrl,
+          serviceKey,
+          provider.id,
+          title,
+          body,
+          `/home-services/${requestId}`
+        );
       }
     }
 

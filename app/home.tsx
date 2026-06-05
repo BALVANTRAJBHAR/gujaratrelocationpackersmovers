@@ -379,6 +379,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const [quoteServicePickerOpen, setQuoteServicePickerOpen] = useState(false);
   const [quoteSubmitNotice, setQuoteSubmitNotice] = useState<string>('');
   const [cardDownloadNotice, setCardDownloadNotice] = useState<string>('');
+
+  const quoteNameReadOnly = Boolean(profile?.name?.trim() || String((session?.user?.user_metadata as any)?.name ?? '').trim());
+  const quotePhoneReadOnly = Boolean(String(profile?.phone ?? '').trim());
+  const quoteEmailReadOnly = Boolean(String(profile?.email ?? session?.user?.email ?? '').trim());
   const scrollRef = useRef<ScrollView | null>(null);
   const sectionOffsetsRef = useRef<{ services?: number; serviceMenu?: number; contact?: number }>({});
   const propertyCityCentersRef = useRef<Record<string, [number, number]>>({});
@@ -799,12 +803,15 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       router.push({ pathname: '/auth/login' } as any);
       return;
     }
-    if ((profile?.role ?? 'customer') === 'customer') {
-      router.push({ pathname: '/book' } as any);
-      return;
-    }
-    router.push({ pathname: resolveRoleRoute(profile?.role) } as any);
+    router.push({ pathname: '/book' } as any);
   };
+
+  const isProviderRegistrationIncomplete = Boolean(
+    session?.user?.id &&
+      ((String((profile?.role ?? '')).trim().toLowerCase() === 'provider') ||
+        String((session?.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase() === 'provider') &&
+      (!profile?.phone || !Array.isArray(profile?.provider_services) || profile.provider_services.length === 0)
+  );
 
   const handlePrimaryServiceAction = () => {
     if (activeService === 'shifting') {
@@ -817,6 +824,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         router.push({ pathname: '/auth/login' } as any);
         return;
       }
+      if (isProviderRegistrationIncomplete) {
+        router.replace('/auth/register' as any);
+        return;
+      }
       router.push({ pathname: '/home-services/request' } as any);
       return;
     }
@@ -824,6 +835,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     if (activeService === 'property') {
       if (!session) {
         router.push({ pathname: '/auth/login' } as any);
+        return;
+      }
+      if (isProviderRegistrationIncomplete) {
+        router.replace('/auth/register' as any);
         return;
       }
       router.push({ pathname: '/properties/post' } as any);
@@ -1328,9 +1343,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   ]);
 
   const handleOpenQuote = () => {
-    setQuoteName('');
-    setQuotePhone('');
-    setQuoteEmail('');
+    setQuoteName(profile?.name?.trim() || String((session?.user?.user_metadata as any)?.name ?? '').trim() || '');
+    setQuotePhone(String(profile?.phone ?? '').replace(/\D/g, '').slice(0, 10));
+    setQuoteEmail(String(profile?.email ?? session?.user?.email ?? '').trim());
     setQuoteService('');
     setQuoteMessage('');
     setQuoteSubmitNotice('');
@@ -1367,6 +1382,23 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     try {
       setQuoteSubmitting(true);
       setQuoteSubmitNotice('Submitting…');
+      const metadata = {
+        device: Platform.OS,
+        browser:
+          typeof navigator !== 'undefined' && typeof navigator.userAgent === 'string'
+            ? navigator.userAgent
+            : undefined,
+        os: Platform.OS,
+        language:
+          typeof navigator !== 'undefined' && typeof navigator.language === 'string'
+            ? navigator.language
+            : undefined,
+        timezone:
+          typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : undefined,
+      };
+
       const invokeOnce = async () => {
         return await supabase.functions.invoke('send-quote-request', {
           body: {
@@ -1377,6 +1409,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               service: service || undefined,
               message: message || undefined,
               source: 'home',
+              metadata,
             },
           },
         });
@@ -1422,18 +1455,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       }
 
       if ((fnData as any)?.sent === true) {
-        setQuoteSubmitNotice('OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
-        Alert.alert('Request submitted', 'OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
+        setQuoteSubmitNotice('Request submitted successfully. Our executive will call within 10 minutes.');
+        Alert.alert('Request submitted', 'Your quote request has been sent. We will contact you shortly.');
       } else {
-        setQuoteSubmitNotice('OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
-        Alert.alert('Request submitted', 'OUR EXECUTIVE WILL CALL WITHIN 10 MINUTE');
+        setQuoteSubmitNotice('Request submitted successfully. Our executive will call within 10 minutes.');
+        Alert.alert('Request submitted', 'Your quote request has been sent. We will contact you shortly.');
       }
       setQuoteName('');
       setQuotePhone('');
       setQuoteEmail('');
       setQuoteService('');
       setQuoteMessage('');
-      setQuoteModalOpen(false);
+      // keep the modal open so the user can see the success message and re-submit if needed
     } catch (e: any) {
       setQuoteSubmitNotice(e?.message ? String(e.message) : 'Could not submit your request.');
       Alert.alert('Failed', e?.message ? String(e.message) : 'Could not submit your request.');
@@ -2900,24 +2933,24 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   </YStack>
                   <Button
                     backgroundColor={activeService === 'property' ? '#FFFFFF' : '#F59E0B'}
-                    color={activeService === 'property' ? theme.text : '#FFFFFF'}
+                    color={activeService === 'property' ? '#111827' : '#FFFFFF'}
                     fontWeight="900"
                     borderRadius={14}
                     borderWidth={activeService === 'property' ? 1 : 0}
                     borderColor={activeService === 'property' ? theme.border : 'transparent'}
                     hoverStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.bgSecondary, color: theme.text }
+                        ? { backgroundColor: theme.bgSecondary, color: '#FFFFFF' }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     pressStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.border, color: theme.text }
+                        ? { backgroundColor: theme.border, color: '#FFFFFF' }
                         : { backgroundColor: '#16A34A', color: '#FFFFFF' }) as any
                     }
                     focusStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.bgSecondary, color: theme.text }
+                        ? { backgroundColor: theme.bgSecondary, color: '#FFFFFF' }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     onPress={handlePrimaryServiceAction}>
@@ -2948,6 +2981,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onChangeText={setQuoteName}
                   placeholder="Your Name *"
                   placeholderTextColor="#9CA3AF"
+                  editable={!quoteNameReadOnly}
                   style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: 'Georgia' }]}
                 />
                 <TextInput
@@ -2960,6 +2994,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   placeholderTextColor="#9CA3AF"
                   keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
                   maxLength={10}
+                  editable={!quotePhoneReadOnly}
                   style={[
                     styles.modalInput,
                     {
@@ -2977,6 +3012,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   placeholderTextColor="#9CA3AF"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!quoteEmailReadOnly}
                   style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: 'Georgia' }]}
                 />
                 <Pressable onPress={() => setQuoteServicePickerOpen(true)}>

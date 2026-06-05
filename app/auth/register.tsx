@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getSupabaseUserSafe, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 import { findExistingUserByAadhaar, findExistingUserByPhone } from '@/lib/user-duplicate-check';
 
@@ -435,6 +435,20 @@ export default function RegisterDetailsScreen() {
         }
 
         const doc = (docs ?? [])[0] as any;
+        
+        // If provider is already verified (phone_verified + aadhar), skip register form
+        const phoneVerified = Boolean((user.user_metadata as any)?.phone_verified);
+        const hasAadhaar = Boolean(doc?.document_number);
+        const isProvider = 
+          (String((row as any)?.role ?? '').trim().toLowerCase() === 'provider') ||
+          (String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase() === 'provider');
+        
+        if (isProvider && phoneVerified && hasAadhaar && isMounted) {
+          // Provider already verified - skip form and go to home
+          router.replace('/home');
+          return;
+        }
+        
         if (doc?.document_number && isMounted) {
           setAadhaarNumber(String(doc.document_number ?? '').trim());
           setAadhaarExtracted(String(doc.document_number ?? '').trim());
@@ -535,6 +549,13 @@ export default function RegisterDetailsScreen() {
       const user = userResp.user;
       if (!user?.id) throw new Error('Please login again.');
 
+      const providerSubtype = String((user.user_metadata as any)?.provider_subtype ?? '').trim().toLowerCase();
+      const providerServices = providerSubtype === 'property_owner'
+        ? ['property owner']
+        : providerSubtype === 'home_service'
+          ? ['home_service']
+          : ['home_service'];
+
       const { error: upsertError } = await supabase
         .from('users')
         .upsert(
@@ -544,7 +565,8 @@ export default function RegisterDetailsScreen() {
             name: name.trim() || null,
             phone: digits,
             role: 'provider',
-            provider_services: ['home_service'],
+            provider_type: providerSubtype || 'home_service',
+            provider_services: providerServices,
             is_verified: true,
           },
           { onConflict: 'id' }

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 type PublicConfigResponse = {
   mapbox_token?: string;
   razorpay_key_id?: string;
+  vapid_public_key?: string;
   error?: string;
   missing?: { mapbox?: boolean; razorpayKeyId?: boolean };
 };
@@ -11,6 +12,7 @@ type PublicConfigResponse = {
 type PublicConfig = {
   mapboxToken: string;
   razorpayKeyId: string;
+  vapidPublicKey: string;
 };
 
 let cached: PublicConfig | null = null;
@@ -66,12 +68,9 @@ export async function getPublicConfig(forceRefresh = false): Promise<PublicConfi
 
     const mapboxToken = String(parsed?.mapbox_token ?? '').trim();
     const razorpayKeyId = String(parsed?.razorpay_key_id ?? '').trim();
+    const vapidPublicKey = String(parsed?.vapid_public_key ?? '').trim();
 
-    if (!mapboxToken || !razorpayKeyId) {
-      throw new Error('Public config missing required keys.');
-    }
-
-    cached = { mapboxToken, razorpayKeyId };
+    cached = { mapboxToken, razorpayKeyId, vapidPublicKey };
     return cached;
   };
 
@@ -90,4 +89,9 @@ export async function getMapboxToken(): Promise<string> {
 export async function getRazorpayKeyId(): Promise<string> {
   const cfg = await getPublicConfig();
   return cfg.razorpayKeyId;
+}
+
+export async function getVapidPublicKey(): Promise<string> {
+  const cfg = await getPublicConfig();
+  return cfg.vapidPublicKey;
 }

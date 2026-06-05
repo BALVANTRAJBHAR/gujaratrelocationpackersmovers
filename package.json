@@ -13,7 +13,9 @@
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "serve:web": "npx serve dist -s",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "supabase:deploy:process-home-service-upload": "npx supabase functions deploy process-home-service-upload",
+    "supabase:deploy:functions": "npx supabase functions deploy --all"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

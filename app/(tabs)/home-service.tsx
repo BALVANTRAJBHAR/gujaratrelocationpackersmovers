@@ -49,7 +49,10 @@ export default function HomeServiceTabScreen() {
               Quick Actions
             </Text>
             <XStack gap="$2" flexWrap="wrap">
-              <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => router.push('/home-services/my-requests' as any)}>
+              <Button backgroundColor="#1F4E79" color="#FFFFFF" onPress={() => router.push('/home-services/available-requests' as any)}>
+                Available Requests
+              </Button>
+              <Button backgroundColor={theme.bgSecondary} color={theme.text} borderWidth={1} borderColor={border} onPress={() => router.push('/home-services/my-requests' as any)}>
                 My Requests
               </Button>
               <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => router.push('/home-services/request' as any)}>

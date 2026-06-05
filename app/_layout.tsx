@@ -48,6 +48,7 @@ function AppLayout() {
               <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
               <Stack.Screen name="home-services/request" options={{ headerShown: false }} />
               <Stack.Screen name="home-services/my-requests" options={{ headerShown: false }} />
+              <Stack.Screen name="home-services/available-requests" options={{ headerShown: false }} />
               <Stack.Screen name="properties/index" options={{ headerShown: false }} />
               <Stack.Screen name="properties/post" options={{ headerShown: false }} />
               <Stack.Screen name="properties/[id]" options={{ headerShown: false }} />

@@ -222,6 +222,29 @@ async function sendExpoPush(to: string, title: string, body: string, data: Recor
   return parsed;
 }
 
+async function sendWebPushForUser(
+  supabaseUrl: string,
+  serviceKey: string,
+  userId: string,
+  title: string,
+  body: string,
+  url: string
+) {
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-web-push`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId, title, body, url }),
+    });
+  } catch {
+    // ignore web push failures
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -371,6 +394,19 @@ serve(async (req) => {
         // ignore notification inbox failures
       }
 
+      if (customer?.id) {
+        await sendWebPushForUser(supabaseUrl, serviceKey, customer.id, title, customerBody, `/bookings/${bookingId}`);
+      }
+      for (const u of (admins ?? [])) {
+        if (u?.id) {
+          await sendWebPushForUser(supabaseUrl, serviceKey, u.id, title, adminBody, `/bookings/${bookingId}`);
+        }
+      }
+      const wpDriverId = String((booking as any)?.driver_id ?? '').trim();
+      if (wpDriverId) {
+        await sendWebPushForUser(supabaseUrl, serviceKey, wpDriverId, title, driverBody, `/bookings/${bookingId}`);
+      }
+
       return jsonResponse({ sent: true, otp_kind: kind, otp });
     }
 
@@ -473,6 +509,20 @@ serve(async (req) => {
       await insertNotifications(supabaseUrl, serviceKey, rows);
     } catch {
       // ignore notification inbox failures
+    }
+
+    if (customer?.id) {
+      await sendWebPushForUser(supabaseUrl, serviceKey, customer.id, title, customerMessage, `/bookings/${bookingId}`);
+    }
+    for (const u of (admins ?? [])) {
+      if (u?.id) {
+        await sendWebPushForUser(supabaseUrl, serviceKey, u.id, title, adminMessage, `/bookings/${bookingId}`);
+      }
+    }
+    for (const did of driverIds) {
+      if (did) {
+        await sendWebPushForUser(supabaseUrl, serviceKey, did, title, statusMessages.driver, `/bookings/${bookingId}`);
+      }
     }
 
     const seen = new Set<string>();

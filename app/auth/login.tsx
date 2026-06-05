@@ -60,6 +60,12 @@ export default function LoginScreen() {
     return intent === 'provider' ? 'provider' : 'customer';
   };
 
+  const resolveProviderServices = (providerSubtype: string) => {
+    if (providerSubtype === 'property_owner') return ['property owner'];
+    if (providerSubtype === 'home_service') return ['home_service'];
+    return [];
+  };
+
   const maybeStartOAuthProfileCompletion = async () => {
     try {
       const {
@@ -110,16 +116,18 @@ export default function LoginScreen() {
 
       const { data: row, error: rowError } = await supabase
         .from('users')
-        .select('id, phone, role')
+        .select('id, phone, role, provider_services')
         .eq('id', userId)
         .maybeSingle();
 
       if (rowError) return;
 
       const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();
+      const providerServices = Array.isArray((row as any)?.provider_services) ? (row as any)?.provider_services : [];
       const isProvider = dbRole === 'provider' || roleIntent === 'provider';
+      const providerIncomplete = isProvider && (!row?.phone || providerServices.length === 0);
 
-      if (!row?.phone && isProvider) {
+      if (providerIncomplete) {
         router.replace('/auth/register' as any);
         return true;
       }
@@ -408,6 +416,7 @@ export default function LoginScreen() {
                 ...(trimmedName ? { name: trimmedName } : {}),
                 role_intent: signupRole,
                 provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
+                ...(signupRole === 'provider' ? { provider_services: resolveProviderServices(signupProviderSubtype) } : {}),
               },
             });
             // Update users table
@@ -419,6 +428,7 @@ export default function LoginScreen() {
                   email: trimmedEmail,
                   name: trimmedName || null,
                   role: resolveDbRole(signupRole),
+                  provider_services: signupRole === 'provider' ? resolveProviderServices(signupProviderSubtype) : null,
                   provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
                 },
                 { onConflict: 'id' }
@@ -447,6 +457,7 @@ export default function LoginScreen() {
               ...(trimmedName ? { name: trimmedName } : {}),
               role_intent: signupRole,
               provider_subtype: signupRole === 'provider' ? signupProviderSubtype : undefined,
+              ...(signupRole === 'provider' ? { provider_services: resolveProviderServices(signupProviderSubtype) } : {}),
             },
           },
         });
@@ -467,22 +478,22 @@ export default function LoginScreen() {
         const session = (signUpData as any)?.session ?? null;
 
         if (createdUserId && session?.user?.id) {
-          try {
-            await supabase
-              .from('users')
-              .upsert(
-                {
-                  id: createdUserId,
-                  email: trimmedEmail,
-                  name: trimmedName || null,
-                  role: resolveDbRole(signupRole),
-                  provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
-                },
-                { onConflict: 'id' }
-              );
-          } catch {
-            // ignore
-          }
+          await supabase
+            .from('users')
+            .upsert(
+              {
+                id: createdUserId,
+                email: trimmedEmail,
+                name: trimmedName || null,
+                role: resolveDbRole(signupRole),
+                provider_services:
+                  signupRole === 'provider'
+                    ? resolveProviderServices(signupProviderSubtype)
+                    : null,
+                provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
+              },
+              { onConflict: 'id' }
+            );
 
           if (signupRole === 'provider') {
             router.replace('/auth/register' as any);

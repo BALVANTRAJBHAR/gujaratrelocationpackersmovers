@@ -15,7 +15,7 @@ type RequestRow = {
 
 const MAX_IMAGE_BYTES = 500 * 1024;
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024; // match home-service client-side limit
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -221,7 +221,7 @@ serve(async (req: Request) => {
     }
 
     if (kind === 'video' && bytes.length > MAX_VIDEO_BYTES) {
-      return jsonResponse({ error: 'Video too large. Max 5MB.' }, 400);
+      return jsonResponse({ error: 'Video too large. Max 10MB.' }, 400);
     }
 
     const detected = sniffKind(bytes.slice(0, 64));
