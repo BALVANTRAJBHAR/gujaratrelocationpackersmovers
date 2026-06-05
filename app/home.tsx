@@ -2231,53 +2231,100 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   borderWidth={2}
                   borderColor={theme.border}
                   gap="$2.5">
-                <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                  <Button
-                    flex={1}
-                    minWidth={isSmallScreen ? '30%' : 160}
-                    backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
-                    color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
-                    fontFamily="Courier New"
-                    fontWeight="900"
-                    borderWidth={1}
-                    borderColor={theme.border}
-                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    onPress={() => setActiveService('shifting')}>
-                    Shifting
-                  </Button>
-                  <Button
-                    flex={1}
-                    minWidth={isSmallScreen ? '30%' : 160}
-                    backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
-                    color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
-                    fontFamily="Courier New"
-                    fontWeight="900"
-                    borderWidth={1}
-                    borderColor={theme.border}
-                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    onPress={() => setActiveService('home_services')}>
-                    Home Services
-                  </Button>
-                  <Button
-                    flex={1}
-                    minWidth={isSmallScreen ? '30%' : 160}
-                    backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
-                    color={activeService === 'property' ? '#FFFFFF' : theme.text}
-                    fontFamily="Courier New"
-                    fontWeight="900"
-                    borderWidth={1}
-                    borderColor={theme.border}
-                    hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                    focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                    onPress={() => setActiveService('property')}>
-                    Property
-                  </Button>
-                </XStack>
+                {isSmallScreen ? (
+                  <YStack gap="$2">
+                    <Button
+                      width="100%"
+                      backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('shifting')}>
+                      Shifting
+                    </Button>
+                    <Button
+                      width="100%"
+                      backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('home_services')}>
+                      Home Services
+                    </Button>
+                    <Button
+                      width="100%"
+                      backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'property' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('property')}>
+                      Property
+                    </Button>
+                  </YStack>
+                ) : (
+                  <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
+                    <Button
+                      flex={1}
+                      minWidth={160}
+                      backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('shifting')}>
+                      Shifting
+                    </Button>
+                    <Button
+                      flex={1}
+                      minWidth={160}
+                      backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('home_services')}>
+                      Home Services
+                    </Button>
+                    <Button
+                      flex={1}
+                      minWidth={160}
+                      backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
+                      color={activeService === 'property' ? '#FFFFFF' : theme.text}
+                      fontFamily="Courier New"
+                      fontWeight="900"
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setActiveService('property')}>
+                      Property
+                    </Button>
+                  </XStack>
+                )}
 
                 {activeService === 'property' ? (
                   <YStack
@@ -2923,38 +2970,52 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
                 <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
                   <YStack flex={1} minWidth={isSmallScreen ? '100%' : 420}>
-                    <Text color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                    {activeService === 'property' ? (
+                      <Pressable onPress={handleCallNow}>
+                        <XStack gap="$1.5" alignItems="center">
+                          <FontAwesome name="search" size={12} color={theme.primary} />
+                          <Text color={theme.primary} fontSize={13} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                            Search
+                          </Text>
+                          <FontAwesome name="phone" size={12} color={theme.primary} />
+                          <Text color={theme.primary} fontSize={13} fontWeight="700" textDecorationLine="underline" style={{ fontFamily: 'Georgia' }}>
+                            Call us for property listing
+                          </Text>
+                        </XStack>
+                      </Pressable>
+                    ) : null}
+                    <Text marginTop={activeService === 'property' ? 6 : 0} color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
                       {activeService === 'shifting'
                         ? 'Book shifting service in 2 minutes'
                         : activeService === 'home_services'
-                          ? 'Book a technician / home service'
+                          ? 'Call me instead of Booking'
                           : 'Are you a property owner'}
                     </Text>
                   </YStack>
                   <Button
-                    backgroundColor={activeService === 'property' ? '#FFFFFF' : '#F59E0B'}
-                    color={activeService === 'property' ? '#111827' : '#FFFFFF'}
+                    backgroundColor={activeService === 'property' ? '#22C55E' : '#F59E0B'}
+                    color="#FFFFFF"
                     fontWeight="900"
                     borderRadius={14}
-                    borderWidth={activeService === 'property' ? 1 : 0}
-                    borderColor={activeService === 'property' ? theme.border : 'transparent'}
+                    borderWidth={0}
+                    borderColor="transparent"
                     hoverStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.bgSecondary, color: '#FFFFFF' }
+                        ? { backgroundColor: '#16A34A', color: '#FFFFFF' }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     pressStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.border, color: '#FFFFFF' }
+                        ? { backgroundColor: '#15803D', color: '#FFFFFF' }
                         : { backgroundColor: '#16A34A', color: '#FFFFFF' }) as any
                     }
                     focusStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: theme.bgSecondary, color: '#FFFFFF' }
+                        ? { backgroundColor: '#16A34A', color: '#FFFFFF' }
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
-                    onPress={handlePrimaryServiceAction}>
-                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Post Property'}
+                    onPress={activeService === 'home_services' ? handleCallNow : handlePrimaryServiceAction}>
+                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Call me' : 'Post Property'}
                   </Button>
                 </XStack>
                 </YStack>
