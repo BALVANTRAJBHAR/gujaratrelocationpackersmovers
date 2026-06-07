@@ -4,19 +4,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    ImageBackground,
-    Linking,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  ImageBackground,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
@@ -2241,7 +2241,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('shifting')}>
@@ -2255,7 +2255,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('home_services')}>
@@ -2269,7 +2269,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('property')}>
@@ -2287,7 +2287,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('shifting')}>
@@ -2302,7 +2302,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('home_services')}>
@@ -2317,7 +2317,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontWeight="900"
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setActiveService('property')}>
@@ -2335,45 +2335,45 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     borderColor={theme.border}
                     gap="$2">
                     <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={propertyMode === 'buy' ? theme.primary : theme.bgCard}
-                        color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        onPress={() => setPropertyMode('buy')}>
-                        Buy
-                      </Button>
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={propertyMode === 'rent' ? theme.primary : theme.bgCard}
-                        color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        onPress={() => setPropertyMode('rent')}>
-                        Rent
-                      </Button>
-                      <Button
-                        flex={1}
-                        minWidth={isSmallScreen ? '30%' : 160}
-                        backgroundColor={propertyMode === 'commercial' ? theme.primary : theme.bgCard}
-                        color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                        focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                        onPress={() => setPropertyMode('commercial')}>
-                        Commercial
-                      </Button>
+                    <Button
+                      flex={1}
+                      minWidth={isSmallScreen ? '30%' : 160}
+                      backgroundColor={propertyMode === 'buy' ? theme.primary : theme.bgCard}
+                      color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setPropertyMode('buy')}>
+                      Buy
+                    </Button>
+                    <Button
+                      flex={1}
+                      minWidth={isSmallScreen ? '30%' : 160}
+                      backgroundColor={propertyMode === 'rent' ? theme.primary : theme.bgCard}
+                      color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setPropertyMode('rent')}>
+                      Rent
+                    </Button>
+                    <Button
+                      flex={1}
+                      minWidth={isSmallScreen ? '30%' : 160}
+                      backgroundColor={propertyMode === 'commercial' ? theme.primary : theme.bgCard}
+                      color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
+                      borderWidth={1}
+                      borderColor={theme.border}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
+                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
+                      onPress={() => setPropertyMode('commercial')}>
+                      Commercial
+                    </Button>
                     </XStack>
 
                     {propertyMode === 'buy' ? (
@@ -2706,7 +2706,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         paddingHorizontal={20}
                         height={50}
                         color="#FFFFFF"
-                        hoverStyle={{ backgroundColor: '#4338CA', color: '#FFFFFF' } as any}
+                        hoverStyle={{ backgroundColor: '#4338CA', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
                         pressStyle={{ backgroundColor: '#3730A3', color: '#FFFFFF' } as any}
                         focusStyle={{ backgroundColor: '#4338CA', color: '#FFFFFF' } as any}
                         onPress={handleTopSearch}>
@@ -2973,23 +2973,21 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {activeService === 'property' ? (
                       <Pressable onPress={handleCallNow}>
                         <XStack gap="$1.5" alignItems="center">
-                          <FontAwesome name="search" size={12} color={theme.primary} />
-                          <Text color={theme.primary} fontSize={13} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
-                            Search
-                          </Text>
-                          <FontAwesome name="phone" size={12} color={theme.primary} />
+                          
+                          <FontAwesome name="phone" size={16} color={theme.primary} />
                           <Text color={theme.primary} fontSize={13} fontWeight="700" textDecorationLine="underline" style={{ fontFamily: 'Georgia' }}>
-                            Call us for property listing
+                            Call us for property listing or Search
                           </Text>
+                          
                         </XStack>
                       </Pressable>
                     ) : null}
-                    <Text marginTop={activeService === 'property' ? 6 : 0} color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
+                    <Text marginTop={activeService === 'property' ? 8 : 0} color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Georgia' }}>
                       {activeService === 'shifting'
                         ? 'Book shifting service in 2 minutes'
                         : activeService === 'home_services'
-                          ? 'Call me instead of Booking'
-                          : 'Are you a property owner'}
+                          ? 'Call me instead of Online Booking'
+                          : 'Are you a property owner ->'}
                     </Text>
                   </YStack>
                   <Button
@@ -3001,8 +2999,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     borderColor="transparent"
                     hoverStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: '#16A34A', color: '#FFFFFF' }
-                        : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
+                        ? { backgroundColor: '#16A34A', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' }
+                        : { backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' }) as any
                     }
                     pressStyle={
                       (activeService === 'property'
@@ -3548,6 +3546,59 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </YStack>
               </XStack>
             </YStack>
+          </YStack>
+
+          <YStack marginTop={64} gap="$4">
+            <YStack alignItems="center" gap="$2.5">
+              <Text
+                color="#D97706"
+                fontSize={14}
+                letterSpacing={2.4}
+                textTransform="uppercase"
+                fontWeight="900"
+                style={{ fontFamily: 'Georgia' }}>
+                Our Branches
+              </Text>
+              <H2
+                color={theme.text}
+                fontWeight="900"
+                textAlign="center"
+                fontSize={isSmallScreen ? 26 : 34}
+                style={{ fontFamily: 'Georgia' }}>
+                We Are Across India
+              </H2>
+            </YStack>
+
+            <XStack flexWrap="wrap" justifyContent="center" gap="$4">
+              {[
+                { name: 'Mumbai', addr: 'Sethia Aashray, Mumbai 400101' },
+                { name: 'Delhi', addr: 'Connaught Place, New Delhi 110001' },
+                { name: 'Kolkata', addr: 'Park Street, Kolkata 700016' },
+                { name: 'Hyderabad', addr: 'Hitech City, Hyderabad 500081' },
+                { name: 'Gujarat', addr: 'SG Highway, Ahmedabad 380054' },
+              ].map((b) => (
+                <YStack
+                  key={b.name}
+                  backgroundColor={theme.bgCard}
+                  borderRadius={16}
+                  padding={16}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  width={isSmallScreen ? '100%' : '30%'}
+                  minWidth={isSmallScreen ? '100%' : 200}
+                  maxWidth={360}
+                  alignItems="center"
+                  gap="$2">
+                  <FontAwesome name="map-marker" size={28} color="#EF4444" />
+                  <Text color={theme.text} fontSize={15} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                    {b.name}
+                  </Text>
+                  <Text color={theme.textMuted} fontSize={12} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                    {b.addr}
+                  </Text>
+                </YStack>
+              ))}
+            </XStack>
           </YStack>
 
           <YStack marginTop={64} gap="$4">

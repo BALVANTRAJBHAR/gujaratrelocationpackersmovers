@@ -424,6 +424,14 @@ type HomeServiceRequestAdmin = {
   status: string | null;
   created_at: string;
   updated_at?: string | null;
+  payment_option: string | null;
+  payment_status: string | null;
+  advance_payment: number | null;
+  after_service_payment_method: string | null;
+  cash_paid_at: string | null;
+  cancelled_at: string | null;
+  provider_id: string | null;
+  provider_name: string | null;
 };
 
 type QuoteRequestAdmin = {
@@ -1025,7 +1033,7 @@ export default function AdminScreen() {
       const { data, error: fetchError } = await supabase
         .from('home_service_requests')
         .select(
-          'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at'
+          'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,payment_option,payment_status,advance_payment,after_service_payment_method,cash_paid_at,cancelled_at,provider_id,provider_name'
         )
         .order('created_at', { ascending: false })
         .limit(100);
@@ -4135,6 +4143,49 @@ export default function AdminScreen() {
                   <Text color={theme.textMuted} fontSize={12}>
                     View and manage home service requests.
                   </Text>
+
+                  {(() => {
+                    const total = homeServiceRequests.length;
+                    const pending = homeServiceRequests.filter((r) => r.status === 'pending').length;
+                    const completed = homeServiceRequests.filter((r) => r.status === 'completed').length;
+                    const cancelled = homeServiceRequests.filter((r) => r.status === 'cancelled').length;
+                    const paid = homeServiceRequests.filter((r) => r.payment_status === 'paid').length;
+                    const unpaid = homeServiceRequests.filter((r) => r.payment_status === 'pending' || !r.payment_status).length;
+                    const withCharge = homeServiceRequests.filter((r) => r.payment_status === 'cancelled_with_charge').length;
+                    return (
+                      <XStack gap="$2" flexWrap="wrap" marginTop={4}>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.text} fontWeight="900" fontSize={15}>{total}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Total</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.warning} fontWeight="900" fontSize={15}>{pending}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Pending</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.success} fontWeight="900" fontSize={15}>{completed}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Completed</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.danger} fontWeight="900" fontSize={15}>{cancelled}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Cancelled</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.success} fontWeight="900" fontSize={15}>{paid}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Paid</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.warning} fontWeight="900" fontSize={15}>{unpaid}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>Unpaid</Text>
+                        </YStack>
+                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
+                          <Text color={theme.primary} fontWeight="900" fontSize={15}>{withCharge}</Text>
+                          <Text color={theme.textMuted} fontSize={10}>₹150 Chrg</Text>
+                        </YStack>
+                      </XStack>
+                    );
+                  })()}
+
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"

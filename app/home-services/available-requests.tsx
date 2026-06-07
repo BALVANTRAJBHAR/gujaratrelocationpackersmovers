@@ -26,6 +26,9 @@ type AvailableRequest = {
   provider_id: string | null;
   provider_name: string | null;
   provider_accepted_at: string | null;
+  payment_option: string | null;
+  after_service_payment_method: string | null;
+  cash_paid_at: string | null;
 };
 
 const labelForService = (key: string) => {
@@ -136,6 +139,36 @@ export default function AvailableRequestsScreen() {
     setRefreshing(false);
   };
 
+  const confirmCashPayment = async (requestId: string) => {
+    Alert.alert(
+      'Confirm Cash Payment',
+      'Have you received the cash payment from the customer?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Payment Received',
+          onPress: async () => {
+            try {
+              await supabase
+                .from('home_service_requests')
+                .update({
+                  cash_paid_at: new Date().toISOString(),
+                  cash_paid_by_provider_id: providerId,
+                  payment_status: 'paid',
+                  status: 'completed',
+                })
+                .eq('id', requestId);
+              Alert.alert('Confirmed', 'Cash payment recorded.');
+              void fetchRequests();
+            } catch (e: any) {
+              setError(e?.message ?? 'Failed to confirm payment.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const pageBg = theme.bg;
   const border = theme.border;
   const titleColor = theme.text;
@@ -213,7 +246,20 @@ export default function AvailableRequestsScreen() {
               ) : null}
 
               {statusFilter === 'accepted' && req.provider_name ? (
-                <Text color={theme.success} fontSize={12} fontWeight="700">Accepted by you</Text>
+                <YStack gap="$2">
+                  <Text color={theme.success} fontSize={12} fontWeight="700">Accepted by you</Text>
+                  {req.after_service_payment_method === 'cash' && !req.cash_paid_at ? (
+                    <Button
+                      backgroundColor="#22C55E"
+                      color="#FFFFFF"
+                      onPress={() => void confirmCashPayment(req.id)}>
+                      Confirm Cash Payment
+                    </Button>
+                  ) : null}
+                  {req.cash_paid_at ? (
+                    <Text color={theme.success} fontSize={12} fontWeight="700">✓ Cash received</Text>
+                  ) : null}
+                </YStack>
               ) : null}
 
               {statusFilter === 'pending' ? (

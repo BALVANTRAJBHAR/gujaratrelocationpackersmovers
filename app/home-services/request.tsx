@@ -13,6 +13,8 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
 import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validation';
+import { getRazorpayKeyId } from '@/lib/public-config';
+import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -105,12 +107,51 @@ const isIsoDate = (value: string) => {
   return !Number.isNaN(d.getTime());
 };
 
-type WizardStep = 'service' | 'details' | 'uploads' | 'review';
+type WizardStep = 'service' | 'details' | 'uploads' | 'payment' | 'review';
 
 type UploadItem = {
   uri: string;
   kind: 'photo' | 'video';
 };
+
+async function loadRazorpayScript(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  if ((window as any).Razorpay) return true;
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
+    document.body.appendChild(script);
+  });
+
+  return Boolean((window as any).Razorpay);
+}
+
+async function openRazorpayCheckout(options: any): Promise<any> {
+  if (Platform.OS === 'web') {
+    const ok = await loadRazorpayScript();
+    if (!ok) throw new Error('Razorpay unavailable on web');
+
+    return await new Promise((resolve, reject) => {
+      const Razorpay = (window as any).Razorpay;
+      const rz = new Razorpay({
+        ...options,
+        handler: (response: any) => resolve(response),
+        modal: {
+          ondismiss: () => reject(new Error('Payment cancelled')),
+        },
+      });
+      rz.open();
+    });
+  }
+
+  const RazorpayCheckout = require('react-native-razorpay').default;
+  return await RazorpayCheckout.open(options);
+}
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
@@ -215,6 +256,8 @@ export default function HomeServiceRequestScreen() {
   const [preferredDate, setPreferredDate] = useState<string>('');
   const [preferredTime, setPreferredTime] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [paymentOption, setPaymentOption] = useState<'online_now' | 'after_service'>('after_service');
+  const [paying, setPaying] = useState(false);
 
   const [statePickerOpen, setStatePickerOpen] = useState(false);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
@@ -652,6 +695,15 @@ export default function HomeServiceRequestScreen() {
     }
     if (step === 'uploads') {
       setError(null);
+      setStep('payment');
+      return;
+    }
+    if (step === 'payment') {
+      if (!paymentOption) {
+        setError('Please select a payment option.');
+        return;
+      }
+      setError(null);
       setStep('review');
       return;
     }
@@ -672,8 +724,12 @@ export default function HomeServiceRequestScreen() {
       setStep('details');
       return;
     }
-    if (step === 'review') {
+    if (step === 'payment') {
       setStep('uploads');
+      return;
+    }
+    if (step === 'review') {
+      setStep('payment');
       return;
     }
   };
@@ -869,8 +925,93 @@ export default function HomeServiceRequestScreen() {
     }
   };
 
-  const submitRequest = async (requestId: string) => {
+  const submitRequest = async (requestId: string, paymentOpt?: string) => {
     try {
+      // If pay online now, process Razorpay payment first
+      if (paymentOpt === 'online_now') {
+        setPaying(true);
+        try {
+          const order = await createRazorpayOrder({
+            amount: 15000, // ₹150 minimum charge as advance
+            currency: 'INR',
+            receipt: `hs_${Date.now()}`,
+            notes: { request_id: requestId, purpose: 'home_service_advance' },
+          });
+
+          const razorpayKeyId = await getRazorpayKeyId();
+          if (!razorpayKeyId) {
+            throw new Error('Payment gateway not configured.');
+          }
+
+          const paymentData: any = await openRazorpayCheckout({
+            key: razorpayKeyId,
+            amount: order.amount,
+            currency: order.currency,
+            name: 'PackersMovers',
+            description: 'Home Service Advance',
+            order_id: order.id,
+            prefill: {
+              name: customerName,
+              contact: `${countryCode}${normalizePhoneDigits(customerPhone)}`,
+            },
+            theme: { color: '#1F4E79' },
+          });
+
+          const valid = await verifyRazorpaySignature({
+            order_id: order.id,
+            payment_id: paymentData.razorpay_payment_id,
+            signature: paymentData.razorpay_signature,
+          });
+
+          if (!valid) {
+            throw new Error('Payment verification failed.');
+          }
+
+          // Record payment
+          await supabase.from('payments').insert({
+            booking_id: null,
+            user_id: session?.user?.id,
+            amount: 150,
+            status: 'paid',
+            razorpay_order_id: order.id,
+            razorpay_payment_id: paymentData.razorpay_payment_id,
+            metadata: {
+              request_id: requestId,
+              purpose: 'home_service_advance',
+              razorpay_signature: paymentData.razorpay_signature,
+            },
+          });
+
+          // Update request with payment info
+          await supabase
+            .from('home_service_requests')
+            .update({
+              payment_option: 'online_now',
+              payment_status: 'paid',
+              advance_payment: 150,
+              razorpay_order_id: order.id,
+              razorpay_payment_id: paymentData.razorpay_payment_id,
+            })
+            .eq('id', requestId);
+        } catch (e: any) {
+          const msg = e?.message ?? 'Payment failed.';
+          if (msg.toLowerCase().includes('cancel')) {
+            setError('Payment cancelled. Your request is saved as draft.');
+          } else {
+            setError(msg);
+          }
+          setPaying(false);
+          return;
+        }
+        setPaying(false);
+      } else {
+        // Pay after service — default to cash
+        await supabase
+          .from('home_service_requests')
+          .update({ payment_option: 'after_service', payment_status: 'pending', after_service_payment_method: 'cash' })
+          .eq('id', requestId);
+      }
+
       await uploadMedia(requestId);
       await supabase.from('home_service_requests').update({ status: 'pending' }).eq('id', requestId);
 
@@ -950,7 +1091,7 @@ export default function HomeServiceRequestScreen() {
       if (!requestId) return;
 
       if (TEMP_BYPASS_OTP) {
-        await submitRequest(requestId);
+        await submitRequest(requestId, paymentOption);
         return;
       }
 
@@ -976,7 +1117,7 @@ export default function HomeServiceRequestScreen() {
               Home Service Request
             </Text>
             <Text color={theme.menuText} fontSize={12} fontWeight="600">
-              {step === 'service' ? 'Step 1 of 4' : step === 'details' ? 'Step 2 of 4' : step === 'uploads' ? 'Step 3 of 4' : 'Step 4 of 4'}
+              {step === 'service' ? 'Step 1 of 5' : step === 'details' ? 'Step 2 of 5' : step === 'uploads' ? 'Step 3 of 5' : step === 'payment' ? 'Step 4 of 5' : 'Step 5 of 5'}
             </Text>
           </YStack>
         </XStack>
@@ -1641,6 +1782,57 @@ export default function HomeServiceRequestScreen() {
             </YStack>
           ) : null}
 
+          {step === 'payment' ? (
+            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
+              <Text fontSize={16} fontWeight="800" color="#1F4E79">
+                Payment Option
+              </Text>
+              <Paragraph color={theme.textMuted}>
+                Choose how you would like to pay for this service.
+              </Paragraph>
+
+              <Pressable
+                onPress={() => setPaymentOption('online_now')}
+                style={({ pressed }: any) => [{
+                  padding: 14,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: paymentOption === 'online_now' ? '#22C55E' : theme.border,
+                  backgroundColor: paymentOption === 'online_now' ? '#052E16' : theme.bgCardSecondary,
+                  opacity: pressed ? 0.85 : 1,
+                } as any]}>
+                <YStack gap="$1">
+                  <Text color={paymentOption === 'online_now' ? '#22C55E' : theme.text} fontWeight="900" fontSize={15}>
+                    Pay Online Now
+                  </Text>
+                  <Text color={paymentOption === 'online_now' ? '#86EFAC' : theme.textMuted} fontSize={12}>
+                    Pay ₹150 advance now via card/UPI/net banking. Review summary then pay.
+                  </Text>
+                </YStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setPaymentOption('after_service')}
+                style={({ pressed }: any) => [{
+                  padding: 14,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: paymentOption === 'after_service' ? '#22C55E' : theme.border,
+                  backgroundColor: paymentOption === 'after_service' ? '#052E16' : theme.bgCardSecondary,
+                  opacity: pressed ? 0.85 : 1,
+                } as any]}>
+                <YStack gap="$1">
+                  <Text color={paymentOption === 'after_service' ? '#22C55E' : theme.text} fontWeight="900" fontSize={15}>
+                    Pay After Service
+                  </Text>
+                  <Text color={paymentOption === 'after_service' ? '#86EFAC' : theme.textMuted} fontSize={12}>
+                    No upfront payment. Pay online or in cash after the service is completed.
+                  </Text>
+                </YStack>
+              </Pressable>
+            </YStack>
+          ) : null}
+
           {step === 'review' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
               <Text fontSize={16} fontWeight="800" color="#1F4E79">
@@ -1700,6 +1892,15 @@ export default function HomeServiceRequestScreen() {
                 </Text>
                 <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
                   {notes.trim() || 'Not provided'}
+                </Text>
+              </YStack>
+
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontWeight="700">
+                  Payment
+                </Text>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                  {paymentOption === 'online_now' ? 'Pay Online Now (₹150 advance)' : 'Pay After Service'}
                 </Text>
               </YStack>
 

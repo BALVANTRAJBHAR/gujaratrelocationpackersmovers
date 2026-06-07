@@ -30,7 +30,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
@@ -72,6 +71,21 @@ export default function LoginScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user?.id) return false;
+
+      // Check if email already exists in users table with a completed profile
+      if (user.email) {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('role, provider_type')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (existingUser?.role) {
+          // Returning user — already has role, no role selection needed
+          // ensureUserRow in session-provider will sync the row if needed
+          return false;
+        }
+      }
 
       const { data: profile, error: profileError } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle();
       if (profileError) return false;
@@ -798,7 +812,7 @@ export default function LoginScreen() {
                 <Pressable
                   onPress={() => setShowPassword(!showPassword)}
                   style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                  <Text color={theme.textMuted} fontSize={18} userSelect="none">
+                  <Text color={theme.text} fontSize={18} userSelect="none">
                     {showPassword ? '🙈' : '👁️'}
                   </Text>
                 </Pressable>
@@ -809,23 +823,17 @@ export default function LoginScreen() {
           {mode === 'forgot' && forgotStep === 'set_password' ? (
             <YStack gap="$2">
               <Text color={theme.textSecondary}>New Password</Text>
-              <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
-                <Input
-                  {...commonInputProps}
-                  flex={1}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry={!showNewPassword}
-                  placeholder="Enter new password"
-                />
-                <Pressable
-                  onPress={() => setShowNewPassword(!showNewPassword)}
-                  style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                  <Text color={theme.textMuted} fontSize={18} userSelect="none">
-                    {showNewPassword ? '🙈' : '👁️'}
-                  </Text>
-                </Pressable>
-              </XStack>
+              <Input
+                {...commonInputProps}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                placeholder="Enter new password"
+                borderWidth={1}
+                borderColor={theme.border}
+                borderRadius={6}
+                paddingHorizontal={12}
+              />
             </YStack>
           ) : null}
 
