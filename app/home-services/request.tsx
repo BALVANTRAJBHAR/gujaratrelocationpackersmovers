@@ -21,7 +21,7 @@ import { useSession } from '@/providers/session-provider';
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
-const TEMP_BYPASS_OTP = true; // TODO: disable this after OTP flow is fixed
+const TEMP_BYPASS_OTP = false; // OTP verification enabled on submit
 
 class UploadError extends Error {}
 

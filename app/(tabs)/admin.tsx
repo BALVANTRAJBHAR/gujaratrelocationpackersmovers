@@ -570,6 +570,9 @@ export default function AdminScreen() {
   const [propertyUploadsBusyId, setPropertyUploadsBusyId] = useState<string | null>(null);
   const [propertyUploads, setPropertyUploads] = useState<Record<string, PropertyUploadAdmin[]>>({});
 
+  const [propBookings, setPropBookings] = useState<any[]>([]);
+  const [propBookingBusyId, setPropBookingBusyId] = useState<string | null>(null);
+
   const [bookingUploadsOpenId, setBookingUploadsOpenId] = useState<string | null>(null);
   const [bookingUploadsBusyId, setBookingUploadsBusyId] = useState<string | null>(null);
   const [bookingUploads, setBookingUploads] = useState<Record<string, BookingUploadRow[]>>({});
@@ -1012,6 +1015,44 @@ export default function AdminScreen() {
       setError(message || 'Failed to delete property.');
     } finally {
       setPropertyStatusBusyId(null);
+    }
+  };
+
+  const fetchPropBookings = async () => {
+    if (!canManage) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('property_bookings')
+        .select('id, property_id, user_id, owner_user_id, status, message, contact_name, contact_phone, created_at, updated_at, properties(title, price, city, locality)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setPropBookings(((data as any) ?? []) as any[]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch property bookings.');
+    }
+  };
+
+  const updatePropBookingStatus = async (bookingId: string, status: string) => {
+    if (!canManage) return;
+    if (!bookingId) return;
+    setPropBookingBusyId(bookingId);
+    try {
+      const { error: updateError } = await supabase.from('property_bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', bookingId);
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      await fetchPropBookings();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to update booking status.');
+    } finally {
+      setPropBookingBusyId(null);
     }
   };
 
@@ -2387,7 +2428,7 @@ export default function AdminScreen() {
     if (activeSection === 'reports') fetchReportsBookings();
     if (activeSection === 'home_services') fetchHomeServiceRequests();
     if (activeSection === 'quote_requests') fetchQuoteRequests();
-    if (activeSection === 'properties') fetchProperties();
+    if (activeSection === 'properties') { fetchProperties(); void fetchPropBookings(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, canManage]);
 
@@ -2465,6 +2506,7 @@ export default function AdminScreen() {
                 fetchCoupons();
                 fetchHomeServiceRequests();
                 fetchProperties();
+                void fetchPropBookings();
                 fetchQuoteRequests();
               }}>
               Refresh
@@ -3055,6 +3097,58 @@ export default function AdminScreen() {
                     <Text color={theme.textMuted} fontSize={12}>
                       Post a property as customer, then come back here to publish.
                     </Text>
+                  </YStack>
+                ) : null}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'properties' ? (
+              <YStack gap="$3" marginTop={16}>
+                <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>Property Bookings</Text>
+                  <Text color={theme.textMuted} fontSize={12}>View and manage customer property bookings/inquiries.</Text>
+                  <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                    onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
+                </YStack>
+                {propBookings.map((pb: any) => {
+                  const prop = pb.properties;
+                  const statusColor = pb.status === 'confirmed' ? theme.success : pb.status === 'cancelled' ? theme.danger : theme.warning;
+                  return (
+                    <YStack key={pb.id} backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                      <YStack gap="$1">
+                        <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                          <YStack flex={1} gap={4}>
+                            <Text color={theme.text} fontWeight="800" fontSize={14}>{prop?.title ?? 'Property'}</Text>
+                            <Text color={theme.textMuted} fontSize={12}>{[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}</Text>
+                            {prop?.price != null ? <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(prop.price).toLocaleString('en-IN')}</Text> : null}
+                            <Text color={theme.textMuted} fontSize={12}>Customer: {pb.contact_name ?? pb.user_id ?? '—'}</Text>
+                            {pb.contact_phone ? (
+                              <Text color={theme.textMuted} fontSize={12}>Phone: {pb.contact_phone}</Text>
+                            ) : null}
+                            {pb.message ? <Text color={theme.textMuted} fontSize={12}>Message: {pb.message}</Text> : null}
+                          </YStack>
+                          <YStack alignItems="flex-end" gap={6}>
+                            <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                            <Text color={theme.textMuted} fontSize={11}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                          </YStack>
+                        </XStack>
+                      </YStack>
+                      <XStack gap="$2" flexWrap="wrap">
+                        {['pending', 'confirmed', 'cancelled'].map((s) => (
+                          <Button key={s} size="$2"
+                            backgroundColor={String(pb.status) === s ? theme.accent : theme.bgCardSecondary}
+                            color={String(pb.status) === s ? '#FFFFFF' : theme.text} borderRadius={999}
+                            disabled={propBookingBusyId === pb.id}
+                            onPress={() => updatePropBookingStatus(pb.id, s)}>{s}</Button>
+                        ))}
+                      </XStack>
+                    </YStack>
+                  );
+                })}
+                {!propBookings.length ? (
+                  <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
+                    <Text color={theme.text} fontWeight="800">No property bookings</Text>
+                    <Text color={theme.textMuted} fontSize={12}>Customers have not booked any properties yet.</Text>
                   </YStack>
                 ) : null}
               </YStack>

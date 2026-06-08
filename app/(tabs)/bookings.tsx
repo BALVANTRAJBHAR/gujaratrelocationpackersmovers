@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, Share, ToastAndroid } from 'react-native';
+import { Alert, FlatList, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
@@ -70,12 +70,80 @@ type Payment = {
   created_at: string;
 };
 
+type HomeServiceRow = {
+  id: string;
+  service_key: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  state: string | null;
+  city: string | null;
+  locality: string | null;
+  notes: string | null;
+  preferred_date: string | null;
+  preferred_time: string | null;
+  status: string | null;
+  created_at: string;
+  payment_option: string | null;
+  payment_status: string | null;
+  advance_payment: number | null;
+  provider_name: string | null;
+};
+
+type PropertyBookingRow = {
+  id: string;
+  property_id: string;
+  status: string;
+  message: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  created_at: string;
+  properties: { title: string | null; price: number | null; city: string | null; locality: string | null } | null;
+};
+
+type PropertyRow = {
+  id: string;
+  listing_type: string;
+  property_type: string | null;
+  title: string | null;
+  price: number | null;
+  state: string | null;
+  city: string | null;
+  locality: string | null;
+  status: string;
+  created_at: string;
+};
+
+const homeServiceLabel = (key: string) => {
+  const k = String(key ?? '').toLowerCase();
+  if (k === 'ac') return 'AC';
+  if (k === 'carpenter') return 'Carpenter';
+  if (k === 'electrician') return 'Electrician';
+  if (k === 'plumber') return 'Plumber';
+  if (k === 'pest') return 'Pest Control';
+  if (k === 'cleaning') return 'Deep Cleaning';
+  if (k === 'painting') return 'Painting';
+  return key;
+};
+
+const STATUS_COLORS_HS: Record<string, string> = {
+  pending: '#F97316',
+  assigned: '#3B82F6',
+  completed: '#10B981',
+  cancelled: '#EF4444',
+  paid: '#10B981',
+};
+
 export default function BookingsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const role = String(profile?.role ?? 'customer').toLowerCase().trim();
+  const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').toLowerCase().trim();
+
+  const [activeTab, setActiveTab] = useState<'shifting' | 'home_services' | 'properties'>('shifting');
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +163,14 @@ export default function BookingsScreen() {
   const [startPickerValue, setStartPickerValue] = useState<Date>(new Date());
   const [endPickerValue, setEndPickerValue] = useState<Date>(new Date());
   const [searchText, setSearchText] = useState('');
+
+  const [homeServiceItems, setHomeServiceItems] = useState<HomeServiceRow[]>([]);
+  const [hsSearch, setHsSearch] = useState('');
+
+  const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
+  const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
+  const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
+  const [pbBusyId, setPbBusyId] = useState<string | null>(null);
 
   const fetchSeqRef = useRef(0);
 
@@ -212,11 +288,70 @@ export default function BookingsScreen() {
     setBookings((data ?? []) as any);
   };
 
+  const fetchHomeServiceRequests = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('home_service_requests')
+        .select(
+          'id, service_key, customer_name, customer_phone, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, provider_name'
+        )
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      if (fetchError) return;
+      setHomeServiceItems(((data as any) ?? []) as HomeServiceRow[]);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchPropertyBookings = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const isOwner = role === 'provider' && providerSubtype === 'property_owner';
+      let query = supabase
+        .from('property_bookings')
+        .select('id, property_id, status, message, contact_name, contact_phone, created_at, properties(title, price, city, locality)');
+      if (role === 'admin') {
+        // admins see all
+      } else if (isOwner) {
+        query = query.eq('owner_user_id', session.user.id);
+      } else {
+        query = query.eq('user_id', session.user.id);
+      }
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false }).limit(60);
+      if (fetchError) return;
+      setPropertyBookings(((data as any) ?? []) as PropertyBookingRow[]);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchMyProperties = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('properties')
+        .select('id, listing_type, property_type, title, price, state, city, locality, status, created_at')
+        .eq('owner_user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      if (fetchError) return;
+      setMyProperties(((data as any) ?? []) as PropertyRow[]);
+    } catch {
+      // ignore
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (!session?.user?.id) return;
       setLoading(true);
-      fetchBookings().finally(() => setLoading(false));
+      const run = async () => {
+        await Promise.all([fetchBookings(), fetchHomeServiceRequests(), fetchPropertyBookings(), fetchMyProperties()]);
+      };
+      void run().finally(() => setLoading(false));
     }, [session?.user?.id])
   );
 
@@ -463,364 +598,265 @@ export default function BookingsScreen() {
     fetchPayments(bookingIds);
   }, [bookings]);
 
-  return (
-    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
-      <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} style={{ minHeight: 0 }}>
-        <YStack gap="$2" alignItems="center">
-          <H2 color={theme.text} textAlign="center">Your active moves</H2>
-        </YStack>
-
-        <YStack gap="$2">
-          <XStack gap="$2" flexWrap="wrap" alignItems="center">
-            {Platform.OS === 'web' ? (
-              <YStack
-                backgroundColor={theme.bgCardSecondary}
-                borderColor={theme.border}
-                borderWidth={1}
-                borderRadius={10}
-                paddingHorizontal={12}
-                paddingVertical={10}
-                minWidth={170}
-                flexGrow={1}
-                flexBasis={170}>
-                <input
-                  value={startDate}
-                  onChange={(e) => setStartDate((e.target as any).value)}
-                  type="date"
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: theme.inputText,
-                    outline: 'none',
-                  }}
-                />
-              </YStack>
-            ) : (
-              <Pressable
-                onPress={() => {
-                  setStartPickerValue(startDate ? new Date(`${startDate}T00:00:00.000Z`) : new Date());
-                  setStartDatePickerOpen(true);
-                }}
-                style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
-                <Input
-                  value={startDate}
-                  editable={false}
-                  pointerEvents="none"
-                  placeholder="Start date"
-                  backgroundColor={theme.bgCardSecondary}
-                  borderColor={theme.border}
-                  color={theme.inputText}
-                />
-              </Pressable>
-            )}
-
-            {Platform.OS === 'web' ? (
-              <YStack
-                backgroundColor={theme.bgCardSecondary}
-                borderColor={theme.border}
-                borderWidth={1}
-                borderRadius={10}
-                paddingHorizontal={12}
-                paddingVertical={10}
-                minWidth={170}
-                flexGrow={1}
-                flexBasis={170}>
-                <input
-                  value={endDate}
-                  onChange={(e) => setEndDate((e.target as any).value)}
-                  type="date"
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: theme.inputText,
-                    outline: 'none',
-                  }}
-                />
-              </YStack>
-            ) : (
-              <Pressable
-                onPress={() => {
-                  setEndPickerValue(endDate ? new Date(`${endDate}T00:00:00.000Z`) : new Date());
-                  setEndDatePickerOpen(true);
-                }}
-                style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
-                <Input
-                  value={endDate}
-                  editable={false}
-                  pointerEvents="none"
-                  placeholder="End date"
-                  backgroundColor={theme.bgCardSecondary}
-                  borderColor={theme.border}
-                  color={theme.inputText}
-                />
-              </Pressable>
-            )}
-            <Input
-              value={searchText}
-              onChangeText={setSearchText}
-              placeholder="Search pickup/drop"
+  const renderShiftingSection = () => (
+    <>
+      <YStack gap="$2" alignItems="center">
+        <H2 color={theme.text} textAlign="center">Your active moves</H2>
+      </YStack>
+      <YStack gap="$2">
+        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+          {Platform.OS === 'web' ? (
+            <YStack
               backgroundColor={theme.bgCardSecondary}
               borderColor={theme.border}
-              color={theme.inputText}
-              minWidth={220}
-              flexGrow={2}
-              flexBasis={220}
-            />
+              borderWidth={1}
+              borderRadius={10}
+              paddingHorizontal={12}
+              paddingVertical={10}
+              minWidth={170}
+              flexGrow={1}
+              flexBasis={170}>
+              <input
+                value={startDate}
+                onChange={(e) => setStartDate((e.target as any).value)}
+                type="date"
+                style={{
+                  width: '100%',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: theme.inputText,
+                  outline: 'none',
+                }}
+              />
+            </YStack>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setStartPickerValue(startDate ? new Date(`${startDate}T00:00:00.000Z`) : new Date());
+                setStartDatePickerOpen(true);
+              }}
+              style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+              <Input
+                value={startDate}
+                editable={false}
+                pointerEvents="none"
+                placeholder="Start date"
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
+                color={theme.inputText}
+              />
+            </Pressable>
+          )}
+          {Platform.OS === 'web' ? (
+            <YStack
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              borderWidth={1}
+              borderRadius={10}
+              paddingHorizontal={12}
+              paddingVertical={10}
+              minWidth={170}
+              flexGrow={1}
+              flexBasis={170}>
+              <input
+                value={endDate}
+                onChange={(e) => setEndDate((e.target as any).value)}
+                type="date"
+                style={{
+                  width: '100%',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: theme.inputText,
+                  outline: 'none',
+                }}
+              />
+            </YStack>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setEndPickerValue(endDate ? new Date(`${endDate}T00:00:00.000Z`) : new Date());
+                setEndDatePickerOpen(true);
+              }}
+              style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+              <Input
+                value={endDate}
+                editable={false}
+                pointerEvents="none"
+                placeholder="End date"
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
+                color={theme.inputText}
+              />
+            </Pressable>
+          )}
+          <Input
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search pickup/drop"
+            backgroundColor={theme.bgCardSecondary}
+            borderColor={theme.border}
+            color={theme.inputText}
+            minWidth={220}
+            flexGrow={2}
+            flexBasis={220}
+          />
+          <Button
+            size="$2"
+            backgroundColor={theme.bgCardSecondary}
+            color={theme.text}
+            borderRadius={10}
+            onPress={exportBookingsCsv}
+            disabled={!filteredBookings.length}>
+            Download report
+          </Button>
+        </XStack>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={[
+            { label: 'All', value: 'all' },
+            { label: 'Not started', value: 'not_started' },
+            { label: 'Pickup reached', value: 'pickup_reached' },
+            { label: 'Transit', value: 'in_transit' },
+            { label: 'Delivered', value: 'delivered' },
+          ]}
+          keyExtractor={(item) => item.value}
+          contentContainerStyle={{ gap: 8, paddingTop: 6, paddingBottom: 4 } as any}
+          renderItem={({ item }) => (
             <Button
               size="$2"
-              backgroundColor={theme.bgCardSecondary}
-              color={theme.text}
-              borderRadius={10}
-              onPress={exportBookingsCsv}
-              disabled={!filteredBookings.length}>
-              Download report
+              backgroundColor={statusFilter === item.value ? theme.accent : theme.bgCardSecondary}
+              color={statusFilter === item.value ? '#FFFFFF' : theme.inputText}
+              borderRadius={999}
+              onPress={() => setStatusFilter(item.value as typeof statusFilter)}>
+              {item.label}
             </Button>
-          </XStack>
-
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={[
-              { label: 'All', value: 'all' },
-              { label: 'Not started', value: 'not_started' },
-              { label: 'Pickup reached', value: 'pickup_reached' },
-              { label: 'Transit', value: 'in_transit' },
-              { label: 'Delivered', value: 'delivered' },
-            ]}
-            keyExtractor={(item) => item.value}
-            contentContainerStyle={{ gap: 8, paddingTop: 6, paddingBottom: 4 } as any}
-            renderItem={({ item }) => (
-              <Button
-                size="$2"
-                backgroundColor={statusFilter === item.value ? theme.accent : theme.bgCardSecondary}
-                color={statusFilter === item.value ? '#FFFFFF' : theme.inputText}
-                borderRadius={999}
-                onPress={() => setStatusFilter(item.value as typeof statusFilter)}>
-                {item.label}
-              </Button>
-            )}
+          )}
+        />
+        {startDatePickerOpen ? (
+          <DateTimePicker
+            value={startPickerValue}
+            mode="date"
+            onChange={(_event, selected) => {
+              if (!selected) { setStartDatePickerOpen(false); return; }
+              setStartDate(formatDate(selected));
+              setStartDatePickerOpen(false);
+            }}
           />
-
-          {startDatePickerOpen ? (
-            <DateTimePicker
-              value={startPickerValue}
-              mode="date"
-              onChange={(_event, selected) => {
-                if (!selected) {
-                  setStartDatePickerOpen(false);
-                  return;
-                }
-                setStartDate(formatDate(selected));
-                setStartDatePickerOpen(false);
-              }}
-            />
-          ) : null}
-
-          {endDatePickerOpen ? (
-            <DateTimePicker
-              value={endPickerValue}
-              mode="date"
-              onChange={(_event, selected) => {
-                if (!selected) {
-                  setEndDatePickerOpen(false);
-                  return;
-                }
-                setEndDate(formatDate(selected));
-                setEndDatePickerOpen(false);
-              }}
-            />
-          ) : null}
-
-        </YStack>
-
-        {loading ? (
-          <Text color={theme.textMuted}>Loading bookings...</Text>
-        ) : error ? (
-          <Text color="#FCA5A5">{error}</Text>
-        ) : !filteredBookings.length ? (
-          <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-            <Text color={theme.text} fontWeight="800" fontSize={14}>
-              No moves found
-            </Text>
-            <Text color={theme.textMuted} fontSize={12}>
-              Try adjusting filters or create a new booking.
-            </Text>
-          </YStack>
         ) : null}
-
-        <FlatList
-          data={filteredBookings}
-          keyExtractor={(item) => item.id}
-          style={{ flex: 1 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator
-          contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
-          renderItem={({ item }) => (
-            <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+        {endDatePickerOpen ? (
+          <DateTimePicker
+            value={endPickerValue}
+            mode="date"
+            onChange={(_event, selected) => {
+              if (!selected) { setEndDatePickerOpen(false); return; }
+              setEndDate(formatDate(selected));
+              setEndDatePickerOpen(false);
+            }}
+          />
+        ) : null}
+      </YStack>
+      {loading ? (
+        <Text color={theme.textMuted}>Loading bookings...</Text>
+      ) : error ? (
+        <Text color="#FCA5A5">{error}</Text>
+      ) : !filteredBookings.length ? (
+        <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+          <Text color={theme.text} fontWeight="800" fontSize={14}>No moves found</Text>
+          <Text color={theme.textMuted} fontSize={12}>Try adjusting filters or create a new booking.</Text>
+        </YStack>
+      ) : null}
+      <FlatList
+        data={filteredBookings}
+        keyExtractor={(item) => item.id}
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+        contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+        renderItem={({ item }) => (
+          <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text color={theme.text} fontWeight="700" fontSize={14}>
+                {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
+              </Text>
+              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={12} textTransform="uppercase">
+                {item.status ?? 'pending'}
+              </Text>
+            </XStack>
+            {renderStatusStepper(item.status)}
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text color={theme.textMuted} fontSize={12}>Payment</Text>
+              <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={12} textTransform="uppercase">
+                {item.payment_status ?? 'pending'}
+              </Text>
+            </XStack>
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text color={theme.textMuted} fontSize={12}>Paid</Text>
+              <Text color={theme.inputText} fontSize={12} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
+            </XStack>
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text color={theme.textMuted} fontSize={12}>Updated</Text>
+              <Text color={theme.inputText} fontSize={12}>
+                {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
+              </Text>
+            </XStack>
+            {item.driver_id ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.text} fontWeight="700" fontSize={14}>
-                  {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
-                </Text>
-                <Text
-                  color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent}
-                  fontSize={12}
-                  textTransform="uppercase">
-                  {item.status ?? 'pending'}
-                </Text>
+                <Text color={theme.textMuted} fontSize={12}>Driver</Text>
+                <Text color={theme.inputText} fontSize={12}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
               </XStack>
-
-              {renderStatusStepper(item.status)}
-
+            ) : null}
+            {!item.pickup_verified_at && item.pickup_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Payment</Text>
-                <Text
-                  color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent}
-                  fontSize={12}
-                  textTransform="uppercase">
-                  {item.payment_status ?? 'pending'}
-                </Text>
+                <Text color={theme.textMuted} fontSize={12}>Pickup OTP</Text>
+                <Text color={theme.inputText} fontSize={12} fontWeight="700">{String(item.pickup_otp)}</Text>
               </XStack>
+            ) : null}
+            {item.pickup_verified_at && !item.delivered_verified_at && item.delivery_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Paid</Text>
-                <Text color={theme.inputText} fontSize={12} fontWeight="700">
-                  ₹{Number(item.advance_amount ?? 0).toFixed(2)}
-                </Text>
+                <Text color={theme.textMuted} fontSize={12}>Delivery OTP</Text>
+                <Text color={theme.inputText} fontSize={12} fontWeight="700">{String(item.delivery_otp)}</Text>
               </XStack>
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Updated</Text>
-                <Text color={theme.inputText} fontSize={12}>
-                  {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
-                </Text>
-              </XStack>
-              {item.driver_id ? (
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.textMuted} fontSize={12}>Driver</Text>
-                  <Text color={theme.inputText} fontSize={12}>
-                    {item.driver?.[0]?.name ?? 'Assigned'}
-                  </Text>
-                </XStack>
-              ) : null}
-
-              {!item.pickup_verified_at && item.pickup_otp ? (
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.textMuted} fontSize={12}>Pickup OTP</Text>
-                  <Text color={theme.inputText} fontSize={12} fontWeight="700">
-                    {String(item.pickup_otp)}
-                  </Text>
-                </XStack>
-              ) : null}
-              {item.pickup_verified_at && !item.delivered_verified_at && item.delivery_otp ? (
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.textMuted} fontSize={12}>Delivery OTP</Text>
-                  <Text color={theme.inputText} fontSize={12} fontWeight="700">
-                    {String(item.delivery_otp)}
-                  </Text>
-                </XStack>
-              ) : null}
-
-              <XStack gap="$2" flexWrap="wrap">
-                <Button
-                  size="$2"
-                  backgroundColor={theme.bgCardSecondary}
-                  color={theme.text}
-                  borderRadius={10}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(tabs)/tracking',
-                      params: { bookingId: item.id },
-                    } as any)
-                  }>
-                  Track
-                </Button>
-                <Button
-                  size="$2"
-                  backgroundColor={theme.bgCardSecondary}
-                  color={theme.text}
-                  borderRadius={10}
-                  onPress={async () => {
-                    try {
-                      const msg = `Tracking ID: ${String(item.id)}\n\nOpen the app and go to Track, then paste this ID to see live status and driver location.`;
-                      await Share.share({ message: msg });
-                    } catch {
-                      if (Platform.OS === 'android') {
-                        ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT);
-                      }
-                    }
-                  }}>
-                  Share ID
-                </Button>
-                {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
-                  <>
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.danger}
-                      color="#FFFFFF"
-                      borderRadius={10}
-                      onPress={() => confirmBookingUpdate(item.id, 'cancelled')}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.accent}
-                      color={'#FFFFFF'}
-                      borderRadius={10}
-                      onPress={() => confirmBookingUpdate(item.id, 'rescheduled')}>
-                      Reschedule
-                    </Button>
-                  </>
-                ) : null}
-              </XStack>
+            ) : null}
+            <XStack gap="$2" flexWrap="wrap">
+              <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                onPress={() => router.push({ pathname: '/(tabs)/tracking', params: { bookingId: item.id } } as any)}>Track</Button>
+              <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                onPress={async () => {
+                  try { await Share.share({ message: `Tracking ID: ${String(item.id)}\n\nOpen the app and go to Track, then paste this ID to see live status and driver location.` }); }
+                  catch { if (Platform.OS === 'android') ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT); }
+                }}>Share ID</Button>
               {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                 <>
-                  <Button
-                    size="$2"
-                    backgroundColor={theme.accent}
-                    color={'#FFFFFF'}
-                    borderRadius={10}
-                    onPress={() => handleCreateOrder(item.id, Number(item.advance_amount ?? 500))}>
-                    Pay Advance
-                  </Button>
-                  <Button
-                    size="$2"
-                    backgroundColor={theme.bgCardSecondary}
-                    color={theme.text}
-                    borderRadius={10}
-                    onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>
-                    Pay Full
-                  </Button>
+                  <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                    onPress={() => confirmBookingUpdate(item.id, 'cancelled')}>Cancel</Button>
+                  <Button size="$2" backgroundColor={theme.accent} color={'#FFFFFF'} borderRadius={10}
+                    onPress={() => confirmBookingUpdate(item.id, 'rescheduled')}>Reschedule</Button>
                 </>
               ) : null}
-              {paymentInfo[item.id] ? (
-                <Text color={theme.textMuted} fontSize={12}>{paymentInfo[item.id]}</Text>
-              ) : null}
-              {paymentHistory[item.id]?.length ? (
-                <YStack gap="$1">
-                  <Text color={theme.textMuted} fontSize={12}>Payment history</Text>
-                  {paymentHistory[item.id].slice(0, 2).map((payment) => (
-                    <Text key={payment.id} color={theme.inputText} fontSize={11}>
-                      {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(
-                        payment.created_at
-                      ).toLocaleString()}
-                    </Text>
-                  ))}
-                  <Button
-                    size="$2"
-                    backgroundColor={theme.bgCardSecondary}
-                    color={theme.text}
-                    borderRadius={10}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/modal',
-                        params: { bookingId: item.id },
-                      } as any)
-                    }>
-                    View all
-                  </Button>
-                </YStack>
-              ) : null}
-            </YStack>
+            </XStack>
+            {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
+              <>
+                <Button size="$2" backgroundColor={theme.accent} color={'#FFFFFF'} borderRadius={10}
+                  onPress={() => handleCreateOrder(item.id, Number(item.advance_amount ?? 500))}>Pay Advance</Button>
+                <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                  onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>Pay Full</Button>
+              </>
+            ) : null}
+            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={12}>{paymentInfo[item.id]}</Text> : null}
+            {paymentHistory[item.id]?.length ? (
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontSize={12}>Payment history</Text>
+                {paymentHistory[item.id].slice(0, 2).map((payment) => (
+                  <Text key={payment.id} color={theme.inputText} fontSize={11}>
+                    {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
+                  </Text>
+                ))}
+                <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                  onPress={() => router.push({ pathname: '/modal', params: { bookingId: item.id } } as any)}>View all</Button>
+              </YStack>
+            ) : null}
+          </YStack>
         )}
       />
       {reschedulePickerBookingId ? (
@@ -828,10 +864,7 @@ export default function BookingsScreen() {
           value={reschedulePickerValue}
           mode="datetime"
           onChange={(_event, selected) => {
-            if (!selected) {
-              setReschedulePickerBookingId(null);
-              return;
-            }
+            if (!selected) { setReschedulePickerBookingId(null); return; }
             const bookingId = reschedulePickerBookingId;
             setReschedulePickerBookingId(null);
             const iso = selected.toISOString();
@@ -840,6 +873,208 @@ export default function BookingsScreen() {
           }}
         />
       ) : null}
+    </>
+  );
+
+  const renderHomeServicesSection = () => {
+    const filtered = homeServiceItems.filter((x) => {
+      const q = hsSearch.trim().toLowerCase();
+      if (!q) return true;
+      return homeServiceLabel(x.service_key ?? '').toLowerCase().includes(q)
+        || String(x.status ?? '').toLowerCase().includes(q)
+        || `${x.locality ?? ''} ${x.city ?? ''}`.toLowerCase().includes(q);
+    });
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <YStack gap="$3">
+          <H2 color={theme.text}>Home Service Requests</H2>
+          <Input
+            value={hsSearch}
+            onChangeText={setHsSearch}
+            placeholder="Search by service, status, or location"
+            backgroundColor={theme.bgCardSecondary}
+            borderColor={theme.border}
+            color={theme.inputText}
+          />
+          {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
+          {!filtered.length && !loading ? (
+            <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
+              <Text color={theme.text} fontWeight="800">No requests found</Text>
+              <Text color={theme.textMuted} fontSize={12}>Request a home service from the Home Services tab.</Text>
+            </YStack>
+          ) : null}
+          {filtered.map((r) => {
+            const statusColor = STATUS_COLORS_HS[r.status ?? 'pending'] ?? theme.warning;
+            const slot = `${r.preferred_date ?? '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
+            const loc = [r.locality, r.city, r.state].filter(Boolean).join(', ') || '—';
+            return (
+              <YStack key={r.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text color={theme.text} fontWeight="700" fontSize={14}>{homeServiceLabel(r.service_key ?? '')}</Text>
+                  <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
+                </XStack>
+                <Text color={theme.textMuted} fontSize={12}>Location: {loc}</Text>
+                <Text color={theme.textMuted} fontSize={12}>Slot: {slot}</Text>
+                {r.notes ? <Text color={theme.textMuted} fontSize={12}>Notes: {r.notes}</Text> : null}
+                {r.provider_name ? <Text color={theme.textMuted} fontSize={12}>Provider: {r.provider_name}</Text> : null}
+                {r.payment_option ? <Text color={theme.textMuted} fontSize={12}>Payment: {r.payment_option}</Text> : null}
+              </YStack>
+            );
+          })}
+        </YStack>
+      </ScrollView>
+    );
+  };
+
+  const renderPropertiesSection = () => {
+    const isOwner = role === 'provider' && providerSubtype === 'property_owner';
+    const canToggle = role === 'customer' || isOwner;
+    const tabs = [];
+    const showBooked = propertySection === 'booked';
+    const showListings = propertySection === 'my_listings';
+    if (canToggle) {
+      if (role === 'customer') tabs.push({ label: 'Booked / Inquired', value: 'booked' });
+      if (role === 'customer') tabs.push({ label: 'My Properties', value: 'my_listings' });
+      if (isOwner) tabs.push({ label: 'My Listings', value: 'my_listings' });
+      if (isOwner) tabs.push({ label: 'Customer Bookings', value: 'booked' });
+    }
+    const handleCancelBooking = async (bookingId: string) => {
+      setPbBusyId(bookingId);
+      try {
+        await supabase.from('property_bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+        await fetchPropertyBookings();
+      } catch { /* ignore */ } finally { setPbBusyId(null); }
+    };
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <YStack gap="$3">
+          <H2 color={theme.text}>Properties</H2>
+          {canToggle && tabs.length > 1 ? (
+            <XStack gap="$2" flexWrap="wrap">
+              {tabs.map((t) => (
+                <Button key={t.value} size="$2"
+                  backgroundColor={propertySection === t.value ? theme.accent : theme.bgCardSecondary}
+                  color={propertySection === t.value ? '#FFFFFF' : theme.text} borderRadius={999}
+                  onPress={() => setPropertySection(t.value as typeof propertySection)}>{t.label}</Button>
+              ))}
+            </XStack>
+          ) : null}
+          {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
+          {showBooked ? (
+            <>
+              {!propertyBookings.length && !loading ? (
+                <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="800">No bookings yet</Text>
+                  <Text color={theme.textMuted} fontSize={12}>Browse properties and send an inquiry.</Text>
+                </YStack>
+              ) : null}
+              {propertyBookings.map((pb) => {
+                const prop = pb.properties;
+                const statusColor = STATUS_COLORS_HS[pb.status] ?? theme.warning;
+                return (
+                  <YStack key={pb.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                    <XStack justifyContent="space-between" alignItems="center">
+                      <YStack flex={1} gap={4}>
+                        <Text color={theme.text} fontWeight="700" fontSize={14}>{prop?.title ?? 'Property'}</Text>
+                        <Text color={theme.textMuted} fontSize={12}>
+                          {[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}
+                        </Text>
+                        {prop?.price != null ? (
+                          <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
+                        ) : null}
+                      </YStack>
+                      <YStack alignItems="flex-end" gap={6}>
+                        <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                        <Text color={theme.textMuted} fontSize={11}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                      </YStack>
+                    </XStack>
+                    {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (
+                      <XStack gap="$2">
+                        <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                          disabled={pbBusyId === pb.id}
+                          onPress={() => handleCancelBooking(pb.id)}>Cancel</Button>
+                        <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                          onPress={() => router.push({ pathname: '/properties/[id]', params: { id: pb.property_id } } as any)}>View</Button>
+                      </XStack>
+                    ) : null}
+                    {isOwner && pb.status === 'pending' ? (
+                      <XStack gap="$2">
+                        <Button size="$2" backgroundColor={theme.success} color="#FFFFFF" borderRadius={10}
+                          disabled={pbBusyId === pb.id}
+                          onPress={async () => {
+                            setPbBusyId(pb.id);
+                            try {
+                              await supabase.from('property_bookings').update({ status: 'confirmed' }).eq('id', pb.id);
+                              await fetchPropertyBookings();
+                            } catch { /* ignore */ } finally { setPbBusyId(null); }
+                          }}>Confirm</Button>
+                        <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                          disabled={pbBusyId === pb.id}
+                          onPress={() => handleCancelBooking(pb.id)}>Reject</Button>
+                      </XStack>
+                    ) : null}
+                  </YStack>
+                );
+              })}
+            </>
+          ) : null}
+          {showListings ? (
+            <>
+              <XStack gap="$2" flexWrap="wrap">
+                <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                  onPress={() => router.push('/properties/post' as any)}>Post Property</Button>
+              </XStack>
+              {!myProperties.length && !loading ? (
+                <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="800">No properties listed</Text>
+                  <Text color={theme.textMuted} fontSize={12}>Post your first property listing.</Text>
+                </YStack>
+              ) : null}
+              {myProperties.map((p) => (
+                <YStack key={p.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <YStack flex={1} gap={4}>
+                      <Text color={theme.text} fontWeight="700" fontSize={14}>{p.title ?? 'Property'}</Text>
+                      <Text color={theme.textMuted} fontSize={12}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
+                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
+                    </YStack>
+                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={12} fontWeight="700" textTransform="uppercase">{p.status}</Text>
+                  </XStack>
+                  <XStack gap="$2">
+                    <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                      onPress={() => router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any)}>View</Button>
+                    <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                      onPress={() => router.push('/properties/post' as any)}>Edit</Button>
+                  </XStack>
+                </YStack>
+              ))}
+            </>
+          ) : null}
+        </YStack>
+      </ScrollView>
+    );
+  };
+
+  return (
+    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
+      <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} style={{ minHeight: 0 }}>
+        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginBottom={8}>
+          <Button size="$2"
+            backgroundColor={activeTab === 'shifting' ? theme.accent : theme.bgCardSecondary}
+            color={activeTab === 'shifting' ? '#FFFFFF' : theme.text} borderRadius={999}
+            onPress={() => setActiveTab('shifting')}>Shifting</Button>
+          <Button size="$2"
+            backgroundColor={activeTab === 'home_services' ? theme.accent : theme.bgCardSecondary}
+            color={activeTab === 'home_services' ? '#FFFFFF' : theme.text} borderRadius={999}
+            onPress={() => setActiveTab('home_services')}>Home Services</Button>
+          <Button size="$2"
+            backgroundColor={activeTab === 'properties' ? theme.accent : theme.bgCardSecondary}
+            color={activeTab === 'properties' ? '#FFFFFF' : theme.text} borderRadius={999}
+            onPress={() => setActiveTab('properties')}>Properties</Button>
+        </XStack>
+        {activeTab === 'shifting' ? renderShiftingSection() : null}
+        {activeTab === 'home_services' ? renderHomeServicesSection() : null}
+        {activeTab === 'properties' ? renderPropertiesSection() : null}
       </YStack>
     </YStack>
   );

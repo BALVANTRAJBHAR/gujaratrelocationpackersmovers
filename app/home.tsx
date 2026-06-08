@@ -328,6 +328,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const { width: windowWidth } = useWindowDimensions();
   const appColorScheme = useAppColorScheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [headerHovered, setHeaderHovered] = useState<string | null>(null);
+  const [footerHovered, setFooterHovered] = useState<string | null>(null);
   const [activeService, setActiveService] = useState<'shifting' | 'home_services' | 'property'>('shifting');
   const [topSearch, setTopSearch] = useState('');
   const [propertyMode, setPropertyMode] = useState<'buy' | 'rent' | 'commercial'>('rent');
@@ -1686,6 +1688,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 {menuItems.map((item) => (
                   <Pressable
                     key={item}
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                     onPress={() => {
                       if (item === 'Home') router.push('/home');
                       if (item === 'Services') scrollToSection('services');
@@ -1704,12 +1708,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       borderRadius={14}
                       backgroundColor={theme.menuBg}
                       borderWidth={1}
-                      borderColor="rgba(255,255,255,0.12)"
+                      borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                       shadowColor={theme.shadow}
                       shadowOffset={{ width: 0, height: 3 }}
                       shadowOpacity={0.12}
                       shadowRadius={6}
-                      elevation={3}>
+                      elevation={3}
+                      style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text
                         color={theme.menuText}
                         fontSize={15}
@@ -1722,19 +1727,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   </Pressable>
                 ))}
 
-                <Pressable onPress={toggleTheme}>
+                <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
                   <YStack
                     paddingHorizontal={18}
                     paddingVertical={12}
                     borderRadius={14}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
-                    borderColor="rgba(255,255,255,0.12)"
+                    borderColor={headerHovered === 'theme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                     shadowColor={theme.shadow}
                     shadowOffset={{ width: 0, height: 3 }}
                     shadowOpacity={0.12}
                     shadowRadius={6}
-                    elevation={3}>
+                    elevation={3}
+                    style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                     <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
                       {isDarkMode ? '☀️' : '🌙'}
                     </Text>
@@ -1746,6 +1752,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {canManage && (
                       <>
                         <Pressable
+                          onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('notif') : undefined}
+                          onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                           onPress={() => {
                             router.push('/notifications' as any);
                           }}>
@@ -1755,14 +1763,15 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             borderRadius={14}
                             backgroundColor={theme.menuBg}
                             borderWidth={1}
-                            borderColor="rgba(255,255,255,0.12)"
+                            borderColor={headerHovered === 'notif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                             shadowColor={theme.shadow}
                             shadowOffset={{ width: 0, height: 3 }}
                             shadowOpacity={0.12}
                             shadowRadius={6}
                             elevation={3}
                             alignItems="center"
-                            justifyContent="center">
+                            justifyContent="center"
+                            style={headerHovered === 'notif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                             <View style={{ position: 'relative', width: 22, height: 22 } as any}>
                               <FontAwesome name="bell" size={18} color={theme.menuText} />
                               {unreadCount > 0 ? (
@@ -1790,19 +1799,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       </>
                     )}
 
-                    <Pressable onPress={handleDashboardSafe}>
+                    <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('dashboard') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={handleDashboardSafe}>
                       <YStack
                         paddingHorizontal={22}
                         paddingVertical={12}
                         borderRadius={14}
                         backgroundColor={theme.menuBg}
                         borderWidth={1}
-                        borderColor="rgba(255,255,255,0.12)"
+                        borderColor={headerHovered === 'dashboard' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                         shadowColor={theme.shadow}
                         shadowOffset={{ width: 0, height: 3 }}
                         shadowOpacity={0.12}
                         shadowRadius={6}
-                        elevation={3}>
+                        elevation={3}
+                        style={headerHovered === 'dashboard' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                         <Text
                           color={theme.menuText}
                           fontSize={15}
@@ -1812,23 +1822,24 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         </Text>
                       </YStack>
                     </Pressable>
-
+                    
                     {Platform.OS !== 'android' && (
-                      <Pressable onPress={() => router.push('/auth/profile')}>
+                      <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('profile') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => router.push('/auth/profile')}>
                         <YStack
                           paddingHorizontal={16}
                           paddingVertical={12}
                           borderRadius={14}
                           backgroundColor={theme.menuBg}
                           borderWidth={1}
-                          borderColor="rgba(255,255,255,0.12)"
+                          borderColor={headerHovered === 'profile' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                           shadowColor={theme.shadow}
                           shadowOffset={{ width: 0, height: 3 }}
                           shadowOpacity={0.12}
                           shadowRadius={6}
                           elevation={3}
                           alignItems="center"
-                          justifyContent="center">
+                          justifyContent="center"
+                          style={headerHovered === 'profile' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                           <Text
                             color={theme.menuText}
                             fontSize={15}
@@ -1839,22 +1850,23 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         </YStack>
                       </Pressable>
                     )}
-
-                    <Pressable onPress={handleLogout}>
+                    
+                    <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={handleLogout}>
                       <YStack
                         paddingHorizontal={16}
                         paddingVertical={12}
                         borderRadius={14}
                         backgroundColor={theme.menuBg}
                         borderWidth={1}
-                        borderColor="rgba(255,255,255,0.12)"
+                        borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                         shadowColor={theme.shadow}
                         shadowOffset={{ width: 0, height: 3 }}
                         shadowOpacity={0.12}
                         shadowRadius={6}
                         elevation={3}
                         alignItems="center"
-                        justifyContent="center">
+                        justifyContent="center"
+                        style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                         {MaterialIcons ? (
                           <MaterialIcons name="logout" size={20} color={theme.menuText} />
                         ) : (
@@ -1866,19 +1878,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </Pressable>
                   </>
                 ) : (
-                  <Pressable onPress={() => router.push('/auth/login')}>
+                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => router.push('/auth/login')}>
                     <YStack
                       paddingHorizontal={22}
                       paddingVertical={12}
                       borderRadius={14}
                       backgroundColor={theme.menuBg}
                       borderWidth={1}
-                      borderColor="rgba(255,255,255,0.12)"
+                      borderColor={headerHovered === 'signin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                       shadowColor={theme.shadow}
                       shadowOffset={{ width: 0, height: 3 }}
                       shadowOpacity={0.12}
                       shadowRadius={6}
-                      elevation={3}>
+                      elevation={3}
+                      style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text
                         color={theme.menuText}
                         fontSize={15}
@@ -1893,19 +1906,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </ScrollView>
           ) : (
             <XStack gap="$2" alignItems="center">
-              <Pressable onPress={toggleTheme}>
+              <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
                 <YStack
                   paddingHorizontal={16}
                   paddingVertical={11}
                   borderRadius={12}
                   backgroundColor={theme.menuBg}
                   borderWidth={1}
-                  borderColor="rgba(255,255,255,0.12)"
+                  borderColor={headerHovered === 'mtheme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                   shadowColor={theme.shadow}
                   shadowOffset={{ width: 0, height: 3 }}
                   shadowOpacity={0.12}
                   shadowRadius={6}
-                  elevation={3}>
+                  elevation={3}
+                  style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                   <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
                     {isDarkMode ? '☀️' : '🌙'}
                   </Text>
@@ -1914,6 +1928,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
               {session && canManage ? (
                 <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mnotif') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                   onPress={() => {
                     router.push('/notifications' as any);
                   }}>
@@ -1923,14 +1939,15 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
-                    borderColor="rgba(255,255,255,0.12)"
+                    borderColor={headerHovered === 'mnotif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                     shadowColor={theme.shadow}
                     shadowOffset={{ width: 0, height: 3 }}
                     shadowOpacity={0.12}
                     shadowRadius={6}
                     elevation={3}
                     alignItems="center"
-                    justifyContent="center">
+                    justifyContent="center"
+                    style={headerHovered === 'mnotif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                     <View style={{ position: 'relative', width: 22, height: 22 } as any}>
                       <FontAwesome name="bell" size={18} color={theme.menuText} />
                       {unreadCount > 0 ? (
@@ -1957,19 +1974,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </Pressable>
               ) : null}
 
-              <Pressable onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mhamburger') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 <YStack
                   paddingHorizontal={16}
                   paddingVertical={11}
                   borderRadius={12}
                   backgroundColor={theme.menuBg}
                   borderWidth={1}
-                  borderColor="rgba(255,255,255,0.12)"
+                  borderColor={headerHovered === 'mhamburger' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
                   shadowColor={theme.shadow}
                   shadowOffset={{ width: 0, height: 3 }}
                   shadowOpacity={0.12}
                   shadowRadius={6}
-                  elevation={3}>
+                  elevation={3}
+                  style={headerHovered === 'mhamburger' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                   <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
                     ☰
                   </Text>
@@ -3157,9 +3175,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   style={[styles.modalTextarea, { borderColor: theme.border, color: theme.text, fontFamily: 'Georgia' }]}
                 />
 
-                <Pressable disabled={quoteSubmitting} onPress={submitQuoteRequest}>
+                <Pressable
+                  disabled={quoteSubmitting}
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('qcallback') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                  onPress={submitQuoteRequest}>
                   <YStack
-                    style={[styles.modalSubmit, { backgroundColor: theme.primary, opacity: quoteSubmitting ? 0.7 : 1 }]}>
+                    style={[styles.modalSubmit, { backgroundColor: theme.primary, opacity: quoteSubmitting ? 0.7 : 1, borderWidth: 1, borderColor: headerHovered === 'qcallback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'qcallback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
                     <Text color="#FFFFFF" fontSize={20} fontWeight="900" style={{ fontFamily: 'Georgia' }}>
                       {quoteSubmitting ? 'Submitting…' : 'Request Callback'}
                     </Text>
@@ -3477,6 +3499,59 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             )}
           </YStack>
 
+          <YStack marginTop={64} gap="$4">
+            <YStack alignItems="center" gap="$2.5">
+              <Text
+                color="#D97706"
+                fontSize={14}
+                letterSpacing={2.4}
+                textTransform="uppercase"
+                fontWeight="900"
+                style={{ fontFamily: 'Georgia' }}>
+                Our Branches
+              </Text>
+              <H2
+                color={theme.text}
+                fontWeight="900"
+                textAlign="center"
+                fontSize={isSmallScreen ? 26 : 34}
+                style={{ fontFamily: 'Georgia' }}>
+                We Are Across India
+              </H2>
+            </YStack>
+
+            <XStack flexWrap="wrap" justifyContent="center" gap="$4">
+              {[
+                { name: 'Mumbai', addr: 'Sethia Aashray, Mumbai 400101' },
+                { name: 'Delhi', addr: 'Connaught Place, New Delhi 110001' },
+                { name: 'Kolkata', addr: 'Park Street, Kolkata 700016' },
+                { name: 'Hyderabad', addr: 'Hitech City, Hyderabad 500081' },
+                { name: 'Gujarat', addr: 'SG Highway, Ahmedabad 380054' },
+              ].map((b) => (
+                <YStack
+                  key={b.name}
+                  backgroundColor={theme.bgCard}
+                  borderRadius={16}
+                  padding={16}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  width={isSmallScreen ? '100%' : '30%'}
+                  minWidth={isSmallScreen ? '100%' : 200}
+                  maxWidth={360}
+                  alignItems="center"
+                  gap="$2">
+                  <FontAwesome name="map-marker" size={28} color="#EF4444" />
+                  <Text color={theme.text} fontSize={15} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                    {b.name}
+                  </Text>
+                  <Text color={theme.textMuted} fontSize={12} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
+                    {b.addr}
+                  </Text>
+                </YStack>
+              ))}
+            </XStack>
+          </YStack>
+
           <YStack marginTop={64} alignItems="center">
             <YStack
               style={[
@@ -3546,59 +3621,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </YStack>
               </XStack>
             </YStack>
-          </YStack>
-
-          <YStack marginTop={64} gap="$4">
-            <YStack alignItems="center" gap="$2.5">
-              <Text
-                color="#D97706"
-                fontSize={14}
-                letterSpacing={2.4}
-                textTransform="uppercase"
-                fontWeight="900"
-                style={{ fontFamily: 'Georgia' }}>
-                Our Branches
-              </Text>
-              <H2
-                color={theme.text}
-                fontWeight="900"
-                textAlign="center"
-                fontSize={isSmallScreen ? 26 : 34}
-                style={{ fontFamily: 'Georgia' }}>
-                We Are Across India
-              </H2>
-            </YStack>
-
-            <XStack flexWrap="wrap" justifyContent="center" gap="$4">
-              {[
-                { name: 'Mumbai', addr: 'Sethia Aashray, Mumbai 400101' },
-                { name: 'Delhi', addr: 'Connaught Place, New Delhi 110001' },
-                { name: 'Kolkata', addr: 'Park Street, Kolkata 700016' },
-                { name: 'Hyderabad', addr: 'Hitech City, Hyderabad 500081' },
-                { name: 'Gujarat', addr: 'SG Highway, Ahmedabad 380054' },
-              ].map((b) => (
-                <YStack
-                  key={b.name}
-                  backgroundColor={theme.bgCard}
-                  borderRadius={16}
-                  padding={16}
-                  borderWidth={1}
-                  borderColor={theme.border}
-                  width={isSmallScreen ? '100%' : '30%'}
-                  minWidth={isSmallScreen ? '100%' : 200}
-                  maxWidth={360}
-                  alignItems="center"
-                  gap="$2">
-                  <FontAwesome name="map-marker" size={28} color="#EF4444" />
-                  <Text color={theme.text} fontSize={15} fontWeight="900" textAlign="center" style={{ fontFamily: 'Georgia' }}>
-                    {b.name}
-                  </Text>
-                  <Text color={theme.textMuted} fontSize={12} fontWeight="700" textAlign="center" style={{ fontFamily: 'Georgia' }}>
-                    {b.addr}
-                  </Text>
-                </YStack>
-              ))}
-            </XStack>
           </YStack>
 
           <YStack marginTop={64} gap="$4">
@@ -4257,13 +4279,17 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 const right = services.slice(4);
 
                 const renderService = (s: (typeof services)[number]) => (
-                  <Pressable key={s.label} onPress={() => router.push(s.route as any)}>
+                  <Pressable
+                    key={s.label}
+                    onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('svc_' + s.label) : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
+                    onPress={() => router.push(s.route as any)}>
                     <XStack alignItems="center" gap="$2.5" paddingVertical={5}>
                       <Text color="#D97706" fontWeight="900">
                         ›
                       </Text>
                       <Text
-                        color={theme.textSecondary}
+                        color={footerHovered === 'svc_' + s.label ? '#D97706' : theme.textSecondary}
                         fontSize={13}
                         fontWeight="800"
                         style={{ fontFamily: 'Georgia' }}>
@@ -4348,9 +4374,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     },
                     { label: 'Contact', action: () => scrollToSection('contact') },
                   ].map((l) => (
-                    <Pressable key={l.label} onPress={l.action}>
+                    <Pressable
+                      key={l.label}
+                      onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('ql_' + l.label) : undefined}
+                      onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
+                      onPress={l.action}>
                       <Text
-                        color={theme.textSecondary}
+                        color={footerHovered === 'ql_' + l.label ? '#D97706' : theme.textSecondary}
                         fontSize={13}
                         fontWeight="800"
                         paddingVertical={7}
@@ -4365,13 +4395,15 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
             <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2.5" marginTop={20}>
               <Pressable
+                onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('copyright') : undefined}
+                onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                 onPress={() =>
                   Linking.openURL(
                     'https://www.google.com/search?q=BT+SOFTECH&sca_esv=1ef01aa32e62b85d&sxsrf=ANbL-n4Qxg11bZze2VYtDUukS4Om-AfTZQ%3A1772388277243&ei=tX-kacnJDrSQseMP5pOl4QU&biw=1366&bih=641&ved=0ahUKEwiJ-KztpP-SAxU0SGwGHeZJKVwQ4dUDCBM&uact=5&oq=BT+SOFTECH&gs_lp=Egxnd3Mtd2l6LXNlcnAiCkJUIFNPRlRFQ0gyDRAuGIAEGMcBGA0YrwEyBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBhAAGA0YHjIGEAAYDRgeMgYQABgNGB4yBhAAGA0YHjIcEC4YgAQYxwEYDRivARiXBRjcBBjeBBjgBNgBAUiZTVD8DliiRHACeAGQAQCYAboBoAGSCaoBAzAuOLgBA8gBAPgBAZgCB6ACtwbCAgoQABiwAxjWBBhHwgIEECMYJ8ICBRAAGO8FwgIIEAAYogQYiQWYAwCIBgGQBgK6BgYIARABGBSSBwMyLjWgB8oesgcDMC41uAefBsIHBzAuMi4zLjLIByuACAA&sclient=gws-wiz-serp'
                   )
                 }>
                 <Text
-                  color={theme.textMuted}
+                  color={footerHovered === 'copyright' ? '#D97706' : theme.textMuted}
                   fontSize={12}
                   fontWeight="800"
                   style={
@@ -4391,13 +4423,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </Text>
               </Pressable>
               <XStack gap="$3.5" alignItems="center">
-                <Pressable onPress={() => router.push('/privacy-policy')}>
-                  <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('privacy') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
+                  onPress={() => router.push('/privacy-policy')}>
+                  <Text color={footerHovered === 'privacy' ? '#D97706' : theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
                     Privacy Policy
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => router.push('/terms-and-conditions')}>
-                  <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('terms') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
+                  onPress={() => router.push('/terms-and-conditions')}>
+                  <Text color={footerHovered === 'terms' ? '#D97706' : theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Georgia' }}>
                     Terms & Conditions
                   </Text>
                 </Pressable>
@@ -4786,7 +4824,7 @@ const styles = StyleSheet.create({
     minWidth: 44,
     minHeight: 44,
     padding: 0,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',

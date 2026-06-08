@@ -250,6 +250,7 @@ export default function ServiceDetailScreen() {
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [headerHovered, setHeaderHovered] = useState<string | null>(null);
   const isSmallScreen = screenWidth <= 768;
 
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
@@ -385,6 +386,8 @@ export default function ServiceDetailScreen() {
                   {menuItems.map((item) => (
                     <Pressable
                       key={item}
+                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
+                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                       onPress={() => {
                         if (item === 'Home') router.push('/home');
                         if (item === 'Services') router.push('/home');
@@ -392,8 +395,25 @@ export default function ServiceDetailScreen() {
                         if (item === 'Contact') router.push('/home');
                       }}
                     >
-                      <YStack paddingHorizontal={20} paddingVertical={12} borderRadius={12} backgroundColor={theme.primary}>
-                        <Text color="#FFFFFF" fontSize={14} fontWeight="700" letterSpacing={0.5}>
+                      <YStack
+                        paddingHorizontal={22}
+                        paddingVertical={12}
+                        borderRadius={14}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}
+                        style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                        <Text
+                          color={theme.menuText}
+                          fontSize={15}
+                          fontWeight="700"
+                          letterSpacing={0.3}
+                          style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
                           {item}
                         </Text>
                       </YStack>
@@ -402,21 +422,72 @@ export default function ServiceDetailScreen() {
 
                   {session ? (
                     <>
-                      <Pressable onPress={handleBook}>
-                        <YStack paddingHorizontal={18} paddingVertical={12} borderRadius={12} backgroundColor={theme.accent}>
-                          <Text color="#FFFFFF" fontSize={14} fontWeight="800">My Bookings</Text>
+                      <Pressable
+                        onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('bookings') : undefined}
+                        onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                        onPress={handleBook}>
+                        <YStack
+                          paddingHorizontal={22}
+                          paddingVertical={12}
+                          borderRadius={14}
+                          backgroundColor={theme.menuBg}
+                          borderWidth={1}
+                          borderColor={headerHovered === 'bookings' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                          shadowColor={theme.shadow}
+                          shadowOffset={{ width: 0, height: 3 }}
+                          shadowOpacity={0.12}
+                          shadowRadius={6}
+                          elevation={3}
+                          style={headerHovered === 'bookings' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                            My Bookings
+                          </Text>
                         </YStack>
                       </Pressable>
-                      <Pressable onPress={handleLogout}>
-                        <YStack paddingHorizontal={14} paddingVertical={12} borderRadius={12} backgroundColor={theme.bgSecondary}>
-                          <Text color={theme.menuText} fontSize={14} fontWeight="800">Logout</Text>
+                      <Pressable
+                        onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined}
+                        onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                        onPress={handleLogout}>
+                        <YStack
+                          paddingHorizontal={22}
+                          paddingVertical={12}
+                          borderRadius={14}
+                          backgroundColor={theme.menuBg}
+                          borderWidth={1}
+                          borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                          shadowColor={theme.shadow}
+                          shadowOffset={{ width: 0, height: 3 }}
+                          shadowOpacity={0.12}
+                          shadowRadius={6}
+                          elevation={3}
+                          style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                            Logout
+                          </Text>
                         </YStack>
                       </Pressable>
                     </>
                   ) : (
-                    <Pressable onPress={() => router.push('/auth/login')}>
-                      <YStack paddingHorizontal={24} paddingVertical={12} borderRadius={12} backgroundColor={theme.bgSecondary}>
-                        <Text color={theme.menuText} fontSize={14} fontWeight="800">Login</Text>
+                    <Pressable
+                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('login') : undefined}
+                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                      onPress={() => router.push('/auth/login')}>
+                      <YStack
+                        paddingHorizontal={22}
+                        paddingVertical={12}
+                        borderRadius={14}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor={headerHovered === 'login' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}
+                        style={headerHovered === 'login' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                        <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                          Login
+                        </Text>
                       </YStack>
                     </Pressable>
                   )}
@@ -424,9 +495,26 @@ export default function ServiceDetailScreen() {
               </ScrollView>
             ) : (
               <XStack gap="$2" alignItems="center">
-                <Pressable onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                  <YStack paddingHorizontal={16} paddingVertical={12} borderRadius={10} backgroundColor={theme.primary}>
-                    <Text color="#FFFFFF" fontSize={20} fontWeight="900">☰</Text>
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('hamburger') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                  onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                  <YStack
+                    paddingHorizontal={16}
+                    paddingVertical={11}
+                    borderRadius={12}
+                    backgroundColor={theme.menuBg}
+                    borderWidth={1}
+                    borderColor={headerHovered === 'hamburger' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                    shadowColor={theme.shadow}
+                    shadowOffset={{ width: 0, height: 3 }}
+                    shadowOpacity={0.12}
+                    shadowRadius={6}
+                    elevation={3}
+                    style={headerHovered === 'hamburger' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                    <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
+                      ☰
+                    </Text>
                   </YStack>
                 </Pressable>
               </XStack>
@@ -513,17 +601,22 @@ export default function ServiceDetailScreen() {
             </YStack>
             <XStack gap="$2" flexWrap="wrap" marginTop={10}>
               <Pressable
+                onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('callback') : undefined}
+                onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                 onPress={() => {
                   setQuoteMessage(service.title);
                   setQuoteModalOpen(true);
                 }}
               >
-                <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent }]}>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent, borderWidth: 1, borderColor: headerHovered === 'callback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'callback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
                   <Text color="#111827" fontWeight="900" fontSize={13}>Request Callback</Text>
                 </YStack>
               </Pressable>
-              <Pressable onPress={handleBook}>
-                <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary }]}>
+              <Pressable
+                onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('booknow') : undefined}
+                onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                onPress={handleBook}>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary, borderWidth: 1, borderColor: headerHovered === 'booknow' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'booknow' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
                   <Text color={theme.menuText} fontWeight="900" fontSize={13}>Book Now</Text>
                 </YStack>
               </Pressable>
