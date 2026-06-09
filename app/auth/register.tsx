@@ -565,7 +565,6 @@ export default function RegisterDetailsScreen() {
             name: name.trim() || null,
             phone: digits,
             role: 'provider',
-            provider_type: providerSubtype || 'home_service',
             provider_services: providerServices,
             is_verified: true,
           },
