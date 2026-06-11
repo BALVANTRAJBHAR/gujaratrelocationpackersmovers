@@ -2809,21 +2809,30 @@ export default function BookingWizardScreen() {
                     padding={14}
                     borderWidth={1}
                     borderColor="#F59E0B"
-                    justifyContent="space-between"
+                    gap="$3"
                     flexDirection="row"
                     alignItems="center">
-                    <YStack gap="$1">
+                    <YStack gap="$1" flex={1} minWidth={0}>
                       <Text color="#92400E" fontWeight="900">
                         Advance Payment
                       </Text>
-                      <Text color="#B45309" fontSize={12}>
+                      <Text color="#B45309" fontSize={12} flexShrink={1}>
                         Pay now to confirm booking
                       </Text>
-                      <Text color="#B45309" fontSize={11}>
+                      <Text color="#B45309" fontSize={11} flexShrink={1}>
                         Remaining {currency(Math.max(total - form.advanceAmount, 0))} will be collected after delivery
                       </Text>
                     </YStack>
-                    <Text color="#92400E" fontSize={20} fontWeight="900">
+                    <Text
+                      color="#92400E"
+                      fontSize={20}
+                      fontWeight="900"
+                      flexShrink={0}
+                      maxWidth="40%"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                      textAlign="right">
                       {currency(form.advanceAmount)}
                     </Text>
                   </YStack>
@@ -2998,12 +3007,23 @@ export default function BookingWizardScreen() {
                 {otpSending ? 'Sending…' : 'Resend OTP'}
               </Button>
 
-              <YStack backgroundColor="#FEF3C7" borderRadius={14} padding={14} borderWidth={1} borderColor="#F59E0B" width="100%" justifyContent="space-between" flexDirection="row" alignItems="center">
-                <YStack>
+              <YStack backgroundColor="#FEF3C7" borderRadius={14} padding={14} borderWidth={1} borderColor="#F59E0B" width="100%" gap="$3" flexDirection="row" alignItems="center">
+                <YStack flex={1} minWidth={0}>
                   <Text color="#92400E" fontWeight="900">Advance Payment</Text>
-                  <Text color="#B45309" fontSize={12}>Pay now to confirm booking</Text>
+                  <Text color="#B45309" fontSize={12} flexShrink={1}>Pay now to confirm booking</Text>
                 </YStack>
-                <Text color="#92400E" fontSize={18} fontWeight="900">{currency(form.advanceAmount)}</Text>
+                <Text
+                  color="#92400E"
+                  fontSize={18}
+                  fontWeight="900"
+                  flexShrink={0}
+                  maxWidth="40%"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                  textAlign="right">
+                  {currency(form.advanceAmount)}
+                </Text>
               </YStack>
 
               <XStack gap="$2" width="100%">
