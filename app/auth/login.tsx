@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -97,6 +98,16 @@ export default function LoginScreen() {
       const isProvider = dbRole === 'provider' || roleIntent === 'provider';
       const needsSubtype = isProvider && !providerSubtype;
       if (hasAnyRole && !needsSubtype) return false;
+
+      // Auto-assign customer role for new Google users — skip the form
+      if (!isProvider) {
+        await supabase.from('users').upsert(
+          { id: user.id, email: user.email ?? null, name: (user.user_metadata as any)?.name ?? null, role: 'customer' },
+          { onConflict: 'id' }
+        );
+        await supabase.auth.updateUser({ data: { ...(user.user_metadata as any), role_intent: 'customer' } });
+        return false;
+      }
 
       setPendingOAuthUser({ email: user.email ?? '', name: (user.user_metadata as any)?.name });
       setShowEmailSignup(true);
@@ -798,26 +809,25 @@ export default function LoginScreen() {
           ) : null}
 
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary}>Password</Text>
-              <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
-                <Input
-                  {...commonInputProps}
-                  flex={1}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  placeholder="Password"
+            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+              <Input
+                {...commonInputProps}
+                flex={1}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                placeholder="Password"
+              />
+              <Pressable
+                onPress={() => setShowPassword(!showPassword)}
+                style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
+                <MaterialIcons
+                  name={showPassword ? 'visibility-off' : 'visibility'}
+                  size={22}
+                  color={theme.text}
                 />
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                  <Text color={theme.text} fontSize={18} userSelect="none">
-                    {showPassword ? '🙈' : '👁️'}
-                  </Text>
-                </Pressable>
-              </XStack>
-            </YStack>
+              </Pressable>
+            </XStack>
           ) : null}
 
           {mode === 'forgot' && forgotStep === 'set_password' ? (
