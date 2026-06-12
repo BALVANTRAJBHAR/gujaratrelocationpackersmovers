@@ -607,6 +607,16 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     },
   ];
 
+  const serviceMenuItems = useMemo(
+    () =>
+      [
+        { key: 'shifting' as const, label: 'Shifting\nServices', icon: 'truck' },
+        { key: 'home_services' as const, label: 'Home\nServices', icon: 'broom' },
+        { key: 'property' as const, label: 'Property\nManagement', icon: 'building' },
+      ],
+    []
+  );
+
   useEffect(() => {
     if (embeddedInTabs) return;
     if (!session?.user?.id) return;
@@ -1680,7 +1690,39 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           justifyContent="space-between"
           paddingHorizontal={isSmallScreen ? 14 : 24}
           paddingVertical={isSmallScreen ? 12 : 14}>
-          <Image source={require('../assets/images/PackersMoversLogo.png')} style={styles.logo} />
+          <XStack
+            alignItems="center"
+            gap={isSmallScreen ? '$2' : '$2.5'}
+            flexShrink={1}
+            minWidth={0}
+            maxWidth={isSmallScreen ? '58%' : 250}>
+            <Image
+              source={require('../assets/images/PackersMoversLogo.png')}
+              style={[styles.logo, isSmallScreen && styles.logoMobile]}
+            />
+            <YStack flexShrink={1} minWidth={0}>
+              <Text
+                color={theme.menuText}
+                fontSize={isSmallScreen ? 11 : 14}
+                fontWeight="900"
+                lineHeight={isSmallScreen ? 13 : 16}
+                numberOfLines={1}
+                letterSpacing={0.4}
+                style={{ fontFamily: 'Georgia' }}>
+                GUJARAT
+              </Text>
+              <Text
+                color={theme.menuText}
+                fontSize={isSmallScreen ? 11 : 14}
+                fontWeight="900"
+                lineHeight={isSmallScreen ? 13 : 16}
+                numberOfLines={1}
+                letterSpacing={0.4}
+                style={{ fontFamily: 'Georgia' }}>
+                RELOCATION
+              </Text>
+            </YStack>
+          </XStack>
 
           {!isSmallScreen ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuRow}>
@@ -2249,100 +2291,49 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   borderWidth={2}
                   borderColor={theme.border}
                   gap="$2.5">
-                {isSmallScreen ? (
-                  <YStack gap="$2">
-                    <Button
-                      width="100%"
-                      backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('shifting')}>
-                      Shifting
-                    </Button>
-                    <Button
-                      width="100%"
-                      backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('home_services')}>
-                      Home Services
-                    </Button>
-                    <Button
-                      width="100%"
-                      backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'property' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('property')}>
-                      Property
-                    </Button>
-                  </YStack>
-                ) : (
-                  <XStack gap="$2" justifyContent="space-between" flexWrap="wrap">
-                    <Button
-                      flex={1}
-                      minWidth={160}
-                      backgroundColor={activeService === 'shifting' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'shifting' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('shifting')}>
-                      Shifting
-                    </Button>
-                    <Button
-                      flex={1}
-                      minWidth={160}
-                      backgroundColor={activeService === 'home_services' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'home_services' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('home_services')}>
-                      Home Services
-                    </Button>
-                    <Button
-                      flex={1}
-                      minWidth={160}
-                      backgroundColor={activeService === 'property' ? theme.primary : theme.bgSecondary}
-                      color={activeService === 'property' ? '#FFFFFF' : theme.text}
-                      fontFamily="Courier New"
-                      fontWeight="900"
-                      borderWidth={1}
-                      borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
-                      pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
-                      focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
-                      onPress={() => setActiveService('property')}>
-                      Property
-                    </Button>
+                  <Text
+                    color={theme.text}
+                    fontSize={isSmallScreen ? 16 : 18}
+                    fontWeight="900"
+                    style={{ fontFamily: 'Georgia' }}>
+                    Our Moving Services
+                  </Text>
+                  <XStack gap="$2" justifyContent="space-between" flexWrap="nowrap">
+                    {serviceMenuItems.map((item) => {
+                      const selected = activeService === item.key;
+                      return (
+                        <Pressable
+                          key={item.key}
+                          onPress={() => setActiveService(item.key)}
+                          style={{ flex: 1, minWidth: 0 } as any}>
+                          <YStack
+                            style={[
+                              styles.serviceMenuCard,
+                              {
+                                backgroundColor: selected ? theme.primary : theme.bgSecondary,
+                                borderColor: selected ? '#FBBF24' : theme.border,
+                              },
+                            ]}>
+                            <FontAwesome5
+                              name={item.icon as any}
+                              size={isSmallScreen ? 25 : 30}
+                              color={selected ? '#FFFFFF' : theme.primary}
+                            />
+                            <Text
+                              color={selected ? '#FFFFFF' : theme.text}
+                              fontSize={isSmallScreen ? 11 : 13}
+                              fontWeight="900"
+                              lineHeight={isSmallScreen ? 14 : 16}
+                              textAlign="center"
+                              numberOfLines={2}
+                              style={{ fontFamily: 'Georgia' }}>
+                              {item.label}
+                            </Text>
+                          </YStack>
+                        </Pressable>
+                      );
+                    })}
                   </XStack>
-                )}
 
                 {activeService === 'property' ? (
                   <YStack
@@ -4530,9 +4521,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    width: 72,
-    height: 72,
+    width: 48,
+    height: 48,
     resizeMode: 'contain',
+  },
+  logoMobile: {
+    width: 38,
+    height: 38,
   },
   heroBg: {
     width: '100%',
@@ -4650,6 +4645,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: 'rgba(0,0,0,0.38)',
+  },
+  serviceMenuCard: {
+    minHeight: 78,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: 'rgba(0,0,0,0.22)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
   },
   statsStrip: {
     width: '100%',
