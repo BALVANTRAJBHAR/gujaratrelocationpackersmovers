@@ -434,6 +434,28 @@ type HomeServiceRequestAdmin = {
   provider_name: string | null;
 };
 
+const homeServiceAdminSelect =
+  'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,payment_option,payment_status,advance_payment,after_service_payment_method,cash_paid_at,cancelled_at,provider_id,provider_name';
+
+const homeServiceAdminBaseSelect =
+  'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,provider_id,provider_name';
+
+const isMissingHomeServicePaymentColumnError = (error: unknown) => {
+  const message = String((error as any)?.message ?? error ?? '').toLowerCase();
+  return message.includes('payment_option') || message.includes('payment_status') || message.includes('advance_payment');
+};
+
+const withHomeServicePaymentDefaults = (rows: unknown) =>
+  (((rows as any) ?? []) as any[]).map((row) => ({
+    payment_option: null,
+    payment_status: null,
+    advance_payment: null,
+    after_service_payment_method: null,
+    cash_paid_at: null,
+    cancelled_at: null,
+    ...row,
+  })) as HomeServiceRequestAdmin[];
+
 type QuoteRequestAdmin = {
   id: string;
   name: string | null;
@@ -1071,18 +1093,25 @@ export default function AdminScreen() {
   const fetchHomeServiceRequests = async () => {
     if (!canManage) return;
     try {
-      const { data, error: fetchError } = await supabase
+      let { data, error: fetchError } = await supabase
         .from('home_service_requests')
-        .select(
-          'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,payment_option,payment_status,advance_payment,after_service_payment_method,cash_paid_at,cancelled_at,provider_id,provider_name'
-        )
+        .select(homeServiceAdminSelect)
         .order('created_at', { ascending: false })
         .limit(100);
+      if (fetchError && isMissingHomeServicePaymentColumnError(fetchError)) {
+        const fallback = await supabase
+          .from('home_service_requests')
+          .select(homeServiceAdminBaseSelect)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        data = fallback.data;
+        fetchError = fallback.error;
+      }
       if (fetchError) {
         setError(fetchError.message);
         return;
       }
-      setHomeServiceRequests(((data as any) ?? []) as HomeServiceRequestAdmin[]);
+      setHomeServiceRequests(withHomeServicePaymentDefaults(data));
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to fetch home service requests.');
@@ -1737,7 +1766,7 @@ export default function AdminScreen() {
           return (
             <XStack key={step.key} alignItems="center" gap="$2">
               <Text
-                fontSize={11}
+                fontSize={12}
                 paddingHorizontal={10}
                 paddingVertical={6}
                 borderRadius={999}
@@ -1746,7 +1775,7 @@ export default function AdminScreen() {
                 {step.label}
               </Text>
               {idx !== BOOKING_STATUS_STEPS.length - 1 ? (
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={13}>
                   —
                 </Text>
               ) : null}
@@ -2440,7 +2469,7 @@ export default function AdminScreen() {
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap="$3">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={13} letterSpacing={2} textTransform="uppercase">
               Admin
             </Text>
             <H2 color={theme.text}>Admin dashboard</H2>
@@ -2476,7 +2505,7 @@ export default function AdminScreen() {
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                    <Text color="#FFFFFF" fontSize={11} fontWeight="700">
                       {unreadCount > 99 ? '99+' : String(unreadCount)}
                     </Text>
                   </View>
@@ -2537,7 +2566,7 @@ export default function AdminScreen() {
         {!canManage ? (
           <YStack backgroundColor={theme.bgCardSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
             <Text color={theme.text} fontWeight="700">Admin access only</Text>
-            <Text color={theme.textMuted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={13}>
               You do not have permission to manage drivers.
             </Text>
           </YStack>
@@ -2552,12 +2581,12 @@ export default function AdminScreen() {
                   gap="$3"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="800" fontSize={14}>
+                  <Text color={theme.text} fontWeight="800" fontSize={15}>
                     User management
                   </Text>
 
                   {userMgmtInfo ? (
-                    <Text color="#93C5FD" fontSize={12}>
+                    <Text color="#93C5FD" fontSize={13}>
                       {userMgmtInfo}
                     </Text>
                   ) : null}
@@ -2601,7 +2630,7 @@ export default function AdminScreen() {
                 {!filteredManagedUsers.length ? (
                   <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
                     <Text color={theme.text} fontWeight="800">No users found</Text>
-                    <Text color={theme.textMuted} fontSize={12}>
+                    <Text color={theme.textMuted} fontSize={13}>
                       Try changing filters or ensure users exist with role driver/staff/admin/worker.
                     </Text>
                   </YStack>
@@ -2634,23 +2663,23 @@ export default function AdminScreen() {
                           <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                             <YStack gap={6} flexShrink={1}>
                               <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                                <Text color={theme.text} fontWeight="900" fontSize={15}>
+                                <Text color={theme.text} fontWeight="900" fontSize={16}>
                                   {item.name ?? '—'}
                                 </Text>
                                 <YStack backgroundColor={badgeColor} paddingHorizontal={10} paddingVertical={5} borderRadius={999}>
-                                  <Text color={theme.text} fontWeight="900" fontSize={11}>
+                                  <Text color={theme.text} fontWeight="900" fontSize={12}>
                                     {(item.role ?? 'staff').toString().toUpperCase()}
                                   </Text>
                                 </YStack>
                               </XStack>
-                              <Text color={theme.textMuted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
-                              <Text color={theme.textMuted} fontSize={12}>Email: {item.email ?? '—'}</Text>
+                              <Text color={theme.textMuted} fontSize={13}>Phone: {item.phone ?? '—'}</Text>
+                              <Text color={theme.textMuted} fontSize={13}>Email: {item.email ?? '—'}</Text>
                             </YStack>
                             <YStack alignItems="flex-end" gap="$2">
-                              <Text color={item.is_verified ? theme.success : '#FCA5A5'} fontSize={12} fontWeight="800">
+                              <Text color={item.is_verified ? theme.success : '#FCA5A5'} fontSize={13} fontWeight="800">
                                 {item.is_verified ? 'ACTIVE' : 'INACTIVE'}
                               </Text>
-                              <Text color={theme.textMuted} fontSize={12}>{isSelected ? 'Tap to close' : 'Tap to edit'}</Text>
+                              <Text color={theme.textMuted} fontSize={13}>{isSelected ? 'Tap to close' : 'Tap to edit'}</Text>
                             </YStack>
                           </XStack>
                         </YStack>
@@ -2659,7 +2688,7 @@ export default function AdminScreen() {
                       {isSelected && managedUserForm.id === item.id ? (
                         <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$3" borderWidth={1} borderColor={theme.border}>
                           <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                            <Text color={theme.text} fontWeight="800" fontSize={14}>
+                            <Text color={theme.text} fontWeight="800" fontSize={15}>
                               Edit user
                             </Text>
                             <Button
@@ -2709,7 +2738,7 @@ export default function AdminScreen() {
                           </XStack>
 
                           <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                            <Text color={theme.text} fontSize={12} fontWeight="800">
+                            <Text color={theme.text} fontSize={13} fontWeight="800">
                               Role:
                             </Text>
                             {(['customer', 'driver', 'staff', 'admin', 'worker'] as const).map((r) => (
@@ -2736,7 +2765,7 @@ export default function AdminScreen() {
                           </XStack>
 
                           <YStack gap="$2" backgroundColor={theme.bgCardSecondary} borderRadius={14} padding={12} borderWidth={1} borderColor={theme.border}>
-                            <Text color={theme.text} fontSize={12} fontWeight="800">
+                            <Text color={theme.text} fontSize={13} fontWeight="800">
                               Documents
                             </Text>
 
@@ -2755,10 +2784,10 @@ export default function AdminScreen() {
                                     borderWidth={1}
                                     borderColor={theme.border}>
                                     <YStack gap={4} flexShrink={1}>
-                                      <Text color={theme.text} fontWeight="800" fontSize={12}>
+                                      <Text color={theme.text} fontWeight="800" fontSize={13}>
                                         {(doc.document_type ?? '').toString().toUpperCase()}
                                       </Text>
-                                      <Text color={theme.textMuted} fontSize={12}>
+                                      <Text color={theme.textMuted} fontSize={13}>
                                         {doc.document_number}
                                       </Text>
                                     </YStack>
@@ -2779,13 +2808,13 @@ export default function AdminScreen() {
                                 ))}
                               </YStack>
                             ) : (
-                              <Text color={theme.textMuted} fontSize={12}>
+                              <Text color={theme.textMuted} fontSize={13}>
                                 No documents added.
                               </Text>
                             )}
 
                             <YStack gap="$2" paddingTop={4}>
-                              <Text color={theme.text} fontSize={12} fontWeight="800">
+                              <Text color={theme.text} fontSize={13} fontWeight="800">
                                 Add document
                               </Text>
 
@@ -2859,7 +2888,7 @@ export default function AdminScreen() {
                                     style={{ width: 68, height: 44, borderRadius: 8, backgroundColor: theme.bgCardSecondary }}
                                     resizeMode="cover"
                                   />
-                                  <Text color={theme.textMuted} fontSize={11}>
+                                  <Text color={theme.textMuted} fontSize={12}>
                                     Image selected.
                                   </Text>
                                 </XStack>
@@ -2915,10 +2944,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Properties moderation
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     View, publish/unpublish, or delete properties.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -2957,22 +2986,22 @@ export default function AdminScreen() {
                       borderWidth={1}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack flex={1} gap={4}>
-                          <Text color={theme.text} fontWeight="800" fontSize={14} numberOfLines={1}>
+                          <Text color={theme.text} fontWeight="800" fontSize={15} numberOfLines={1}>
                             {p.title ?? 'Property'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
+                          <Text color={theme.textMuted} fontSize={13} numberOfLines={1}>
                             {location.trim() || '—'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Owner: {p.owner_user_id}
                           </Text>
                         </YStack>
 
                         <YStack alignItems="flex-end" gap={6}>
-                          <Text color={statusColor} fontSize={12} fontWeight="700">
+                          <Text color={statusColor} fontSize={13} fontWeight="700">
                             Status: {statusText}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
                           </Text>
                           <Button
@@ -3041,7 +3070,7 @@ export default function AdminScreen() {
                           gap="$2"
                           borderWidth={1}
                           borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Uploaded files
                           </Text>
                           {(propertyUploads[p.id] ?? []).length ? (
@@ -3066,14 +3095,14 @@ export default function AdminScreen() {
                                     borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={14} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
                                         {u.file_type || '—'}
                                       </Text>
                                     </YStack>
-                                    <Text color={theme.textMuted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={12}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -3081,7 +3110,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               No uploads.
                             </Text>
                           )}
@@ -3094,7 +3123,7 @@ export default function AdminScreen() {
                 {!properties.length ? (
                   <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
                     <Text color={theme.text} fontWeight="800">No properties found</Text>
-                    <Text color={theme.textMuted} fontSize={12}>
+                    <Text color={theme.textMuted} fontSize={13}>
                       Post a property as customer, then come back here to publish.
                     </Text>
                   </YStack>
@@ -3105,8 +3134,8 @@ export default function AdminScreen() {
             {activeSection === 'properties' ? (
               <YStack gap="$3" marginTop={16}>
                 <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>Property Bookings</Text>
-                  <Text color={theme.textMuted} fontSize={12}>View and manage customer property bookings/inquiries.</Text>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>Property Bookings</Text>
+                  <Text color={theme.textMuted} fontSize={13}>View and manage customer property bookings/inquiries.</Text>
                   <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                     onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
                 </YStack>
@@ -3118,18 +3147,18 @@ export default function AdminScreen() {
                       <YStack gap="$1">
                         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                           <YStack flex={1} gap={4}>
-                            <Text color={theme.text} fontWeight="800" fontSize={14}>{prop?.title ?? 'Property'}</Text>
-                            <Text color={theme.textMuted} fontSize={12}>{[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}</Text>
-                            {prop?.price != null ? <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(prop.price).toLocaleString('en-IN')}</Text> : null}
-                            <Text color={theme.textMuted} fontSize={12}>Customer: {pb.contact_name ?? pb.user_id ?? '—'}</Text>
+                            <Text color={theme.text} fontWeight="800" fontSize={15}>{prop?.title ?? 'Property'}</Text>
+                            <Text color={theme.textMuted} fontSize={13}>{[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}</Text>
+                            {prop?.price != null ? <Text color={theme.success} fontWeight="600" fontSize={14}>₹{Number(prop.price).toLocaleString('en-IN')}</Text> : null}
+                            <Text color={theme.textMuted} fontSize={13}>Customer: {pb.contact_name ?? pb.user_id ?? '—'}</Text>
                             {pb.contact_phone ? (
-                              <Text color={theme.textMuted} fontSize={12}>Phone: {pb.contact_phone}</Text>
+                              <Text color={theme.textMuted} fontSize={13}>Phone: {pb.contact_phone}</Text>
                             ) : null}
-                            {pb.message ? <Text color={theme.textMuted} fontSize={12}>Message: {pb.message}</Text> : null}
+                            {pb.message ? <Text color={theme.textMuted} fontSize={13}>Message: {pb.message}</Text> : null}
                           </YStack>
                           <YStack alignItems="flex-end" gap={6}>
-                            <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                            <Text color={theme.textMuted} fontSize={11}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                            <Text color={statusColor} fontSize={13} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                            <Text color={theme.textMuted} fontSize={12}>{new Date(pb.created_at).toLocaleDateString()}</Text>
                           </YStack>
                         </XStack>
                       </YStack>
@@ -3148,7 +3177,7 @@ export default function AdminScreen() {
                 {!propBookings.length ? (
                   <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
                     <Text color={theme.text} fontWeight="800">No property bookings</Text>
-                    <Text color={theme.textMuted} fontSize={12}>Customers have not booked any properties yet.</Text>
+                    <Text color={theme.textMuted} fontSize={13}>Customers have not booked any properties yet.</Text>
                   </YStack>
                 ) : null}
               </YStack>
@@ -3163,10 +3192,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Manage vehicle types
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     Add or update vehicles shown in the booking wizard.
                   </Text>
 
@@ -3353,10 +3382,10 @@ export default function AdminScreen() {
                       borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={theme.text} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={15}>
                             {item.name}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             {item.description ?? '—'}
                           </Text>
                         </YStack>
@@ -3383,13 +3412,13 @@ export default function AdminScreen() {
                           {item.is_active ? 'Disable' : 'Enable'}
                         </Button>
                       </XStack>
-                      <Text color={theme.textMuted} fontSize={12}>Capacity: {item.capacity ?? '—'}</Text>
+                      <Text color={theme.textMuted} fontSize={13}>Capacity: {item.capacity ?? '—'}</Text>
                       {(item.vehicle_type || item.vehicle_number || item.vehicle_model) ? (
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           Type: {item.vehicle_type ?? '—'} • No: {item.vehicle_number ?? '—'} • Model: {item.vehicle_model ?? '—'}
                         </Text>
                       ) : null}
-                      <Text color={theme.textMuted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={13}>
                         Base: {item.base_price ?? '—'} • Per km: {item.per_km_price ?? '—'} • Labor: {item.labor_price ?? '—'}
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -3432,10 +3461,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Manage coupons
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     Create discount codes for bookings.
                   </Text>
 
@@ -3599,10 +3628,10 @@ export default function AdminScreen() {
                     <YStack key={item.id} backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={theme.text} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={15}>
                             {item.code}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             {item.discount_type ?? '—'} • {item.discount_value ?? '—'}
                             {item.max_discount ? ` (max ${item.max_discount})` : ''}
                           </Text>
@@ -3653,11 +3682,11 @@ export default function AdminScreen() {
                           </Button>
                         </XStack>
                       </XStack>
-                      <Text color={theme.textMuted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={13}>
                         Min order: {item.min_order_amount ?? 0} • Used: {item.used_count ?? 0}
                         {item.usage_limit ? ` / ${item.usage_limit}` : ''}
                       </Text>
-                      <Text color={theme.textMuted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={13}>
                         Valid: {item.valid_from ?? '—'} → {item.valid_until ?? '—'}
                       </Text>
                     </YStack>
@@ -3675,10 +3704,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Manage floors
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     Add or update floor charges used in the booking wizard.
                   </Text>
 
@@ -3779,10 +3808,10 @@ export default function AdminScreen() {
                     <YStack key={item.id} backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack>
-                          <Text color={theme.text} fontWeight="700" fontSize={14}>
+                          <Text color={theme.text} fontWeight="700" fontSize={15}>
                             {item.label}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Sort: {item.sort_order ?? 0} • With lift: {item.charge_with_lift ?? 0} • Without lift: {item.charge_without_lift ?? 0}
                           </Text>
                         </YStack>
@@ -3836,10 +3865,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Bookings
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     Filter and manage bookings.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -3983,13 +4012,13 @@ export default function AdminScreen() {
                       borderColor={theme.border}
                       borderWidth={1}>
                       <YStack gap="$1">
-                        <Text color={theme.text} fontWeight="800" fontSize={14}>
+                        <Text color={theme.text} fontWeight="800" fontSize={15}>
                           {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           User: {user.name ?? '—'} • {user.phone ?? '—'} • {user.email ?? '—'}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
                         </Text>
                       </YStack>
@@ -4029,7 +4058,7 @@ export default function AdminScreen() {
                               gap="$2"
                               borderWidth={1}
                               borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={12}>
+                              <Text color={theme.textMuted} fontSize={13}>
                                 Select driver
                               </Text>
                               <XStack gap="$2" flexWrap="wrap">
@@ -4047,7 +4076,7 @@ export default function AdminScreen() {
                                 ))}
                               </XStack>
                               {!drivers.length ? (
-                                <Text color={theme.textMuted} fontSize={12}>
+                                <Text color={theme.textMuted} fontSize={13}>
                                   No drivers found.
                                 </Text>
                               ) : null}
@@ -4081,7 +4110,7 @@ export default function AdminScreen() {
                           gap="$2"
                           borderWidth={1}
                           borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Uploaded files
                           </Text>
                           {(bookingUploads[item.id] ?? []).length ? (
@@ -4106,14 +4135,14 @@ export default function AdminScreen() {
                                     borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={14} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
                                         {u.file_type ?? 'file'}
                                       </Text>
                                     </YStack>
-                                    <Text color={theme.textMuted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={12}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -4121,7 +4150,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               No uploads.
                             </Text>
                           )}
@@ -4129,19 +4158,19 @@ export default function AdminScreen() {
                       ) : null}
 
                       <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                        <Text color={statusColor} fontSize={12} fontWeight="700">
+                        <Text color={statusColor} fontSize={13} fontWeight="700">
                           Status: {statusText}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           Payment: {String(item.payment_status ?? '—').replaceAll('_', ' ')}
                           {paymentModeLabel ? ` (${paymentModeLabel})` : ''}
                         </Text>
                       </XStack>
                       <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           Paid: {paidAmount !== null ? `₹${paidAmount.toFixed(2)}` : '—'}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.textMuted} fontSize={13}>
                           Updated: {item.updated_at ? new Date(item.updated_at).toLocaleString() : '—'}
                         </Text>
                       </XStack>
@@ -4231,10 +4260,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Home Services requests
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     View and manage home service requests.
                   </Text>
 
@@ -4249,32 +4278,32 @@ export default function AdminScreen() {
                     return (
                       <XStack gap="$2" flexWrap="wrap" marginTop={4}>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.text} fontWeight="900" fontSize={15}>{total}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Total</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={16}>{total}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Total</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.warning} fontWeight="900" fontSize={15}>{pending}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Pending</Text>
+                          <Text color={theme.warning} fontWeight="900" fontSize={16}>{pending}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Pending</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.success} fontWeight="900" fontSize={15}>{completed}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Completed</Text>
+                          <Text color={theme.success} fontWeight="900" fontSize={16}>{completed}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Completed</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.danger} fontWeight="900" fontSize={15}>{cancelled}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Cancelled</Text>
+                          <Text color={theme.danger} fontWeight="900" fontSize={16}>{cancelled}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Cancelled</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.success} fontWeight="900" fontSize={15}>{paid}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Paid</Text>
+                          <Text color={theme.success} fontWeight="900" fontSize={16}>{paid}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Paid</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.warning} fontWeight="900" fontSize={15}>{unpaid}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>Unpaid</Text>
+                          <Text color={theme.warning} fontWeight="900" fontSize={16}>{unpaid}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>Unpaid</Text>
                         </YStack>
                         <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.primary} fontWeight="900" fontSize={15}>{withCharge}</Text>
-                          <Text color={theme.textMuted} fontSize={10}>₹150 Chrg</Text>
+                          <Text color={theme.primary} fontWeight="900" fontSize={16}>{withCharge}</Text>
+                          <Text color={theme.textMuted} fontSize={11}>₹150 Chrg</Text>
                         </YStack>
                       </XStack>
                     );
@@ -4318,24 +4347,24 @@ export default function AdminScreen() {
                       <YStack gap="$1">
                         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                           <YStack flex={1} gap={4}>
-                            <Text color={theme.text} fontWeight="800" fontSize={14}>
+                            <Text color={theme.text} fontWeight="800" fontSize={15}>
                               {homeServiceLabel(r.service_key)}
                             </Text>
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               Customer: {r.customer_name ?? '—'} • {r.customer_phone ?? '—'}
                             </Text>
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               {r.locality || r.city || r.state
                                 ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}`
                                 : 'Location not provided'}
                             </Text>
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               Slot: {slot}
                             </Text>
                           </YStack>
 
                           <YStack alignItems="flex-end" gap={6}>
-                            <Text color={statusColor} fontSize={12} fontWeight="700">
+                            <Text color={statusColor} fontSize={13} fontWeight="700">
                               Status: {statusText}
                             </Text>
                             <Button
@@ -4355,7 +4384,7 @@ export default function AdminScreen() {
                         </XStack>
 
                         {r.notes ? (
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Notes: {r.notes}
                           </Text>
                         ) : null}
@@ -4384,7 +4413,7 @@ export default function AdminScreen() {
                           gap="$2"
                           borderWidth={1}
                           borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Uploaded files
                           </Text>
                           {(homeServiceUploads[r.id] ?? []).length ? (
@@ -4409,14 +4438,14 @@ export default function AdminScreen() {
                                     borderColor={theme.border}
                                     gap="$2">
                                     <YStack flex={1} gap="$1">
-                                      <Text color={theme.text} fontSize={13} fontWeight="700" numberOfLines={1}>
+                                      <Text color={theme.text} fontSize={14} fontWeight="700" numberOfLines={1}>
                                         {label}
                                       </Text>
-                                      <Text color={theme.textMuted} fontSize={11} numberOfLines={1}>
+                                      <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
                                         {u.file_type ?? 'file'}
                                       </Text>
                                     </YStack>
-                                    <Text color={theme.textMuted} fontSize={11}>
+                                    <Text color={theme.textMuted} fontSize={12}>
                                       Open
                                     </Text>
                                   </XStack>
@@ -4424,7 +4453,7 @@ export default function AdminScreen() {
                               );
                             })
                           ) : (
-                            <Text color={theme.textMuted} fontSize={12}>
+                            <Text color={theme.textMuted} fontSize={13}>
                               No uploads.
                             </Text>
                           )}
@@ -4435,7 +4464,7 @@ export default function AdminScreen() {
                 })}
 
                 {!homeServiceRequests.length ? (
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     No home service requests.
                   </Text>
                 ) : null}
@@ -4451,10 +4480,10 @@ export default function AdminScreen() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>
                     Quote requests
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     View, search, filter and update callback request status.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -4541,20 +4570,20 @@ export default function AdminScreen() {
                       borderColor={theme.border}>
                       <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                         <YStack flex={1} gap={4}>
-                          <Text color={theme.text} fontWeight="800" fontSize={14}>
+                          <Text color={theme.text} fontWeight="800" fontSize={15}>
                             {request.name ?? 'Unknown'} • {request.service ?? 'Service'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             {request.phone ?? '—'} • {request.email ?? '—'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12} numberOfLines={2}>
+                          <Text color={theme.textMuted} fontSize={13} numberOfLines={2}>
                             {request.message ?? 'No message provided.'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={12}>
+                          <Text color={theme.textMuted} fontSize={13}>
                             Source: {request.source ?? 'Web'} • Created: {request.created_at ? new Date(request.created_at).toLocaleString() : '—'}
                           </Text>
                         </YStack>
-                        <Text color={statusColor} fontSize={12} fontWeight="700">
+                        <Text color={statusColor} fontSize={13} fontWeight="700">
                           {statusText}
                         </Text>
                       </XStack>
@@ -4609,7 +4638,7 @@ export default function AdminScreen() {
                 })}
 
                 {!filteredQuoteRequests.length ? (
-                  <Text color={theme.textMuted} fontSize={12}>
+                  <Text color={theme.textMuted} fontSize={13}>
                     No quote requests found.
                   </Text>
                 ) : null}
@@ -4627,10 +4656,10 @@ export default function AdminScreen() {
                   borderColor={theme.border}>
                   <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                     <YStack gap={4}>
-                      <Text color={theme.text} fontWeight="800" fontSize={14}>
+                      <Text color={theme.text} fontWeight="800" fontSize={15}>
                         Reports & analytics
                       </Text>
-                      <Text color={theme.textMuted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={13}>
                         Bookings summary between selected dates.
                       </Text>
                     </YStack>
@@ -4678,7 +4707,7 @@ export default function AdminScreen() {
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     <YStack gap="$1">
-                      <Text color={theme.textMuted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
+                      <Text color={theme.textMuted} fontSize={12}>Start date (YYYY-MM-DD)</Text>
                       <Input
                         value={reportsStartDate}
                         onChangeText={setReportsStartDate}
@@ -4703,7 +4732,7 @@ export default function AdminScreen() {
                       Pick
                     </Button>
                     <YStack gap="$1">
-                      <Text color={theme.textMuted} fontSize={11}>End date (YYYY-MM-DD)</Text>
+                      <Text color={theme.textMuted} fontSize={12}>End date (YYYY-MM-DD)</Text>
                       <Input
                         value={reportsEndDate}
                         onChangeText={setReportsEndDate}
@@ -4905,8 +4934,8 @@ export default function AdminScreen() {
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={theme.textMuted} fontSize={12}>Total bookings</Text>
-                          <Text color={theme.text} fontWeight="900" fontSize={22}>{String(total)}</Text>
+                          <Text color={theme.textMuted} fontSize={13}>Total bookings</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={23}>{String(total)}</Text>
                         </YStack>
 
                         <YStack
@@ -4919,8 +4948,8 @@ export default function AdminScreen() {
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={theme.textMuted} fontSize={12}>Advance collected</Text>
-                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(advanceSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={13}>Advance collected</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={23}>₹{Math.round(advanceSum).toLocaleString('en-IN')}</Text>
                         </YStack>
 
                         <YStack
@@ -4933,8 +4962,8 @@ export default function AdminScreen() {
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={theme.textMuted} fontSize={12}>Remaining amount</Text>
-                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(remainingSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={13}>Remaining amount</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={23}>₹{Math.round(remainingSum).toLocaleString('en-IN')}</Text>
                         </YStack>
 
                         <YStack
@@ -4947,9 +4976,9 @@ export default function AdminScreen() {
                           minWidth={220}
                           flexGrow={1}
                           flexBasis={220}>
-                          <Text color={theme.textMuted} fontSize={12}>Payments (paid)</Text>
-                          <Text color={theme.text} fontWeight="900" fontSize={22}>₹{Math.round(paidAmountSum).toLocaleString('en-IN')}</Text>
-                          <Text color={theme.textMuted} fontSize={11}>From {String(paymentCount)} payment record(s)</Text>
+                          <Text color={theme.textMuted} fontSize={13}>Payments (paid)</Text>
+                          <Text color={theme.text} fontWeight="900" fontSize={23}>₹{Math.round(paidAmountSum).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.textMuted} fontSize={12}>From {String(paymentCount)} payment record(s)</Text>
                         </YStack>
                       </XStack>
 
@@ -4962,7 +4991,7 @@ export default function AdminScreen() {
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Bookings by status</Text>
                         {!statusEntries.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No data for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No data for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {statusEntries.map(([st, count]) => {
@@ -4970,8 +4999,8 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={st} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={theme.text} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
-                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={13} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={13}>{String(count)}</Text>
                                   </XStack>
                                   <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
                                     <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
@@ -4992,7 +5021,7 @@ export default function AdminScreen() {
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Payments by status</Text>
                         {!paymentStatusEntries.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No payments for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No payments for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {paymentStatusEntries.map(([st, count]) => {
@@ -5000,8 +5029,8 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={st} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={theme.text} fontSize={12} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
-                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={13} fontWeight="800">{st.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={13}>{String(count)}</Text>
                                   </XStack>
                                   <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
                                     <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
@@ -5022,7 +5051,7 @@ export default function AdminScreen() {
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Payments by method</Text>
                         {!paymentMethodEntries.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No payment methods found.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No payment methods found.</Text>
                         ) : (
                           <YStack gap={10}>
                             {paymentMethodEntries.slice(0, 8).map(([method, count]) => {
@@ -5030,8 +5059,8 @@ export default function AdminScreen() {
                               return (
                                 <YStack key={method} gap={6}>
                                   <XStack justifyContent="space-between" alignItems="center">
-                                    <Text color={theme.text} fontSize={12} fontWeight="800">{method.replaceAll('_', ' ')}</Text>
-                                    <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
+                                    <Text color={theme.text} fontSize={13} fontWeight="800">{method.replaceAll('_', ' ')}</Text>
+                                    <Text color={theme.textMuted} fontSize={13}>{String(count)}</Text>
                                   </XStack>
                                   <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
                                     <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
@@ -5051,23 +5080,23 @@ export default function AdminScreen() {
                         borderWidth={1}
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Driver performance (approx.)</Text>
-                        <Text color={theme.textMuted} fontSize={11}>
+                        <Text color={theme.textMuted} fontSize={12}>
                           Avg completion time uses created_at → updated_at for delivered bookings.
                         </Text>
                         {!driverPerfEntries.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No driver data found for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No driver data found for selected range.</Text>
                         ) : (
                           <YStack gap={10}>
                             {driverPerfEntries.map((d) => (
                               <YStack key={d.name} gap={6} paddingBottom={6} borderBottomWidth={1} borderColor={theme.border}>
                                 <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
-                                  <Text color={theme.text} fontSize={12} fontWeight="900">{d.name}</Text>
-                                  <Text color={theme.textMuted} fontSize={12}>
+                                  <Text color={theme.text} fontSize={13} fontWeight="900">{d.name}</Text>
+                                  <Text color={theme.textMuted} fontSize={13}>
                                     Delivered: {String(d.delivered)} | Cancelled: {String(d.cancelled)} | Cancel rate:{' '}
                                     {`${Math.round(d.cancelRate * 100)}%`}
                                   </Text>
                                 </XStack>
-                                <Text color={theme.textMuted} fontSize={12}>Avg completion: {formatDuration(d.avgMs)}</Text>
+                                <Text color={theme.textMuted} fontSize={13}>Avg completion: {formatDuration(d.avgMs)}</Text>
                               </YStack>
                             ))}
                           </YStack>
@@ -5083,19 +5112,19 @@ export default function AdminScreen() {
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Monthly trends</Text>
                         {!allMonths.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No monthly data for selected range.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No monthly data for selected range.</Text>
                         ) : (
                           <YStack gap={12}>
                             <YStack gap={10}>
-                              <Text color={theme.textMuted} fontSize={12}>Bookings per month</Text>
+                              <Text color={theme.textMuted} fontSize={13}>Bookings per month</Text>
                               {allMonths.map((m) => {
                                 const count = monthlyBookings[m] ?? 0;
                                 const pct = Math.max(0.06, count / monthMaxBookings);
                                 return (
                                   <YStack key={`b-${m}`} gap={6}>
                                     <XStack justifyContent="space-between" alignItems="center">
-                                      <Text color={theme.text} fontSize={12} fontWeight="800">{m}</Text>
-                                      <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
+                                      <Text color={theme.text} fontSize={13} fontWeight="800">{m}</Text>
+                                      <Text color={theme.textMuted} fontSize={13}>{String(count)}</Text>
                                     </XStack>
                                     <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
                                       <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
@@ -5106,15 +5135,15 @@ export default function AdminScreen() {
                             </YStack>
 
                             <YStack gap={10}>
-                              <Text color={theme.textMuted} fontSize={12}>Paid amount per month</Text>
+                              <Text color={theme.textMuted} fontSize={13}>Paid amount per month</Text>
                               {allMonths.map((m) => {
                                 const amt = monthlyPaidAmount[m] ?? 0;
                                 const pct = Math.max(0.06, amt / monthMaxPaid);
                                 return (
                                   <YStack key={`p-${m}`} gap={6}>
                                     <XStack justifyContent="space-between" alignItems="center">
-                                      <Text color={theme.text} fontSize={12} fontWeight="800">{m}</Text>
-                                      <Text color={theme.textMuted} fontSize={12}>₹{Math.round(amt).toLocaleString('en-IN')}</Text>
+                                      <Text color={theme.text} fontSize={13} fontWeight="800">{m}</Text>
+                                      <Text color={theme.textMuted} fontSize={13}>₹{Math.round(amt).toLocaleString('en-IN')}</Text>
                                     </XStack>
                                     <YStack height={10} backgroundColor={theme.bgCardSecondary} borderRadius={999} overflow="hidden">
                                       <YStack height={10} width={`${Math.round(pct * 100)}%`} backgroundColor={theme.accent} />
@@ -5136,13 +5165,13 @@ export default function AdminScreen() {
                         borderColor={theme.border}>
                         <Text color={theme.text} fontWeight="800">Top drivers (by assigned bookings)</Text>
                         {!topDrivers.length ? (
-                          <Text color={theme.textMuted} fontSize={12}>No driver assignments found.</Text>
+                          <Text color={theme.textMuted} fontSize={13}>No driver assignments found.</Text>
                         ) : (
                           <YStack gap={10}>
                             {topDrivers.map(([name, count]) => (
                               <XStack key={name} justifyContent="space-between" alignItems="center">
-                                <Text color={theme.text} fontSize={12} fontWeight="800">{name}</Text>
-                                <Text color={theme.textMuted} fontSize={12}>{String(count)}</Text>
+                                <Text color={theme.text} fontSize={13} fontWeight="800">{name}</Text>
+                                <Text color={theme.textMuted} fontSize={13}>{String(count)}</Text>
                               </XStack>
                             ))}
                           </YStack>

@@ -750,7 +750,7 @@ export default function RegisterDetailsScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 } as any} keyboardShouldPersistTaps="handled">
         <YStack gap="$4">
       <YStack gap="$2">
-        <Paragraph color={theme.text} fontSize={22} fontWeight="700">
+        <Paragraph color={theme.text} fontSize={23} fontWeight="700">
           Provider verification
         </Paragraph>
         <Paragraph color={theme.textMuted}>
@@ -861,7 +861,7 @@ export default function RegisterDetailsScreen() {
           <YStack gap="$3">
             <YStack gap="$2">
               <Text color={labelColor}>Aadhaar Photo</Text>
-              <Text color={theme.warning} fontSize={11} fontWeight="600">Upload a well-cropped, clear image of your Aadhaar card</Text>
+              <Text color={theme.warning} fontSize={12} fontWeight="600">Upload a well-cropped, clear image of your Aadhaar card</Text>
               <Pressable onPress={() => void pickAadhaarImage()} style={{ width: '100%' } as any}>
                 <View
                   style={{
@@ -876,7 +876,7 @@ export default function RegisterDetailsScreen() {
                     {aadhaarImageUri ? 'Photo selected' : 'Upload Aadhaar Photo'}
                   </Text>
                   {aadhaarImageUri ? (
-                    <Text color={theme.textMuted} fontSize={12} marginTop={2} numberOfLines={1}>
+                    <Text color={theme.textMuted} fontSize={13} marginTop={2} numberOfLines={1}>
                       {aadhaarImageUri}
                     </Text>
                   ) : null}
@@ -898,11 +898,11 @@ export default function RegisterDetailsScreen() {
                 maxLength={12}
               />
               {aadhaarChecking ? (
-                <Text color={theme.warning} fontSize={11}>Checking...</Text>
+                <Text color={theme.warning} fontSize={12}>Checking...</Text>
               ) : aadhaarDuplicateError ? (
-                <Text color={theme.danger} fontSize={11} fontWeight="700">{aadhaarDuplicateError}</Text>
+                <Text color={theme.danger} fontSize={12} fontWeight="700">{aadhaarDuplicateError}</Text>
               ) : aadhaarNumber.length === 12 && !aadhaarDuplicateError ? (
-                <Text color={theme.success} fontSize={11} fontWeight="700">✓ Aadhaar verified</Text>
+                <Text color={theme.success} fontSize={12} fontWeight="700">✓ Aadhaar verified</Text>
               ) : null}
             </YStack>
           </YStack>

@@ -89,6 +89,25 @@ type HomeServiceRow = {
   provider_name: string | null;
 };
 
+const homeServiceRequestSelect =
+  'id, service_key, customer_name, customer_phone, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, provider_name';
+
+const homeServiceRequestBaseSelect =
+  'id, service_key, customer_name, customer_phone, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_name';
+
+const isMissingHomeServicePaymentColumnError = (error: unknown) => {
+  const message = String((error as any)?.message ?? error ?? '').toLowerCase();
+  return message.includes('payment_option') || message.includes('payment_status') || message.includes('advance_payment');
+};
+
+const withHomeServicePaymentDefaults = (rows: unknown) =>
+  (((rows as any) ?? []) as any[]).map((row) => ({
+    payment_option: null,
+    payment_status: null,
+    advance_payment: null,
+    ...row,
+  })) as HomeServiceRow[];
+
 type PropertyBookingRow = {
   id: string;
   property_id: string;
@@ -291,16 +310,24 @@ export default function BookingsScreen() {
   const fetchHomeServiceRequests = async () => {
     if (!session?.user?.id) return;
     try {
-      const { data, error: fetchError } = await supabase
+      let { data, error: fetchError } = await supabase
         .from('home_service_requests')
-        .select(
-          'id, service_key, customer_name, customer_phone, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, provider_name'
-        )
+        .select(homeServiceRequestSelect)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(60);
+      if (fetchError && isMissingHomeServicePaymentColumnError(fetchError)) {
+        const fallback = await supabase
+          .from('home_service_requests')
+          .select(homeServiceRequestBaseSelect)
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(60);
+        data = fallback.data;
+        fetchError = fallback.error;
+      }
       if (fetchError) return;
-      setHomeServiceItems(((data as any) ?? []) as HomeServiceRow[]);
+      setHomeServiceItems(withHomeServicePaymentDefaults(data));
     } catch {
       // ignore
     }

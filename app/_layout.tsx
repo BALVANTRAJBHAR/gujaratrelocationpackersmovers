@@ -6,6 +6,7 @@ import { PortalProvider } from '@tamagui/portal';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform, Text as RNText, TextInput as RNTextInput } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
@@ -17,6 +18,22 @@ import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
 
+const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'serif';
+
+function installDefaultTextFont() {
+  const textDefaults = (RNText as any).defaultProps ?? {};
+  (RNText as any).defaultProps = {
+    ...textDefaults,
+    style: [{ fontFamily: appFontFamily }, textDefaults.style],
+  };
+
+  const inputDefaults = (RNTextInput as any).defaultProps ?? {};
+  (RNTextInput as any).defaultProps = {
+    ...inputDefaults,
+    style: [{ fontFamily: appFontFamily, fontSize: 15 }, inputDefaults.style],
+  };
+}
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -25,6 +42,7 @@ function AppLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
+    installDefaultTextFont();
     const cleanupAuth = installSupabaseAuthAbortGuard();
     const cleanup = installFontTimeoutGuard();
     void preloadWebIconFonts();

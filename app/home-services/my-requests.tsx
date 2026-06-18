@@ -58,6 +58,28 @@ const labelForService = (key: string) => {
   return key;
 };
 
+const homeServiceRequestSelect =
+  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name';
+
+const homeServiceRequestBaseSelect =
+  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name';
+
+const isMissingPaymentColumnError = (error: unknown) => {
+  const message = String((error as any)?.message ?? error ?? '').toLowerCase();
+  return message.includes('payment_option') || message.includes('payment_status') || message.includes('advance_payment');
+};
+
+const withPaymentDefaults = (rows: unknown) =>
+  (((rows as any) ?? []) as any[]).map((row) => ({
+    payment_option: null,
+    payment_status: null,
+    advance_payment: null,
+    after_service_payment_method: null,
+    cash_paid_at: null,
+    cancelled_at: null,
+    ...row,
+  })) as HomeServiceRequestRow[];
+
 export default function MyHomeServiceRequestsScreen() {
   const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
@@ -97,14 +119,23 @@ export default function MyHomeServiceRequestsScreen() {
     const seq = ++fetchSeqRef.current;
 
     try {
-      const { data, error: fetchError } = await supabase
+      let { data, error: fetchError } = await supabase
         .from('home_service_requests')
-        .select(
-          'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name'
-        )
+        .select(homeServiceRequestSelect)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(60);
+
+      if (fetchError && isMissingPaymentColumnError(fetchError)) {
+        const fallback = await supabase
+          .from('home_service_requests')
+          .select(homeServiceRequestBaseSelect)
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(60);
+        data = fallback.data;
+        fetchError = fallback.error;
+      }
 
       if (seq !== fetchSeqRef.current) return;
 
@@ -113,7 +144,7 @@ export default function MyHomeServiceRequestsScreen() {
         return;
       }
 
-      setItems(((data as any) ?? []) as HomeServiceRequestRow[]);
+      setItems(withPaymentDefaults(data));
     } catch (e) {
       if (seq !== fetchSeqRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load requests.');

@@ -209,7 +209,7 @@ export default function AdminLocationsScreen() {
             <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
               Back
             </Button>
-            <Text color="#FFFFFF" fontSize={18} fontWeight="800">
+            <Text color="#FFFFFF" fontSize={19} fontWeight="800">
               Manage Locations
             </Text>
           </XStack>
@@ -293,7 +293,7 @@ export default function AdminLocationsScreen() {
           <Text color={titleColor} fontWeight="900">
             Bulk Import / Export
           </Text>
-          <Text color={muted} fontSize={12}>
+          <Text color={muted} fontSize={13}>
             Import states and cities from a CSV file. Format: state,city (one per line).
           </Text>
           <XStack gap="$2" flexWrap="wrap">
@@ -314,7 +314,7 @@ export default function AdminLocationsScreen() {
           {states.map((s) => (
             <XStack key={s.id} justifyContent="space-between" alignItems="center">
               <Text color={titleColor}>{s.name}</Text>
-              <Text color={muted} fontSize={12}>
+              <Text color={muted} fontSize={13}>
                 ID: {s.id}
               </Text>
             </XStack>

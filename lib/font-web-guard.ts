@@ -31,11 +31,26 @@ function patchReactNativeGlobalErrorHandler(): void {
   }
 }
 
+function getBrowserEventTarget(): (Window & typeof globalThis) | null {
+  if (typeof window === 'undefined') return null;
+
+  const maybeWindow = window as any;
+  if (
+    typeof maybeWindow.addEventListener !== 'function' ||
+    typeof maybeWindow.removeEventListener !== 'function'
+  ) {
+    return null;
+  }
+
+  return window;
+}
+
 /** Prevent fontfaceobserver timeout from crashing the web app (icon fonts are optional). */
 export function installFontTimeoutGuard(): () => void {
-  if (typeof window === 'undefined') return () => {};
-
   patchReactNativeGlobalErrorHandler();
+
+  const browserWindow = getBrowserEventTarget();
+  if (!browserWindow) return () => {};
 
   const onUnhandledRejection = (event: PromiseRejectionEvent) => {
     if (isFontTimeoutError((event as any)?.reason)) {
@@ -51,12 +66,12 @@ export function installFontTimeoutGuard(): () => void {
     }
   };
 
-  window.addEventListener('unhandledrejection', onUnhandledRejection, true);
-  window.addEventListener('error', onWindowError, true);
+  browserWindow.addEventListener('unhandledrejection', onUnhandledRejection, true);
+  browserWindow.addEventListener('error', onWindowError, true);
 
   return () => {
-    window.removeEventListener('unhandledrejection', onUnhandledRejection, true);
-    window.removeEventListener('error', onWindowError, true);
+    browserWindow.removeEventListener('unhandledrejection', onUnhandledRejection, true);
+    browserWindow.removeEventListener('error', onWindowError, true);
   };
 }
 

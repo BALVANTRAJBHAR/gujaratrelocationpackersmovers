@@ -4,13 +4,13 @@ import { config } from '@tamagui/config/v3';
 import { createFont, createTamagui } from 'tamagui';
 
 const systemSans = Platform.select({
-  web: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  default: 'System',
+  web: "'Times New Roman', Times, serif",
+  default: 'serif',
 });
 
 const systemSerif = Platform.select({
-  web: "Georgia, 'Times New Roman', serif",
-  default: "Georgia, 'Times New Roman', serif",
+  web: "'Times New Roman', Times, serif",
+  default: 'serif',
 });
 
 const bodyFont = createFont({

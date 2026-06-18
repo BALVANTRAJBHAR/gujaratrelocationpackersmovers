@@ -171,7 +171,7 @@ export default function HouseholdShiftingScreen() {
                           fontSize={15}
                           fontWeight="700"
                           letterSpacing={0.3}
-                          style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                          style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
                           {item}
                         </Text>
                       </YStack>
@@ -197,7 +197,7 @@ export default function HouseholdShiftingScreen() {
                           shadowRadius={6}
                           elevation={3}
                           style={headerHovered === 'bookings' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
                             My Bookings
                           </Text>
                         </YStack>
@@ -219,7 +219,7 @@ export default function HouseholdShiftingScreen() {
                           shadowRadius={6}
                           elevation={3}
                           style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
                             Logout
                           </Text>
                         </YStack>
@@ -243,7 +243,7 @@ export default function HouseholdShiftingScreen() {
                         shadowRadius={6}
                         elevation={3}
                         style={headerHovered === 'login' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Georgia', textDecorationLine: 'none' }}>
+                        <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
                           Login
                         </Text>
                       </YStack>

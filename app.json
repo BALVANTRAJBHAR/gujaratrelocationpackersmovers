@@ -40,21 +40,21 @@
       "favicon": "./assets/images/favicon.png"
     },
     "splash": {
-      "image": "./assets/images/PackersMoversLogo.png",
+      "image": "./assets/images/splash-professional.png",
       "resizeMode": "contain",
-      "backgroundColor": "#050B18"
+      "backgroundColor": "#F8FAFC"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/PackersMoversLogo.png",
-          "imageWidth": 180,
+          "image": "./assets/images/splash-professional.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#050B18",
+          "backgroundColor": "#F8FAFC",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#F8FAFC"
           }
         }
       ],
