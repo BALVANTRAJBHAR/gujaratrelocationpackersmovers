@@ -222,7 +222,7 @@ export default function BookingsScreen() {
           return (
             <XStack key={step.key} alignItems="center" gap="$2">
               <Text
-                fontSize={11}
+                fontSize={12}
                 paddingHorizontal={10}
                 paddingVertical={6}
                 borderRadius={999}
@@ -231,7 +231,7 @@ export default function BookingsScreen() {
                 {step.label}
               </Text>
               {idx !== STATUS_STEPS.length - 1 ? (
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={13}>
                   —
                 </Text>
               ) : null}
@@ -789,8 +789,8 @@ export default function BookingsScreen() {
         <Text color="#FCA5A5">{error}</Text>
       ) : !filteredBookings.length ? (
         <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-          <Text color={theme.text} fontWeight="800" fontSize={14}>No moves found</Text>
-          <Text color={theme.textMuted} fontSize={12}>Try adjusting filters or create a new booking.</Text>
+          <Text color={theme.text} fontWeight="800" fontSize={15}>No moves found</Text>
+          <Text color={theme.textMuted} fontSize={13}>Try adjusting filters or create a new booking.</Text>
         </YStack>
       ) : null}
       <FlatList
@@ -803,46 +803,46 @@ export default function BookingsScreen() {
         renderItem={({ item }) => (
           <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.text} fontWeight="700" fontSize={14}>
+              <Text color={theme.text} fontWeight="700" fontSize={15}>
                 {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
               </Text>
-              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={12} textTransform="uppercase">
+              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={13} textTransform="uppercase">
                 {item.status ?? 'pending'}
               </Text>
             </XStack>
             {renderStatusStepper(item.status)}
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={12}>Payment</Text>
-              <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={12} textTransform="uppercase">
+              <Text color={theme.textMuted} fontSize={13}>Payment</Text>
+              <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={13} textTransform="uppercase">
                 {item.payment_status ?? 'pending'}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={12}>Paid</Text>
-              <Text color={theme.inputText} fontSize={12} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
+              <Text color={theme.textMuted} fontSize={13}>Paid</Text>
+              <Text color={theme.inputText} fontSize={13} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={12}>Updated</Text>
-              <Text color={theme.inputText} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={13}>Updated</Text>
+              <Text color={theme.inputText} fontSize={13}>
                 {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
               </Text>
             </XStack>
             {item.driver_id ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Driver</Text>
-                <Text color={theme.inputText} fontSize={12}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
+                <Text color={theme.textMuted} fontSize={13}>Driver</Text>
+                <Text color={theme.inputText} fontSize={13}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
               </XStack>
             ) : null}
             {!item.pickup_verified_at && item.pickup_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Pickup OTP</Text>
-                <Text color={theme.inputText} fontSize={12} fontWeight="700">{String(item.pickup_otp)}</Text>
+                <Text color={theme.textMuted} fontSize={13}>Pickup OTP</Text>
+                <Text color={theme.inputText} fontSize={13} fontWeight="700">{String(item.pickup_otp)}</Text>
               </XStack>
             ) : null}
             {item.pickup_verified_at && !item.delivered_verified_at && item.delivery_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={12}>Delivery OTP</Text>
-                <Text color={theme.inputText} fontSize={12} fontWeight="700">{String(item.delivery_otp)}</Text>
+                <Text color={theme.textMuted} fontSize={13}>Delivery OTP</Text>
+                <Text color={theme.inputText} fontSize={13} fontWeight="700">{String(item.delivery_otp)}</Text>
               </XStack>
             ) : null}
             <XStack gap="$2" flexWrap="wrap">
@@ -870,12 +870,12 @@ export default function BookingsScreen() {
                   onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>Pay Full</Button>
               </>
             ) : null}
-            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={12}>{paymentInfo[item.id]}</Text> : null}
+            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={13}>{paymentInfo[item.id]}</Text> : null}
             {paymentHistory[item.id]?.length ? (
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontSize={12}>Payment history</Text>
+                <Text color={theme.textMuted} fontSize={13}>Payment history</Text>
                 {paymentHistory[item.id].slice(0, 2).map((payment) => (
-                  <Text key={payment.id} color={theme.inputText} fontSize={11}>
+                  <Text key={payment.id} color={theme.inputText} fontSize={12}>
                     {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
                   </Text>
                 ))}
@@ -927,7 +927,7 @@ export default function BookingsScreen() {
           {!filtered.length && !loading ? (
             <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
               <Text color={theme.text} fontWeight="800">No requests found</Text>
-              <Text color={theme.textMuted} fontSize={12}>Request a home service from the Home Services tab.</Text>
+              <Text color={theme.textMuted} fontSize={13}>Request a home service from the Home Services tab.</Text>
             </YStack>
           ) : null}
           {filtered.map((r) => {
@@ -937,14 +937,14 @@ export default function BookingsScreen() {
             return (
               <YStack key={r.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.text} fontWeight="700" fontSize={14}>{homeServiceLabel(r.service_key ?? '')}</Text>
-                  <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
+                  <Text color={theme.text} fontWeight="700" fontSize={15}>{homeServiceLabel(r.service_key ?? '')}</Text>
+                  <Text color={statusColor} fontSize={13} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
                 </XStack>
-                <Text color={theme.textMuted} fontSize={12}>Location: {loc}</Text>
-                <Text color={theme.textMuted} fontSize={12}>Slot: {slot}</Text>
-                {r.notes ? <Text color={theme.textMuted} fontSize={12}>Notes: {r.notes}</Text> : null}
-                {r.provider_name ? <Text color={theme.textMuted} fontSize={12}>Provider: {r.provider_name}</Text> : null}
-                {r.payment_option ? <Text color={theme.textMuted} fontSize={12}>Payment: {r.payment_option}</Text> : null}
+                <Text color={theme.textMuted} fontSize={13}>Location: {loc}</Text>
+                <Text color={theme.textMuted} fontSize={13}>Slot: {slot}</Text>
+                {r.notes ? <Text color={theme.textMuted} fontSize={13}>Notes: {r.notes}</Text> : null}
+                {r.provider_name ? <Text color={theme.textMuted} fontSize={13}>Provider: {r.provider_name}</Text> : null}
+                {r.payment_option ? <Text color={theme.textMuted} fontSize={13}>Payment: {r.payment_option}</Text> : null}
               </YStack>
             );
           })}
@@ -992,7 +992,7 @@ export default function BookingsScreen() {
               {!propertyBookings.length && !loading ? (
                 <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
                   <Text color={theme.text} fontWeight="800">No bookings yet</Text>
-                  <Text color={theme.textMuted} fontSize={12}>Browse properties and send an inquiry.</Text>
+                  <Text color={theme.textMuted} fontSize={13}>Browse properties and send an inquiry.</Text>
                 </YStack>
               ) : null}
               {propertyBookings.map((pb) => {
@@ -1002,17 +1002,17 @@ export default function BookingsScreen() {
                   <YStack key={pb.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1} gap={4}>
-                        <Text color={theme.text} fontWeight="700" fontSize={14}>{prop?.title ?? 'Property'}</Text>
-                        <Text color={theme.textMuted} fontSize={12}>
+                        <Text color={theme.text} fontWeight="700" fontSize={15}>{prop?.title ?? 'Property'}</Text>
+                        <Text color={theme.textMuted} fontSize={13}>
                           {[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}
                         </Text>
                         {prop?.price != null ? (
-                          <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.success} fontWeight="600" fontSize={14}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
                         ) : null}
                       </YStack>
                       <YStack alignItems="flex-end" gap={6}>
-                        <Text color={statusColor} fontSize={12} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                        <Text color={theme.textMuted} fontSize={11}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                        <Text color={statusColor} fontSize={13} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                        <Text color={theme.textMuted} fontSize={12}>{new Date(pb.created_at).toLocaleDateString()}</Text>
                       </YStack>
                     </XStack>
                     {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (
@@ -1054,18 +1054,18 @@ export default function BookingsScreen() {
               {!myProperties.length && !loading ? (
                 <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
                   <Text color={theme.text} fontWeight="800">No properties listed</Text>
-                  <Text color={theme.textMuted} fontSize={12}>Post your first property listing.</Text>
+                  <Text color={theme.textMuted} fontSize={13}>Post your first property listing.</Text>
                 </YStack>
               ) : null}
               {myProperties.map((p) => (
                 <YStack key={p.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                   <XStack justifyContent="space-between" alignItems="center">
                     <YStack flex={1} gap={4}>
-                      <Text color={theme.text} fontWeight="700" fontSize={14}>{p.title ?? 'Property'}</Text>
-                      <Text color={theme.textMuted} fontSize={12}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
-                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={13}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
+                      <Text color={theme.text} fontWeight="700" fontSize={15}>{p.title ?? 'Property'}</Text>
+                      <Text color={theme.textMuted} fontSize={13}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
+                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={14}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
                     </YStack>
-                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={12} fontWeight="700" textTransform="uppercase">{p.status}</Text>
+                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={13} fontWeight="700" textTransform="uppercase">{p.status}</Text>
                   </XStack>
                   <XStack gap="$2">
                     <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}

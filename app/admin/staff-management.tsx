@@ -329,7 +329,7 @@ export default function StaffManagementScreen() {
           resizeMode="contain"
         />
         
-        <H1 color={theme.accent} fontSize={29} textAlign="center">
+        <H1 color={theme.accent} fontSize={30} textAlign="center">
           Add Staff Member
         </H1>
         
@@ -563,7 +563,7 @@ const useStyles = (theme: any) => StyleSheet.create({
   },
   label: {
     color: theme.text,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
@@ -574,7 +574,7 @@ const useStyles = (theme: any) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     color: theme.text,
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: 'Times New Roman',
   },
   roleContainer: {
@@ -596,7 +596,7 @@ const useStyles = (theme: any) => StyleSheet.create({
   },
   roleButtonText: {
     color: theme.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
@@ -620,7 +620,7 @@ const useStyles = (theme: any) => StyleSheet.create({
   },
   docTypeButtonText: {
     color: theme.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },
@@ -648,13 +648,13 @@ const useStyles = (theme: any) => StyleSheet.create({
   },
   ocrText: {
     color: theme.accent,
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 8,
     fontFamily: 'Times New Roman',
   },
   uploadButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
     fontFamily: 'Times New Roman',
   },

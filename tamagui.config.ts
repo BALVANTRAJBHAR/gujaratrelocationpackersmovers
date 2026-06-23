@@ -5,12 +5,12 @@ import { createFont, createTamagui } from 'tamagui';
 
 const systemSans = Platform.select({
   web: "'Times New Roman', Times, serif",
-  default: 'serif',
+  default: 'Times New Roman',
 });
 
 const systemSerif = Platform.select({
   web: "'Times New Roman', Times, serif",
-  default: 'serif',
+  default: 'Times New Roman',
 });
 
 const bodyFont = createFont({

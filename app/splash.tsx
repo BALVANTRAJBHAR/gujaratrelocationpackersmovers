@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Platform, View } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 
-const APP_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'serif';
+const APP_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 
 export default function SplashScreen() {
   const router = useRouter();

@@ -36,7 +36,7 @@ if (typeof window !== 'undefined' && !Linking.openURL) {
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'serif';
+const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 
 const menuItems = ['Home', 'Services', 'Track', 'Contact'];
 
@@ -170,7 +170,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       nativeID={Platform.OS === 'web' ? 'business-card' : undefined}
       backgroundColor={theme.bgCard}
       borderRadius={20}
-      padding={isCardNarrow ? 18 : 28}
+      padding={isCardNarrow ? 16 : 28}
       gap="$3"
       borderWidth={2}
       borderColor={theme.primary}
@@ -182,14 +182,19 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       width="100%"
       maxWidth={640}
       alignSelf="center"
-      minHeight={360}>
-      <XStack justifyContent="space-between" alignItems="flex-start" gap="$4" flexWrap="wrap">
-        <YStack flex={1} gap="$3" minWidth={isCardNarrow ? 0 : 280}>
+      minHeight={isCardNarrow ? 0 : 360}>
+      <XStack
+        justifyContent="space-between"
+        alignItems={isCardNarrow ? 'center' : 'flex-start'}
+        gap={isCardNarrow ? '$3' : '$4'}
+        flexWrap={isCardNarrow ? 'nowrap' : 'wrap'}
+        flexDirection={isCardNarrow ? 'column' : 'row'}>
+        <YStack flex={isCardNarrow ? undefined : 1} width={isCardNarrow ? '100%' : undefined} gap="$3" minWidth={isCardNarrow ? 0 : 280}>
           <XStack alignItems="center" gap="$3" flexWrap="nowrap" style={{ minWidth: 0 }}>
             <Image
               source={require('../assets/images/PackersMoversLogo.png')}
               resizeMode="contain"
-              style={{ width: isCardNarrow ? 58 : 70, height: isCardNarrow ? 58 : 70 }}
+              style={{ width: isCardNarrow ? 52 : 70, height: isCardNarrow ? 52 : 70 }}
             />
             <YStack style={{ flexShrink: 1, minWidth: 0, flex: 1 }}>
               <Text
@@ -235,8 +240,9 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 color={theme.text}
                 fontSize={15}
                 fontWeight="700"
-                numberOfLines={1}
-                style={{ fontFamily: 'Times New Roman' }}>
+                numberOfLines={isCardNarrow ? 2 : 1}
+                lineHeight={20}
+                style={{ fontFamily: 'Times New Roman', flexShrink: 1 }}>
                 info@gujaratrelocation.com
               </Text>
             </XStack>
@@ -286,15 +292,15 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
           </YStack>
         </YStack>
 
-        <YStack alignItems="center" gap="$2.5">
+        <YStack alignItems="center" gap="$2.5" width={isCardNarrow ? '100%' : undefined}>
           <YStack
             nativeID={Platform.OS === 'web' ? 'business-card-qr' : undefined}
             backgroundColor={theme.bgSecondary}
-            padding={14}
+            padding={isCardNarrow ? 10 : 14}
             borderRadius={16}
             borderWidth={2}
             borderColor={theme.border}>
-            <QRCode value="tel:+919987963470" size={110} color={theme.text} backgroundColor={theme.bgCard} />
+            <QRCode value="tel:+919987963470" size={isCardNarrow ? 134 : 110} color={theme.text} backgroundColor={theme.bgCard} />
           </YStack>
           <Text
             color={theme.textMuted}
@@ -308,7 +314,13 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       </XStack>
 
       <YStack alignItems="center" marginTop={2}>
-        <Text color={theme.textMuted} fontSize={11} fontWeight="600" style={{ fontFamily: 'Times New Roman' }}>
+        <Text
+          color={theme.textMuted}
+          fontSize={11}
+          fontWeight="600"
+          textAlign="center"
+          lineHeight={16}
+          style={{ fontFamily: 'Times New Roman' }}>
           www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers
         </Text>
       </YStack>
@@ -523,8 +535,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? 72 : windowWidth < 900 ? 96 : 124;
-  const statsMinHeight = windowWidth < 480 ? 210 : windowWidth < 900 ? 245 : 290;
+  const statsPaddingVertical = windowWidth < 480 ? 28 : windowWidth < 900 ? 54 : 124;
+  const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 290;
   const bookBannerPaddingLeft = windowWidth < 480 ? 26 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
   const bookBannerPaddingVertical = windowWidth < 480 ? 48 : windowWidth < 900 ? 48 : 60;
@@ -533,6 +545,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
+  const sectionGap = isSmallScreen ? 32 : 64;
+  const tightSectionGap = isSmallScreen ? 18 : 28;
 
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
@@ -930,6 +944,31 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const handleWhatsApp = () => {
     Linking.openURL('https://wa.me/919987963470');
+  };
+
+  const handleOpenMaps = async () => {
+    const coords = '19.19345137320862,72.87039928686748';
+    const label = encodeURIComponent('Gujarat Relocation Packers and Movers');
+    const browserUrl = `https://www.google.com/maps/search/?api=1&query=${coords}`;
+    const nativeUrl =
+      Platform.OS === 'android'
+        ? `geo:0,0?q=${coords}(${label})`
+        : Platform.OS === 'ios'
+          ? `maps:0,0?q=${label}@${coords}`
+          : browserUrl;
+
+    try {
+      if (Platform.OS !== 'web') {
+        const canOpenNative = await Linking.canOpenURL(nativeUrl);
+        if (canOpenNative) {
+          await Linking.openURL(nativeUrl);
+          return;
+        }
+      }
+      await Linking.openURL(browserUrl);
+    } catch {
+      await Linking.openURL(browserUrl);
+    }
   };
 
   const handleTopSearch = () => {
@@ -2153,11 +2192,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   alignItems="center"
                   justifyContent="center"
                   gap={isSmallScreen ? '$2' : '$3.5'}>
-                  <YStack alignItems="center" gap={isSmallScreen ? '$1.5' : '$2.5'}>
+                  <YStack alignItems="center" gap={isSmallScreen ? '$1' : '$2.5'} marginTop={isSmallScreen ? 8 : 0}>
                     <YStack
                       backgroundColor="rgba(255,255,255,0.14)"
-                      paddingHorizontal={isSmallScreen ? 14 : 20}
-                      paddingVertical={isSmallScreen ? 6 : 10}
+                      paddingHorizontal={isSmallScreen ? 13 : 20}
+                      paddingVertical={isSmallScreen ? 5 : 10}
                       borderRadius={isSmallScreen ? 12 : 16}
                       borderWidth={1.5}
                       borderColor="rgba(255,255,255,0.4)">
@@ -2165,7 +2204,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         color="#FBBF24"
                         fontSize={isSmallScreen ? 10 : 13}
                         fontWeight="900"
-                        lineHeight={isSmallScreen ? 13 : 18}
+                        lineHeight={isSmallScreen ? 12 : 18}
                         style={{ fontFamily: APP_SERIF_FONT }}>
                         Since 2006
                       </Text>
@@ -2173,7 +2212,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         color="#FFFFFF"
                         fontSize={isSmallScreen ? 10 : 13}
                         fontWeight="800"
-                        lineHeight={isSmallScreen ? 13 : 18}
+                        lineHeight={isSmallScreen ? 12 : 18}
                         style={{ fontFamily: APP_SERIF_FONT }}>
                         18+ Years of Excellence
                       </Text>
@@ -2284,7 +2323,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </XStack>
                   )}
 
-                  <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 6 : 12}>
+                  <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 2 : 12}>
                     {heroSlides.map((s, i) => (
                       <Pressable key={s.key} onPress={() => setHeroIndex(i)}>
                         <View style={[styles.heroDot, i === heroIndex && styles.heroDotActive]} />
@@ -3086,7 +3125,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {
                       borderColor: theme.border,
                       color: theme.text,
-                      fontFamily: 'Courier New',
+                      fontFamily: 'Times New Roman',
                       letterSpacing: 0.5,
                     },
                   ]}
@@ -3303,7 +3342,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             onLayout={(e) => {
               sectionOffsetsRef.current.services = e.nativeEvent.layout.y;
             }}>
-            <YStack marginTop={64} gap="$4">
+            <YStack marginTop={sectionGap} gap="$4">
               <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
@@ -3449,23 +3488,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
           </View>
 
-          <YStack style={[styles.statsStrip, { paddingVertical: statsPaddingVertical, minHeight: statsMinHeight }]} marginTop={64}>
+          <YStack style={[styles.statsStrip, { paddingVertical: statsPaddingVertical, minHeight: statsMinHeight }]} marginTop={sectionGap}>
             {isSmallScreen ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'center', gap: 18 } as any}>
+              <YStack width="100%" gap="$3">
                 {[
                   { label: 'Branches', value: '5', icon: '📍' },
                   { label: 'Years Experience', value: '18+', icon: '🕒' },
                   { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
                   { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
                 ].map((s) => (
-                  <YStack key={s.label} style={[styles.statItem, { width: 170 }]} alignItems="center" gap="$1.5">
+                  <YStack key={s.label} style={[styles.statItem, styles.mobileStatItem]} alignItems="center" gap="$1.5">
                     <YStack style={styles.statIcon}>
                       <Text fontSize={20}>{s.icon}</Text>
                     </YStack>
-                    <Text color="#FFFFFF" fontSize={32} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                    <Text color="#FFFFFF" fontSize={30} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
                       {s.value}
                     </Text>
                     <Text
@@ -3478,7 +3514,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </Text>
                   </YStack>
                 ))}
-              </ScrollView>
+              </YStack>
             ) : (
               <XStack flexWrap="wrap" justifyContent="space-between" gap="$3.5">
                 {[
@@ -3508,7 +3544,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             )}
           </YStack>
 
-          <YStack marginTop={64} gap="$4">
+          <YStack marginTop={sectionGap} gap="$4">
             <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
@@ -3561,7 +3597,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
           </YStack>
 
-          <YStack marginTop={64} alignItems="center">
+          <YStack marginTop={sectionGap} alignItems="center">
             <YStack
               style={[
                 styles.bookBanner,
@@ -3632,7 +3668,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
           </YStack>
 
-          <YStack marginTop={64} gap="$4">
+          <YStack marginTop={sectionGap} gap="$4">
             <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
@@ -3695,7 +3731,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
           </YStack>
 
-          <YStack marginTop={64} gap="$4">
+          <YStack marginTop={sectionGap} gap="$4">
             <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
@@ -3820,7 +3856,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
           </YStack>
 
-          <YStack style={styles.transparentPricingSection} marginTop={64}>
+          <YStack style={styles.transparentPricingSection} marginTop={sectionGap}>
             <YStack alignItems="center" gap="$2.5" marginBottom={18}>
               <Text
                 color="#FFFFFF"
@@ -3936,7 +3972,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             borderRadius={26}
             padding={28}
             gap="$3.5"
-            marginTop={28}
+            marginTop={tightSectionGap}
             borderWidth={1}
             borderColor={theme.border}
             shadowColor={theme.shadow}
@@ -4029,10 +4065,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             }}>
             <YStack
               backgroundColor={theme.bgCard}
-              borderRadius={26}
-              padding={30}
-              gap="$4"
-              marginTop={28}
+              borderRadius={isSmallScreen ? 22 : 26}
+              padding={isSmallScreen ? 16 : 30}
+              gap={isSmallScreen ? '$3' : '$4'}
+              marginTop={tightSectionGap}
               borderWidth={1}
               borderColor={theme.border}
               shadowColor={theme.shadow}
@@ -4130,12 +4166,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     maxWidth: isSmallScreen ? '100%' : 560,
                     minWidth: isSmallScreen ? '100%' : 360,
                   }}
-                  backgroundColor={isDarkMode ? 'rgba(79, 70, 229, 0.1)' : theme.gradient1}
-                  borderRadius={22}
-                  padding={22}
+                  backgroundColor={isSmallScreen ? theme.bgCard : isDarkMode ? 'rgba(79, 70, 229, 0.1)' : theme.gradient1}
+                  borderRadius={isSmallScreen ? 0 : 22}
+                  padding={isSmallScreen ? 0 : 22}
                   alignItems="center"
-                  borderWidth={1}
-                  borderColor={theme.border}>
+                  borderWidth={isSmallScreen ? 0 : 1}
+                  borderColor={theme.border}
+                  overflow="hidden">
                   {Platform.OS === 'web' ? (
                     <iframe
                       src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin"
@@ -4146,24 +4183,26 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"></iframe>
                   ) : (
-                    <YStack alignItems="center" justifyContent="center" gap="$3.5" width="100%" minHeight={300}>
-                      <Text
-                        color={theme.text}
-                        fontSize={16}
-                        fontWeight="900"
-                        textAlign="center"
-                        style={{ fontFamily: 'Times New Roman' }}>
-                        Google Map
-                      </Text>
-                      <Pressable
-                        onPress={() =>
-                          Linking.openURL(
-                            'https://www.google.com/maps/search/?api=1&query=19.19345137320862,72.87039928686748'
-                          )
-                        }>
+                    <Pressable onPress={handleOpenMaps} style={{ width: '100%' } as any}>
+                      <YStack
+                        alignItems="center"
+                        justifyContent="center"
+                        gap="$3"
+                        width="100%"
+                        minHeight={isSmallScreen ? 260 : 300}
+                        padding={isSmallScreen ? 22 : 0}>
+                        <FontAwesome name="map-marker" size={34} color={theme.accent} />
+                        <Text
+                          color={theme.text}
+                          fontSize={17}
+                          fontWeight="900"
+                          textAlign="center"
+                          style={{ fontFamily: 'Times New Roman' }}>
+                          Google Map
+                        </Text>
                         <YStack
                           paddingHorizontal={24}
-                          paddingVertical={14}
+                          paddingVertical={13}
                           borderRadius={14}
                           backgroundColor={theme.accent}
                           alignItems="center"
@@ -4172,26 +4211,37 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             Open in Maps
                           </Text>
                         </YStack>
-                      </Pressable>
-                    </YStack>
+                        <Text
+                          marginTop={8}
+                          color="#0ba705ff"
+                          fontSize={13}
+                          fontWeight="700"
+                          textAlign="center"
+                          lineHeight={19}
+                          style={{ fontFamily: 'Times New Roman' }}>
+                          Find us on Google Maps - tap directions for the fastest route and live navigation.
+                        </Text>
+                      </YStack>
+                    </Pressable>
                   )}
 
-                  <Text
-                    marginTop={16}
-                    color="#0ba705ff"
-                    //color={theme.textMuted}
-                    fontSize={13}
-                    fontWeight="700"
-                    textAlign="center"
-                    style={{ fontFamily: 'Times New Roman' }}>
-                    Find us on Google Maps — tap directions for the fastest route and live navigation.
-                  </Text>
+                  {Platform.OS === 'web' ? (
+                    <Text
+                      marginTop={16}
+                      color="#0ba705ff"
+                      fontSize={13}
+                      fontWeight="700"
+                      textAlign="center"
+                      style={{ fontFamily: 'Times New Roman' }}>
+                      Find us on Google Maps - tap directions for the fastest route and live navigation.
+                    </Text>
+                  ) : null}
                 </YStack>
               </XStack>
             </YStack>
           </View>
 
-          <YStack style={[styles.footerWrap, { borderColor: theme.border }]} marginTop={64}>
+          <YStack style={[styles.footerWrap, { borderColor: theme.border }]} marginTop={sectionGap}>
             <XStack
               flexWrap={isSmallScreen ? 'wrap' : 'nowrap'}
               justifyContent="space-between"
@@ -4539,13 +4589,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    width: 49,
-    height: 49,
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
   },
   logoMobile: {
-    width: 39,
-    height: 39,
+    width: 40,
+    height: 40,
   },
   heroBg: {
     width: '100%',
@@ -4554,7 +4604,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroBgMobile: {
-    height: 220,
+    height: 232,
     marginLeft: 0,
     marginRight: 0,
   },
@@ -4569,7 +4619,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   heroOverlayMobile: {
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 18,
   },
@@ -4592,7 +4642,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
@@ -4602,7 +4652,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },
@@ -4725,6 +4775,15 @@ const styles = StyleSheet.create({
   },
   statItem: {
     paddingVertical: 18,
+  },
+  mobileStatItem: {
+    width: '100%',
+    minHeight: 126,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.11)',
+    justifyContent: 'center',
   },
   statIcon: {
     width: 52,

@@ -3,6 +3,7 @@ import '@/lib/font-web-guard-init';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -12,13 +13,14 @@ import { TamaguiProvider } from 'tamagui';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import '@/lib/driver-location-task';
+import { themes } from '@/constants/theme';
 import { installFontTimeoutGuard, preloadWebIconFonts } from '@/lib/font-web-guard';
 import { installSupabaseAuthAbortGuard } from '@/lib/supabase-auth-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
 
-const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'serif';
+const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 
 function installDefaultTextFont() {
   const textDefaults = (RNText as any).defaultProps ?? {};
@@ -34,15 +36,20 @@ function installDefaultTextFont() {
   };
 }
 
+installDefaultTextFont();
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 function AppLayout() {
   const colorScheme = useColorScheme();
+  const [fontsLoaded] = useFonts({
+    'Times New Roman': require('../assets/fonts/times.ttf'),
+    'Times New Roman Bold': require('../assets/fonts/timesbd.ttf'),
+  });
 
   useEffect(() => {
-    installDefaultTextFont();
     const cleanupAuth = installSupabaseAuthAbortGuard();
     const cleanup = installFontTimeoutGuard();
     void preloadWebIconFonts();
@@ -51,6 +58,10 @@ function AppLayout() {
       cleanup();
     };
   }, []);
+
+  if (!fontsLoaded) return null;
+
+  const statusTheme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   return (
     <SessionProvider>
@@ -79,7 +90,11 @@ function AppLayout() {
               <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
-            <StatusBar style="auto" />
+            <StatusBar
+              style={colorScheme === 'dark' ? 'light' : 'dark'}
+              backgroundColor={statusTheme.headerBg}
+              translucent={false}
+            />
           </ThemeProvider>
         </PortalProvider>
       </TamaguiProvider>

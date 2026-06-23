@@ -4,7 +4,7 @@
     "slug": "GRPackersMovers",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/PackersMoversLogo.png",
+    "icon": "./assets/images/splash-professional.png",
     "scheme": "grpackersmovers",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -27,11 +27,11 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/PackersMoversLogo.png",
+        "foregroundImage": "./assets/images/splash-professional.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.grpackersmovers"
     },
@@ -43,6 +43,11 @@
       "image": "./assets/images/splash-professional.png",
       "resizeMode": "contain",
       "backgroundColor": "#F8FAFC"
+    },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#F8FAFC",
+      "translucent": false
     },
     "plugins": [
       "expo-router",

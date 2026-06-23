@@ -508,7 +508,7 @@ export default function HomeServiceRequestScreen() {
           backgroundColor={backButtonBg}
           alignItems="center"
           justifyContent="center">
-          <Text color={backButtonText} fontWeight="700" fontSize={15}>
+          <Text color={backButtonText} fontWeight="700" fontSize={16}>
             Back
           </Text>
         </YStack>
@@ -1113,10 +1113,10 @@ export default function HomeServiceRequestScreen() {
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={17} fontWeight="800">
+            <Text color="#FFFFFF" fontSize={18} fontWeight="800">
               Home Service Request
             </Text>
-            <Text color={theme.menuText} fontSize={13} fontWeight="600">
+            <Text color={theme.menuText} fontSize={14} fontWeight="600">
               {step === 'service' ? 'Step 1 of 5' : step === 'details' ? 'Step 2 of 5' : step === 'uploads' ? 'Step 3 of 5' : step === 'payment' ? 'Step 4 of 5' : 'Step 5 of 5'}
             </Text>
           </YStack>
@@ -1127,7 +1127,7 @@ export default function HomeServiceRequestScreen() {
         <YStack width={containerWidth} gap="$4">
           {step === 'service' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={17} fontWeight="800" color="#1F4E79">
+              <Text fontSize={18} fontWeight="800" color="#1F4E79">
                 Select Service
               </Text>
               <XStack flexWrap="wrap" gap="$3" justifyContent="space-between">
@@ -1145,7 +1145,7 @@ export default function HomeServiceRequestScreen() {
                         <Text fontWeight="800" color={theme.text}>
                           {s.label}
                         </Text>
-                        <Text fontSize={12} color={theme.textSecondary} fontWeight="700">
+                        <Text fontSize={13} color={theme.textSecondary} fontWeight="700">
                           Tap to choose
                         </Text>
                       </YStack>
@@ -1158,7 +1158,7 @@ export default function HomeServiceRequestScreen() {
 
           {step === 'details' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={17} fontWeight="800" color="#1F4E79">
+              <Text fontSize={18} fontWeight="800" color="#1F4E79">
                 Your Details
               </Text>
 
@@ -1171,7 +1171,7 @@ export default function HomeServiceRequestScreen() {
               ) : null}
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Name
                 </Text>
                 <Input
@@ -1185,7 +1185,7 @@ export default function HomeServiceRequestScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Phone *
                 </Text>
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -1196,10 +1196,10 @@ export default function HomeServiceRequestScreen() {
                       padding={12}
                       borderWidth={1}
                       borderColor={theme.border}>
-                      <Text fontSize={12} fontWeight="800" color={theme.textMuted}>
+                      <Text fontSize={13} fontWeight="800" color={theme.textMuted}>
                         Code
                       </Text>
-                      <Text fontSize={14} fontWeight="900" color={theme.text}>
+                      <Text fontSize={15} fontWeight="900" color={theme.text}>
                         {countryCode}
                       </Text>
                     </YStack>
@@ -1221,7 +1221,7 @@ export default function HomeServiceRequestScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Address line 1
                 </Text>
                 <Input
@@ -1435,14 +1435,14 @@ export default function HomeServiceRequestScreen() {
                     <View style={{ position: 'absolute', width: 16, height: 2, backgroundColor: theme.info }} />
                     <View style={{ position: 'absolute', width: 2, height: 16, backgroundColor: theme.info }} />
                   </View>
-                  <Text fontSize={13} fontWeight="900" color={theme.info}>
+                  <Text fontSize={14} fontWeight="900" color={theme.info}>
                     Use Current Location
                   </Text>
                 </XStack>
               </Pressable>
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Address line 2
                 </Text>
                 <Input
@@ -1456,7 +1456,7 @@ export default function HomeServiceRequestScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Locality
                 </Text>
                 <Input
@@ -1474,7 +1474,7 @@ export default function HomeServiceRequestScreen() {
 
               {localityTyped && localityOptions.length && locality.trim() ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                  <Text fontSize={12} fontWeight="700" color={theme.textMuted}>
+                  <Text fontSize={13} fontWeight="700" color={theme.textMuted}>
                     Locality suggestions:
                   </Text>
                   {localityOptions
@@ -1488,7 +1488,7 @@ export default function HomeServiceRequestScreen() {
                           setLocality(l);
                           setLocalitySuggestions([]);
                         }}>
-                        <Text fontSize={12} fontWeight="900" color={theme.info}>
+                        <Text fontSize={13} fontWeight="900" color={theme.info}>
                           {l}
                         </Text>
                       </Pressable>
@@ -1510,7 +1510,7 @@ export default function HomeServiceRequestScreen() {
                         <Text color={theme.text} fontWeight="900" numberOfLines={1}>
                           {s.label}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={12} numberOfLines={1}>
+                        <Text color={theme.textMuted} fontSize={13} numberOfLines={1}>
                           {s.full}
                         </Text>
                       </YStack>
@@ -1518,37 +1518,37 @@ export default function HomeServiceRequestScreen() {
                   ))}
                 </YStack>
               ) : localityTyped && localityLoading ? (
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={13}>
                   Searching...
                 </Text>
               ) : null}
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                  <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                     State
                   </Text>
                   <Pressable onPress={() => setStatePickerOpen(true)}>
                     <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                      <Text fontSize={12} fontWeight="800" color={theme.textMuted}>
+                      <Text fontSize={13} fontWeight="800" color={theme.textMuted}>
                         Select
                       </Text>
-                      <Text fontSize={14} fontWeight="900" color={theme.text} numberOfLines={1}>
+                      <Text fontSize={15} fontWeight="900" color={theme.text} numberOfLines={1}>
                         {state || 'State'}
                       </Text>
                     </YStack>
                   </Pressable>
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                  <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                     City
                   </Text>
                   <Pressable onPress={() => setCityPickerOpen(true)}>
                     <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                      <Text fontSize={12} fontWeight="800" color={theme.textMuted}>
+                      <Text fontSize={13} fontWeight="800" color={theme.textMuted}>
                         Select
                       </Text>
-                      <Text fontSize={14} fontWeight="900" color={theme.text} numberOfLines={1}>
+                      <Text fontSize={15} fontWeight="900" color={theme.text} numberOfLines={1}>
                         {city || 'City'}
                       </Text>
                     </YStack>
@@ -1558,7 +1558,7 @@ export default function HomeServiceRequestScreen() {
 
               <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                  <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                     Preferred date
                   </Text>
                   {Platform.OS === 'web'
@@ -1573,7 +1573,7 @@ export default function HomeServiceRequestScreen() {
                           boxSizing: 'border-box',
                           display: 'block',
                           height: 46,
-                          fontSize: 15,
+                          fontSize: 16,
                           padding: '10px 12px',
                           borderRadius: 12,
                           border: '1px solid ' + theme.border,
@@ -1611,7 +1611,7 @@ export default function HomeServiceRequestScreen() {
                       )}
                 </YStack>
                 <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                  <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                     Preferred time
                   </Text>
                   {Platform.OS === 'web'
@@ -1625,7 +1625,7 @@ export default function HomeServiceRequestScreen() {
                           boxSizing: 'border-box',
                           display: 'block',
                           height: 46,
-                          fontSize: 15,
+                          fontSize: 16,
                           padding: '10px 12px',
                           borderRadius: 12,
                           border: '1px solid ' + theme.border,
@@ -1664,7 +1664,7 @@ export default function HomeServiceRequestScreen() {
               </XStack>
 
               <YStack gap="$2">
-                <Text fontSize={13} fontWeight="700" color={theme.textSecondary}>
+                <Text fontSize={14} fontWeight="700" color={theme.textSecondary}>
                   Notes
                 </Text>
                 <TextInput
@@ -1691,7 +1691,7 @@ export default function HomeServiceRequestScreen() {
 
           {step === 'uploads' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={17} fontWeight="800" color="#1F4E79">
+              <Text fontSize={18} fontWeight="800" color="#1F4E79">
                 Upload Photos / Videos
               </Text>
               <Paragraph color={theme.textMuted}>
@@ -1784,7 +1784,7 @@ export default function HomeServiceRequestScreen() {
 
           {step === 'payment' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={17} fontWeight="800" color="#1F4E79">
+              <Text fontSize={18} fontWeight="800" color="#1F4E79">
                 Payment Option
               </Text>
               <Paragraph color={theme.textMuted}>
@@ -1802,10 +1802,10 @@ export default function HomeServiceRequestScreen() {
                   opacity: pressed ? 0.85 : 1,
                 } as any]}>
                 <YStack gap="$1">
-                  <Text color={paymentOption === 'online_now' ? '#22C55E' : theme.text} fontWeight="900" fontSize={16}>
+                  <Text color={paymentOption === 'online_now' ? '#22C55E' : theme.text} fontWeight="900" fontSize={17}>
                     Pay Online Now
                   </Text>
-                  <Text color={paymentOption === 'online_now' ? '#86EFAC' : theme.textMuted} fontSize={13}>
+                  <Text color={paymentOption === 'online_now' ? '#86EFAC' : theme.textMuted} fontSize={14}>
                     Pay ₹150 advance now via card/UPI/net banking. Review summary then pay.
                   </Text>
                 </YStack>
@@ -1822,10 +1822,10 @@ export default function HomeServiceRequestScreen() {
                   opacity: pressed ? 0.85 : 1,
                 } as any]}>
                 <YStack gap="$1">
-                  <Text color={paymentOption === 'after_service' ? '#22C55E' : theme.text} fontWeight="900" fontSize={16}>
+                  <Text color={paymentOption === 'after_service' ? '#22C55E' : theme.text} fontWeight="900" fontSize={17}>
                     Pay After Service
                   </Text>
-                  <Text color={paymentOption === 'after_service' ? '#86EFAC' : theme.textMuted} fontSize={13}>
+                  <Text color={paymentOption === 'after_service' ? '#86EFAC' : theme.textMuted} fontSize={14}>
                     No upfront payment. Pay online or in cash after the service is completed.
                   </Text>
                 </YStack>
@@ -1835,7 +1835,7 @@ export default function HomeServiceRequestScreen() {
 
           {step === 'review' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={17} fontWeight="800" color="#1F4E79">
+              <Text fontSize={18} fontWeight="800" color="#1F4E79">
                 Review
               </Text>
 
@@ -1843,7 +1843,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Name
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {customerName.trim() || 'Not provided'}
                 </Text>
               </YStack>
@@ -1852,7 +1852,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Service
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {serviceOptions.find((x) => x.key === serviceKey)?.label ?? serviceKey}
                 </Text>
               </YStack>
@@ -1861,7 +1861,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Phone
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {countryCode}{normalizePhoneDigits(customerPhone)}
                 </Text>
               </YStack>
@@ -1870,7 +1870,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Location
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {addressLine1 || addressLine2 || locality || city || state
                     ? `${addressLine1}${addressLine1 ? ', ' : ''}${addressLine2}${addressLine2 ? ', ' : ''}${locality}${locality ? ', ' : ''}${city}${city ? ', ' : ''}${state}`
                     : 'Not provided'}
@@ -1881,7 +1881,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Preferred date & time
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {preferredDate && preferredTime ? `${preferredDate}, ${preferredTime}` : 'Not provided'}
                 </Text>
               </YStack>
@@ -1890,7 +1890,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Remark
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {notes.trim() || 'Not provided'}
                 </Text>
               </YStack>
@@ -1899,7 +1899,7 @@ export default function HomeServiceRequestScreen() {
                 <Text color={theme.textMuted} fontWeight="700">
                   Payment
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {paymentOption === 'online_now' ? 'Pay Online Now (₹150 advance)' : 'Pay After Service'}
                 </Text>
               </YStack>
@@ -1920,7 +1920,7 @@ export default function HomeServiceRequestScreen() {
                     <Text
                       color={photos.length ? theme.info : theme.textMuted}
                       fontWeight="900"
-                      style={{ textDecorationLine: photos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                      style={{ textDecorationLine: photos.length ? 'underline' : 'none', fontFamily: 'Times New Roman' } as any}>
                       {photos.length} photos (View)
                     </Text>
                   </Pressable>
@@ -1936,7 +1936,7 @@ export default function HomeServiceRequestScreen() {
                     <Text
                       color={videos.length ? theme.info : theme.textMuted}
                       fontWeight="900"
-                      style={{ textDecorationLine: videos.length ? 'underline' : 'none', fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'serif' } as any}>
+                      style={{ textDecorationLine: videos.length ? 'underline' : 'none', fontFamily: 'Times New Roman' } as any}>
                       {videos.length} videos (View)
                     </Text>
                   </Pressable>
@@ -1971,7 +1971,7 @@ export default function HomeServiceRequestScreen() {
           </Button>
 
           {step === 'details' && detailsAttempted && detailsBlocker ? (
-            <Text color={theme.danger} fontSize={12} fontWeight="800" style={{ flex: 1, textAlign: 'center' } as any} numberOfLines={2}>
+            <Text color={theme.danger} fontSize={13} fontWeight="800" style={{ flex: 1, textAlign: 'center' } as any} numberOfLines={2}>
               {detailsBlocker}
             </Text>
           ) : (
@@ -2008,11 +2008,11 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setCountryCodePickerOpen(false)}>
           <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14, maxHeight: 420 }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color={theme.text} fontSize={17} fontWeight="900">
+              <Text color={theme.text} fontSize={18} fontWeight="900">
                 Select Country Code
               </Text>
               <Pressable onPress={() => setCountryCodePickerOpen(false)}>
-                <Text color={theme.textMuted} fontSize={25} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={26} fontWeight="900">
                   ×
                 </Text>
               </Pressable>
@@ -2050,11 +2050,11 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setStatePickerOpen(false)}>
           <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14, maxHeight: 420 }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color={theme.text} fontSize={17} fontWeight="900">
+              <Text color={theme.text} fontSize={18} fontWeight="900">
                 Select State
               </Text>
               <Pressable onPress={() => setStatePickerOpen(false)}>
-                <Text color={theme.textMuted} fontSize={25} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={26} fontWeight="900">
                   ×
                 </Text>
               </Pressable>
@@ -2094,11 +2094,11 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', padding: 16 }} onPress={() => setCityPickerOpen(false)}>
           <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14, maxHeight: 420 }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color={theme.text} fontSize={17} fontWeight="900">
+              <Text color={theme.text} fontSize={18} fontWeight="900">
                 Select City
               </Text>
               <Pressable onPress={() => setCityPickerOpen(false)}>
-                <Text color={theme.textMuted} fontSize={25} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={26} fontWeight="900">
                   ×
                 </Text>
               </Pressable>
@@ -2172,12 +2172,12 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
       <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.92)', padding: 16, justifyContent: 'center' }}>
           <XStack alignItems="center" justifyContent="space-between" marginBottom={12}>
-            <Text color="#FFFFFF" fontSize={17} fontWeight="900">
+            <Text color="#FFFFFF" fontSize={18} fontWeight="900">
               {mediaViewerKind === 'photo' ? 'Photo' : 'Video'} {mediaViewerIndex + 1}/
               {mediaViewerKind === 'photo' ? photos.length : videos.length}
             </Text>
             <Pressable onPress={() => setMediaViewerOpen(false)}>
-              <Text color={theme.textMuted} fontSize={27} fontWeight="900">
+              <Text color={theme.textMuted} fontSize={28} fontWeight="900">
                 ×
               </Text>
             </Pressable>
@@ -2242,7 +2242,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
           style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', padding: 16 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 18, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={8}>
-              <Text color={theme.text} fontSize={17} fontWeight="900">
+              <Text color={theme.text} fontSize={18} fontWeight="900">
                 Verify OTP
               </Text>
               <Pressable
@@ -2250,7 +2250,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
                   if (otpVerifying) return;
                   setOtpOpen(false);
                 }}>
-                <Text color={theme.textMuted} fontSize={25} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={26} fontWeight="900">
                   ×
                 </Text>
               </Pressable>
@@ -2262,7 +2262,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
                 {normalizePhoneDigits(customerPhone)}
               </Paragraph>
               {otpExpiryTime ? (
-                <Text color={theme.textMuted} fontSize={13} fontWeight="600">
+                <Text color={theme.textMuted} fontSize={14} fontWeight="600">
                   Code expires in 10 minutes
                 </Text>
               ) : null}
@@ -2320,7 +2320,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
                     borderColor: theme.border,
                     borderRadius: 14,
                     textAlign: 'center',
-                    fontSize: 21,
+                    fontSize: 22,
                     fontWeight: '900',
                     color: theme.text,
                     backgroundColor: theme.bgCard,

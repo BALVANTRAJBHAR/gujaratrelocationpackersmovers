@@ -2,7 +2,7 @@
 
 import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import React from 'react';
-import { OpaqueColorValue, Platform, type StyleProp, type TextStyle } from 'react-native';
+import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 type IconMapping = Record<SymbolViewProps['name'], string>;
 type IconSymbolName = keyof typeof MAPPING;
@@ -42,7 +42,6 @@ export function IconSymbol({
   weight?: SymbolWeight;
 }) {
   const MaterialIcons = React.useMemo(() => {
-    if (Platform.OS === 'web') return null;
     try {
       return require('@expo/vector-icons/MaterialIcons').default as any;
     } catch {
