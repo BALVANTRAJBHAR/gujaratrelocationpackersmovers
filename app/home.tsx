@@ -163,7 +163,7 @@ const brandTextKeyframes = {
 
 const BusinessCard = ({ theme, viewShotRef }: any) => {
   const { width: cardWindowWidth } = useWindowDimensions();
-  const isCardNarrow = cardWindowWidth <= 420;
+  const isCardNarrow = cardWindowWidth <= 520;
 
   const card = (
     <YStack
@@ -185,8 +185,8 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       minHeight={isCardNarrow ? 0 : 360}>
       <XStack
         justifyContent="space-between"
-        alignItems={isCardNarrow ? 'center' : 'flex-start'}
-        gap={isCardNarrow ? '$3' : '$4'}
+        alignItems={isCardNarrow ? 'stretch' : 'flex-start'}
+        gap={isCardNarrow ? '$2' : '$4'}
         flexWrap={isCardNarrow ? 'nowrap' : 'wrap'}
         flexDirection={isCardNarrow ? 'column' : 'row'}>
         <YStack flex={isCardNarrow ? undefined : 1} width={isCardNarrow ? '100%' : undefined} gap="$3" minWidth={isCardNarrow ? 0 : 280}>
@@ -296,11 +296,11 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
           <YStack
             nativeID={Platform.OS === 'web' ? 'business-card-qr' : undefined}
             backgroundColor={theme.bgSecondary}
-            padding={isCardNarrow ? 10 : 14}
+            padding={isCardNarrow ? 8 : 14}
             borderRadius={16}
             borderWidth={2}
             borderColor={theme.border}>
-            <QRCode value="tel:+919987963470" size={isCardNarrow ? 134 : 110} color={theme.text} backgroundColor={theme.bgCard} />
+            <QRCode value="tel:+919987963470" size={isCardNarrow ? 118 : 110} color={theme.text} backgroundColor={theme.bgCard} />
           </YStack>
           <Text
             color={theme.textMuted}
@@ -535,18 +535,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? 28 : windowWidth < 900 ? 54 : 124;
+  const statsPaddingVertical = windowWidth < 480 ? 20 : windowWidth < 900 ? 44 : 124;
   const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 290;
-  const bookBannerPaddingLeft = windowWidth < 480 ? 26 : windowWidth < 900 ? 44 : 62;
-  const bookBannerPaddingRight = windowWidth < 480 ? 28 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 48 : windowWidth < 900 ? 48 : 60;
-  const bookBannerMinHeight = windowWidth < 480 ? 265 : windowWidth < 900 ? 230 : 255;
+  const bookBannerPaddingLeft = windowWidth < 480 ? 22 : windowWidth < 900 ? 44 : 62;
+  const bookBannerPaddingRight = windowWidth < 480 ? 22 : windowWidth < 900 ? 52 : 70;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 38 : windowWidth < 900 ? 44 : 60;
+  const bookBannerMinHeight = windowWidth < 480 ? 240 : windowWidth < 900 ? 230 : 255;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
-  const sectionGap = isSmallScreen ? 32 : 64;
-  const tightSectionGap = isSmallScreen ? 18 : 28;
+  const sectionGap = isSmallScreen ? 20 : 64;
+  const tightSectionGap = isSmallScreen ? 12 : 28;
 
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
@@ -948,26 +948,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const handleOpenMaps = async () => {
     const coords = '19.19345137320862,72.87039928686748';
-    const label = encodeURIComponent('Gujarat Relocation Packers and Movers');
-    const browserUrl = `https://www.google.com/maps/search/?api=1&query=${coords}`;
-    const nativeUrl =
-      Platform.OS === 'android'
-        ? `geo:0,0?q=${coords}(${label})`
-        : Platform.OS === 'ios'
-          ? `maps:0,0?q=${label}@${coords}`
-          : browserUrl;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords}`;
 
     try {
-      if (Platform.OS !== 'web') {
-        const canOpenNative = await Linking.canOpenURL(nativeUrl);
-        if (canOpenNative) {
-          await Linking.openURL(nativeUrl);
-          return;
-        }
-      }
-      await Linking.openURL(browserUrl);
+      await Linking.openURL(mapsUrl);
     } catch {
-      await Linking.openURL(browserUrl);
+      await Linking.openURL(`https://maps.google.com/?q=${coords}`);
     }
   };
 
@@ -3490,7 +3476,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
           <YStack style={[styles.statsStrip, { paddingVertical: statsPaddingVertical, minHeight: statsMinHeight }]} marginTop={sectionGap}>
             {isSmallScreen ? (
-              <YStack width="100%" gap="$3">
+              <YStack width="100%" gap="$2.5">
                 {[
                   { label: 'Branches', value: '5', icon: '📍' },
                   { label: 'Years Experience', value: '18+', icon: '🕒' },
@@ -4093,7 +4079,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </Text>
               </YStack>
 
-              <XStack flexWrap="wrap" justifyContent="space-between" gap="$4" alignItems="flex-start">
+              <XStack flexWrap="wrap" justifyContent="space-between" gap={isSmallScreen ? '$3' : '$4'} alignItems="flex-start">
                 <YStack
                   style={{
                     flexGrow: 1,
@@ -4103,7 +4089,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     minWidth: isSmallScreen ? '100%' : 360,
                   }}
                   alignItems="center"
-                  gap="$4">
+                  gap={isSmallScreen ? '$3' : '$4'}>
                   <BusinessCard theme={theme} viewShotRef={businessCardRef} />
 
                   <View style={{ zIndex: 5 } as any} pointerEvents="auto">
@@ -4189,8 +4175,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         justifyContent="center"
                         gap="$3"
                         width="100%"
-                        minHeight={isSmallScreen ? 260 : 300}
-                        padding={isSmallScreen ? 22 : 0}>
+                        minHeight={isSmallScreen ? 240 : 300}
+                        padding={isSmallScreen ? 18 : 0}>
                         <FontAwesome name="map-marker" size={34} color={theme.accent} />
                         <Text
                           color={theme.text}
@@ -4761,7 +4747,7 @@ const styles = StyleSheet.create({
   },
   statsStrip: {
     width: '100%',
-    paddingVertical: 50,
+    paddingVertical: 44,
     paddingHorizontal: 24,
     marginHorizontal: -24,
     borderRadius: 0,
@@ -4778,7 +4764,7 @@ const styles = StyleSheet.create({
   },
   mobileStatItem: {
     width: '100%',
-    minHeight: 126,
+    minHeight: 112,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
@@ -4786,8 +4772,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statIcon: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
@@ -4861,8 +4847,8 @@ const styles = StyleSheet.create({
   transparentPricingSection: {
     borderRadius: 22,
     paddingHorizontal: 20,
-    paddingTop: 44,
-    paddingBottom: 44,
+    paddingTop: 36,
+    paddingBottom: 36,
     backgroundColor: '#1E3A5F',
   },
   transparentPricingTable: {

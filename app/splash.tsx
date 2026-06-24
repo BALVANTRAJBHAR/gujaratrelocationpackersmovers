@@ -105,7 +105,7 @@ export default function SplashScreen() {
               justifyContent: 'center',
             }}>
             <Image
-              source={require('../assets/images/PackersMoversLogo.png')}
+              source={require('../assets/images/favicon1.png')}
               resizeMode="contain"
               style={{ width: 112, height: 112 }}
             />

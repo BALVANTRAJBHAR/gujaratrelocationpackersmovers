@@ -19,6 +19,8 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'clock.fill': 'schedule',
   'location.fill': 'location-on',
+  'building.2.fill': 'apartment',
+  'wrench.and.screwdriver.fill': 'handyman',
   'steeringwheel': 'local-shipping',
   'gearshape.fill': 'settings',
   'bell.fill': 'notifications',
