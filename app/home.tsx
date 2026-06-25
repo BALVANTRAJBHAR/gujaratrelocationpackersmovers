@@ -48,6 +48,18 @@ const roleRouteMap: Record<string, string> = {
   customer: '/(tabs)/bookings',
 };
 
+const transparentPricingColumns = ['Type of Move', 'Up to 10 km', '11-25 km', '26-40 km'];
+
+const transparentPricingRows = [
+  ['1 BHK Shifting', '₹3,000 - 5,000', '₹4,000 - 6,500', '₹7,000 - 8,500'],
+  ['2 BHK Shifting', '₹4,000 - 7,000', '₹6,500 - 9,500', '₹8,500 - 11,000'],
+  ['3 BHK Shifting', '₹7,000 - 11,000', '₹10,000 - 15,000', '₹14,000 - 18,000'],
+];
+
+const googleMapCoords = '19.19345137320862,72.87039928686748';
+const googleMapEmbedUrl =
+  'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin';
+
 const glowKeyframes = {
   '0%': { backgroundPosition: '0 0' },
   '50%': { backgroundPosition: '400% 0' },
@@ -546,11 +558,17 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
   const pricingTableWidth = isSmallScreen ? '100%' : '80%';
-  const pricingCellPaddingHorizontal = isSmallScreen ? 8 : 14;
-  const pricingCellPaddingVertical = isSmallScreen ? 18 : 34;
   const pricingHeaderFontSize = isSmallScreen ? 11 : 13;
   const pricingBodyFontSize = isSmallScreen ? 11 : 13;
   const pricingBodyLineHeight = isSmallScreen ? 16 : 22;
+  const nativeWebView = useMemo(() => {
+    if (Platform.OS === 'web') return null;
+    try {
+      return require('react-native-webview');
+    } catch {
+      return null;
+    }
+  }, []);
   const nativeMaps = useMemo(() => {
     if (Platform.OS === 'web') return null;
     try {
@@ -559,6 +577,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       return null;
     }
   }, []);
+  const NativeWebView = nativeWebView?.WebView as any;
   const NativeMapView = nativeMaps?.default as any;
   const NativeMapMarker = nativeMaps?.Marker as any;
   const sectionGap = isSmallScreen ? 20 : 64;
@@ -963,13 +982,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   };
 
   const handleOpenMaps = async () => {
-    const coords = '19.19345137320862,72.87039928686748';
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords}`;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${googleMapCoords}`;
 
     try {
       await Linking.openURL(mapsUrl);
     } catch {
-      await Linking.openURL(`https://maps.google.com/?q=${coords}`);
+      await Linking.openURL(`https://maps.google.com/?q=${googleMapCoords}`);
     }
   };
 
@@ -3891,80 +3909,122 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               </Text>
             </YStack>
 
-            <ScrollView
-              horizontal={!isSmallScreen}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={isSmallScreen ? ({ alignItems: 'stretch', width: '100%' } as any) : ({ alignItems: 'center' } as any)}
-              style={{ width: '100%' } as any}>
-              <YStack
-                style={[
-                  styles.transparentPricingTable,
-                  {
-                    width: pricingTableWidth,
-                    maxWidth: 760,
-                    borderRadius: isSmallScreen ? 20 : 16,
-                  } as any,
-                ] as any}>
-                <XStack style={styles.transparentPricingHeaderRow}>
-                  {['Type of Move', 'Up to 10 km', '11-25 km', '26-40 km'].map((h) => (
-                    <YStack
-                      key={h}
-                      style={[
-                        styles.transparentPricingCell,
-                        styles.transparentPricingHeaderCell,
-                        !isSmallScreen && h === 'Type of Move' && { flex: 0.75 },
-                        isSmallScreen && {
-                          paddingHorizontal: pricingCellPaddingHorizontal,
-                          paddingVertical: pricingCellPaddingVertical,
-                          minHeight: 64,
-                        },
-                      ] as any}>
+            {isSmallScreen ? (
+              <YStack width="100%" gap="$3">
+                {transparentPricingRows.map((row) => (
+                  <YStack
+                    key={row[0]}
+                    backgroundColor="#FFFFFF"
+                    borderRadius={18}
+                    overflow="hidden"
+                    borderWidth={1}
+                    borderColor="rgba(15, 23, 42, 0.1)">
+                    <YStack backgroundColor="#D6B23A" paddingHorizontal={16} paddingVertical={14}>
                       <Text
                         color="#FFFFFF"
                         fontWeight="900"
-                        fontSize={pricingHeaderFontSize}
-                        lineHeight={isSmallScreen ? 14 : 18}
+                        fontSize={14}
                         textAlign="center"
+                        lineHeight={18}
                         style={{ fontFamily: 'Times New Roman' }}>
-                        {h}
+                        {row[0]}
                       </Text>
                     </YStack>
-                  ))}
-                </XStack>
-
-                {[ 
-                  ['1 BHK Shifting', '₹3,000 - 5,000', '₹4,000 - 6,500', '₹7,000 - 8,500'],
-                  ['2 BHK Shifting', '₹4,000 - 7,000', '₹6,500 - 9,500', '₹8,500 - 11,000'],
-                  ['3 BHK Shifting', '₹7,000 - 11,000', '₹10,000 - 15,000', '₹14,000 - 18,000'],
-                ].map((row) => (
-                  <XStack key={row[0]} style={styles.transparentPricingBodyRow}>
-                    {row.map((cell, idx) => (
-                      <YStack
-                        key={`${row[0]}-${idx}`}
-                        style={[
-                          styles.transparentPricingCell,
-                          !isSmallScreen && idx === 0 && { flex: 0.75 },
-                          isSmallScreen && {
-                            paddingHorizontal: pricingCellPaddingHorizontal,
-                            paddingVertical: pricingCellPaddingVertical,
-                            minHeight: 60,
-                          },
-                        ] as any}>
+                    {row.slice(1).map((price, idx) => (
+                      <XStack
+                        key={`${row[0]}-${transparentPricingColumns[idx + 1]}`}
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap="$2"
+                        paddingHorizontal={14}
+                        paddingVertical={12}
+                        borderTopWidth={idx === 0 ? 0 : 1}
+                        borderTopColor="rgba(15, 23, 42, 0.08)">
+                        <Text
+                          color="rgba(15, 23, 42, 0.72)"
+                          fontWeight="900"
+                          fontSize={12}
+                          lineHeight={16}
+                          flex={1}
+                          style={{ fontFamily: 'Times New Roman' }}>
+                          {transparentPricingColumns[idx + 1]}
+                        </Text>
                         <Text
                           color="#0F172A"
-                          fontWeight={idx === 0 ? '900' : '800'}
-                          fontSize={pricingBodyFontSize}
-                          textAlign="center"
-                          lineHeight={pricingBodyLineHeight}
+                          fontWeight="900"
+                          fontSize={12}
+                          lineHeight={16}
+                          flex={1}
+                          textAlign="right"
                           style={{ fontFamily: 'Times New Roman' }}>
-                          {cell}
+                          {price}
+                        </Text>
+                      </XStack>
+                    ))}
+                  </YStack>
+                ))}
+              </YStack>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ alignItems: 'center' } as any}
+                style={{ width: '100%' } as any}>
+                <YStack
+                  style={[
+                    styles.transparentPricingTable,
+                    {
+                      width: pricingTableWidth,
+                      maxWidth: 760,
+                    } as any,
+                  ] as any}>
+                  <XStack style={styles.transparentPricingHeaderRow}>
+                    {transparentPricingColumns.map((h) => (
+                      <YStack
+                        key={h}
+                        style={[
+                          styles.transparentPricingCell,
+                          styles.transparentPricingHeaderCell,
+                          h === 'Type of Move' && { flex: 0.75 },
+                        ] as any}>
+                        <Text
+                          color="#FFFFFF"
+                          fontWeight="900"
+                          fontSize={pricingHeaderFontSize}
+                          lineHeight={18}
+                          textAlign="center"
+                          style={{ fontFamily: 'Times New Roman' }}>
+                          {h}
                         </Text>
                       </YStack>
                     ))}
                   </XStack>
-                ))}
-              </YStack>
-            </ScrollView>
+
+                  {transparentPricingRows.map((row) => (
+                    <XStack key={row[0]} style={styles.transparentPricingBodyRow}>
+                      {row.map((cell, idx) => (
+                        <YStack
+                          key={`${row[0]}-${idx}`}
+                          style={[
+                            styles.transparentPricingCell,
+                            idx === 0 && { flex: 0.75 },
+                          ] as any}>
+                          <Text
+                            color="#0F172A"
+                            fontWeight={idx === 0 ? '900' : '800'}
+                            fontSize={pricingBodyFontSize}
+                            textAlign="center"
+                            lineHeight={pricingBodyLineHeight}
+                            style={{ fontFamily: 'Times New Roman' }}>
+                            {cell}
+                          </Text>
+                        </YStack>
+                      ))}
+                    </XStack>
+                  ))}
+                </YStack>
+              </ScrollView>
+            )}
 
             <XStack
               justifyContent="center"
@@ -4229,13 +4289,22 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               backgroundColor={theme.bgSecondary}>
               {Platform.OS === 'web' ? (
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin"
+                  src={googleMapEmbedUrl}
                   width="100%"
                   height={isSmallScreen ? 280 : 320}
                   style={{ border: 'none', width: '100%', height: isSmallScreen ? 280 : 320 } as any}
                   allowFullScreen={true}
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"></iframe>
+              ) : NativeWebView ? (
+                <NativeWebView
+                  source={{ uri: googleMapEmbedUrl }}
+                  style={StyleSheet.absoluteFillObject}
+                  originWhitelist={['*']}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  startInLoadingState
+                />
               ) : NativeMapView ? (
                 <NativeMapView
                   style={StyleSheet.absoluteFillObject}
@@ -4305,7 +4374,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               Find us on Google Maps - tap directions for the fastest route and live navigation.
             </Text>
           </YStack>
-          </View>
 
           <YStack style={[styles.footerWrap, { borderColor: theme.border }]} marginTop={sectionGap}>
             <XStack
