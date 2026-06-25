@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAuthGuard } from '@/lib/auth-guard';
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -516,6 +517,14 @@ export default function AdminScreen() {
 
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const { isLoading: authLoading, isAuthenticated, error: authError } = useAuthGuard(['admin', 'staff']);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || authError === 'not_authenticated') router.replace('/auth/login' as any);
+    else if (authError === 'forbidden') router.replace('/unauthorized' as any);
+  }, [authLoading, isAuthenticated, authError, router]);
+  if (authLoading || !isAuthenticated || authError) return null;
 
   const maxContentWidth = 1100;
 

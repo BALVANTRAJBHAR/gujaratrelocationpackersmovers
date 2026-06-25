@@ -545,6 +545,22 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
+  const pricingTableWidth = isSmallScreen ? '100%' : '80%';
+  const pricingCellPaddingHorizontal = isSmallScreen ? 8 : 14;
+  const pricingCellPaddingVertical = isSmallScreen ? 18 : 34;
+  const pricingHeaderFontSize = isSmallScreen ? 11 : 13;
+  const pricingBodyFontSize = isSmallScreen ? 11 : 13;
+  const pricingBodyLineHeight = isSmallScreen ? 16 : 22;
+  const nativeMaps = useMemo(() => {
+    if (Platform.OS === 'web') return null;
+    try {
+      return require('react-native-maps');
+    } catch {
+      return null;
+    }
+  }, []);
+  const NativeMapView = nativeMaps?.default as any;
+  const NativeMapMarker = nativeMaps?.Marker as any;
   const sectionGap = isSmallScreen ? 20 : 64;
   const tightSectionGap = isSmallScreen ? 12 : 28;
 
@@ -3474,7 +3490,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
           </View>
 
-          <YStack style={[styles.statsStrip, { paddingVertical: statsPaddingVertical, minHeight: statsMinHeight }]} marginTop={sectionGap}>
+          <YStack
+            style={[
+              styles.statsStrip,
+              {
+                paddingVertical: statsPaddingVertical,
+                minHeight: statsMinHeight,
+                marginHorizontal: isSmallScreen ? 0 : -24,
+                borderRadius: isSmallScreen ? 24 : 0,
+                paddingHorizontal: isSmallScreen ? 16 : 24,
+                overflow: 'hidden',
+              },
+            ]}
+            marginTop={sectionGap}>
             {isSmallScreen ? (
               <YStack width="100%" gap="$2.5">
                 {[
@@ -3864,18 +3892,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
 
             <ScrollView
-              horizontal={isSmallScreen}
-              showsHorizontalScrollIndicator={isSmallScreen}
-              contentContainerStyle={
-                isSmallScreen
-                  ? ({ paddingHorizontal: 10, alignItems: 'center' } as any)
-                  : ({ alignItems: 'center' } as any)
-              }
+              horizontal={!isSmallScreen}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={isSmallScreen ? ({ alignItems: 'stretch', width: '100%' } as any) : ({ alignItems: 'center' } as any)}
               style={{ width: '100%' } as any}>
               <YStack
                 style={[
                   styles.transparentPricingTable,
-                  isSmallScreen ? ({ minWidth: 760, width: 760 } as any) : ({ width: '80%' } as any),
+                  {
+                    width: pricingTableWidth,
+                    maxWidth: 760,
+                    borderRadius: isSmallScreen ? 20 : 16,
+                  } as any,
                 ] as any}>
                 <XStack style={styles.transparentPricingHeaderRow}>
                   {['Type of Move', 'Up to 10 km', '11-25 km', '26-40 km'].map((h) => (
@@ -3884,12 +3912,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       style={[
                         styles.transparentPricingCell,
                         styles.transparentPricingHeaderCell,
-                        h === 'Type of Move' && { flex: 0.75 },
+                        !isSmallScreen && h === 'Type of Move' && { flex: 0.75 },
+                        isSmallScreen && {
+                          paddingHorizontal: pricingCellPaddingHorizontal,
+                          paddingVertical: pricingCellPaddingVertical,
+                          minHeight: 64,
+                        },
                       ] as any}>
                       <Text
                         color="#FFFFFF"
                         fontWeight="900"
-                        fontSize={13}
+                        fontSize={pricingHeaderFontSize}
+                        lineHeight={isSmallScreen ? 14 : 18}
                         textAlign="center"
                         style={{ fontFamily: 'Times New Roman' }}>
                         {h}
@@ -3907,13 +3941,21 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {row.map((cell, idx) => (
                       <YStack
                         key={`${row[0]}-${idx}`}
-                        style={[styles.transparentPricingCell, idx === 0 && { flex: 0.75 }] as any}>
+                        style={[
+                          styles.transparentPricingCell,
+                          !isSmallScreen && idx === 0 && { flex: 0.75 },
+                          isSmallScreen && {
+                            paddingHorizontal: pricingCellPaddingHorizontal,
+                            paddingVertical: pricingCellPaddingVertical,
+                            minHeight: 60,
+                          },
+                        ] as any}>
                         <Text
                           color="#0F172A"
                           fontWeight={idx === 0 ? '900' : '800'}
-                          fontSize={13}
+                          fontSize={pricingBodyFontSize}
                           textAlign="center"
-                          lineHeight={22}
+                          lineHeight={pricingBodyLineHeight}
                           style={{ fontFamily: 'Times New Roman' }}>
                           {cell}
                         </Text>
@@ -4079,12 +4121,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </Text>
               </YStack>
 
-              <XStack flexWrap="wrap" justifyContent="space-between" gap={isSmallScreen ? '$3' : '$4'} alignItems="flex-start">
+              <YStack alignItems="center" gap={isSmallScreen ? '$3' : '$4'}>
                 <YStack
                   style={{
                     flexGrow: 1,
                     flexShrink: 1,
-                    flexBasis: isSmallScreen ? '100%' : 0,
+                    flexBasis: '100%',
                     maxWidth: isSmallScreen ? '100%' : 560,
                     minWidth: isSmallScreen ? '100%' : 360,
                   }}
@@ -4143,88 +4185,126 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </Text>
                   ) : null}
                 </YStack>
-
-                <YStack
-                  style={{
-                    flexGrow: 1,
-                    flexShrink: 1,
-                    flexBasis: isSmallScreen ? '100%' : 0,
-                    maxWidth: isSmallScreen ? '100%' : 560,
-                    minWidth: isSmallScreen ? '100%' : 360,
-                  }}
-                  backgroundColor={isSmallScreen ? theme.bgCard : isDarkMode ? 'rgba(79, 70, 229, 0.1)' : theme.gradient1}
-                  borderRadius={isSmallScreen ? 0 : 22}
-                  padding={isSmallScreen ? 0 : 22}
-                  alignItems="center"
-                  borderWidth={isSmallScreen ? 0 : 1}
-                  borderColor={theme.border}
-                  overflow="hidden">
-                  {Platform.OS === 'web' ? (
-                    <iframe
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin"
-                      width="100%"
-                      height="300"
-                      style={{ border: 'none', borderRadius: 18 } as any}
-                      allowFullScreen={true}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"></iframe>
-                  ) : (
-                    <Pressable onPress={handleOpenMaps} style={{ width: '100%' } as any}>
-                      <YStack
-                        alignItems="center"
-                        justifyContent="center"
-                        gap="$3"
-                        width="100%"
-                        minHeight={isSmallScreen ? 240 : 300}
-                        padding={isSmallScreen ? 18 : 0}>
-                        <FontAwesome name="map-marker" size={34} color={theme.accent} />
-                        <Text
-                          color={theme.text}
-                          fontSize={17}
-                          fontWeight="900"
-                          textAlign="center"
-                          style={{ fontFamily: 'Times New Roman' }}>
-                          Google Map
-                        </Text>
-                        <YStack
-                          paddingHorizontal={24}
-                          paddingVertical={13}
-                          borderRadius={14}
-                          backgroundColor={theme.accent}
-                          alignItems="center"
-                          justifyContent="center">
-                          <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
-                            Open in Maps
-                          </Text>
-                        </YStack>
-                        <Text
-                          marginTop={8}
-                          color="#0ba705ff"
-                          fontSize={13}
-                          fontWeight="700"
-                          textAlign="center"
-                          lineHeight={19}
-                          style={{ fontFamily: 'Times New Roman' }}>
-                          Find us on Google Maps - tap directions for the fastest route and live navigation.
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                  )}
-
-                  {Platform.OS === 'web' ? (
-                    <Text
-                      marginTop={16}
-                      color="#0ba705ff"
-                      fontSize={13}
-                      fontWeight="700"
-                      textAlign="center"
-                      style={{ fontFamily: 'Times New Roman' }}>
-                      Find us on Google Maps - tap directions for the fastest route and live navigation.
-                    </Text>
-                  ) : null}
-                </YStack>
-              </XStack>
+              </YStack>
             </YStack>
+          </View>
+
+          <YStack
+            backgroundColor={theme.bgCard}
+            borderRadius={isSmallScreen ? 22 : 26}
+            padding={isSmallScreen ? 16 : 24}
+            gap={isSmallScreen ? '$3' : '$4'}
+            marginTop={tightSectionGap}
+            borderWidth={1}
+            borderColor={theme.border}
+            shadowColor={theme.shadow}
+            shadowOffset={{ width: 0, height: 10 }}
+            shadowOpacity={0.14}
+            shadowRadius={20}
+            elevation={8}>
+            <YStack
+              backgroundColor={theme.bgSecondary}
+              paddingHorizontal={26}
+              paddingVertical={12}
+              borderRadius={22}
+              alignSelf="flex-start">
+              <Text
+                color={theme.primary}
+                fontSize={14}
+                letterSpacing={2.8}
+                textTransform="uppercase"
+                fontWeight="900"
+                style={{ fontFamily: 'Times New Roman' }}>
+                Google Map
+              </Text>
+            </YStack>
+
+            <YStack
+              width="100%"
+              minHeight={isSmallScreen ? 280 : 320}
+              borderRadius={20}
+              overflow="hidden"
+              borderWidth={1}
+              borderColor={theme.border}
+              backgroundColor={theme.bgSecondary}>
+              {Platform.OS === 'web' ? (
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin"
+                  width="100%"
+                  height={isSmallScreen ? 280 : 320}
+                  style={{ border: 'none', width: '100%', height: isSmallScreen ? 280 : 320 } as any}
+                  allowFullScreen={true}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"></iframe>
+              ) : NativeMapView ? (
+                <NativeMapView
+                  style={StyleSheet.absoluteFillObject}
+                  initialRegion={{
+                    latitude: 19.19345137320862,
+                    longitude: 72.87039928686748,
+                    latitudeDelta: 0.03,
+                    longitudeDelta: 0.03,
+                  }}
+                  scrollEnabled
+                  zoomEnabled
+                  rotateEnabled
+                  pitchEnabled>
+                  {NativeMapMarker ? (
+                    <NativeMapMarker coordinate={{ latitude: 19.19345137320862, longitude: 72.87039928686748 }} />
+                  ) : null}
+                </NativeMapView>
+              ) : (
+                <YStack alignItems="center" justifyContent="center" width="100%" flex={1} gap="$3" padding={20}>
+                  <FontAwesome name="map-marker" size={34} color={theme.accent} />
+                  <Text color={theme.text} fontSize={17} fontWeight="900" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                    Google Map
+                  </Text>
+                </YStack>
+              )}
+            </YStack>
+
+            <AppButton
+              label="Open in Maps"
+              onPress={handleOpenMaps}
+              backgroundColor={theme.accent}
+              textColor="#FFFFFF"
+              glowOnHover
+              containerStyle={{
+                height: 48,
+                minWidth: isSmallScreen ? 190 : 220,
+                paddingHorizontal: 24,
+                borderRadius: 14,
+                shadowColor: 'rgba(0,0,0,0.25)',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.18,
+                shadowRadius: 16,
+                elevation: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                gap: 10,
+              }}
+              content={
+                <>
+                  <FontAwesome name="map-marker" size={18} color="#FFFFFF" />
+                  <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                    Open in Maps
+                  </Text>
+                </>
+              }
+            />
+
+            <Text
+              color="#0ba705ff"
+              fontSize={13}
+              fontWeight="700"
+              textAlign="center"
+              lineHeight={19}
+              style={{ fontFamily: 'Times New Roman' }}>
+              Find us on Google Maps - tap directions for the fastest route and live navigation.
+            </Text>
+          </YStack>
           </View>
 
           <YStack style={[styles.footerWrap, { borderColor: theme.border }]} marginTop={sectionGap}>
@@ -4731,14 +4811,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.38)',
   },
   serviceMenuCard: {
-    minHeight: 76,
-    borderRadius: 8,
+    minHeight: 84,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     shadowColor: 'rgba(0,0,0,0.22)',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,

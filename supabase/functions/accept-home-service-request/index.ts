@@ -146,6 +146,29 @@ async function sendWebPushForUser(
   }
 }
 
+function getBearer(req: Request) {
+  const auth = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1] : '';
+}
+
+async function getAuthedUser(supabaseUrl: string, anonKey: string, jwt: string) {
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      apikey: anonKey,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Auth error: ${res.status}`);
+  }
+  const data = (await res.json()) as any;
+  if (!data?.id) throw new Error('Auth user missing id');
+  return { id: String(data.id), email: data.email ? String(data.email) : undefined };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -155,6 +178,24 @@ serve(async (req) => {
     const body = await req.json();
     const requestId = String(body.request_id ?? '').trim();
     const providerId = String(body.provider_id ?? '').trim();
+
+    const jwt = getBearer(req);
+    if (!jwt) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabaseUrlCheck = Deno.env.get('SUPABASE_URL') ?? '';
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    try {
+      await getAuthedUser(supabaseUrlCheck, anonKey, jwt);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid or expired session' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!requestId) return jsonResponse({ error: 'request_id required' }, 400);
     if (!providerId) return jsonResponse({ error: 'provider_id required' }, 400);

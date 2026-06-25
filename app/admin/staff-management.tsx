@@ -1,16 +1,27 @@
 import * as ImagePicker from 'expo-image-picker';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import TextRecognition from 'react-native-text-recognition';
 import { Button, H1, Paragraph, YStack } from 'tamagui';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
- import { supabase } from '@/lib/supabase';
+import { useAuthGuard } from '@/lib/auth-guard';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'expo-router';
 
 export default function StaffManagementScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const router = useRouter();
+  const authGuard = useAuthGuard(['admin', 'staff']);
+  useEffect(() => {
+    if (!authGuard.isLoading && (authGuard.error === 'not_authenticated' || !authGuard.isAuthenticated)) {
+      router.replace('/auth/login' as any);
+    } else if (!authGuard.isLoading && authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const styles = useMemo(() => useStyles(theme), [theme]);
   const [searchEmail, setSearchEmail] = useState('');
   const [formData, setFormData] = useState({

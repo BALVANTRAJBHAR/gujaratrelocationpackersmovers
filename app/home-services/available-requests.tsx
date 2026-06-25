@@ -5,6 +5,7 @@ import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
+import { useAuthGuard } from '@/lib/auth-guard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 
@@ -47,6 +48,16 @@ export default function AvailableRequestsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
+  const authGuard = useAuthGuard();
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const { session } = useSession();
 
   const [loading, setLoading] = useState(true);

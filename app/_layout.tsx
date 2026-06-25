@@ -89,6 +89,9 @@ function AppLayout() {
               <Stack.Screen name="auth/register" options={{ title: 'Register' }} />
               <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
+              <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
+              <Stack.Screen name="admin/staff-management" options={{ headerShown: false }} />
             </Stack>
             <StatusBar
               style={colorScheme === 'dark' ? 'light' : 'dark'}

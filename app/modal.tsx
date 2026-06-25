@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthGuard } from '@/lib/auth-guard';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Share } from 'react-native';
 import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -19,6 +20,17 @@ type Payment = {
 };
 
 export default function ModalScreen() {
+  const router = useRouter();
+  const authGuard = useAuthGuard();
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';

@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useAuthGuard } from '@/lib/auth-guard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
@@ -235,6 +236,16 @@ const shiftingMaxDate = () => {
 
 export default function BookingWizardScreen() {
   const router = useRouter();
+  const authGuard = useAuthGuard();
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const { session, profile, refreshProfile } = useSession();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isWide = screenWidth >= 820;

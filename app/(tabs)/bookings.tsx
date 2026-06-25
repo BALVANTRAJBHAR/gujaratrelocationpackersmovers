@@ -13,6 +13,7 @@ import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthGuard } from '@/lib/auth-guard';
 
 const STATUS_COLORS: Record<string, string> = {
   not_started: '#94A3B8',
@@ -154,6 +155,16 @@ const STATUS_COLORS_HS: Record<string, string> = {
 
 export default function BookingsScreen() {
   const router = useRouter();
+  const authGuard = useAuthGuard();
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
   const { session, profile } = useSession();
   const colorScheme = useColorScheme();

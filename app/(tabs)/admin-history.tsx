@@ -7,6 +7,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
+import { useRouter } from 'expo-router';
+import { useAuthGuard } from '@/lib/auth-guard';
 
 type ApprovalRecord = {
   id: string;
@@ -27,6 +29,17 @@ type ActionLog = {
 };
 
 export default function AdminHistoryScreen() {
+  const router = useRouter();
+  const authGuard = useAuthGuard(['admin', 'staff']);
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const { profile } = useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
