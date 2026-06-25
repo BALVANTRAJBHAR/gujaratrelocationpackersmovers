@@ -2196,10 +2196,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: isSmallScreen ? 100 : 110,
             paddingHorizontal: isSmallScreen ? 14 : 24,
+            paddingBottom: isSmallScreen ? 16 : 72,
           },
         ]}
         showsVerticalScrollIndicator={false}>
-        <YStack gap="$4">
+        <YStack>
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 12 : 20}>
             <YStack alignItems="center" gap="$3" width="100%">
@@ -4299,7 +4300,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               ) : NativeWebView ? (
                 <NativeWebView
                   source={{ uri: googleMapEmbedUrl }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={{ width: '100%', height: isSmallScreen ? 280 : 320 } as any}
                   originWhitelist={['*']}
                   javaScriptEnabled
                   domStorageEnabled
@@ -4307,7 +4308,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 />
               ) : NativeMapView ? (
                 <NativeMapView
-                  style={StyleSheet.absoluteFillObject}
+                  style={{ width: '100%', height: isSmallScreen ? 280 : 320 } as any}
                   initialRegion={{
                     latitude: 19.19345137320862,
                     longitude: 72.87039928686748,
@@ -4717,7 +4718,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingBottom: 72,
+    paddingBottom: 32,
   },
   menuRow: {
     gap: 10,
