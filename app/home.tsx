@@ -1,3 +1,4 @@
+import StickyHeader from '@/app/components/sticky-header';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -229,7 +230,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 lineHeight={isCardNarrow ? 22 : 26}
                 numberOfLines={2}
                 ellipsizeMode="tail"
-                style={{ fontFamily: 'Times New Roman', flexShrink: 1 }}>
+                style={{ fontFamily: APP_SERIF_FONT, flexShrink: 1 }}>
                 Gujarat Relocation
               </Text>
               <Text
@@ -239,7 +240,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 lineHeight={isCardNarrow ? 18 : 20}
                 numberOfLines={1}
                 ellipsizeMode="tail"
-                style={{ fontFamily: 'Times New Roman', flexShrink: 1 }}>
+                style={{ fontFamily: APP_SERIF_FONT, flexShrink: 1 }}>
                 Packers & Movers
               </Text>
             </YStack>
@@ -254,7 +255,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 color={theme.text}
                 fontSize={15}
                 fontWeight="700"
-                style={{ fontFamily: Platform.OS === 'web' ? 'Times New Roman' : 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 +91 9987963470
               </Text>
             </XStack>
@@ -267,7 +268,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 fontWeight="700"
                 numberOfLines={isCardNarrow ? 2 : 1}
                 lineHeight={20}
-                style={{ fontFamily: 'Times New Roman', flexShrink: 1 }}>
+                style={{ fontFamily: APP_SERIF_FONT, flexShrink: 1 }}>
                 info@gujaratrelocation.com
               </Text>
             </XStack>
@@ -280,14 +281,14 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 fontWeight="700"
                 flex={1}
                 lineHeight={22}
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Sethia Aashray, Mumbai 400101
               </Text>
             </XStack>
 
             <XStack gap="$2.5" alignItems="center">
               <Text fontSize={18}>🕐</Text>
-              <Text color={theme.textMuted} fontSize={13} fontWeight="700" style={{ fontFamily: 'Times New Roman' }}>
+              <Text color={theme.textMuted} fontSize={13} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
                 24x7 Service Available
               </Text>
             </XStack>
@@ -311,7 +312,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               textAlign="center"
               alignSelf="center"
               //alignSelf="flex-end"
-              style={{ fontFamily: 'Times New Roman' }}>
+              style={{ fontFamily: APP_SERIF_FONT }}>
               White-glove relocation • GPS tracking
             </Text>
           </YStack>
@@ -332,7 +333,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             fontSize={11}
             fontWeight="700"
             textAlign="center"
-            style={{ fontFamily: 'Times New Roman' }}>
+            style={{ fontFamily: APP_SERIF_FONT }}>
             Scan to Call
           </Text>
         </YStack>
@@ -345,7 +346,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
           fontWeight="600"
           textAlign="center"
           lineHeight={16}
-          style={{ fontFamily: 'Times New Roman' }}>
+          style={{ fontFamily: APP_SERIF_FONT }}>
           www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers
         </Text>
       </YStack>
@@ -439,6 +440,15 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const didRedirectRef = useRef(false);
   const businessCardRef = useRef<any>(null);
   const heroTimerRef = useRef<any>(null);
+  const heroPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx > 50) setHeroIndex((p) => (p === 0 ? heroSlides.length - 1 : p - 1));
+        else if (gs.dx < -50) setHeroIndex((p) => (p + 1) % heroSlides.length);
+      },
+    })
+  ).current;
   const didScrollParamRef = useRef<string>('');
   const testimonialScrollRef = useRef<ScrollView | null>(null);
   const testimonialTimerRef = useRef<any>(null);
@@ -580,9 +590,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
   const pricingTableWidth = isSmallScreen ? '100%' : '80%';
-  const pricingHeaderFontSize = isSmallScreen ? 11 : 13;
-  const pricingBodyFontSize = isSmallScreen ? 11 : 13;
-  const pricingBodyLineHeight = isSmallScreen ? 16 : 22;
+  const pricingHeaderFontSize = isSmallScreen ? 12 : 14;
+  const pricingBodyFontSize = isSmallScreen ? 12 : 14;
+  const pricingBodyLineHeight = isSmallScreen ? 17 : 23;
   const nativeWebView = useMemo(() => {
     if (Platform.OS === 'web') return null;
     try {
@@ -1756,460 +1766,23 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        <View
-          style={[
-            styles.stickyHeader,
-            {
-              backgroundColor: theme.headerBg,
-              borderBottomColor: theme.border,
-              shadowColor: theme.shadow,
-              paddingTop: Math.max(0, statusBarHeight - 6),
-            },
-          ]}
-          pointerEvents="box-none">
-        <XStack
-          alignItems="center"
-          gap="$3"
-          flexWrap="wrap"
-          justifyContent="space-between"
-          paddingHorizontal={isSmallScreen ? 14 : 24}
-          paddingVertical={isSmallScreen ? 12 : 14}>
-          <XStack
-            alignItems="center"
-            gap={isSmallScreen ? '$2' : '$2.5'}
-            flexShrink={1}
-            minWidth={0}
-            maxWidth={isSmallScreen ? '58%' : 250}>
-            <Image
-              source={require('../assets/images/PackersMoversLogo.png')}
-              style={[styles.logo, isSmallScreen && styles.logoMobile]}
-            />
-            <YStack flexShrink={1} minWidth={0}>
-              <Text
-                color={theme.text}
-                fontSize={isSmallScreen ? 12 : 15}
-                fontWeight="900"
-                lineHeight={isSmallScreen ? 14 : 17}
-                numberOfLines={1}
-                letterSpacing={0.4}
-                style={{ fontFamily: APP_SERIF_FONT }}>
-                GUJARAT
-              </Text>
-              <Text
-                color={theme.text}
-                fontSize={isSmallScreen ? 12 : 15}
-                fontWeight="900"
-                lineHeight={isSmallScreen ? 14 : 17}
-                numberOfLines={1}
-                letterSpacing={0.4}
-                style={{ fontFamily: APP_SERIF_FONT }}>
-                RELOCATION
-              </Text>
-            </YStack>
-          </XStack>
-
-          {!isSmallScreen ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuRow}>
-              <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                {menuItems.map((item) => (
-                  <Pressable
-                    key={item}
-                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
-                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={() => {
-                      if (item === 'Home') router.push('/home');
-                      if (item === 'Services') scrollToSection('services');
-                      if (item === 'Track') {
-                        if (!session?.user?.id) {
-                          router.push({ pathname: '/auth/login', params: { redirectTo: '/(tabs)/tracking' } } as any);
-                        } else {
-                          router.push('/(tabs)/tracking');
-                        }
-                      }
-                      if (item === 'Contact') scrollToSection('contact');
-                    }}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={15}
-                        fontWeight="700"
-                        letterSpacing={0.3}
-                        style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                        {item}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                ))}
-
-                <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
-                  <YStack
-                    paddingHorizontal={18}
-                    paddingVertical={12}
-                    borderRadius={14}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'theme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
-                      {isDarkMode ? '☀️' : '🌙'}
-                    </Text>
-                  </YStack>
-                </Pressable>
-
-                {session ? (
-                  <>
-                    {canManage && (
-                      <>
-                        <Pressable
-                          onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('notif') : undefined}
-                          onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                          onPress={() => {
-                            router.push('/notifications' as any);
-                          }}>
-                          <YStack
-                            paddingHorizontal={16}
-                            paddingVertical={12}
-                            borderRadius={14}
-                            backgroundColor={theme.menuBg}
-                            borderWidth={1}
-                            borderColor={headerHovered === 'notif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                            shadowColor={theme.shadow}
-                            shadowOffset={{ width: 0, height: 3 }}
-                            shadowOpacity={0.12}
-                            shadowRadius={6}
-                            elevation={3}
-                            alignItems="center"
-                            justifyContent="center"
-                            style={headerHovered === 'notif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                            <View style={{ position: 'relative', width: 22, height: 22 } as any}>
-                              <FontAwesome name="bell" size={18} color={theme.menuText} />
-                              {unreadCount > 0 ? (
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    top: -6,
-                                    right: -8,
-                                    minWidth: 16,
-                                    height: 16,
-                                    borderRadius: 99,
-                                    backgroundColor: '#EF4444',
-                                    paddingHorizontal: 4,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}>
-                                  <Text color="#FFFFFF" fontSize={10} fontWeight="700">
-                                    {unreadCount > 99 ? '99+' : String(unreadCount)}
-                                  </Text>
-                                </View>
-                              ) : null}
-                            </View>
-                          </YStack>
-                        </Pressable>
-                      </>
-                    )}
-
-                    <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('dashboard') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={handleDashboardSafe}>
-                      <YStack
-                        paddingHorizontal={22}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor={headerHovered === 'dashboard' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}
-                        style={headerHovered === 'dashboard' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        <Text
-                          color={theme.menuText}
-                          fontSize={15}
-                          fontWeight="700"
-                          style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                          Dashboard
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                    
-                    {Platform.OS !== 'android' && (
-                      <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('profile') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => router.push('/auth/profile')}>
-                        <YStack
-                          paddingHorizontal={16}
-                          paddingVertical={12}
-                          borderRadius={14}
-                          backgroundColor={theme.menuBg}
-                          borderWidth={1}
-                          borderColor={headerHovered === 'profile' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                          shadowColor={theme.shadow}
-                          shadowOffset={{ width: 0, height: 3 }}
-                          shadowOpacity={0.12}
-                          shadowRadius={6}
-                          elevation={3}
-                          alignItems="center"
-                          justifyContent="center"
-                          style={headerHovered === 'profile' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                          <Text
-                            color={theme.menuText}
-                            fontSize={15}
-                            fontWeight="700"
-                            style={{ fontFamily: 'Times New Roman' }}>
-                            👤 Profile
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                    )}
-                    
-                    <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={handleLogout}>
-                      <YStack
-                        paddingHorizontal={16}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}
-                        alignItems="center"
-                        justifyContent="center"
-                        style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        {MaterialIcons ? (
-                          <MaterialIcons name="logout" size={20} color={theme.menuText} />
-                        ) : (
-                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman' }}>
-                            Logout
-                          </Text>
-                        )}
-                      </YStack>
-                    </Pressable>
-                  </>
-                ) : (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => router.push('/auth/login')}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'signin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={15}
-                        fontWeight="800"
-                        style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                        Sign In
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                )}
-              </XStack>
-            </ScrollView>
-          ) : (
-            <XStack gap="$2" alignItems="center">
-              <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
-                <YStack
-                  paddingHorizontal={16}
-                  paddingVertical={11}
-                  borderRadius={12}
-                  backgroundColor={theme.menuBg}
-                  borderWidth={1}
-                  borderColor={headerHovered === 'mtheme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                  shadowColor={theme.shadow}
-                  shadowOffset={{ width: 0, height: 3 }}
-                  shadowOpacity={0.12}
-                  shadowRadius={6}
-                  elevation={3}
-                  style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                  <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
-                    {isDarkMode ? '☀️' : '🌙'}
-                  </Text>
-                </YStack>
-              </Pressable>
-
-              {session && canManage ? (
-                <Pressable
-                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mnotif') : undefined}
-                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                  onPress={() => {
-                    router.push('/notifications' as any);
-                  }}>
-                  <YStack
-                    paddingHorizontal={14}
-                    paddingVertical={11}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'mnotif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    style={headerHovered === 'mnotif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <View style={{ position: 'relative', width: 22, height: 22 } as any}>
-                      <FontAwesome name="bell" size={18} color={theme.menuText} />
-                      {unreadCount > 0 ? (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: -6,
-                            right: -8,
-                            minWidth: 16,
-                            height: 16,
-                            borderRadius: 99,
-                            backgroundColor: '#EF4444',
-                            paddingHorizontal: 4,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                          <Text color="#FFFFFF" fontSize={10} fontWeight="700">
-                            {unreadCount > 99 ? '99+' : String(unreadCount)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </YStack>
-                </Pressable>
-              ) : null}
-
-              <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mhamburger') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                <YStack
-                  paddingHorizontal={16}
-                  paddingVertical={11}
-                  borderRadius={12}
-                  backgroundColor={theme.menuBg}
-                  borderWidth={1}
-                  borderColor={headerHovered === 'mhamburger' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                  shadowColor={theme.shadow}
-                  shadowOffset={{ width: 0, height: 3 }}
-                  shadowOpacity={0.12}
-                  shadowRadius={6}
-                  elevation={3}
-                  style={headerHovered === 'mhamburger' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                  <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
-                    ☰
-                  </Text>
-                </YStack>
-              </Pressable>
-            </XStack>
-          )}
-        </XStack>
-      </View>
-
-      {isSmallScreen && mobileMenuOpen ? (
-        <Pressable style={[styles.mobileMenuOverlay, { top: 92 + statusBarHeight }]} onPress={() => setMobileMenuOpen(false)}>
-          <Pressable onPress={() => {}} style={{ width: '100%' } as any}>
-            <YStack
-              backgroundColor={theme.bgCard}
-              borderRadius={18}
-              padding={22}
-              gap={14}
-              borderWidth={1}
-              borderColor={theme.border}
-              shadowColor={theme.shadow}
-              shadowOffset={{ width: 0, height: 10 }}
-              shadowOpacity={0.18}
-              shadowRadius={20}
-              elevation={10}>
-              {menuItems.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    if (item === 'Home') router.push('/home');
-                    if (item === 'Services') scrollToSection('services');
-                    if (item === 'Track') {
-                      if (!session?.user?.id) {
-                        router.push({ pathname: '/auth/login', params: { redirectTo: '/(tabs)/tracking' } } as any);
-                      } else {
-                        router.push('/(tabs)/tracking');
-                      }
-                    }
-                    if (item === 'Contact') scrollToSection('contact');
-                  }}>
-                  <Text color={theme.text} fontSize={17} fontWeight="700" paddingVertical={10} style={{ fontFamily: 'Times New Roman' }}>
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-
-              {session ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    handleDashboardSafe();
-                  }}>
-                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Times New Roman' }}>
-                    Dashboard
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              {session ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    router.push('/auth/profile');
-                  }}>
-                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Times New Roman' }}>
-                    My Profile
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              {session ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    handleLogout();
-                  }}>
-                  <Text color={theme.accent} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Times New Roman' }}>
-                    Logout
-                  </Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    router.push('/auth/login');
-                  }}>
-                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: 'Times New Roman' }}>
-                    Login
-                  </Text>
-                </Pressable>
-              )}
-            </YStack>
-          </Pressable>
-        </Pressable>
-      ) : null}
+      <StickyHeader
+        theme={theme}
+        isSmallScreen={isSmallScreen}
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+        session={session}
+        unreadCount={unreadCount}
+        canManage={canManage}
+        MaterialIcons={MaterialIcons}
+        onHomePress={() => router.push('/home')}
+        onServicesPress={() => scrollToSection('services')}
+        onContactPress={() => scrollToSection('contact')}
+        onDashboardPress={handleDashboardSafe}
+        onProfilePress={() => router.push('/auth/profile')}
+        onLogout={handleLogout}
+        onLoginPress={() => router.push('/auth/login')}
+      />
 
       <ScrollView
         ref={(ref) => {
@@ -2218,7 +1791,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: (isSmallScreen ? 76 : 96) + statusBarHeight,
+            paddingTop: (isSmallScreen ? 70 : 86) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
             paddingBottom: isSmallScreen ? 8 : 24,
           },
@@ -2228,12 +1801,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         overScrollMode="never">
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 12 : 20}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 6 : 10}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}
                 style={[styles.heroBg, isSmallScreen && styles.heroBgMobile]}
-                imageStyle={styles.heroBgImage}>
+                imageStyle={styles.heroBgImage}
+                {...heroPanResponder.panHandlers}>
                 <YStack
                   style={[styles.heroOverlay, isSmallScreen && styles.heroOverlayMobile]}
                   alignItems="center"
@@ -2397,9 +1971,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   gap="$2.5">
                   <Text
                     color={theme.text}
-                    fontSize={isSmallScreen ? 16 : 18}
+                    fontSize={isSmallScreen ? 17 : 19}
                     fontWeight="900"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Our Moving Services
                   </Text>
                   <XStack gap={isSmallScreen ? '$1.5' : '$2'} justifyContent="space-between" flexWrap="nowrap" width="100%">
@@ -2420,17 +1994,17 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             ]}>
                             <FontAwesome5
                               name={item.icon as any}
-                              size={isSmallScreen ? 23 : 30}
+                              size={isSmallScreen ? 24 : 31}
                               color={selected ? '#FFFFFF' : theme.primary}
                             />
                             <Text
                               color={selected ? '#FFFFFF' : theme.text}
-                              fontSize={isSmallScreen ? 10 : 13}
+                              fontSize={isSmallScreen ? 11 : 14}
                               fontWeight="900"
-                              lineHeight={isSmallScreen ? 12 : 16}
+                              lineHeight={isSmallScreen ? 13 : 17}
                               textAlign="center"
                               numberOfLines={2}
-                              style={{ fontFamily: 'Times New Roman' }}>
+                              style={{ fontFamily: APP_SERIF_FONT }}>
                               {item.label}
                             </Text>
                           </YStack>
@@ -2497,7 +2071,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyBuyType === 'full_house' && styles.radioOuterActive]}>
                                 {propertyBuyType === 'full_house' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 House Property{propertyBuyType === 'full_house' && buyBhkSelected.length ? ` (${formatSelection(buyBhkSelected)})` : ''}
                               </Text>
                             </XStack>
@@ -2507,7 +2081,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyBuyType === 'land_plot' && styles.radioOuterActive]}>
                                 {propertyBuyType === 'land_plot' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 Land/Plot
                               </Text>
                             </XStack>
@@ -2519,10 +2093,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                               <Pressable onPress={() => setPickerOpen('buy_bhk')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
                                 <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                     BHK Type
                                   </Text>
-                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                     {formatSelection(buyBhkSelected)}
                                   </Text>
                                 </YStack>
@@ -2530,10 +2104,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
                               <Pressable onPress={() => setPickerOpen('buy_status')} style={{ flexBasis: isSmallScreen ? '100%' : '32%' } as any}>
                                 <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                     Property Status
                                   </Text>
-                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                     {buyPropertyStatus === 'under_construction' ? 'Under Construction' : buyPropertyStatus === 'ready' ? 'Ready' : 'Select'}
                                   </Text>
                                 </YStack>
@@ -2550,7 +2124,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                   borderColor={theme.border}
                                   gap={8}>
                                   <XStack alignItems="center" justifyContent="space-between" gap="$2">
-                                    <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                    <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                       New Builder Projects
                                     </Text>
                                     <View
@@ -2567,7 +2141,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                       {buyNewBuilderProjects ? <Text color="#FFFFFF" fontSize={12} fontWeight="900">✓</Text> : null}
                                     </View>
                                   </XStack>
-                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                     {buyNewBuilderProjects ? 'Yes' : 'No'}
                                   </Text>
                                 </YStack>
@@ -2586,7 +2160,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyRentType === 'full_house' && styles.radioOuterActive]}>
                                 {propertyRentType === 'full_house' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 House Property{propertyRentType === 'full_house' && rentFullHouseBhkSelected.length ? ` (${formatSelection(rentFullHouseBhkSelected)})` : ''}
                               </Text>
                             </XStack>
@@ -2596,7 +2170,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyRentType === 'pg_hostel' && styles.radioOuterActive]}>
                                 {propertyRentType === 'pg_hostel' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 PG/Hostel
                               </Text>
                             </XStack>
@@ -2606,7 +2180,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyRentType === 'flatmates' && styles.radioOuterActive]}>
                                 {propertyRentType === 'flatmates' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 Flatmates
                               </Text>
                             </XStack>
@@ -2616,10 +2190,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         {propertyRentType === 'full_house' ? (
                           <Pressable onPress={() => setPickerOpen('rent_fullhouse_bhk')}>
                             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 BHK Type
                               </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                 {formatSelection(rentFullHouseBhkSelected)}
                               </Text>
                             </YStack>
@@ -2630,20 +2204,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                             <Pressable onPress={() => setPickerOpen('rent_pg_tenant')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
                               <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                   Tenant Type
                                 </Text>
-                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                   {rentPgTenantType ? rentPgTenantType[0].toUpperCase() + rentPgTenantType.slice(1) : 'Select'}
                                 </Text>
                               </YStack>
                             </Pressable>
                             <Pressable onPress={() => setPickerOpen('rent_pg_room')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
                               <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                   Room Type
                                 </Text>
-                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                   {rentPgRoomType === 'single_room'
                                     ? 'Single Room'
                                     : rentPgRoomType === 'double_sharing'
@@ -2663,20 +2237,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
                             <Pressable onPress={() => setPickerOpen('rent_flatmates_tenant')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
                               <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                   Tenant Type
                                 </Text>
-                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                   {rentFlatmatesTenantTypes.length ? rentFlatmatesTenantTypes.map((t) => t[0].toUpperCase() + t.slice(1)).join(', ') : 'Select'}
                                 </Text>
                               </YStack>
                             </Pressable>
                             <Pressable onPress={() => setPickerOpen('rent_flatmates_room')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
                               <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                   Room Type
                                 </Text>
-                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                   {rentFlatmatesRoomType === 'single_room' ? 'Single Room' : rentFlatmatesRoomType === 'shared_room' ? 'Shared Room' : 'Select'}
                                 </Text>
                               </YStack>
@@ -2694,7 +2268,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyCommercialTxn === 'rent' && styles.radioOuterActive]}>
                                 {propertyCommercialTxn === 'rent' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 Rent
                               </Text>
                             </XStack>
@@ -2704,7 +2278,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               <View style={[styles.radioOuter, propertyCommercialTxn === 'buy' && styles.radioOuterActive]}>
                                 {propertyCommercialTxn === 'buy' ? <View style={styles.radioInner} /> : null}
                               </View>
-                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 Buy
                               </Text>
                             </XStack>
@@ -2716,10 +2290,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             onPress={() => setPickerOpen('commercial_property_type')}
                             style={{ flexBasis: isSmallScreen ? '100%' : propertyCommercialTxn === 'buy' ? '49%' : '100%' } as any}>
                             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                 Property Type
                               </Text>
-                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                 {formatSelection(commercialPropertyTypes)}
                               </Text>
                             </YStack>
@@ -2728,10 +2302,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           {propertyCommercialTxn === 'buy' ? (
                             <Pressable onPress={() => setPickerOpen('commercial_availability')} style={{ flexBasis: isSmallScreen ? '100%' : '49%' } as any}>
                               <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
-                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.textMuted} fontSize={11} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                   Availability
                                 </Text>
-                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                                <Text color={theme.text} fontSize={12} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                                   {commercialAvailability === 'immediate'
                                     ? 'Immediate'
                                     : commercialAvailability === 'within_15_days'
@@ -2759,10 +2333,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           padding={12}
                           borderWidth={1}
                           borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                             State
                           </Text>
-                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                             {propertyState}
                           </Text>
                         </YStack>
@@ -2777,10 +2351,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           padding={12}
                           borderWidth={1}
                           borderColor={theme.border}>
-                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                             City
                           </Text>
-                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.text} fontSize={14} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                             {propertyCity}
                           </Text>
                         </YStack>
@@ -2809,7 +2383,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           borderWidth: 1,
                           borderColor: theme.border,
                           color: theme.text,
-                          fontFamily: 'Times New Roman',
+                          fontFamily: APP_SERIF_FONT,
                         }}
                       />
 
@@ -2838,10 +2412,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                               setPropertyLocalitySuggestions([]);
                             }}>
                             <YStack borderWidth={1} borderColor={theme.border} borderRadius={12} padding={10} backgroundColor={theme.bgSecondary}>
-                              <Text color={theme.text} fontWeight="900" numberOfLines={1} style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.text} fontWeight="900" numberOfLines={1} style={{ fontFamily: APP_SERIF_FONT }}>
                                 {s.label}
                               </Text>
-                              <Text color={theme.textMuted} fontSize={11} numberOfLines={1} style={{ fontFamily: 'Times New Roman' }}>
+                              <Text color={theme.textMuted} fontSize={11} numberOfLines={1} style={{ fontFamily: APP_SERIF_FONT }}>
                                 {s.full}
                               </Text>
                             </YStack>
@@ -2849,7 +2423,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         ))}
                       </YStack>
                     ) : propertyLocalityLoading && topSearch.trim().length >= 2 ? (
-                      <Text color={theme.textMuted} fontSize={11} fontWeight="700" style={{ fontFamily: 'Times New Roman' }}>
+                      <Text color={theme.textMuted} fontSize={11} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
                         Searching...
                       </Text>
                     ) : null}
@@ -2868,7 +2442,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             color={theme.text}
                             fontSize={18}
                             fontWeight="900"
-                            style={{ fontFamily: 'Times New Roman', marginBottom: 10 } as any}>
+                            style={{ fontFamily: APP_SERIF_FONT, marginBottom: 10 } as any}>
                             Select State
                           </Text>
                           <ScrollView showsVerticalScrollIndicator={false}>
@@ -2888,7 +2462,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                   paddingHorizontal={12}
                                   borderRadius={12}
                                   backgroundColor={String(st) === propertyState ? theme.bgSecondary : 'transparent'}>
-                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                     {st}
                                   </Text>
                                   <Text color={theme.textMuted} fontWeight="900">
@@ -2915,7 +2489,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             color={theme.text}
                             fontSize={18}
                             fontWeight="900"
-                            style={{ fontFamily: 'Times New Roman', marginBottom: 10 } as any}>
+                            style={{ fontFamily: APP_SERIF_FONT, marginBottom: 10 } as any}>
                             Select City
                           </Text>
                           <ScrollView showsVerticalScrollIndicator={false}>
@@ -2933,7 +2507,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                   paddingHorizontal={12}
                                   borderRadius={12}
                                   backgroundColor={String(ct) === propertyCity ? theme.bgSecondary : 'transparent'}>
-                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                  <Text color={theme.text} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                     {ct}
                                   </Text>
                                   <Text color={theme.textMuted} fontWeight="900">
@@ -2953,7 +2527,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           onPress={() => {}}
                           style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 420 }]}>
                           <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-                            <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                            <Text color={theme.text} fontSize={18} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                               {pickerConfig?.title ?? 'Select'}
                             </Text>
                             <Pressable onPress={() => setPickerOpen(null)}>
@@ -2976,7 +2550,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                         paddingHorizontal={12}
                                         borderRadius={12}
                                         backgroundColor={checked ? theme.bgSecondary : 'transparent'}>
-                                        <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                        <Text color={theme.text} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                           {opt}
                                         </Text>
                                         <View
@@ -3013,7 +2587,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                           paddingHorizontal={12}
                                           borderRadius={12}
                                           backgroundColor={checked ? theme.bgSecondary : 'transparent'}>
-                                          <Text color={theme.text} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                                          <Text color={theme.text} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                                             {opt.label}
                                           </Text>
                                           <Text color={theme.textMuted} fontWeight="900">
@@ -3069,10 +2643,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           alignItems="center"
                           justifyContent="center"
                           gap="$1.5">
-                          <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                             {s.label}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={11} fontWeight="700" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.textMuted} fontSize={11} fontWeight="700" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                             Book now
                           </Text>
                         </YStack>
@@ -3088,14 +2662,14 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         <XStack gap="$1.5" alignItems="center">
                           
                           <FontAwesome name="phone" size={16} color={theme.primary} />
-                          <Text color={theme.primary} fontSize={13} fontWeight="700" textDecorationLine="underline" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color={theme.primary} fontSize={13} fontWeight="700" textDecorationLine="underline" style={{ fontFamily: APP_SERIF_FONT }}>
                             Call us for property listing or Search
                           </Text>
                           
                         </XStack>
                       </Pressable>
                     ) : null}
-                    <Text marginTop={activeService === 'property' ? 8 : 0} color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: 'Times New Roman' }}>
+                    <Text marginTop={activeService === 'property' ? 8 : 0} color={theme.textMuted} fontSize={12} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
                       {activeService === 'shifting'
                         ? 'Book shifting service in 2 minutes'
                         : activeService === 'home_services'
@@ -3138,7 +2712,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <View style={styles.modalBackdrop}>
               <View style={[styles.modalCard, { backgroundColor: theme.bgCard }]}>
                 <XStack alignItems="center" justifyContent="space-between" marginBottom={14}>
-                  <Text color={theme.text} fontSize={20} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={theme.text} fontSize={20} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Get Free Quote
                   </Text>
                   <Pressable onPress={() => setQuoteModalOpen(false)}>
@@ -3154,7 +2728,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   placeholder="Your Name *"
                   placeholderTextColor="#9CA3AF"
                   editable={!quoteNameReadOnly}
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: 'Times New Roman' }]}
+                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: APP_SERIF_FONT }]}
                 />
                 <TextInput
                   value={quotePhone}
@@ -3172,7 +2746,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     {
                       borderColor: theme.border,
                       color: theme.text,
-                      fontFamily: 'Times New Roman',
+                      fontFamily: APP_SERIF_FONT,
                       letterSpacing: 0.5,
                     },
                   ]}
@@ -3185,7 +2759,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!quoteEmailReadOnly}
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: 'Times New Roman' }]}
+                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: APP_SERIF_FONT }]}
                 />
                 <Pressable onPress={() => setQuoteServicePickerOpen(true)}>
                   <YStack
@@ -3201,7 +2775,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         color={quoteService ? theme.text : '#9CA3AF'}
                         fontSize={14}
                         fontWeight="700"
-                        style={{ fontFamily: 'Times New Roman' }}>
+                        style={{ fontFamily: APP_SERIF_FONT }}>
                         {quoteService || 'Select Service'}
                       </Text>
                       <Text color={theme.textMuted} fontSize={18} fontWeight="900">
@@ -3220,7 +2794,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     <Pressable
                       onPress={() => {}}
                       style={[styles.modalCard, { backgroundColor: theme.bgCard, padding: 14, maxHeight: 360 }]}>
-                      <Text color={theme.text} fontSize={16} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                      <Text color={theme.text} fontSize={16} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                         Select Service
                       </Text>
                       <YStack marginTop={10} borderWidth={1} borderColor={theme.border} borderRadius={14} overflow="hidden">
@@ -3244,7 +2818,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                     color={theme.text}
                                     fontSize={14}
                                     fontWeight={selected ? '900' : '700'}
-                                    style={{ fontFamily: 'Times New Roman' }}>
+                                    style={{ fontFamily: APP_SERIF_FONT }}>
                                     {opt}
                                   </Text>
                                   {selected ? (
@@ -3267,7 +2841,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   placeholder="Your Message (Optional)"
                   placeholderTextColor="#9CA3AF"
                   multiline
-                  style={[styles.modalTextarea, { borderColor: theme.border, color: theme.text, fontFamily: 'Times New Roman' }]}
+                  style={[styles.modalTextarea, { borderColor: theme.border, color: theme.text, fontFamily: APP_SERIF_FONT }]}
                 />
 
                 <Pressable
@@ -3277,7 +2851,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onPress={submitQuoteRequest}>
                   <YStack
                     style={[styles.modalSubmit, { backgroundColor: theme.primary, opacity: quoteSubmitting ? 0.7 : 1, borderWidth: 1, borderColor: headerHovered === 'qcallback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'qcallback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
-                    <Text color="#FFFFFF" fontSize={20} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                    <Text color="#FFFFFF" fontSize={20} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                       {quoteSubmitting ? 'Submitting…' : 'Request Callback'}
                     </Text>
                   </YStack>
@@ -3290,7 +2864,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     fontSize={13}
                     fontWeight="700"
                     textAlign="center"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     {quoteSubmitNotice}
                   </Text>
                 ) : null}
@@ -3305,7 +2879,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 fontSize={13}
                 fontWeight="800"
                 textAlign="center"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Available Offers
               </Text>
               <ScrollView
@@ -3349,7 +2923,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             color={theme.couponText}
                             fontWeight="900"
                             fontSize={17}
-                            style={{ fontFamily: 'Times New Roman' }}>
+                            style={{ fontFamily: APP_SERIF_FONT }}>
                             {String(c?.code ?? '').toUpperCase()}
                           </Text>
                         </XStack>
@@ -3358,7 +2932,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             color={theme.couponText}
                             fontWeight="900"
                             fontSize={13}
-                            style={{ fontFamily: 'Times New Roman' }}>
+                            style={{ fontFamily: APP_SERIF_FONT }}>
                             {discountText}
                           </Text>
                         </YStack>
@@ -3369,11 +2943,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           fontSize={14}
                           fontWeight="800"
                           numberOfLines={2}
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           {String(c.title)}
                         </Text>
                       ) : null}
-                      <Text color={theme.couponText} fontSize={13} fontWeight="700" style={{ fontFamily: 'Times New Roman' }}>
+                      <Text color={theme.couponText} fontSize={13} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
                         {c?.max_discount ? `Max ₹${Number(c.max_discount)}` : ''}
                         {c?.max_discount && c?.min_order_amount ? ' • ' : ''}
                         {c?.min_order_amount ? `Min ₹${Number(c.min_order_amount)}` : ''}
@@ -3393,28 +2967,28 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
-                fontSize={14}
+                fontSize={15}
                 letterSpacing={2.4}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Our Services
               </Text>
               <H2
                 color={theme.text}
                 fontWeight="900"
                 textAlign="center"
-                fontSize={isSmallScreen ? 26 : 34}
-                style={{ fontFamily: 'Times New Roman' }}>
+                fontSize={isSmallScreen ? 27 : 35}
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 We&apos;re Quick, Friendly & Professional
               </H2>
               <Text
                 color={theme.textMuted}
-                fontSize={15}
+                fontSize={16}
                 textAlign="center"
-                lineHeight={22}
+                lineHeight={23}
                 fontWeight="700"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Complete packing and moving solutions for homes, offices, and vehicles across India
               </Text>
               </YStack>
@@ -3506,7 +3080,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       style={styles.serviceCardImage}
                       imageStyle={styles.serviceCardImageInner}>
                       <View style={styles.serviceCardOverlay}>
-                        <Text color="#FFFFFF" fontSize={20} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                        <Text color="#FFFFFF" fontSize={21} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           {item.title}
                         </Text>
                       </View>
@@ -3516,13 +3090,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         <FontAwesome5 name={serviceIconName as any} size={14} color={theme.textSecondary} />
                         <Text
                           color={theme.textSecondary}
-                          fontSize={13}
+                          fontSize={14}
                           fontWeight="800"
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           View Details
                         </Text>
                       </XStack>
-                      <Text color="#D97706" fontSize={20} fontWeight="900">
+                      <Text color="#D97706" fontSize={21} fontWeight="900">
                         ›
                       </Text>
                     </XStack>
@@ -3560,7 +3134,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     <YStack style={styles.statIcon}>
                       <Text fontSize={20}>{s.icon}</Text>
                     </YStack>
-                    <Text color="#FFFFFF" fontSize={30} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                    <Text color="#FFFFFF" fontSize={30} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                       {s.value}
                     </Text>
                     <Text
@@ -3568,7 +3142,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontSize={13}
                       fontWeight="700"
                       textAlign="center"
-                      style={{ fontFamily: 'Times New Roman' }}>
+                      style={{ fontFamily: APP_SERIF_FONT }}>
                       {s.label}
                     </Text>
                   </YStack>
@@ -3586,7 +3160,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     <YStack style={styles.statIcon}>
                       <Text fontSize={20}>{s.icon}</Text>
                     </YStack>
-                    <Text color="#FFFFFF" fontSize={38} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                    <Text color="#FFFFFF" fontSize={38} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                       {s.value}
                     </Text>
                     <Text
@@ -3594,7 +3168,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontSize={13}
                       fontWeight="700"
                       textAlign="center"
-                      style={{ fontFamily: 'Times New Roman' }}>
+                      style={{ fontFamily: APP_SERIF_FONT }}>
                       {s.label}
                     </Text>
                   </YStack>
@@ -3611,7 +3185,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 letterSpacing={2.4}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Our Branches
               </Text>
               <H2
@@ -3619,7 +3193,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 fontWeight="900"
                 textAlign="center"
                 fontSize={isSmallScreen ? 26 : 34}
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 We Are Across India
               </H2>
             </YStack>
@@ -3645,10 +3219,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   alignItems="center"
                   gap="$2">
                   <FontAwesome name="map-marker" size={28} color="#EF4444" />
-                  <Text color={theme.text} fontSize={15} fontWeight="900" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={theme.text} fontSize={16} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                     {b.name}
                   </Text>
-                  <Text color={theme.textMuted} fontSize={12} fontWeight="700" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={theme.textMuted} fontSize={13} fontWeight="700" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                     {b.addr}
                   </Text>
                 </YStack>
@@ -3671,7 +3245,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               ]}>
               <XStack flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="$3.5">
                 <YStack flex={1} minWidth={isSmallScreen ? '100%' : 340} gap="$2.5">
-                  <Text color="#FFFFFF" fontSize={24} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color="#FFFFFF" fontSize={24} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Book Your Move Today
                   </Text>
                   <Text
@@ -3679,7 +3253,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     fontSize={14}
                     lineHeight={20}
                     fontWeight="700"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Get instant quote, select vehicle, schedule date and book your relocation in just 3 easy steps!
                   </Text>
                   <YStack gap="$2.5" marginTop={10}>
@@ -3687,11 +3261,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       (t, idx) => (
                         <XStack key={t} alignItems="center" gap="$2.5">
                           <YStack style={styles.stepBadge}>
-                            <Text color="#1A1A1A" fontWeight="900" fontSize={13} style={{ fontFamily: 'Times New Roman' }}>
+                            <Text color="#1A1A1A" fontWeight="900" fontSize={13} style={{ fontFamily: APP_SERIF_FONT }}>
                               {idx + 1}
                             </Text>
                           </YStack>
-                          <Text color="#FFFFFF" fontSize={14} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                          <Text color="#FFFFFF" fontSize={14} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                             {t}
                           </Text>
                         </XStack>
@@ -3713,7 +3287,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     glowOnHover
                     content={
                       <XStack alignItems="center" gap="$2.5">
-                        <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                        <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           Start Booking
                         </Text>
                         <Text color="#FFFFFF" fontSize={18} fontWeight="900">
@@ -3735,7 +3309,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 letterSpacing={2.4}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Why Choose Us
               </Text>
               <H2
@@ -3743,7 +3317,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 fontWeight="900"
                 textAlign="center"
                 fontSize={isSmallScreen ? 26 : 34}
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Why We Are The Best
               </H2>
             </YStack>
@@ -3770,19 +3344,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   </YStack>
                   <Text
                     color={theme.text}
-                    fontSize={16}
+                    fontSize={17}
                     fontWeight="900"
                     textAlign="center"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     {c.title}
                   </Text>
                   <Text
                     color={theme.textMuted}
-                    fontSize={13}
+                    fontSize={14}
                     fontWeight="700"
                     textAlign="center"
-                    lineHeight={20}
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    lineHeight={21}
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     {c.body}
                   </Text>
                 </YStack>
@@ -3794,19 +3368,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
-                fontSize={14}
+                fontSize={15}
                 letterSpacing={2.4}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Testimonials
               </Text>
               <H2
                 color={theme.text}
                 fontWeight="900"
                 textAlign="center"
-                fontSize={isSmallScreen ? 26 : 34}
-                style={{ fontFamily: 'Times New Roman' }}>
+                fontSize={isSmallScreen ? 27 : 35}
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 What Our Customers Say
               </H2>
             </YStack>
@@ -3838,27 +3412,27 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         </Text>
                         <Text
                           color={theme.textMuted}
-                          fontSize={14}
-                          lineHeight={22}
+                          fontSize={15}
+                          lineHeight={23}
                           fontWeight="700"
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           &quot;{t.body}&quot;
                         </Text>
                         <XStack alignItems="center" gap="$2.5" marginTop={12}>
                           <YStack style={styles.avatarCircle}>
-                            <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                            <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                               {t.letter}
                             </Text>
                           </YStack>
                           <YStack>
-                            <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                            <Text color={theme.text} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                               {t.name}
                             </Text>
                             <Text
                               color={theme.textMuted}
-                              fontSize={12}
+                              fontSize={13}
                               fontWeight="700"
-                              style={{ fontFamily: 'Times New Roman' }}>
+                              style={{ fontFamily: APP_SERIF_FONT }}>
                               {t.route}
                             </Text>
                           </YStack>
@@ -3884,27 +3458,27 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </Text>
                     <Text
                       color={theme.textMuted}
-                      fontSize={14}
-                      lineHeight={22}
+                      fontSize={15}
+                      lineHeight={23}
                       fontWeight="700"
-                      style={{ fontFamily: 'Times New Roman' }}>
+                      style={{ fontFamily: APP_SERIF_FONT }}>
                       &quot;{t.body}&quot;
                     </Text>
                     <XStack alignItems="center" gap="$2.5" marginTop={12}>
                       <YStack style={styles.avatarCircle}>
-                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           {t.letter}
                         </Text>
                       </YStack>
                       <YStack>
-                        <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                        <Text color={theme.text} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           {t.name}
                         </Text>
                         <Text
                           color={theme.textMuted}
-                          fontSize={12}
+                          fontSize={13}
                           fontWeight="700"
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           {t.route}
                         </Text>
                       </YStack>
@@ -3919,19 +3493,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <YStack alignItems="center" gap="$2.5" marginBottom={18}>
               <Text
                 color="#FFFFFF"
-                fontSize={28}
+                fontSize={29}
                 fontWeight="900"
                 textAlign="center"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Transparent Pricing
               </Text>
               <Text
                 color="rgba(255,255,255,0.82)"
-                fontSize={13}
+                fontSize={14}
                 textAlign="center"
-                lineHeight={20}
+                lineHeight={21}
                 fontWeight="700"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Approximate charges for local shifting. Final price may vary based on actual items and distance.
               </Text>
             </YStack>
@@ -3950,10 +3524,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       <Text
                         color="#FFFFFF"
                         fontWeight="900"
-                        fontSize={14}
+                        fontSize={15}
                         textAlign="center"
-                        lineHeight={18}
-                        style={{ fontFamily: 'Times New Roman' }}>
+                        lineHeight={19}
+                        style={{ fontFamily: APP_SERIF_FONT }}>
                         {row[0]}
                       </Text>
                     </YStack>
@@ -3970,20 +3544,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         <Text
                           color="rgba(15, 23, 42, 0.72)"
                           fontWeight="900"
-                          fontSize={12}
-                          lineHeight={16}
+                          fontSize={13}
+                          lineHeight={17}
                           flex={1}
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           {transparentPricingColumns[idx + 1]}
                         </Text>
                         <Text
                           color="#0F172A"
                           fontWeight="900"
-                          fontSize={12}
-                          lineHeight={16}
+                          fontSize={13}
+                          lineHeight={17}
                           flex={1}
                           textAlign="right"
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           {price}
                         </Text>
                       </XStack>
@@ -4020,7 +3594,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           fontSize={pricingHeaderFontSize}
                           lineHeight={18}
                           textAlign="center"
-                          style={{ fontFamily: 'Times New Roman' }}>
+                          style={{ fontFamily: APP_SERIF_FONT }}>
                           {h}
                         </Text>
                       </YStack>
@@ -4042,7 +3616,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             fontSize={pricingBodyFontSize}
                             textAlign="center"
                             lineHeight={pricingBodyLineHeight}
-                            style={{ fontFamily: 'Times New Roman' }}>
+                            style={{ fontFamily: APP_SERIF_FONT }}>
                             {cell}
                           </Text>
                         </YStack>
@@ -4068,7 +3642,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textColor="#0B1220"
                 glowOnHover
                 containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonLight]}
-                labelStyle={{ fontFamily: 'Times New Roman', fontSize: 16, fontWeight: '900' }}
+                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 16, fontWeight: '900' }}
               />
               <AppButton
                 label={activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
@@ -4077,7 +3651,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textColor="#FFFFFF"
                 glowOnHover
                 containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonGreen]}
-                labelStyle={{ fontFamily: 'Times New Roman', fontSize: 16, fontWeight: '900' }}
+                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 16, fontWeight: '900' }}
               />
             </XStack>
           </YStack>
@@ -4103,11 +3677,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               alignSelf="flex-start">
               <Text
                 color={theme.primary}
-                fontSize={14}
+                fontSize={15}
                 letterSpacing={2.8}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 About Us
               </Text>
             </YStack>
@@ -4116,23 +3690,23 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               <XStack gap="$4" alignItems="center">
                 <Image source={require('../assets/images/packers-movers-bg.jpg')} style={styles.aboutImage} />
                 <YStack flex={1} gap="$3.5">
-                  <Text color={theme.text} fontSize={22} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={theme.text} fontSize={23} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Prime Move Experience
                   </Text>
                   <Text
                     color={theme.textMuted}
-                    fontSize={15}
+                    fontSize={16}
                     fontWeight="700"
-                    lineHeight={22}
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    lineHeight={23}
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Smart packing, GPS tracking, and instant support in one premium flow.
                   </Text>
                   <Text
                     color={theme.textSecondary}
-                    fontSize={15}
-                    lineHeight={24}
+                    fontSize={16}
+                    lineHeight={25}
                     fontWeight="700"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     With over 10 years of excellence, we&apos;ve redefined relocation with precision tracking and
                     white-glove service.
                   </Text>
@@ -4144,28 +3718,28 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 <YStack gap="$3.5">
                   <Text
                     color={theme.text}
-                    fontSize={22}
+                    fontSize={23}
                     fontWeight="900"
                     textAlign="center"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Prime Move Experience
                   </Text>
                   <Text
                     color={theme.textMuted}
-                    fontSize={15}
+                    fontSize={16}
                     fontWeight="700"
-                    lineHeight={22}
+                    lineHeight={23}
                     textAlign="center"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Smart packing, GPS tracking, and instant support in one premium flow.
                   </Text>
                   <Text
                     color={theme.textSecondary}
-                    fontSize={15}
-                    lineHeight={24}
+                    fontSize={16}
+                    lineHeight={25}
                     textAlign="center"
                     fontWeight="700"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     With over 10 years of excellence, we&apos;ve redefined relocation with precision tracking and
                     white-glove service.
                   </Text>
@@ -4203,7 +3777,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   letterSpacing={2.8}
                   textTransform="uppercase"
                   fontWeight="900"
-                  style={{ fontFamily: 'Times New Roman' }}>
+                  style={{ fontFamily: APP_SERIF_FONT }}>
                   Contact & Support
                 </Text>
               </YStack>
@@ -4251,7 +3825,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             fontWeight="900"
                             numberOfLines={1}
                             ellipsizeMode="tail"
-                            style={{ fontFamily: 'Times New Roman', flexShrink: 1 }}>
+                            style={{ fontFamily: APP_SERIF_FONT, flexShrink: 1 }}>
                             Download Business Card
                           </Text>
                         </>
@@ -4265,7 +3839,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       fontSize={13}
                       fontWeight="700"
                       textAlign="center"
-                      style={{ fontFamily: 'Times New Roman' }}>
+                      style={{ fontFamily: APP_SERIF_FONT }}>
                       {cardDownloadNotice}
                     </Text>
                   ) : null}
@@ -4313,7 +3887,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 letterSpacing={2.8}
                 textTransform="uppercase"
                 fontWeight="900"
-                style={{ fontFamily: 'Times New Roman' }}>
+                style={{ fontFamily: APP_SERIF_FONT }}>
                 Google Map
               </Text>
             </YStack>
@@ -4365,7 +3939,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               ) : (
                 <YStack alignItems="center" justifyContent="center" width="100%" flex={1} gap="$3" padding={20}>
                   <FontAwesome name="map-marker" size={34} color={theme.accent} />
-                  <Text color={theme.text} fontSize={17} fontWeight="900" textAlign="center" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={theme.text} fontSize={17} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                     Google Map
                   </Text>
                 </YStack>
@@ -4397,7 +3971,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               content={
                 <>
                   <FontAwesome name="map-marker" size={18} color="#FFFFFF" />
-                  <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color="#FFFFFF" fontSize={15} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Open in Maps
                   </Text>
                 </>
@@ -4410,7 +3984,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               fontWeight="700"
               textAlign="center"
               lineHeight={19}
-              style={{ fontFamily: 'Times New Roman' }}>
+              style={{ fontFamily: APP_SERIF_FONT }}>
               Find us on Google Maps - tap directions for the fastest route and live navigation.
             </Text>
           </YStack>
@@ -4433,26 +4007,26 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 ]}
                 gap="$2.5">
                 <YStack style={styles.footerHeaderWrap}>
-                  <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color="#D97706" fontSize={16} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Gujarat Relocation Packers & Movers
                   </Text>
                 </YStack>
                 <YStack style={styles.footerBodyWrap}>
                   <Text
                     color={theme.textSecondary}
-                    fontSize={13}
-                    lineHeight={20}
+                    fontSize={14}
+                    lineHeight={21}
                     fontWeight="700"
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Professional packing and relocation services with careful handling, verified staff, and transparent
                     pricing across India.
                   </Text>
                   <Text
                     color={theme.textMuted}
-                    fontSize={13}
+                    fontSize={14}
                     fontWeight="900"
                     marginTop={8}
-                    style={{ fontFamily: 'Times New Roman' }}>
+                    style={{ fontFamily: APP_SERIF_FONT }}>
                     Follow Us
                   </Text>
                   <XStack gap="$2.5" alignItems="center">
@@ -4523,9 +4097,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       </Text>
                       <Text
                         color={footerHovered === 'svc_' + s.label ? '#D97706' : theme.textSecondary}
-                        fontSize={13}
+                        fontSize={14}
                         fontWeight="800"
-                        style={{ fontFamily: 'Times New Roman' }}>
+                        style={{ fontFamily: APP_SERIF_FONT }}>
                         {s.label}
                       </Text>
                     </XStack>
@@ -4547,7 +4121,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       ]}
                       gap="$2.5">
                       <YStack style={styles.footerHeaderWrap}>
-                        <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                        <Text color="#D97706" fontSize={16} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           Services We Provide
                         </Text>
                       </YStack>
@@ -4587,7 +4161,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 ]}
                 gap="$2.5">
                 <YStack style={styles.footerHeaderWrap}>
-                  <Text color="#D97706" fontSize={15} fontWeight="900" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color="#D97706" fontSize={16} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Quick Links
                   </Text>
                 </YStack>
@@ -4614,10 +4188,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       onPress={l.action}>
                       <Text
                         color={footerHovered === 'ql_' + l.label ? '#D97706' : theme.textSecondary}
-                        fontSize={13}
+                        fontSize={14}
                         fontWeight="800"
                         paddingVertical={7}
-                        style={{ fontFamily: 'Times New Roman' }}>
+                        style={{ fontFamily: APP_SERIF_FONT }}>
                         {l.label}
                       </Text>
                     </Pressable>
@@ -4637,12 +4211,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 }>
                 <Text
                   color={footerHovered === 'copyright' ? '#D97706' : theme.textMuted}
-                  fontSize={12}
+                  fontSize={13}
                   fontWeight="800"
                   style={
                     Platform.OS === 'web'
                       ? ([
-                          { fontFamily: 'Times New Roman', cursor: 'pointer' },
+                          { fontFamily: APP_SERIF_FONT, cursor: 'pointer' },
                           {
                             animationDuration: '6s',
                             animationTimingFunction: 'linear',
@@ -4650,7 +4224,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                             animationKeyframes: brandTextKeyframes,
                           },
                         ] as any)
-                      : ({ fontFamily: 'Times New Roman' } as any)
+                      : ({ fontFamily: APP_SERIF_FONT } as any)
                   }>
                   2026 BT SOFTECH. All Rights Reserved.
                 </Text>
@@ -4660,7 +4234,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('privacy') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                   onPress={() => router.push('/privacy-policy')}>
-                  <Text color={footerHovered === 'privacy' ? '#D97706' : theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={footerHovered === 'privacy' ? '#D97706' : theme.textMuted} fontSize={13} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                     Privacy Policy
                   </Text>
                 </Pressable>
@@ -4668,7 +4242,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('terms') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                   onPress={() => router.push('/terms-and-conditions')}>
-                  <Text color={footerHovered === 'terms' ? '#D97706' : theme.textMuted} fontSize={12} fontWeight="800" style={{ fontFamily: 'Times New Roman' }}>
+                  <Text color={footerHovered === 'terms' ? '#D97706' : theme.textMuted} fontSize={13} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                     Terms & Conditions
                   </Text>
                 </Pressable>
@@ -4749,7 +4323,7 @@ const styles = StyleSheet.create({
   },
   mobileMenuOverlay: {
     position: 'absolute',
-    top: 92,
+    top: 56,
     left: 14,
     right: 14,
     zIndex: 80,
@@ -4763,13 +4337,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 51,
+    height: 51,
     resizeMode: 'contain',
   },
   logoMobile: {
-    width: 40,
-    height: 40,
+    width: 41,
+    height: 41,
   },
   heroBg: {
     width: '100%',

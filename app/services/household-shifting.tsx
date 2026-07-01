@@ -1,3 +1,4 @@
+import StickyHeader from '@/app/components/sticky-header';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Dimensions, ImageBackground, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -16,8 +17,6 @@ const FAQS = [
 ];
 
 const { width: screenWidth } = Dimensions.get('window');
-
-const menuItems = ['Home', 'Services', 'Track', 'Contact'];
 
 export default function HouseholdShiftingScreen() {
   const router = useRouter();
@@ -131,203 +130,12 @@ export default function HouseholdShiftingScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.bg }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <YStack paddingHorizontal={16} paddingTop={16} paddingBottom={10} gap="$3">
-          <XStack alignItems="center" gap="$3" flexWrap="wrap" justifyContent="space-between">
-            <Pressable onPress={() => router.push('/home')}>
-              <Image source={require('../../assets/images/PackersMoversLogo.png')} style={styles.logo} />
-            </Pressable>
-
-            {!isSmallScreen ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuRow}>
-                <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                  {menuItems.map((item) => (
-                    <Pressable
-                      key={item}
-                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
-                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                      onPress={() => {
-                        if (item === 'Home') router.push('/home');
-                        if (item === 'Services') router.push('/home?scrollTo=services');
-                        if (item === 'Track') router.push('/(tabs)/tracking');
-                        if (item === 'Contact') router.push('/home?scrollTo=contact');
-                      }}
-                    >
-                      <YStack
-                        paddingHorizontal={22}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}
-                        style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        <Text
-                          color={theme.menuText}
-                          fontSize={15}
-                          fontWeight="700"
-                          letterSpacing={0.3}
-                          style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                          {item}
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                  ))}
-
-                  {session ? (
-                    <>
-                      <Pressable
-                        onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('bookings') : undefined}
-                        onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                        onPress={handleBook}>
-                        <YStack
-                          paddingHorizontal={22}
-                          paddingVertical={12}
-                          borderRadius={14}
-                          backgroundColor={theme.menuBg}
-                          borderWidth={1}
-                          borderColor={headerHovered === 'bookings' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                          shadowColor={theme.shadow}
-                          shadowOffset={{ width: 0, height: 3 }}
-                          shadowOpacity={0.12}
-                          shadowRadius={6}
-                          elevation={3}
-                          style={headerHovered === 'bookings' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                            My Bookings
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                      <Pressable
-                        onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined}
-                        onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                        onPress={handleLogout}>
-                        <YStack
-                          paddingHorizontal={22}
-                          paddingVertical={12}
-                          borderRadius={14}
-                          backgroundColor={theme.menuBg}
-                          borderWidth={1}
-                          borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                          shadowColor={theme.shadow}
-                          shadowOffset={{ width: 0, height: 3 }}
-                          shadowOpacity={0.12}
-                          shadowRadius={6}
-                          elevation={3}
-                          style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                          <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                            Logout
-                          </Text>
-                        </YStack>
-                      </Pressable>
-                    </>
-                  ) : (
-                    <Pressable
-                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('login') : undefined}
-                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                      onPress={() => router.push('/auth/login')}>
-                      <YStack
-                        paddingHorizontal={22}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor={headerHovered === 'login' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}
-                        style={headerHovered === 'login' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: 'Times New Roman', textDecorationLine: 'none' }}>
-                          Login
-                        </Text>
-                      </YStack>
-                    </Pressable>
-                  )}
-                </XStack>
-              </ScrollView>
-            ) : (
-              <XStack gap="$2" alignItems="center">
-                <Pressable
-                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('hamburger') : undefined}
-                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                  onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                  <YStack
-                    paddingHorizontal={16}
-                    paddingVertical={11}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'hamburger' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    style={headerHovered === 'hamburger' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
-                      ☰
-                    </Text>
-                  </YStack>
-                </Pressable>
-              </XStack>
-            )}
-          </XStack>
-
-          {isSmallScreen && mobileMenuOpen && (
-            <YStack
-              backgroundColor={theme.bgCard}
-              borderRadius={16}
-              padding={16}
-              gap={12}
-              borderWidth={1}
-              borderColor={theme.border}
-            >
-              {menuItems.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    if (item === 'Home') router.push('/home');
-                    if (item === 'Services') router.push('/home?scrollTo=services');
-                    if (item === 'Track') router.push('/(tabs)/tracking');
-                    if (item === 'Contact') router.push('/home?scrollTo=contact');
-                  }}
-                >
-                  <Text color={theme.text} fontSize={16} fontWeight="700" paddingVertical={8}>
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-
-              {session ? (
-                <>
-                  <Pressable onPress={() => { setMobileMenuOpen(false); handleBook(); }}>
-                    <Text color={theme.primary} fontSize={16} fontWeight="800" paddingVertical={8}>
-                      My Bookings
-                    </Text>
-                  </Pressable>
-                  <Pressable onPress={() => { setMobileMenuOpen(false); void handleLogout(); }}>
-                    <Text color={theme.accent} fontSize={16} fontWeight="800" paddingVertical={8}>
-                      Logout
-                    </Text>
-                  </Pressable>
-                </>
-              ) : (
-                <Pressable onPress={() => { setMobileMenuOpen(false); router.push('/auth/login'); }}>
-                  <Text color={theme.primary} fontSize={16} fontWeight="800" paddingVertical={8}>
-                    Login
-                  </Text>
-                </Pressable>
-              )}
-            </YStack>
-          )}
-        </YStack>
+      <StickyHeader
+        theme={theme}
+        isSmallScreen={isSmallScreen}
+        session={session}
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 76 : 96 }]} showsVerticalScrollIndicator={false}>
 
         <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={styles.hero} imageStyle={styles.heroImage}>
           <View style={styles.heroOverlay} />
@@ -354,7 +162,7 @@ export default function HouseholdShiftingScreen() {
                 onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                 onPress={() => setQuoteModalOpen(true)}>
                 <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent, borderWidth: 1, borderColor: headerHovered === 'callback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'callback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
-                  <Text color={theme.text} fontWeight="900" fontSize={13}>Request Callback</Text>
+                  <Text color={theme.text} fontWeight="900" fontSize={14}>Request Callback</Text>
                 </YStack>
               </Pressable>
               <Pressable
@@ -362,24 +170,24 @@ export default function HouseholdShiftingScreen() {
                 onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                 onPress={handleBook}>
                 <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary, borderWidth: 1, borderColor: headerHovered === 'booknow' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'booknow' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
-                  <Text color={theme.menuText} fontWeight="900" fontSize={13}>Book Now</Text>
+                  <Text color={theme.text} fontWeight="900" fontSize={14}>Book Now</Text>
                 </YStack>
               </Pressable>
             </XStack>
           </YStack>
 
           <YStack gap="$2">
-            <H2 color={theme.text} fontSize={18} fontWeight="900">Overview</H2>
-            <Paragraph color={theme.textMuted} fontSize={13} lineHeight={20} fontWeight="600">
+            <H2 color={theme.text} fontSize={19} fontWeight="900">Overview</H2>
+            <Paragraph color={theme.textMuted} fontSize={14} lineHeight={22} fontWeight="600">
               Our household shifting services ensure a smooth and stress-free relocation experience. We handle everything from packing delicate items to safe transportation of your furniture and belongings to your new home.
             </Paragraph>
-            <Paragraph color={theme.textMuted} fontSize={13} lineHeight={20} fontWeight="600">
+            <Paragraph color={theme.textMuted} fontSize={14} lineHeight={22} fontWeight="600">
               Our trained professionals use high-quality packing materials and modern equipment to ensure your items are protected throughout the journey. We offer door-to-door service with complete transparency in pricing.
             </Paragraph>
           </YStack>
 
           <YStack backgroundColor={theme.bgCard} borderRadius={16} borderWidth={1} borderColor={theme.border} padding={16} gap="$2">
-            <Text color={theme.text} fontSize={16} fontWeight="900">What’s Included</Text>
+            <Text color={theme.text} fontSize={17} fontWeight="900">What’s Included</Text>
             {[
               'Professional packing with quality materials',
               'Careful handling of delicate items',
@@ -391,7 +199,7 @@ export default function HouseholdShiftingScreen() {
             ].map((t) => (
               <XStack key={t} gap="$2" alignItems="center">
                 <Text color={theme.success} fontSize={14} fontWeight="900">✓</Text>
-                <Text color={theme.textMuted} fontSize={12} fontWeight="700" flex={1}>
+                <Text color={theme.textMuted} fontSize={13} fontWeight="700" flex={1}>
                   {t}
                 </Text>
               </XStack>
@@ -426,8 +234,8 @@ export default function HouseholdShiftingScreen() {
 
           <YStack backgroundColor={theme.bgCard} borderRadius={16} borderWidth={1} borderColor={theme.border} padding={16} gap="$2">
             <XStack alignItems="center" justifyContent="space-between">
-              <Text color={theme.text} fontSize={16} fontWeight="900">Customer Reviews</Text>
-              <Text color={theme.primary} fontSize={12} fontWeight="800">View All →</Text>
+              <Text color={theme.text} fontSize={17} fontWeight="900">Customer Reviews</Text>
+              <Text color={theme.primary} fontSize={13} fontWeight="800">View All →</Text>
             </XStack>
             {[{
               name: 'Amit Sharma',
@@ -445,9 +253,9 @@ export default function HouseholdShiftingScreen() {
                   <Text color="#FFFFFF" fontWeight="900">{r.letter}</Text>
                 </YStack>
                 <YStack flex={1} gap="$1">
-                  <Text color={theme.text} fontSize={12} fontWeight="900">{r.name}</Text>
-                  <Text color={theme.warning} fontSize={12} fontWeight="900">{r.rating}</Text>
-                  <Text color={theme.textMuted} fontSize={12} fontWeight="700">{r.body}</Text>
+                  <Text color={theme.text} fontSize={13} fontWeight="900">{r.name}</Text>
+                  <Text color={theme.warning} fontSize={13} fontWeight="900">{r.rating}</Text>
+                  <Text color={theme.textMuted} fontSize={13} fontWeight="700">{r.body}</Text>
                 </YStack>
               </XStack>
             ))}
@@ -465,17 +273,17 @@ export default function HouseholdShiftingScreen() {
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
             <Pressable onPress={handleCallNow}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgCard }]}>
-                <Text color={theme.text} fontWeight="900" fontSize={12}>Call Now</Text>
+                <Text color={theme.text} fontWeight="900" fontSize={13}>Call Now</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleWhatsApp}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.success }]}>
-                <Text color="#FFFFFF" fontWeight="900" fontSize={12}>WhatsApp</Text>
+                <Text color="#FFFFFF" fontWeight="900" fontSize={13}>WhatsApp</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleBook}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgSecondary }]}>
-                <Text color={theme.menuText} fontWeight="900" fontSize={12}>Book Online →</Text>
+                <Text color={theme.text} fontWeight="900" fontSize={13}>Book Online →</Text>
               </YStack>
             </Pressable>
           </XStack>
@@ -545,15 +353,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 12,
-  },
-  logo: {
-    width: 44,
-    height: 44,
-    resizeMode: 'contain',
-  },
-  menuRow: {
-    paddingLeft: 0,
-    paddingRight: 0,
   },
   hero: {
     height: 210,
