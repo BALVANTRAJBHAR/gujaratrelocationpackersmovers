@@ -1,6 +1,5 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -71,7 +70,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if ((Constants as any)?.appOwnership === 'expo') {
+      return;
+    }
+
     try {
+      const Notifications = await import('expo-notifications');
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {

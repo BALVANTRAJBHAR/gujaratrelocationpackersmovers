@@ -1,5 +1,4 @@
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +12,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   TextInput,
   useWindowDimensions,
@@ -59,6 +59,19 @@ const transparentPricingRows = [
 const googleMapCoords = '19.19345137320862,72.87039928686748';
 const googleMapEmbedUrl =
   'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15072.160349352169!2d72.87039928686748!3d19.19345137320862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b7b2f8931407%3A0x3f3198a6e19ac233!2sSethia%20Aashray!5e0!3m2!1sen!2sin!4v1772384635990!5m2!1sen!2sin';
+const googleMapWebViewHtml = `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <style>
+      html, body, iframe { margin: 0; width: 100%; height: 100%; border: 0; overflow: hidden; }
+      body { background: #F8FAFC; }
+    </style>
+  </head>
+  <body>
+    <iframe src="${googleMapEmbedUrl}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </body>
+</html>`;
 
 const glowKeyframes = {
   '0%': { backgroundPosition: '0 0' },
@@ -194,7 +207,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       width="100%"
       maxWidth={640}
       alignSelf="center"
-      minHeight={isCardNarrow ? 0 : 360}>
+      minHeight={isCardNarrow ? 430 : 360}>
       <XStack
         justifyContent="space-between"
         alignItems={isCardNarrow ? 'stretch' : 'flex-start'}
@@ -340,8 +353,17 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
   );
 
   return (
-    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%' }}>
-      {Platform.OS === 'web' ? card : <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1.0 }}>{card}</ViewShot>}
+    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%', minHeight: isCardNarrow ? 430 : 360 }}>
+      {Platform.OS === 'web' ? (
+        card
+      ) : (
+        <ViewShot
+          ref={viewShotRef}
+          style={{ width: '100%', minHeight: isCardNarrow ? 430 : 360 }}
+          options={{ format: 'png', quality: 1.0 }}>
+          {card}
+        </ViewShot>
+      )}
     </View>
   );
 };
@@ -582,6 +604,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const NativeMapMarker = nativeMaps?.Marker as any;
   const sectionGap = isSmallScreen ? 20 : 64;
   const tightSectionGap = isSmallScreen ? 12 : 28;
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
   const roleKey = (profile?.role ?? 'customer').toString().trim().toLowerCase();
   const canManage = ['admin', 'staff'].includes(roleKey);
@@ -929,7 +952,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const scrollToServiceMenu = () => {
     const y = sectionOffsetsRef.current.serviceMenu ?? sectionOffsetsRef.current.services;
     if (typeof y !== 'number') return;
-    const headerHeight = isSmallScreen ? 132 : 104;
+    const headerHeight = (isSmallScreen ? 132 : 104) + statusBarHeight;
     const extraTopSpacing = 0;
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
@@ -939,7 +962,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const scrollToSection = (key: 'services' | 'contact') => {
     const y = sectionOffsetsRef.current[key];
     if (typeof y !== 'number') return;
-    const headerHeight = isSmallScreen ? 132 : 104;
+    const headerHeight = (isSmallScreen ? 132 : 104) + statusBarHeight;
     const extraTopSpacing = 20;
     scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
   };
@@ -1733,16 +1756,16 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View
-        style={[
-          styles.stickyHeader,
-          {
-            backgroundColor: theme.headerBg,
-            borderBottomColor: theme.border,
-            shadowColor: theme.shadow,
-            paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight ?? 0 : 0,
-          },
-        ]}>
+        <View
+          style={[
+            styles.stickyHeader,
+            {
+              backgroundColor: theme.headerBg,
+              borderBottomColor: theme.border,
+              shadowColor: theme.shadow,
+              paddingTop: statusBarHeight,
+            },
+          ]}>
         <XStack
           alignItems="center"
           gap="$3"
@@ -2101,7 +2124,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
       </View>
 
       {isSmallScreen && mobileMenuOpen ? (
-        <Pressable style={styles.mobileMenuOverlay} onPress={() => setMobileMenuOpen(false)}>
+        <Pressable style={[styles.mobileMenuOverlay, { top: 92 + statusBarHeight }]} onPress={() => setMobileMenuOpen(false)}>
           <Pressable onPress={() => {}} style={{ width: '100%' } as any}>
             <YStack
               backgroundColor={theme.bgCard}
@@ -2194,12 +2217,14 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: isSmallScreen ? 100 : 110,
+            paddingTop: (isSmallScreen ? 76 : 96) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: isSmallScreen ? 16 : 72,
+            paddingBottom: isSmallScreen ? 8 : 24,
           },
         ]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never">
         <YStack>
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 12 : 20}>
@@ -4250,12 +4275,26 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
           </View>
 
+          {/* ---- Separator between Contact & Map ---- */}
+          <YStack
+            marginTop={tightSectionGap}
+            marginBottom={sectionGap}
+            alignItems="center"
+            paddingHorizontal={isSmallScreen ? 0 : 40}>
+            <YStack
+              height={2}
+              width={isSmallScreen ? '100%' : '60%'}
+              backgroundColor={theme.primary}
+              opacity={0.15}
+              borderRadius={1}
+            />
+          </YStack>
+
           <YStack
             backgroundColor={theme.bgCard}
             borderRadius={isSmallScreen ? 22 : 26}
             padding={isSmallScreen ? 16 : 24}
             gap={isSmallScreen ? '$3' : '$4'}
-            marginTop={tightSectionGap}
             borderWidth={1}
             borderColor={theme.border}
             shadowColor={theme.shadow}
@@ -4299,12 +4338,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   referrerPolicy="no-referrer-when-downgrade"></iframe>
               ) : NativeWebView ? (
                 <NativeWebView
-                  source={{ uri: googleMapEmbedUrl }}
+                  source={{ html: googleMapWebViewHtml, baseUrl: 'https://www.google.com' }}
                   style={{ width: '100%', height: isSmallScreen ? 280 : 320 } as any}
                   originWhitelist={['*']}
                   javaScriptEnabled
                   domStorageEnabled
                   startInLoadingState
+                  mixedContentMode="always"
                 />
               ) : NativeMapView ? (
                 <NativeMapView
@@ -4716,7 +4756,7 @@ const styles = StyleSheet.create({
     zIndex: 80,
   },
   content: {
-    flexGrow: 1,
+    flexGrow: 0,
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
