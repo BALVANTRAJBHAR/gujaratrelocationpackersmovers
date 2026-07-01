@@ -405,7 +405,7 @@ export default function BookingWizardScreen() {
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
-  const otpRefs = useRef<Array<any>>([]);
+  const otpRefs = useRef<any[]>([]);
   const mobileRef = useRef<any>(null);
   const pickupRef = useRef<any>(null);
   const vehicleFieldRef = useRef<any>(null);
@@ -686,7 +686,7 @@ export default function BookingWizardScreen() {
   const uploadBookingUploads = async (createdBookingId: string) => {
     if (!session?.user?.id) return;
     const rawBucket = 'booking-uploads-raw';
-    const items: Array<{ uri: string; kind: 'photo' | 'video' }> = [
+    const items: { uri: string; kind: 'photo' | 'video' }[] = [
       ...form.photos.map((uri) => ({ uri, kind: 'photo' as const })),
       ...form.videos.map((uri) => ({ uri, kind: 'video' as const })),
     ];

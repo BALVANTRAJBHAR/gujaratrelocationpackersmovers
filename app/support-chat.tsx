@@ -26,7 +26,7 @@ type MessageRow = {
   created_at: string;
 };
 
-const GUIDED_OPTIONS: Array<{ label: string; prompt: string }> = [
+const GUIDED_OPTIONS: { label: string; prompt: string }[] = [
   {
     label: 'Track booking',
     prompt: 'I want to track my booking. What should I do?'

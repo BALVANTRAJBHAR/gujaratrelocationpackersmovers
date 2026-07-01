@@ -22,7 +22,7 @@ type BookingStatusRow = {
   status: string | null;
 };
 
-const STATUS_STEPS: Array<{ key: string; label: string }> = [
+const STATUS_STEPS: { key: string; label: string }[] = [
   { key: 'not_started', label: 'Not started' },
   { key: 'pickup_reached', label: 'Picked up' },
   { key: 'in_transit', label: 'In transit' },

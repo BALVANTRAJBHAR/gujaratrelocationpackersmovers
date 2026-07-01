@@ -1703,13 +1703,13 @@ export default function AdminScreen() {
         setDocumentBusy(true);
         try {
           const created_by = profile?.id ?? null;
-          const rows: Array<{
+          const rows: {
             user_id: string;
             document_type: string;
             document_number: string;
             image_url?: string | null;
             created_by?: string | null;
-          }> = [];
+          }[] = [];
 
           for (const doc of pendingDocuments) {
             let image_url: string | null = null;
@@ -1751,7 +1751,7 @@ export default function AdminScreen() {
     setLoading(false);
   };
 
-  const BOOKING_STATUS_STEPS: Array<{ key: string; label: string }> = [
+  const BOOKING_STATUS_STEPS: { key: string; label: string }[] = [
     { key: 'not_started', label: 'Start' },
     { key: 'pickup_reached', label: 'Pickup reached' },
     { key: 'in_transit', label: 'In Transit' },

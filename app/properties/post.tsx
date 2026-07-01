@@ -163,7 +163,7 @@ export default function PostPropertyScreen() {
 
   const [localityTyped, setLocalityTyped] = useState(false);
   const [localityLoading, setLocalityLoading] = useState(false);
-  const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState<{ id: string; label: string; full: string }[]>([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapPickerBusy, setMapPickerBusy] = useState(false);
   const [mapPickerCoord, setMapPickerCoord] = useState<{ lat: number; lng: number } | null>(null);
@@ -1004,7 +1004,7 @@ export default function PostPropertyScreen() {
     }
     
     if (step === 'pg_room_details') {
-      const checks: Array<{ label: string; rent: string; deposit: string; enabled: boolean }> = [
+      const checks: { label: string; rent: string; deposit: string; enabled: boolean }[] = [
         { label: 'Single', rent: pgSingleRent, deposit: pgSingleDeposit, enabled: pgRoomSingle },
         { label: 'Double', rent: pgDoubleRent, deposit: pgDoubleDeposit, enabled: pgRoomDouble },
         { label: 'Three', rent: pgThreeRent, deposit: pgThreeDeposit, enabled: pgRoomThree },
@@ -2041,7 +2041,7 @@ export default function PostPropertyScreen() {
   };
 
   const pgSelectedRoomTypes = useMemo(() => {
-    const arr: Array<'single' | 'double' | 'three' | 'four'> = [];
+    const arr: ('single' | 'double' | 'three' | 'four')[] = [];
     if (pgRoomSingle) arr.push('single');
     if (pgRoomDouble) arr.push('double');
     if (pgRoomThree) arr.push('three');
@@ -2219,7 +2219,7 @@ export default function PostPropertyScreen() {
   };
 
   const selectedAmenityLabels = useMemo(() => {
-    const items: Array<{ label: string; value: 0 | 1 | null }> = [
+    const items: { label: string; value: 0 | 1 | null }[] = [
       { label: 'Lift', value: amenityLift },
       { label: 'Internet Services', value: amenityInternetServices },
       { label: 'Air Conditioner', value: amenityAirConditioner },

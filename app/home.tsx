@@ -353,7 +353,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
   );
 
   return (
-    <View pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'} style={{ width: '100%', minHeight: isCardNarrow ? 430 : 360 }}>
+    <View style={{ width: '100%', minHeight: isCardNarrow ? 430 : 360 }}>
       {Platform.OS === 'web' ? (
         card
       ) : (
@@ -389,7 +389,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const [rentFullHouseBhkSelected, setRentFullHouseBhkSelected] = useState<string[]>([]);
   const [rentPgTenantType, setRentPgTenantType] = useState<'male' | 'female' | 'anyone' | ''>('');
   const [rentPgRoomType, setRentPgRoomType] = useState<'single_room' | 'double_sharing' | 'triple_sharing' | 'four_sharing' | ''>('');
-  const [rentFlatmatesTenantTypes, setRentFlatmatesTenantTypes] = useState<Array<'male' | 'female'>>([]);
+  const [rentFlatmatesTenantTypes, setRentFlatmatesTenantTypes] = useState<('male' | 'female')[]>([]);
   const [rentFlatmatesRoomType, setRentFlatmatesRoomType] = useState<'single_room' | 'shared_room' | ''>('');
   const [commercialPropertyTypes, setCommercialPropertyTypes] = useState<string[]>([]);
   const [commercialAvailability, setCommercialAvailability] = useState<'immediate' | 'within_15_days' | 'within_30_days' | 'after_30_days' | ''>('');
@@ -409,7 +409,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const [propertyCity, setPropertyCity] = useState<string>('Ahmedabad');
   const [propertyStatePickerOpen, setPropertyStatePickerOpen] = useState(false);
   const [propertyCityPickerOpen, setPropertyCityPickerOpen] = useState(false);
-  const [propertyLocalitySuggestions, setPropertyLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [propertyLocalitySuggestions, setPropertyLocalitySuggestions] = useState<{ id: string; label: string; full: string }[]>([]);
   const [propertyLocalityLoading, setPropertyLocalityLoading] = useState(false);
   const [propertyLocalityRawDebug, setPropertyLocalityRawDebug] = useState<string>('');
   const suppressNextPropertyLocalitySuggestRef = useRef(false);
@@ -1165,7 +1165,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               const name = String((x as any)?.place_name ?? '').toLowerCase();
               if (stateLower && !name.includes(stateLower)) return false;
               if (cityLower) {
-                const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+                const ctx = ((x as any)?.context ?? []) as { text?: string }[];
                 const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
                 const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
                 if (!name.includes(cityLower) && !ctxHasCity) return false;
@@ -1177,7 +1177,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               const textLabel = String((x as any)?.text ?? '').trim();
               const placeNameLower = place.toLowerCase();
               const textLower = textLabel.toLowerCase();
-              const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+              const ctx = ((x as any)?.context ?? []) as { text?: string }[];
               const ctxParts = ctx.map((c) => String(c?.text ?? '').trim()).filter(Boolean);
               const placeParts = place
                 .split(/,|•/g)
@@ -1763,9 +1763,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               backgroundColor: theme.headerBg,
               borderBottomColor: theme.border,
               shadowColor: theme.shadow,
-              paddingTop: statusBarHeight,
+              paddingTop: Math.max(0, statusBarHeight - 6),
             },
-          ]}>
+          ]}
+          pointerEvents="box-none">
         <XStack
           alignItems="center"
           gap="$3"
@@ -4208,19 +4209,17 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               </YStack>
 
               <YStack alignItems="center" gap={isSmallScreen ? '$3' : '$4'}>
-                <YStack
-                  style={{
-                    flexGrow: 1,
-                    flexShrink: 1,
-                    flexBasis: '100%',
-                    maxWidth: isSmallScreen ? '100%' : 560,
-                    minWidth: isSmallScreen ? '100%' : 360,
-                  }}
-                  alignItems="center"
-                  gap={isSmallScreen ? '$3' : '$4'}>
-                  <BusinessCard theme={theme} viewShotRef={businessCardRef} />
+                  <YStack
+                    style={{
+                      width: '100%',
+                      maxWidth: isSmallScreen ? '100%' : 560,
+                      minWidth: isSmallScreen ? '100%' : 360,
+                    }}
+                    alignItems="center"
+                    gap={isSmallScreen ? '$3' : '$4'}>
+                    <BusinessCard theme={theme} viewShotRef={businessCardRef} />
 
-                  <View style={{ zIndex: 5 } as any} pointerEvents="auto">
+                    <View pointerEvents="auto">
                     <AppButton
                       label="Download Business Card"
                       onPress={downloadBusinessCard}

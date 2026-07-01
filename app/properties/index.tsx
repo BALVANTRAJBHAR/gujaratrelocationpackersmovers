@@ -167,7 +167,7 @@ export default function PropertiesIndexScreen() {
   const [withPhotoOnly, setWithPhotoOnly] = useState(false);
   const [removeSeen, setRemoveSeen] = useState(false);
 
-  const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState<{ id: string; label: string; full: string }[]>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityRawDebug, setLocalityRawDebug] = useState<string>('');
   const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
@@ -354,7 +354,7 @@ export default function PropertiesIndexScreen() {
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [
     filtersReady,
     listingType,
@@ -603,7 +603,7 @@ export default function PropertiesIndexScreen() {
               const name = String((x as any)?.place_name ?? '').toLowerCase();
               if (stateLower && !name.includes(stateLower)) return false;
               if (cityLower) {
-                const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+                const ctx = ((x as any)?.context ?? []) as { text?: string }[];
                 const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
                 const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
                 if (!name.includes(cityLower) && !ctxHasCity) return false;
@@ -615,7 +615,7 @@ export default function PropertiesIndexScreen() {
               const textLabel = String((x as any)?.text ?? '').trim();
               const placeNameLower = place.toLowerCase();
               const textLower = textLabel.toLowerCase();
-              const ctx = ((x as any)?.context ?? []) as Array<{ text?: string }>;
+              const ctx = ((x as any)?.context ?? []) as { text?: string }[];
               const ctxParts = ctx.map((c) => String(c?.text ?? '').trim()).filter(Boolean);
               const placeParts = place
                 .split(/,|•/g)

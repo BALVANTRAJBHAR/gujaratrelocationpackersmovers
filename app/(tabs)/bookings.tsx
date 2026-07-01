@@ -28,7 +28,7 @@ const PAYMENT_COLORS: Record<string, string> = {
   failed: '#EF4444',
 };
 
-const STATUS_STEPS: Array<{ key: string; label: string }> = [
+const STATUS_STEPS: { key: string; label: string }[] = [
   { key: 'not_started', label: 'Start' },
   { key: 'pickup_reached', label: 'Pickup reached' },
   { key: 'in_transit', label: 'In Transit' },

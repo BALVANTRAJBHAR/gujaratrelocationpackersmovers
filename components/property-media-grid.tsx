@@ -101,7 +101,7 @@ export function PropertyMediaGrid({ items, size = 108, emptyText = 'No media.' }
 }
 
 export function uploadsToMediaItems(
-  uploads: Array<{ id: string; file_url: string; file_type?: string | null }>
+  uploads: { id: string; file_url: string; file_type?: string | null }[]
 ): PropertyMediaItem[] {
   return uploads.map((u) => {
     const type = String(u.file_type ?? '').toLowerCase();

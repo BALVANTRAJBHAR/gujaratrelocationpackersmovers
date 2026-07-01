@@ -60,7 +60,7 @@ const isAllowedJpeg = (value: string) => {
   return false;
 };
 
-const pickContextText = (ctx: Array<{ id?: string; text?: string }> | undefined, prefix: string) => {
+const pickContextText = (ctx: { id?: string; text?: string }[] | undefined, prefix: string) => {
   const it = (ctx ?? []).find((c) => String(c.id ?? '').startsWith(prefix));
   return String(it?.text ?? '').trim();
 };
@@ -271,11 +271,11 @@ export default function HomeServiceRequestScreen() {
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpExpiryTime, setOtpExpiryTime] = useState<Date | null>(null);
-  const otpRefs = useRef<Array<any>>([]);
+  const otpRefs = useRef<any[]>([]);
   const submitAfterOtpRef = useRef(false);
   const webDateInputRef = useRef<any>(null);
   const webTimeInputRef = useRef<any>(null);
-  const [localitySuggestions, setLocalitySuggestions] = useState<Array<{ id: string; label: string; full: string }>>([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState<{ id: string; label: string; full: string }[]>([]);
   const [localityLoading, setLocalityLoading] = useState(false);
   const [localityTyped, setLocalityTyped] = useState(false);
 
