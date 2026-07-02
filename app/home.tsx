@@ -10,6 +10,7 @@ import {
   ImageBackground,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,

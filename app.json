@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "GR Packers",
+    "name": "GR PACKERS",
     "slug": "GRPackersMovers",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/splash-professional.png",
     "scheme": "grpackersmovers",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -64,6 +64,7 @@
         }
       ],
       "./plugins/with-text-recognition-sdk",
+      "./plugins/with-android-build-optimizations",
       "expo-secure-store",
       "@react-native-community/datetimepicker"
     ],
