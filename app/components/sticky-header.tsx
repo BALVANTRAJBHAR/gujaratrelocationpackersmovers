@@ -9,6 +9,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image, Text, XStack, YStack } from 'tamagui';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -53,6 +54,7 @@ export default function StickyHeader({
   onLoginPress,
 }: StickyHeaderProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;
   const [headerHovered, setHeaderHovered] = React.useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -85,7 +87,7 @@ export default function StickyHeader({
             backgroundColor: theme.headerBg,
             borderBottomColor: theme.border,
             shadowColor: theme.shadow,
-            paddingTop: 0,
+            paddingTop: Platform.OS === 'android' ? insets.top : 0,
           },
         ]}
         pointerEvents="box-none">
@@ -114,7 +116,7 @@ export default function StickyHeader({
                 lineHeight={isSmallScreen ? 16 : 19}
                 numberOfLines={1}
                 letterSpacing={0.4}
-                style={{ fontFamily: APP_SERIF_FONT }}>
+                fontFamily={APP_SERIF_FONT}>
                 GUJARAT
               </Text>
               <Text
@@ -124,7 +126,7 @@ export default function StickyHeader({
                 lineHeight={isSmallScreen ? 16 : 19}
                 numberOfLines={1}
                 letterSpacing={0.4}
-                style={{ fontFamily: APP_SERIF_FONT }}>
+                fontFamily={APP_SERIF_FONT}>
                 RELOCATION
               </Text>
             </YStack>

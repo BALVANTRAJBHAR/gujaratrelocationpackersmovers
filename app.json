@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "GR PACKERS",
+    "name": "GR Packers",
     "slug": "GRPackersMovers",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/splash-professional.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "grpackersmovers",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -27,7 +27,7 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/splash-professional.png",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -40,7 +40,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "splash": {
-      "image": "./assets/images/splash-professional.png",
+      "image": "./assets/images/PackersMoversLogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#F8FAFC"
     },
@@ -54,8 +54,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-professional.png",
-          "imageWidth": 240,
+          "image": "./assets/images/PackersMoversLogo.png",
+          "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#F8FAFC",
           "dark": {

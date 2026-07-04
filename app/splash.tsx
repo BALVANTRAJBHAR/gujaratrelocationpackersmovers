@@ -95,9 +95,9 @@ export default function SplashScreen() {
           gap="$3">
           <View
             style={{
-              width: 132,
-              height: 132,
-              borderRadius: 28,
+              width: 160,
+              height: 160,
+              borderRadius: 32,
               backgroundColor: '#F8FAFC',
               borderWidth: 1,
               borderColor: '#E2E8F0',
@@ -105,9 +105,9 @@ export default function SplashScreen() {
               justifyContent: 'center',
             }}>
             <Image
-              source={require('../assets/images/favicon1.png')}
+              source={require('../assets/images/PackersMoversLogo.png')}
               resizeMode="contain"
-              style={{ width: 112, height: 112 }}
+              style={{ width: 130, height: 130 }}
             />
           </View>
 

@@ -807,31 +807,33 @@ export default function PropertiesIndexScreen() {
   };
 
   const loadMediaForProperties = async (propertyIds: string[]) => {
-    const ids = propertyIds.filter(Boolean);
-    if (!ids.length) {
-      setMediaByPropertyId({});
-      return;
-    }
+    try {
+      const ids = propertyIds.filter(Boolean);
+      if (!ids.length) {
+        setMediaByPropertyId({});
+        return;
+      }
 
-    const { data, error: fetchError } = await supabase
-      .from('property_uploads')
-      .select('id,property_id,file_url,file_type')
-      .in('property_id', ids)
-      .order('created_at', { ascending: true });
+      const { data, error: fetchError } = await supabase
+        .from('property_uploads')
+        .select('id,property_id,file_url,file_type')
+        .in('property_id', ids)
+        .order('created_at', { ascending: true });
 
-    if (fetchError) {
-      setMediaByPropertyId({});
-      return;
-    }
+      if (fetchError) {
+        setMediaByPropertyId({});
+        return;
+      }
 
-    const grouped: Record<string, PropertyMediaItem[]> = {};
-    for (const u of (data as PropertyUploadRow[]) ?? []) {
-      const pid = String(u.property_id ?? '').trim();
-      if (!pid) continue;
-      if (!grouped[pid]) grouped[pid] = [];
-      grouped[pid].push(...uploadsToMediaItems([u]));
-    }
-    setMediaByPropertyId(grouped);
+      const grouped: Record<string, PropertyMediaItem[]> = {};
+      for (const u of (data as PropertyUploadRow[]) ?? []) {
+        const pid = String(u.property_id ?? '').trim();
+        if (!pid) continue;
+        if (!grouped[pid]) grouped[pid] = [];
+        grouped[pid].push(...uploadsToMediaItems([u]));
+      }
+      setMediaByPropertyId(grouped);
+    } catch { /* ignore */ }
   };
 
   const fetchUploads = async (propertyId: string) => {
@@ -1049,11 +1051,8 @@ export default function PropertiesIndexScreen() {
         setResults(rows);
         void loadMediaForProperties(rows.map((r) => r.id));
       } else {
-        setResults((prev) => {
-          const merged = [...prev, ...rows];
-          void loadMediaForProperties(merged.map((r) => r.id));
-          return merged;
-        });
+        setResults((prev) => [...prev, ...rows]);
+        void loadMediaForProperties(rows.map((r) => r.id));
       }
 
       const last = rows.length ? rows[rows.length - 1] : null;
@@ -1662,10 +1661,11 @@ export default function PropertiesIndexScreen() {
                   onPress={() => {
                     const userId = session?.user?.id ?? null;
                     if (userId) {
-                      void supabase
+                      supabase
                         .from('user_seen_properties')
                         .upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any)
-                        .then(() => {});
+                        .then(() => {})
+                        .catch(() => {});
                     }
                     router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
                   }}>
