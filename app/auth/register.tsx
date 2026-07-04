@@ -919,6 +919,10 @@ export default function RegisterDetailsScreen() {
           {aadhaarUploading ? 'Saving…' : 'Save & Continue'}
         </Button>
 
+        <Button chromeless color={theme.textMuted} onPress={() => router.replace('/auth/login')}>
+          Back to Login
+        </Button>
+
         <Button chromeless color={theme.textMuted} onPress={() => router.replace('/home')}>
           Skip for now
         </Button>

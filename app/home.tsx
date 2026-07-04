@@ -1802,7 +1802,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         overScrollMode="never">
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 6 : 10}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 4 : 7}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}

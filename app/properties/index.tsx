@@ -1015,10 +1015,14 @@ export default function PropertiesIndexScreen() {
 
       const localityTokens = collectLocalityTokens(snap.localityValue, snap.selectedLocalities);
       if (localityTokens.length === 1) {
-        query = query.ilike('locality', `%${localityTokens[0]}%`);
+        const loc = localityTokens[0];
+        if (loc) query = query.ilike('locality', `%${loc}%`);
       } else if (localityTokens.length > 1) {
-        const orExpr = localityTokens.map((loc) => `locality.ilike.%${escapePostgrestValue(loc)}%`).join(',');
-        query = query.or(orExpr);
+        const valid = localityTokens.filter(Boolean);
+        if (valid.length) {
+          const orExpr = valid.map((loc) => `locality.ilike.%${escapePostgrestValue(loc)}%`).join(',');
+          query = query.or(orExpr);
+        }
       }
 
       let finalQuery = query;
@@ -1063,6 +1067,7 @@ export default function PropertiesIndexScreen() {
       setHasMore(rows.length === pageSize);
     } catch (e) {
       if (requestId !== searchRequestIdRef.current) return;
+      console.error('Property search error:', e);
       const msg = e instanceof Error ? e.message : 'Failed to search properties.';
       if (/failed to fetch/i.test(msg)) {
         setError('Network error. Check internet connection and refresh the page.');
@@ -1653,7 +1658,7 @@ export default function PropertiesIndexScreen() {
 
             {error ? <Text color={theme.danger}>{error}</Text> : null}
 
-            {results.map((p) => {
+            {results.filter(Boolean).map((p) => {
               const cardMedia = mediaByPropertyId[p.id] ?? [];
               return (
                 <Pressable
