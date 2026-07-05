@@ -249,6 +249,59 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
+    const extractUrlParams = (incomingUrl: string): { code?: string; access_token?: string; refresh_token?: string } => {
+      const fragmentStart = incomingUrl.indexOf('#');
+      const queryStart = incomingUrl.indexOf('?');
+      const searchString = queryStart !== -1 ? incomingUrl.slice(queryStart + 1, fragmentStart !== -1 ? fragmentStart : undefined) : '';
+      const params: Record<string, string> = {};
+      for (const part of searchString.split('&')) {
+        const eq = part.indexOf('=');
+        if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
+      }
+      if (fragmentStart !== -1) {
+        for (const part of incomingUrl.slice(fragmentStart + 1).split('&')) {
+          const eq = part.indexOf('=');
+          if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
+        }
+      }
+      return { code: params.code, access_token: params.access_token, refresh_token: params.refresh_token };
+    };
+
+    const handleOAuthUrl = async (incomingUrl: string) => {
+      if (!incomingUrl?.startsWith('grpackersmovers://auth/login')) return;
+      try {
+        setOauthLoading('google');
+        const { code, access_token, refresh_token } = extractUrlParams(incomingUrl);
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) { setError(exchangeError.message); return; }
+        } else if (access_token) {
+          await setSupabaseSessionSafe({ access_token, refresh_token: refresh_token ?? '' });
+        } else {
+          return;
+        }
+        const didStartCompletion = await maybeStartOAuthProfileCompletion();
+        if (didStartCompletion) return;
+        await redirectAfterAuth();
+      } catch {
+        setError('OAuth sign-in failed');
+      } finally {
+        setOauthLoading(null);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) void handleOAuthUrl(url);
+    });
+
+    const subscription = Linking.addEventListener('url', (event) => {
+      void handleOAuthUrl(event.url);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const { data } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
@@ -277,7 +330,8 @@ export default function LoginScreen() {
 
   const commonInputProps = {
     backgroundColor: 'transparent' as const,
-    borderWidth: 0 as const,
+    borderWidth: 1 as const,
+    borderColor: theme.border as const,
     color: theme.inputText as const,
     placeholderTextColor: theme.textMuted as const,
     fontFamily: 'Times New Roman' as const,
@@ -319,7 +373,7 @@ export default function LoginScreen() {
           ? typeof window === 'undefined'
             ? ''
             : `${window.location.origin}/auth/login`
-          : Linking.createURL('/auth/login');
+          : 'grpackersmovers://auth/login';
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
@@ -344,13 +398,19 @@ export default function LoginScreen() {
         return;
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
-      if (result.type !== 'success' || !result.url) {
+      let parsedReturnUrl: ReturnType<typeof Linking.parse> | null = null;
+
+      if (Platform.OS === 'android') {
+        Linking.openURL(url).catch(() => {});
+        await new Promise((resolve) => setTimeout(resolve, 300));
         return;
+      } else {
+        const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
+        if (result.type !== 'success' || !result.url) return;
+        parsedReturnUrl = Linking.parse(result.url);
       }
 
-      const parsed = Linking.parse(result.url);
-      const code = String((parsed.queryParams as any)?.code ?? '').trim();
+      const code = String((parsedReturnUrl.queryParams as any)?.code ?? '').trim();
       if (!code) {
         setError('Sign-in did not return a code. Please try again.');
         return;
