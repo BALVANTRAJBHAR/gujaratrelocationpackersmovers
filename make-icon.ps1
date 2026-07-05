@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
-$canvasSize = 1024
-$percent = 45   # <-- Is value ko change karna hai
+$canvasSize = 512
+$percent = 80   # <-- Is value ko change karna hai
 
 $logo = [System.Drawing.Image]::FromFile("assets/images/apico.png")
 $bmp = New-Object System.Drawing.Bitmap($canvasSize, $canvasSize)

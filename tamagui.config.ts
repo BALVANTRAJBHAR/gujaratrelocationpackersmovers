@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { createAnimations } from '@tamagui/animations-react-native';
 import { config } from '@tamagui/config/v3';
 import { createFont, createTamagui } from 'tamagui';
 
@@ -23,8 +24,35 @@ const headingFont = createFont({
   family: systemSerif,
 });
 
+const animations = createAnimations({
+  bouncy: {
+    type: 'spring',
+    damping: 10,
+    mass: 0.9,
+    stiffness: 100,
+  },
+  lazy: {
+    type: 'spring',
+    damping: 20,
+    stiffness: 60,
+  },
+  quick: {
+    type: 'spring',
+    damping: 20,
+    mass: 1.2,
+    stiffness: 250,
+  },
+  pulse: {
+    type: 'spring',
+    damping: 15,
+    mass: 0.5,
+    stiffness: 200,
+  },
+});
+
 const appConfig = createTamagui({
   ...config,
+  animations,
   fonts: {
     ...(config as any).fonts,
     body: bodyFont,

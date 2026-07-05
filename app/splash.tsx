@@ -105,9 +105,13 @@ export default function SplashScreen() {
               justifyContent: 'center',
             }}>
             <Image
-              source={require('../assets/images/GR-New-Icon.png')}
+              source={
+                Platform.OS === 'web'
+                  ? require('../assets/images/splash-professional.png')
+                  : require('../assets/images/GR-New-Icon.png')
+              }
               resizeMode="contain"
-              style={{ width: 130, height: 130 }}
+              style={{ width: Platform.OS === 'web' ? 100 : 130, height: Platform.OS === 'web' ? 100 : 130 }}
             />
           </View>
 
