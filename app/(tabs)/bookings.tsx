@@ -2,7 +2,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import DateTimePicker from '@/components/AppDateTimePicker';
@@ -165,24 +164,21 @@ export default function BookingsScreen() {
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
   if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+  return <BookingsContent />;
+}
+
+function BookingsContent() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
   const { session, profile } = useSession();
   const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
-
-  const role = String(profile?.role ?? 'customer').toLowerCase().trim();
-  const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').toLowerCase().trim();
-
   const [activeTab, setActiveTab] = useState<'shifting' | 'home_services' | 'properties'>('shifting');
-
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorBookings, setErrorBookings] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<Record<string, string>>({});
   const [paymentHistory, setPaymentHistory] = useState<Record<string, Payment[]>>({});
-  const [statusFilter, setStatusFilter] = useState<'all' | 'not_started' | 'pickup_reached' | 'in_transit' | 'delivered'>(
-    'all'
-  );
+  const [statusFilter, setStatusFilter] = useState<'all' | 'not_started' | 'pickup_reached' | 'in_transit' | 'delivered'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [rescheduleDate, setRescheduleDate] = useState('');
@@ -193,16 +189,17 @@ export default function BookingsScreen() {
   const [startPickerValue, setStartPickerValue] = useState<Date>(new Date());
   const [endPickerValue, setEndPickerValue] = useState<Date>(new Date());
   const [searchText, setSearchText] = useState('');
-
   const [homeServiceItems, setHomeServiceItems] = useState<HomeServiceRow[]>([]);
   const [hsSearch, setHsSearch] = useState('');
-
   const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
   const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
   const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
   const [pbBusyId, setPbBusyId] = useState<string | null>(null);
-
   const fetchSeqRef = useRef(0);
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const role = String(profile?.role ?? 'customer').toLowerCase().trim();
+  const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '').toLowerCase().trim();
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
     let t: any;
@@ -280,7 +277,7 @@ export default function BookingsScreen() {
 
   const fetchBookings = async () => {
     if (!session?.user?.id) return;
-    setError(null);
+    setErrorBookings(null);
 
     const seq = ++fetchSeqRef.current;
 
@@ -300,7 +297,7 @@ export default function BookingsScreen() {
     } catch (e: any) {
       if (seq !== fetchSeqRef.current) return;
       const msg = String(e?.message ?? '');
-      setError(msg === 'timeout' ? 'Booking loading timeout. Please check internet and try again.' : msg);
+      setErrorBookings(msg === 'timeout' ? 'Booking loading timeout. Please check internet and try again.' : msg);
       return;
     }
 
@@ -310,7 +307,7 @@ export default function BookingsScreen() {
 
     if (fetchError) {
       if (!String(fetchError.message ?? '').includes('AbortError')) {
-        setError(fetchError.message);
+        setErrorBookings(fetchError.message);
       }
       return;
     }
@@ -444,12 +441,12 @@ export default function BookingsScreen() {
     rescheduleOverride?: string
   ) => {
     if (!session?.user?.id) return;
-    setError(null);
+    setErrorBookings(null);
     setLoading(true);
     const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     const nextRescheduleDate = rescheduleOverride ?? rescheduleDate;
     if (status === 'rescheduled' && !nextRescheduleDate) {
-      setError('Please provide reschedule date (YYYY-MM-DD).');
+      setErrorBookings('Please provide reschedule date (YYYY-MM-DD).');
       setLoading(false);
       return;
     }
@@ -462,7 +459,7 @@ export default function BookingsScreen() {
       .eq('user_id', session.user.id);
 
     if (updateError) {
-      setError(updateError.message);
+      setErrorBookings(updateError.message);
     } else {
       try {
         await supabase.functions.invoke('send-booking-status-push', {
@@ -533,7 +530,7 @@ export default function BookingsScreen() {
 
     if (paymentError) {
       if (!String(paymentError.message ?? '').includes('AbortError')) {
-        setError(paymentError.message);
+        setErrorBookings(paymentError.message);
       }
       return;
     }
@@ -572,6 +569,7 @@ export default function BookingsScreen() {
         theme: { color: theme.accent },
       };
 
+      const RazorpayCheckout = (await import('react-native-razorpay')).default;
       const paymentData = await RazorpayCheckout.open(options);
 
       const valid = await verifyRazorpaySignature({
@@ -796,8 +794,8 @@ export default function BookingsScreen() {
       </YStack>
       {loading ? (
         <Text color={theme.textMuted}>Loading bookings...</Text>
-      ) : error ? (
-        <Text color="#FCA5A5">{error}</Text>
+      ) : errorBookings ? (
+        <Text color="#FCA5A5">{errorBookings}</Text>
       ) : !filteredBookings.length ? (
         <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
           <Text color={theme.text} fontWeight="800" fontSize={15}>No moves found</Text>

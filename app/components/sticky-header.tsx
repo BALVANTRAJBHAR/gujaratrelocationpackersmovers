@@ -16,6 +16,12 @@ const { width: screenWidth } = Dimensions.get('window');
 const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 const menuItems = ['Home', 'Services', 'Track', 'Contact'];
 
+const serviceSubMenuItems = [
+  { label: 'Shifting Services', route: '/book' },
+  { label: 'Home Services', route: '/home-services/request' },
+  { label: 'Property Management', route: '/properties' },
+];
+
 interface StickyHeaderProps {
   theme: any;
   isSmallScreen?: boolean;
@@ -58,13 +64,17 @@ export default function StickyHeader({
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;
   const [headerHovered, setHeaderHovered] = React.useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [servicesOpen, setServicesOpen] = React.useState(false);
 
   const handleMenuPress = (item: string) => {
+    if (item === 'Services') {
+      setServicesOpen((prev) => !prev);
+      return;
+    }
     setMobileMenuOpen(false);
+    setServicesOpen(false);
     if (item === 'Home') {
       onHomePress ? onHomePress() : router.push('/home');
-    } else if (item === 'Services') {
-      onServicesPress ? onServicesPress() : router.push('/home');
     } else if (item === 'Track') {
       if (onTrackPress) {
         onTrackPress();
@@ -76,6 +86,12 @@ export default function StickyHeader({
     } else if (item === 'Contact') {
       onContactPress ? onContactPress() : router.push('/home');
     }
+  };
+
+  const handleServicesItemPress = (route: string) => {
+    setServicesOpen(false);
+    setMobileMenuOpen(false);
+    router.push(route as any);
   };
 
   return (
@@ -105,7 +121,7 @@ export default function StickyHeader({
             minWidth={0}
             maxWidth={isSmallScreen ? '58%' : 250}>
             <Image
-              source={require('../../assets/images/PackersMoversLogo.png')}
+              source={Platform.OS === 'web' ? require('../../assets/images/PackersMoversLogo.png') : require('../../assets/images/apico.png')}
               style={[styles.logo, isSmallScreen && styles.logoMobile]}
             />
             <YStack flexShrink={1} minWidth={0}>
@@ -136,34 +152,64 @@ export default function StickyHeader({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuRow}>
               <XStack gap="$2" alignItems="center" flexWrap="wrap">
                 {menuItems.map((item) => (
-                  <Pressable
-                    key={item}
-                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
-                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={() => handleMenuPress(item)}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={15}
-                        fontWeight="700"
-                        letterSpacing={0.3}
-                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                        {item}
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                  <View key={item} style={{ position: 'relative' }}>
+                    <Pressable
+                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
+                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                      onPress={() => handleMenuPress(item)}>
+                      <YStack
+                        paddingHorizontal={22}
+                        paddingVertical={12}
+                        borderRadius={14}
+                        backgroundColor={theme.menuBg}
+                        borderWidth={1}
+                        borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                        shadowColor={theme.shadow}
+                        shadowOffset={{ width: 0, height: 3 }}
+                        shadowOpacity={0.12}
+                        shadowRadius={6}
+                        elevation={3}
+                        style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                        <Text
+                          color={theme.menuText}
+                          fontSize={15}
+                          fontWeight="700"
+                          letterSpacing={0.3}
+                          style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                          {item}
+                        </Text>
+                      </YStack>
+                    </Pressable>
+                    {item === 'Services' && servicesOpen ? (
+                      <View
+                        style={[
+                          styles.servicesDropdown,
+                          { backgroundColor: theme.bgCard, borderColor: theme.border },
+                        ]}>
+                        {serviceSubMenuItems.map((sub) => (
+                          <Pressable
+                            key={sub.label}
+                            onPress={() => handleServicesItemPress(sub.route)}
+                            onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(sub.label) : undefined}
+                            onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}>
+                            <YStack
+                              paddingHorizontal={18}
+                              paddingVertical={12}
+                              backgroundColor={headerHovered === sub.label ? theme.menuBg : 'transparent'}
+                              borderRadius={10}>
+                              <Text
+                                color={theme.text}
+                                fontSize={14}
+                                fontWeight="600"
+                                style={{ fontFamily: APP_SERIF_FONT }}>
+                                {sub.label}
+                              </Text>
+                            </YStack>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
                 ))}
 
                 {toggleTheme ? (
@@ -453,13 +499,24 @@ export default function StickyHeader({
               shadowRadius={20}
               elevation={10}>
               {menuItems.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => handleMenuPress(item)}>
-                  <Text color={theme.text} fontSize={17} fontWeight="700" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                    {item}
-                  </Text>
-                </Pressable>
+                <View key={item}>
+                  <Pressable onPress={() => handleMenuPress(item)}>
+                    <Text color={theme.text} fontSize={17} fontWeight="700" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
+                      {item}
+                    </Text>
+                  </Pressable>
+                  {item === 'Services' && servicesOpen ? (
+                    <YStack paddingLeft={16} gap={4} paddingBottom={4}>
+                      {serviceSubMenuItems.map((sub) => (
+                        <Pressable key={sub.label} onPress={() => handleServicesItemPress(sub.route)}>
+                          <Text color={theme.textSecondary ?? theme.text} fontSize={15} fontWeight="500" paddingVertical={8} style={{ fontFamily: APP_SERIF_FONT }}>
+                            {sub.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </YStack>
+                  ) : null}
+                </View>
               ))}
 
               {session && onDashboardPress ? (
@@ -535,6 +592,21 @@ const styles = StyleSheet.create({
   },
   menuRow: {
     gap: 10,
+  },
+  servicesDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    zIndex: 100,
+    minWidth: 200,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
   },
   logo: {
     width: 51,

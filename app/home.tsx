@@ -440,6 +440,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const didRedirectRef = useRef(false);
   const businessCardRef = useRef<any>(null);
+  const contactHeadingRef = useRef<any>(null);
+  const scrollOffsetRef = useRef(0);
   const heroTimerRef = useRef<any>(null);
   const heroPanResponder = useRef(
     PanResponder.create({
@@ -963,19 +965,28 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const scrollToServiceMenu = () => {
     const y = sectionOffsetsRef.current.serviceMenu ?? sectionOffsetsRef.current.services;
     if (typeof y !== 'number') return;
-    const headerHeight = (isSmallScreen ? 132 : 104) + statusBarHeight;
     const extraTopSpacing = 0;
+    const scrollY = y - (isSmallScreen ? 62 : 18) - extraTopSpacing;
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+      scrollRef.current?.scrollTo({ y: Math.max(scrollY, 0), animated: true });
     });
   };
 
   const scrollToSection = (key: 'services' | 'contact') => {
+    if (key === 'contact') {
+      contactHeadingRef.current?.measureInWindow((_x, screenY, _w, _h) => {
+        if (typeof screenY !== 'number') return;
+        const headerBottom = (isSmallScreen ? 70 : 86) + statusBarHeight + 20;
+        const delta = screenY - headerBottom;
+        scrollRef.current?.scrollTo({ y: Math.max(scrollOffsetRef.current + delta, 0), animated: true });
+      });
+      return;
+    }
     const y = sectionOffsetsRef.current[key];
     if (typeof y !== 'number') return;
-    const headerHeight = (isSmallScreen ? 132 : 104) + statusBarHeight;
     const extraTopSpacing = 20;
-    scrollRef.current?.scrollTo({ y: Math.max(y - headerHeight - extraTopSpacing, 0), animated: true });
+    const scrollY = y - (isSmallScreen ? 62 : 18) - extraTopSpacing;
+    scrollRef.current?.scrollTo({ y: Math.max(scrollY, 0), animated: true });
   };
 
   useEffect(() => {
@@ -1799,7 +1810,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         ]}
         showsVerticalScrollIndicator={false}
         bounces={false}
-        overScrollMode="never">
+        overScrollMode="never"
+        scrollEventThrottle={16}
+        onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
         <YStack>
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 3 : 6}>
@@ -2960,11 +2973,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </YStack>
           ) : null}
 
-          <View
+          <YStack
             onLayout={(e) => {
               sectionOffsetsRef.current.services = e.nativeEvent.layout.y;
-            }}>
-            <YStack marginTop={sectionGap} gap="$4">
+            }}
+            marginTop={sectionGap} gap="$4">
               <YStack alignItems="center" gap="$2.5">
               <Text
                 color="#D97706"
@@ -2973,7 +2986,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textTransform="uppercase"
                 fontWeight="900"
                 style={{ fontFamily: APP_SERIF_FONT }}>
-                Our Services
+                OUR SERVICES
               </Text>
               <H2
                 color={theme.text}
@@ -3108,7 +3121,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               ))}
               </XStack>
             </YStack>
-          </View>
 
           <YStack
             style={[
@@ -3749,23 +3761,22 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             )}
           </YStack>
 
-          <View
+          <YStack
             onLayout={(e) => {
               sectionOffsetsRef.current.contact = e.nativeEvent.layout.y;
-            }}>
-            <YStack
-              backgroundColor={theme.bgCard}
-              borderRadius={isSmallScreen ? 22 : 26}
-              padding={isSmallScreen ? 16 : 30}
-              gap={isSmallScreen ? '$3' : '$4'}
-              marginTop={tightSectionGap}
-              borderWidth={1}
-              borderColor={theme.border}
-              shadowColor={theme.shadow}
-              shadowOffset={{ width: 0, height: 10 }}
-              shadowOpacity={0.14}
-              shadowRadius={20}
-              elevation={8}>
+            }}
+            backgroundColor={theme.bgCard}
+            borderRadius={isSmallScreen ? 22 : 26}
+            padding={isSmallScreen ? 16 : 30}
+            gap={isSmallScreen ? '$3' : '$4'}
+            marginTop={tightSectionGap}
+            borderWidth={1}
+            borderColor={theme.border}
+            shadowColor={theme.shadow}
+            shadowOffset={{ width: 0, height: 10 }}
+            shadowOpacity={0.14}
+            shadowRadius={20}
+            elevation={8}>
               <YStack
                 backgroundColor={theme.bgSecondary}
                 paddingHorizontal={26}
@@ -3773,6 +3784,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 borderRadius={22}
                 alignSelf="flex-start">
                 <Text
+                  ref={contactHeadingRef}
                   color={theme.primary}
                   fontSize={14}
                   letterSpacing={2.8}
@@ -3847,7 +3859,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 </YStack>
               </YStack>
             </YStack>
-          </View>
 
           {/* ---- Separator between Contact & Map ---- */}
           <YStack
