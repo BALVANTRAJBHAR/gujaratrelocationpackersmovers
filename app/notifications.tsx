@@ -9,6 +9,7 @@ import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
+import { t } from '@/constants/typography';
 
 type NotificationRow = {
   id: string;
@@ -175,7 +176,7 @@ export default function NotificationsScreen() {
                 borderColor={isUnread ? theme.success : theme.border}
                 gap="$1">
                 <XStack alignItems="center" justifyContent="space-between" gap="$2">
-                  <Text fontSize={14} fontWeight={isUnread ? '700' : '600'} color={theme.text} flex={1}>
+                  <Text fontSize={t(14)} fontWeight={isUnread ? '700' : '600'} color={theme.text} flex={1}>
                     {item.title}
                   </Text>
                   {isUnread ? (
@@ -183,7 +184,7 @@ export default function NotificationsScreen() {
                   ) : null}
                 </XStack>
                 <Text color={theme.textMuted}>{item.body}</Text>
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={t(12)}>
                   {new Date(item.created_at).toLocaleString()}
                 </Text>
               </YStack>

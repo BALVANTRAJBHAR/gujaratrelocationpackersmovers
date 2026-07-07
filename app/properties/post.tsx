@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppDateTimePicker from '@/components/AppDateTimePicker';
 import BookingMapPicker from '@/components/booking-map-picker';
@@ -28,6 +29,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { t } from '@/constants/typography';
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
@@ -59,6 +61,7 @@ export default function PostPropertyScreen() {
   const isEditMode = Boolean(editId);
 
   const { session, profile } = useSession();
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<WizardStep>('basic');
   const [saving, setSaving] = useState(false);
@@ -2526,7 +2529,7 @@ export default function PostPropertyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor={theme.couponBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
+      <YStack backgroundColor={theme.couponBg} padding={16} paddingTop={16 + insets.top} borderBottomWidth={1} borderBottomColor={border}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button
             size="$3"
@@ -2540,7 +2543,7 @@ export default function PostPropertyScreen() {
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color={titleColor} fontSize={18} fontWeight="900">
+            <Text color={titleColor} fontSize={t(18)} fontWeight="900">
               {editLoading
                 ? 'Loading property…'
                 : isEditMode
@@ -2551,7 +2554,7 @@ export default function PostPropertyScreen() {
                     ? `Post Property - ${flowLabel}`
                     : 'Post Property'}
             </Text>
-            <Text color={muted} fontSize={14} fontWeight="700">
+            <Text color={muted} fontSize={t(14)} fontWeight="700">
               {`Step ${getCurrentStepIndex + 1} of ${currentFlowSteps.length}`}
             </Text>
           </YStack>
@@ -3523,7 +3526,7 @@ export default function PostPropertyScreen() {
               </Text>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Property type
                 </Text>
 
@@ -3651,7 +3654,7 @@ export default function PostPropertyScreen() {
               </Text>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Place is available for*
                 </Text>
                 <XStack gap="$3" flexWrap="wrap">
@@ -3690,7 +3693,7 @@ export default function PostPropertyScreen() {
 
               <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Preferred Guests*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('pgPreferredGuests')}>
@@ -3703,7 +3706,7 @@ export default function PostPropertyScreen() {
                 </YStack>
 
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Available From*
                   </Text>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -3718,6 +3721,7 @@ export default function PostPropertyScreen() {
                         mode="date"
                         display="default"
                         onChange={(_e: any, d?: Date) => {
+                          if ((_e as any)?.type === 'dismissed') return;
                           if (!d) return;
                           setPgAvailableFromDate(d);
                           setPgAvailableFromText('');
@@ -3730,7 +3734,7 @@ export default function PostPropertyScreen() {
               </XStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Food Included*
                 </Text>
                 <XStack gap="$3" flexWrap="wrap">
@@ -3789,7 +3793,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={it.v ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {it.v ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -3837,7 +3841,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={it.v ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {it.v ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -3848,7 +3852,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Gate Closing Time*
                 </Text>
                 <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -3863,9 +3867,10 @@ export default function PostPropertyScreen() {
                       mode="time"
                       display="default"
                       onChange={(_e: any, d?: Date) => {
-                        if (!d) return;
-                        setPgGateClosingTime(d);
-                      }}
+                          if ((_e as any)?.type === 'dismissed') return;
+                          if (!d) return;
+                          setPgGateClosingTime(d);
+                        }}
                       style={{ height: 48, padding: '0 12px' }}
                     />
                   </YStack>
@@ -3873,7 +3878,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Description
                 </Text>
                 <TextInput
@@ -3903,7 +3908,7 @@ export default function PostPropertyScreen() {
               <Text color={titleColor} fontWeight="900">
                 Room Details
               </Text>
-              <Text color={muted} fontSize={14} fontWeight="700">
+              <Text color={muted} fontSize={t(14)} fontWeight="700">
                 Select the type of rooms available in your PG
               </Text>
 
@@ -3939,7 +3944,7 @@ export default function PostPropertyScreen() {
                           backgroundColor={it.value ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
-                          <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                             {it.value ? '✓' : ''}
                           </Text>
                         </YStack>
@@ -3981,7 +3986,7 @@ export default function PostPropertyScreen() {
               </XStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Expected {pgActiveRoom === 'single' ? 'Rent' : 'Rent per person'}*
                 </Text>
                 <Input
@@ -3996,7 +4001,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Expected {pgActiveRoom === 'single' ? 'Deposit' : 'Deposit per person'}*
                 </Text>
                 <Input
@@ -4047,7 +4052,7 @@ export default function PostPropertyScreen() {
                           backgroundColor={checked ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
-                          <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                             {checked ? '✓' : ''}
                           </Text>
                         </YStack>
@@ -4068,7 +4073,7 @@ export default function PostPropertyScreen() {
               {isCommercialAny ? (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Property Description
                     </Text>
                     <TextInput
@@ -4093,7 +4098,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Previous Occupancy
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialPreviousOccupancy')}>
@@ -4112,7 +4117,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
@@ -4127,13 +4132,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         I want to get my property painted
                       </Text>
                       {renderYesNo(commercialWantPainted, setCommercialWantPainted)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         I want to get my property cleaned
                       </Text>
                       {renderYesNo(commercialWantCleaned, setCommercialWantCleaned)}
@@ -4141,7 +4146,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Secondary Number
                     </Text>
                     <XStack gap="$2" flexWrap="wrap">
@@ -4171,7 +4176,7 @@ export default function PostPropertyScreen() {
               ) : isLandPlot ? (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Ownership*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('landOwnership')}>
@@ -4193,7 +4198,7 @@ export default function PostPropertyScreen() {
 
                   {landOwnership === 'leasehold' ? (
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Lease Term (Years)*
                       </Text>
                       <Input
@@ -4210,7 +4215,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Sale Deed Certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landSaleDeedCertificate')}>
@@ -4223,7 +4228,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Encumbrance certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landEncumbranceCertificate')}>
@@ -4238,7 +4243,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Conversion certificate*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landConversionCertificate')}>
@@ -4259,7 +4264,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Is the property RERA Approved?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landReraApproved')}>
@@ -4273,7 +4278,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack flexGrow={1} minWidth={220} gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Khata certificate*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('landKhataCertificate')}>
@@ -4296,7 +4301,7 @@ export default function PostPropertyScreen() {
               ) : (
                 <>
                   <YStack flexGrow={1} minWidth={220} gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Do you have Khata Certificate?*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('khataCertificate')}>
@@ -4310,7 +4315,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Do you have Sale Deed Certificate?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('saleDeedCertificate')}>
@@ -4324,7 +4329,7 @@ export default function PostPropertyScreen() {
 
                     {saleDeedCertificate === 'no' ? (
                       <YStack flexGrow={1} minWidth={220} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Do you have Sale Agreement?*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('saleAgreement')}>
@@ -4340,7 +4345,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Have you paid Property Tax?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyTaxPaid')}>
@@ -4353,7 +4358,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Do you have Occupancy Certificate?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('occupancyCertificate')}>
@@ -4379,7 +4384,7 @@ export default function PostPropertyScreen() {
               {isLandPlot ? (
                 <XStack gap="$2" flexWrap="wrap">
                   <YStack flexGrow={1} minWidth={220} gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Who will show the plot?*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('whoWillShow')}>
@@ -4392,7 +4397,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack flexGrow={1} minWidth={220} gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Secondary Number
                     </Text>
                     <Input
@@ -4409,7 +4414,7 @@ export default function PostPropertyScreen() {
               ) : null}
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Availability
                 </Text>
                 <XStack gap="$2" flexWrap="wrap">
@@ -4429,7 +4434,7 @@ export default function PostPropertyScreen() {
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Everyday
                       </Text>
-                      <Text color={scheduleAvailability === 'everyday' ? theme.couponText : muted} fontSize={13} fontWeight="700">
+                      <Text color={scheduleAvailability === 'everyday' ? theme.couponText : muted} fontSize={t(13)} fontWeight="700">
                         Mon-Sun
                       </Text>
                     </YStack>
@@ -4450,7 +4455,7 @@ export default function PostPropertyScreen() {
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Weekday
                       </Text>
-                      <Text color={scheduleAvailability === 'weekday' ? theme.couponText : muted} fontSize={13} fontWeight="700">
+                      <Text color={scheduleAvailability === 'weekday' ? theme.couponText : muted} fontSize={t(13)} fontWeight="700">
                         Mon-Fri
                       </Text>
                     </YStack>
@@ -4471,7 +4476,7 @@ export default function PostPropertyScreen() {
                         hoverStyle={{ color: '#FFFFFF' }}>
                         Weekend
                       </Text>
-                      <Text color={scheduleAvailability === 'weekend' ? theme.couponText : muted} fontSize={13} fontWeight="700">
+                      <Text color={scheduleAvailability === 'weekend' ? theme.couponText : muted} fontSize={t(13)} fontWeight="700">
                         Sat-Sun
                       </Text>
                     </YStack>
@@ -4481,7 +4486,7 @@ export default function PostPropertyScreen() {
 
               <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Select Time Schedule
                   </Text>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -4496,6 +4501,7 @@ export default function PostPropertyScreen() {
                         mode="time"
                         display="default"
                         onChange={(_e: any, d?: Date) => {
+                          if ((_e as any)?.type === 'dismissed') return;
                           if (!d) return;
                           setScheduleStart(d);
                         }}
@@ -4519,6 +4525,7 @@ export default function PostPropertyScreen() {
                         mode="time"
                         display="default"
                         onChange={(_e: any, d?: Date) => {
+                          if ((_e as any)?.type === 'dismissed') return;
                           if (!d) return;
                           setScheduleEnd(d);
                         }}
@@ -4557,7 +4564,7 @@ export default function PostPropertyScreen() {
                     backgroundColor={scheduleAllDay ? theme.success : theme.bgCard}
                     alignItems="center"
                     justifyContent="center">
-                    <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                    <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                       {scheduleAllDay ? '✓' : ''}
                     </Text>
                   </YStack>
@@ -4650,7 +4657,7 @@ export default function PostPropertyScreen() {
               </Text>
 
               {adType === 'resale' ? (
-                <Text color={muted} fontSize={13}>
+                <Text color={muted} fontSize={t(13)}>
                   Residential Resale details
                 </Text>
               ) : null}
@@ -4658,7 +4665,7 @@ export default function PostPropertyScreen() {
               {isLandPlot ? (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Plot Area (Sq.ft)*
                     </Text>
                     <Input
@@ -4688,7 +4695,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Length (ft.)*
                       </Text>
                       <Input
@@ -4713,7 +4720,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Width (ft.)*
                       </Text>
                       <Input
@@ -4730,13 +4737,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Boundary Wall*
                       </Text>
                       {renderYesNo(boundaryWall, setBoundaryWall)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Corner Plot*
                       </Text>
                       {renderYesNo(cornerPlot, setCornerPlot)}
@@ -4745,7 +4752,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Floors allowed for construction*
                       </Text>
                       <Input
@@ -4761,7 +4768,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Is the Land/Plot inside a gated project?*
                     </Text>
                     {renderYesNo(insideGatedProject, (v) => {
@@ -4783,7 +4790,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Facing*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('facing')}>
@@ -4798,7 +4805,7 @@ export default function PostPropertyScreen() {
               ) : isCommercialAny ? (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Property Type*
                     </Text>
                     <Pressable
@@ -4815,7 +4822,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Building Type*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('commercialBuildingType')}>
@@ -4829,7 +4836,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Age of Property*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
@@ -4844,7 +4851,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
@@ -4856,7 +4863,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Total Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('totalFloors')}>
@@ -4872,7 +4879,7 @@ export default function PostPropertyScreen() {
                   {isCommercialSale ? (
                     <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Super Built-up Area (Sq.ft)*
                         </Text>
                         <Input
@@ -4889,7 +4896,7 @@ export default function PostPropertyScreen() {
                         />
                       </YStack>
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Carpet Area
                         </Text>
                         <Input
@@ -4906,7 +4913,7 @@ export default function PostPropertyScreen() {
                   ) : (
                     <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Super Built-up Area (Sq.ft)*
                         </Text>
                         <Input
@@ -4926,7 +4933,7 @@ export default function PostPropertyScreen() {
                   )}
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Furnishing*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('furnishing')}>
@@ -4945,7 +4952,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Other Features
                     </Text>
                     <XStack gap="$3" flexWrap="wrap" paddingTop={2}>
@@ -4960,7 +4967,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={commercialOnMainRoad ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {commercialOnMainRoad ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -4981,7 +4988,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={commercialCornerProperty ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {commercialCornerProperty ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -4995,7 +5002,7 @@ export default function PostPropertyScreen() {
                 </>
               ) : (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Property Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('apartmentType')}>
@@ -5028,7 +5035,7 @@ export default function PostPropertyScreen() {
 
               {isCommercialAny || isLandPlot ? null : (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     BHK Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('bhkType')}>
@@ -5045,7 +5052,7 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
@@ -5057,7 +5064,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Total Floor*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('totalFloors')}>
@@ -5072,7 +5079,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={240} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Room Type*
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -5100,7 +5107,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={240} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Tenant Type*
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -5130,7 +5137,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
@@ -5142,7 +5149,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Facing
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
@@ -5157,7 +5164,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Built Up Area*
                       </Text>
                       <Input
@@ -5171,7 +5178,7 @@ export default function PostPropertyScreen() {
                       />
                     </YStack>
                     <YStack minWidth={140} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Unit
                       </Text>
                       <Pressable
@@ -5192,7 +5199,7 @@ export default function PostPropertyScreen() {
 
               {adType === 'resale' && !isLandPlot ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Ownership Type*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('ownershipType')}>
@@ -5206,7 +5213,7 @@ export default function PostPropertyScreen() {
               ) : adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Property available for
                     </Text>
                     <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
@@ -5282,7 +5289,7 @@ export default function PostPropertyScreen() {
                         backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                           {rentNegotiable ? '✓' : ''}
                         </Text>
                       </YStack>
@@ -5298,7 +5305,7 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Built Up Area*
                       </Text>
                       <Input
@@ -5312,7 +5319,7 @@ export default function PostPropertyScreen() {
                       />
                     </YStack>
                     <YStack minWidth={140} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Unit
                       </Text>
                       <Pressable onPress={() => setPickerOpen('areaUnit')}>
@@ -5327,7 +5334,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         No. of Floor(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
@@ -5341,7 +5348,7 @@ export default function PostPropertyScreen() {
 
                     {apartmentType !== 'independent_house_villa' ? (
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Total Floor(s)*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('totalFloors')}>
@@ -5357,7 +5364,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
@@ -5369,7 +5376,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Facing*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
@@ -5388,7 +5395,7 @@ export default function PostPropertyScreen() {
                 <>
                   {ownershipType === 'on_lease' ? (
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Lease Years*
                       </Text>
                       <Input
@@ -5404,7 +5411,7 @@ export default function PostPropertyScreen() {
                   ) : null}
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Floor Type*
                     </Text>
                     <Pressable onPress={() => setPickerOpen('floorType')}>
@@ -5428,7 +5435,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Built Up Area*
                       </Text>
                       <Input
@@ -5442,7 +5449,7 @@ export default function PostPropertyScreen() {
                       />
                     </YStack>
                     <YStack minWidth={140} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Unit
                       </Text>
                       <Pressable onPress={() => setPickerOpen('areaUnit')}>
@@ -5457,7 +5464,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Carpet Area (Optional)
                       </Text>
                       <Input
@@ -5472,7 +5479,7 @@ export default function PostPropertyScreen() {
                     </YStack>
                     {apartmentType === 'independent_house_villa' ? (
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Plot Area*
                         </Text>
                         <Input
@@ -5490,7 +5497,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         No. of Floor(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('floor')}>
@@ -5503,7 +5510,7 @@ export default function PostPropertyScreen() {
                     </YStack>
                     {apartmentType === 'apartment' || apartmentType === 'standalone_building' ? (
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Total Floor(s)*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('totalFloors')}>
@@ -5519,7 +5526,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Property Age*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyAge')}>
@@ -5531,7 +5538,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Facing*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('facing')}>
@@ -5549,7 +5556,7 @@ export default function PostPropertyScreen() {
               {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                   <YStack flexGrow={1} minWidth={220} gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Monthly Maintenance
                     </Text>
                     <Pressable onPress={() => setPickerOpen('maintenanceType')}>
@@ -5566,7 +5573,7 @@ export default function PostPropertyScreen() {
                   </YStack>
                   {monthlyMaintenanceType === 'extra' ? (
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Maintenance Amount*
                       </Text>
                       <Input
@@ -5585,7 +5592,7 @@ export default function PostPropertyScreen() {
 
               {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Available From*
                   </Text>
                   <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -5600,6 +5607,7 @@ export default function PostPropertyScreen() {
                         mode="date"
                         display="default"
                         onChange={(_e: any, d?: Date) => {
+                          if ((_e as any)?.type === 'dismissed') return;
                           if (!d) return;
                           setAvailableFromDate(d);
                           setAvailableFromText(formatDateDdMmYyyy(d));
@@ -5613,7 +5621,7 @@ export default function PostPropertyScreen() {
 
               {adType !== 'resale' && adType !== 'flatmates' && !isCommercialAny && !(propertyCategory === 'residential' && adType === 'rent') ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Preferred Tenants*
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -5685,7 +5693,7 @@ export default function PostPropertyScreen() {
 
               <XStack gap="$2" flexWrap="wrap">
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     State*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('state')}>
@@ -5698,7 +5706,7 @@ export default function PostPropertyScreen() {
                 </YStack>
 
                 <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={14} fontWeight="700">
+                  <Text color={muted} fontSize={t(14)} fontWeight="700">
                     City*
                   </Text>
                   <Pressable onPress={() => setPickerOpen('city')}>
@@ -5712,7 +5720,7 @@ export default function PostPropertyScreen() {
               </XStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Locality*
                 </Text>
                 <Input
@@ -5729,7 +5737,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Landmark / Street*
                 </Text>
                 <Input
@@ -5743,7 +5751,7 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <YStack gap="$2">
-                <Text color={muted} fontSize={14} fontWeight="700">
+                <Text color={muted} fontSize={t(14)} fontWeight="700">
                   Pincode*
                 </Text>
                 <Input
@@ -5761,7 +5769,7 @@ export default function PostPropertyScreen() {
                 <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => setMapPickerOpen(true)}>
                   Select on Map
                 </Button>
-                <Text color={muted} fontSize={14}>
+                <Text color={muted} fontSize={t(14)}>
                   {mapPickerCoord ? `Lat ${mapPickerCoord.lat.toFixed(6)}, Lng ${mapPickerCoord.lng.toFixed(6)}` : ''}
                 </Text>
               </XStack>
@@ -5809,7 +5817,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {rentNegotiable ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -5832,7 +5840,7 @@ export default function PostPropertyScreen() {
                             backgroundColor={currentlyUnderLoan ? theme.success : theme.bgCard}
                             alignItems="center"
                             justifyContent="center">
-                            <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                            <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                               {currentlyUnderLoan ? '✓' : ''}
                             </Text>
                           </YStack>
@@ -5845,7 +5853,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -5860,6 +5868,7 @@ export default function PostPropertyScreen() {
                           mode="date"
                           display="default"
                           onChange={(_e: any, d?: Date) => {
+                            if ((_e as any)?.type === 'dismissed') return;
                             if (!d) return;
                             const clamped = clampAvailableFromDate(d);
                             if (!clamped) return;
@@ -5889,7 +5898,7 @@ export default function PostPropertyScreen() {
                     <>
                       <XStack gap="$2" flexWrap="wrap">
                         <YStack flexGrow={1} minWidth={220} gap="$2">
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Kitchen Type*
                           </Text>
                           <Pressable onPress={() => setPickerOpen('kitchenType')}>
@@ -5908,7 +5917,7 @@ export default function PostPropertyScreen() {
                         </YStack>
 
                         <YStack flexGrow={1} minWidth={220} gap="$2">
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Furnishing*
                           </Text>
                           <Pressable onPress={() => setPickerOpen('furnishing')}>
@@ -5922,7 +5931,7 @@ export default function PostPropertyScreen() {
                       </XStack>
 
                       <YStack gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Parking*
                         </Text>
                         <Pressable onPress={() => setPickerOpen('parking')}>
@@ -5937,7 +5946,7 @@ export default function PostPropertyScreen() {
                   )}
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Description*
                     </Text>
                     <TextInput
@@ -5964,7 +5973,7 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Expected Price*
                       </Text>
                       <Input
@@ -5979,7 +5988,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Ownership Type*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('ownershipType')}>
@@ -6003,7 +6012,7 @@ export default function PostPropertyScreen() {
                         backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                           {rentNegotiable ? '✓' : ''}
                         </Text>
                       </YStack>
@@ -6014,7 +6023,7 @@ export default function PostPropertyScreen() {
                   </Pressable>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -6029,6 +6038,7 @@ export default function PostPropertyScreen() {
                           mode="date"
                           display="default"
                           onChange={(_e: any, d?: Date) => {
+                            if ((_e as any)?.type === 'dismissed') return;
                             if (!d) return;
                             const clamped = clampAvailableFromDate(d);
                             if (!clamped) return;
@@ -6055,7 +6065,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Ideal For
                     </Text>
                     <XStack gap="$2" flexWrap="wrap">
@@ -6136,7 +6146,7 @@ export default function PostPropertyScreen() {
                       flexGrow={1}
                       minWidth={220}
                     />
-                    <Text color={muted} fontSize={14} fontWeight="800" alignSelf="center">
+                    <Text color={muted} fontSize={t(14)} fontWeight="800" alignSelf="center">
                       / Month
                     </Text>
                   </XStack>
@@ -6153,7 +6163,7 @@ export default function PostPropertyScreen() {
                           backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
-                          <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                             {rentNegotiable ? '✓' : ''}
                           </Text>
                         </YStack>
@@ -6182,7 +6192,7 @@ export default function PostPropertyScreen() {
                           backgroundColor={monthlyMaintenanceType === 'extra' ? theme.success : theme.bgCard}
                           alignItems="center"
                           justifyContent="center">
-                          <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                          <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                             {monthlyMaintenanceType === 'extra' ? '✓' : ''}
                           </Text>
                         </YStack>
@@ -6206,7 +6216,7 @@ export default function PostPropertyScreen() {
                         flexGrow={1}
                         minWidth={220}
                       />
-                      <Text color={muted} fontSize={14} fontWeight="800" alignSelf="center">
+                      <Text color={muted} fontSize={t(14)} fontWeight="800" alignSelf="center">
                         / Month
                       </Text>
                     </XStack>
@@ -6237,7 +6247,7 @@ export default function PostPropertyScreen() {
                         backgroundColor={depositNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                           {depositNegotiable ? '✓' : ''}
                         </Text>
                       </YStack>
@@ -6249,7 +6259,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Lease Duration (Years)
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLeaseDurationYears')}>
@@ -6262,7 +6272,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Lockin Period (Years)
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLockinPeriodYears')}>
@@ -6276,7 +6286,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
                     <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -6291,6 +6301,7 @@ export default function PostPropertyScreen() {
                           mode="date"
                           display="default"
                           onChange={(_e: any, d?: Date) => {
+                            if ((_e as any)?.type === 'dismissed') return;
                             if (!d) return;
                             const clamped = clampAvailableFromDate(d);
                             if (!clamped) return;
@@ -6318,14 +6329,14 @@ export default function PostPropertyScreen() {
 
                   <YStack gap="$2">
                     <XStack alignItems="center" gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Ideal For
                       </Text>
                       <Pressable
                         onPress={() => {
                           Alert.alert('Ideal For', 'Choose what this property is suited for by creating tags.');
                         }}>
-                        <Text color={muted} fontSize={14} fontWeight="900">
+                        <Text color={muted} fontSize={t(14)} fontWeight="900">
                           i
                         </Text>
                       </Pressable>
@@ -6383,7 +6394,7 @@ export default function PostPropertyScreen() {
               ) : (
                 <>
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Property available for
                     </Text>
                     <XStack borderWidth={1} borderColor={border} borderRadius={14} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
@@ -6455,7 +6466,7 @@ export default function PostPropertyScreen() {
                         backgroundColor={rentNegotiable ? theme.success : theme.bgCard}
                         alignItems="center"
                         justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                           {rentNegotiable ? '✓' : ''}
                         </Text>
                       </YStack>
@@ -6469,7 +6480,7 @@ export default function PostPropertyScreen() {
                     <>
                       <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
                         <YStack flexGrow={1} minWidth={220} gap="$2">
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Monthly Maintenance
                           </Text>
                           <Pressable onPress={() => setPickerOpen('maintenanceType')}>
@@ -6486,7 +6497,7 @@ export default function PostPropertyScreen() {
                         </YStack>
                         {monthlyMaintenanceType === 'extra' ? (
                           <YStack flexGrow={1} minWidth={220} gap="$2">
-                            <Text color={muted} fontSize={14} fontWeight="700">
+                            <Text color={muted} fontSize={t(14)} fontWeight="700">
                               Maintenance Amount*
                             </Text>
                             <Input
@@ -6503,7 +6514,7 @@ export default function PostPropertyScreen() {
                       </XStack>
 
                       <YStack gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Available From*
                         </Text>
                         <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
@@ -6518,6 +6529,7 @@ export default function PostPropertyScreen() {
                               mode="date"
                               display="default"
                               onChange={(_e: any, d?: Date) => {
+                                if ((_e as any)?.type === 'dismissed') return;
                                 if (!d) return;
                                 const clamped = clampAvailableFromDate(d);
                                 if (!clamped) return;
@@ -6578,7 +6590,7 @@ export default function PostPropertyScreen() {
                       {propertyCategory === 'residential' && adType === 'rent' ? (
                         <>
                           <YStack gap="$2">
-                            <Text color={muted} fontSize={14} fontWeight="700">
+                            <Text color={muted} fontSize={t(14)} fontWeight="700">
                               Preferred Tenants*
                             </Text>
                             <XStack gap="$2" flexWrap="wrap">
@@ -6641,7 +6653,7 @@ export default function PostPropertyScreen() {
 
                           <XStack gap="$2" flexWrap="wrap">
                             <YStack flexGrow={1} minWidth={220} gap="$2">
-                              <Text color={muted} fontSize={14} fontWeight="700">
+                              <Text color={muted} fontSize={t(14)} fontWeight="700">
                                 Furnishing*
                               </Text>
                               <Pressable onPress={() => setPickerOpen('furnishing')}>
@@ -6659,7 +6671,7 @@ export default function PostPropertyScreen() {
                               </Pressable>
                             </YStack>
                             <YStack flexGrow={1} minWidth={220} gap="$2">
-                              <Text color={muted} fontSize={14} fontWeight="700">
+                              <Text color={muted} fontSize={t(14)} fontWeight="700">
                                 Parking*
                               </Text>
                               <Pressable onPress={() => setPickerOpen('parking')}>
@@ -6681,7 +6693,7 @@ export default function PostPropertyScreen() {
                           </XStack>
 
                           <YStack gap="$2">
-                            <Text color={muted} fontSize={14} fontWeight="700">
+                            <Text color={muted} fontSize={t(14)} fontWeight="700">
                               Description*
                             </Text>
                             <TextInput
@@ -6718,7 +6730,7 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Water Supply*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landWaterSupply')}>
@@ -6739,7 +6751,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Electricity Connection*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landElectricityConnection')}>
@@ -6760,7 +6772,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Sewage Connection*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('landSewageConnection')}>
@@ -6779,7 +6791,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Width of Facing Road (ft.)*
                       </Text>
                       <Input
@@ -6796,13 +6808,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Do you have more similar units/properties available ?*
                       </Text>
                       {renderYesNo(moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={220} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Gated Security*
                       </Text>
                       {renderYesNo(gatedSecurity, setGatedSecurity)}
@@ -6818,7 +6830,7 @@ export default function PostPropertyScreen() {
                   }}>
                     <XStack alignItems="center" gap="$2" paddingVertical={8}>
                       <YStack width={18} height={18} borderWidth={1} borderColor={landAddDirectionTip ? theme.success : border} borderRadius={4} backgroundColor={landAddDirectionTip ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
-                        <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                        <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                           {landAddDirectionTip ? '✓' : ''}
                         </Text>
                       </YStack>
@@ -6852,7 +6864,7 @@ export default function PostPropertyScreen() {
                   ) : null}
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Select the available amenities
                     </Text>
 
@@ -6872,7 +6884,7 @@ export default function PostPropertyScreen() {
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? 0 : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
                               <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
-                                <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
@@ -6901,7 +6913,7 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Power Backup*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialPowerBackupType')}>
@@ -6920,7 +6932,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Lift*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialLiftType')}>
@@ -6935,7 +6947,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Parking*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialParkingType')}>
@@ -6969,7 +6981,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Washroom(s)*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialWashroomType')}>
@@ -6990,13 +7002,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Water Storage Facility
                       </Text>
                       {renderYesNo(commercialWaterStorageFacility, setCommercialWaterStorageFacility)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Security
                       </Text>
                       {renderYesNo(commercialSecurity, setCommercialSecurity)}
@@ -7005,7 +7017,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Current Property Condition?
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyCondition')}>
@@ -7018,7 +7030,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         What business is currently running?
                       </Text>
                       <Pressable onPress={() => setPickerOpen('commercialBusinessRunning')}>
@@ -7032,14 +7044,14 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Do you have more similar units/properties available ?
                     </Text>
                     {renderYesNo(moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable)}
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Add Directions Tip for your tenants
                     </Text>
                     <TextInput
@@ -7071,25 +7083,25 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available Services
                     </Text>
 
                     <XStack gap="$2" flexWrap="wrap">
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Laundry
                         </Text>
                         {renderYesNo(pgLaundryAvailable, setPgLaundryAvailable)}
                       </YStack>
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Room Cleaning
                         </Text>
                         {renderYesNo(pgRoomCleaningAvailable, setPgRoomCleaningAvailable)}
                       </YStack>
                       <YStack flexGrow={1} minWidth={200} gap="$2">
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Warden Facility
                         </Text>
                         {renderYesNo(pgWardenFacilityAvailable, setPgWardenFacilityAvailable)}
@@ -7098,7 +7110,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Add Directions Tip for your tenants
                     </Text>
                     <TextInput
@@ -7122,7 +7134,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available Amenities
                     </Text>
 
@@ -7145,7 +7157,7 @@ export default function PostPropertyScreen() {
                           <Pressable key={it.label} onPress={() => it.setValue(!checked)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
                               <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
-                                <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
@@ -7171,7 +7183,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Parking
                     </Text>
                     <Pressable onPress={() => setPickerOpen('parking')}>
@@ -7195,7 +7207,7 @@ export default function PostPropertyScreen() {
                     <YStack flexGrow={1} minWidth={200} gap="$2">
                       <XStack alignItems="center" gap="$2">
                         <MaterialCommunityIcons name="bathtub" size={18} color={titleColor} />
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Attached Bathroom*
                         </Text>
                       </XStack>
@@ -7237,7 +7249,7 @@ export default function PostPropertyScreen() {
                     <YStack flexGrow={1} minWidth={200} gap="$2">
                       <XStack alignItems="center" gap="$2">
                         <MaterialCommunityIcons name="air-conditioner" size={18} color={titleColor} />
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           AC Room*
                         </Text>
                       </XStack>
@@ -7247,7 +7259,7 @@ export default function PostPropertyScreen() {
                     <YStack flexGrow={1} minWidth={200} gap="$2">
                       <XStack alignItems="center" gap="$2">
                         <MaterialCommunityIcons name="balcony" size={18} color={titleColor} />
-                        <Text color={muted} fontSize={14} fontWeight="700">
+                        <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Balcony*
                         </Text>
                       </XStack>
@@ -7264,7 +7276,7 @@ export default function PostPropertyScreen() {
                       <YStack flexGrow={1} minWidth={200} gap="$2">
                         <XStack alignItems="center" gap="$2">
                           <MaterialCommunityIcons name="food" size={18} color={titleColor} />
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Non-Veg Allowed*
                           </Text>
                         </XStack>
@@ -7273,7 +7285,7 @@ export default function PostPropertyScreen() {
                       <YStack flexGrow={1} minWidth={200} gap="$2">
                         <XStack alignItems="center" gap="$2">
                           <MaterialCommunityIcons name="smoking-off" size={18} color={titleColor} />
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Smoking Allowed
                           </Text>
                         </XStack>
@@ -7282,7 +7294,7 @@ export default function PostPropertyScreen() {
                       <YStack flexGrow={1} minWidth={200} gap="$2">
                         <XStack alignItems="center" gap="$2">
                           <MaterialCommunityIcons name="bottle-wine-outline" size={18} color={titleColor} />
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Drinking Allowed
                           </Text>
                         </XStack>
@@ -7300,7 +7312,7 @@ export default function PostPropertyScreen() {
                       <YStack flexGrow={1} minWidth={200} gap="$2">
                         <XStack alignItems="center" gap="$2">
                           <MaterialCommunityIcons name="dumbbell" size={18} color={titleColor} />
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Gym*
                           </Text>
                         </XStack>
@@ -7309,7 +7321,7 @@ export default function PostPropertyScreen() {
                       <YStack flexGrow={1} minWidth={200} gap="$2">
                         <XStack alignItems="center" gap="$2">
                           <MaterialCommunityIcons name="shield-home" size={18} color={titleColor} />
-                          <Text color={muted} fontSize={14} fontWeight="700">
+                          <Text color={muted} fontSize={t(14)} fontWeight="700">
                             Gated Security*
                           </Text>
                         </XStack>
@@ -7320,7 +7332,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
@@ -7333,7 +7345,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Secondary Number
                       </Text>
                       <Input
@@ -7348,7 +7360,7 @@ export default function PostPropertyScreen() {
                     </YStack>
 
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Water Supply
                       </Text>
                       <Pressable onPress={() => setPickerOpen('waterSupply')}>
@@ -7362,7 +7374,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Add Directions Tip for your tenants
                     </Text>
                     <TextInput
@@ -7386,7 +7398,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Select the available amenities
                     </Text>
                     {(() => {
@@ -7413,7 +7425,7 @@ export default function PostPropertyScreen() {
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
                               <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
-                                <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
@@ -7442,13 +7454,13 @@ export default function PostPropertyScreen() {
                 <>
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Bathroom(s)
                       </Text>
                       {renderCounter(Number(bathrooms.trim() ? Number(bathrooms) : 0), (n) => setBathrooms(String(n)))}
                     </YStack>
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Balcony
                       </Text>
                       {renderCounter(balconies, setBalconies)}
@@ -7456,7 +7468,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Water Supply
                     </Text>
                     <Pressable onPress={() => setPickerOpen('waterSupply')}>
@@ -7470,13 +7482,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Pet Allowed
                       </Text>
                       {renderYesNo(petAllowed, setPetAllowed)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Gym
                       </Text>
                       {renderYesNo(gym, setGym)}
@@ -7485,13 +7497,13 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Non-Veg Allowed
                       </Text>
                       {renderYesNo(nonVegAllowed, setNonVegAllowed)}
                     </YStack>
                     <YStack flexGrow={1} minWidth={160} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Gated Security
                       </Text>
                       {renderYesNo(gatedSecurity, setGatedSecurity)}
@@ -7500,7 +7512,7 @@ export default function PostPropertyScreen() {
 
                   <XStack gap="$2" flexWrap="wrap">
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Who will show the property?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('whoWillShow')}>
@@ -7512,7 +7524,7 @@ export default function PostPropertyScreen() {
                       </Pressable>
                     </YStack>
                     <YStack flexGrow={1} minWidth={200} gap="$2">
-                      <Text color={muted} fontSize={14} fontWeight="700">
+                      <Text color={muted} fontSize={t(14)} fontWeight="700">
                         Current Property Condition?*
                       </Text>
                       <Pressable onPress={() => setPickerOpen('propertyCondition')}>
@@ -7526,7 +7538,7 @@ export default function PostPropertyScreen() {
                   </XStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Secondary Phone (Optional)
                     </Text>
                     <Input
@@ -7541,14 +7553,14 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       More similar units available?
                     </Text>
                     {renderYesNo(moreSimilarUnitsAvailable, setMoreSimilarUnitsAvailable)}
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Direction tip
                     </Text>
                     <TextInput
@@ -7572,7 +7584,7 @@ export default function PostPropertyScreen() {
                   </YStack>
 
                   <YStack gap="$2">
-                    <Text color={muted} fontSize={14} fontWeight="700">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
                       {isResidentialRent ? 'Select the available amenities' : 'Available amenities'}
                     </Text>
                     {(() => {
@@ -7621,7 +7633,7 @@ export default function PostPropertyScreen() {
                           <Pressable key={it.label} onPress={() => it.setValue(checked ? null : 1)}>
                             <XStack alignItems="center" gap="$2" paddingVertical={8}>
                               <YStack width={18} height={18} borderWidth={1} borderColor={checked ? theme.success : border} borderRadius={4} backgroundColor={checked ? theme.success : theme.bgCard} alignItems="center" justifyContent="center">
-                                <Text color="#FFFFFF" fontWeight="900" fontSize={14}>
+                                <Text color="#FFFFFF" fontWeight="900" fontSize={t(14)}>
                                   {checked ? '✓' : ''}
                                 </Text>
                               </YStack>
@@ -7726,7 +7738,7 @@ export default function PostPropertyScreen() {
                 <Text color={titleColor} fontWeight="900">
                   Review
                 </Text>
-                <Text color={muted} fontSize={14}>
+                <Text color={muted} fontSize={t(14)}>
                   Please verify all details before posting.
                 </Text>
               </YStack>
@@ -8168,7 +8180,7 @@ export default function PostPropertyScreen() {
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.bgCard} padding={14} borderTopWidth={1} borderTopColor={theme.border}>
+      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.bgCard} padding={14} paddingBottom={14 + insets.bottom} borderTopWidth={1} borderTopColor={theme.border}>
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
           <Button
             disabled={saving || editLoading}

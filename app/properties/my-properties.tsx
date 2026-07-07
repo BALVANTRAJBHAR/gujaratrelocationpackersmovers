@@ -9,6 +9,7 @@ import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 
 type PropertyRow = {
   id: string;
@@ -149,10 +150,10 @@ export default function MyPropertiesScreen() {
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={16} fontWeight="800">
+            <Text color="#FFFFFF" fontSize={t(16)} fontWeight="800">
               My Properties
             </Text>
-            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={t(12)} fontWeight="600">
               Manage your listings
             </Text>
           </YStack>
@@ -161,7 +162,7 @@ export default function MyPropertiesScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
         <YStack gap="$3">
-          <Text color={muted} fontSize={12}>
+          <Text color={muted} fontSize={t(12)}>
             Published listings appear in search. Draft listings are hidden until you review all steps and publish.
           </Text>
 
@@ -188,21 +189,21 @@ export default function MyPropertiesScreen() {
               <YStack key={p.id} backgroundColor={theme.bgCard} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
                 <XStack justifyContent="space-between" alignItems="flex-start" gap="$2">
                   <YStack flex={1} gap="$1">
-                    <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={2}>
+                    <Text color={titleColor} fontWeight="900" fontSize={t(14)} numberOfLines={2}>
                       {listingTitle}
                     </Text>
-                    <Text color={muted} fontSize={12} numberOfLines={1}>
+                    <Text color={muted} fontSize={t(12)} numberOfLines={1}>
                       {location || '—'}
                     </Text>
                   </YStack>
                   <YStack alignItems="flex-end" gap="$1">
-                    <Text color={isPublished ? theme.success : theme.warning} fontWeight="900" fontSize={12}>
+                    <Text color={isPublished ? theme.success : theme.warning} fontWeight="900" fontSize={t(12)}>
                       {isPublished ? 'PUBLISHED' : 'DRAFT'}
                     </Text>
-                    <Text color={muted} fontSize={11}>
+                    <Text color={muted} fontSize={t(11)}>
                       {String(p.listing_type ?? '').toUpperCase()}
                     </Text>
-                    <Text color={muted} fontSize={10} textAlign="right">
+                    <Text color={muted} fontSize={t(10)} textAlign="right">
                       {isPublished ? 'Visible in search' : 'Hidden from search'}
                     </Text>
                   </YStack>
@@ -222,13 +223,13 @@ export default function MyPropertiesScreen() {
                       onPress={() => {
                         router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any);
                       }}>
-                      <Text color={theme.info} fontWeight="900" fontSize={12}>
+                      <Text color={theme.info} fontWeight="900" fontSize={t(12)}>
                         View
                       </Text>
                     </Pressable>
 
                     <Pressable onPress={() => openEditWizard(p.id)}>
-                      <Text color={theme.info} fontWeight="900" fontSize={12}>
+                      <Text color={theme.info} fontWeight="900" fontSize={t(12)}>
                         Edit
                       </Text>
                     </Pressable>
@@ -249,13 +250,13 @@ export default function MyPropertiesScreen() {
                             ]
                           );
                         }}>
-                        <Text color={theme.danger} fontWeight="900" fontSize={12}>
+                        <Text color={theme.danger} fontWeight="900" fontSize={t(12)}>
                           Unpublish
                         </Text>
                       </Pressable>
                     ) : (
                       <Pressable onPress={() => openEditWizard(p.id)}>
-                        <Text color={theme.success} fontWeight="900" fontSize={12}>
+                        <Text color={theme.success} fontWeight="900" fontSize={t(12)}>
                           Edit & Publish
                         </Text>
                       </Pressable>
@@ -264,7 +265,7 @@ export default function MyPropertiesScreen() {
                 </XStack>
 
                 <YStack backgroundColor={panelBg} borderRadius={12} padding={10} borderWidth={1} borderColor={border}>
-                  <Text color={muted} fontSize={11}>
+                  <Text color={muted} fontSize={t(11)}>
                     Created: {new Date(p.created_at).toLocaleString()}
                   </Text>
                 </YStack>

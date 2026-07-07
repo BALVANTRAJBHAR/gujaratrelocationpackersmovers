@@ -2,8 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -12,9 +12,30 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 
+let _pendingRedirectTo: string | null = null;
+let _processingOAuth = false;
+
+const extractUrlParams = (incomingUrl: string): { code?: string; access_token?: string; refresh_token?: string } => {
+  const fragmentStart = incomingUrl.indexOf('#');
+  const queryStart = incomingUrl.indexOf('?');
+  const searchString = queryStart !== -1 ? incomingUrl.slice(queryStart + 1, fragmentStart !== -1 ? fragmentStart : undefined) : '';
+  const params: Record<string, string> = {};
+  for (const part of searchString.split('&')) {
+    const eq = part.indexOf('=');
+    if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
+  }
+  if (fragmentStart !== -1) {
+    for (const part of incomingUrl.slice(fragmentStart + 1).split('&')) {
+      const eq = part.indexOf('=');
+      if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
+    }
+  }
+  return { code: params.code, access_token: params.access_token, refresh_token: params.refresh_token };
+};
+
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ redirectTo?: string }>();
+  const params = useLocalSearchParams<{ redirectTo?: string } & Record<string, string>>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const activeBtnBg = '#3B82F6';
@@ -163,7 +184,9 @@ export default function LoginScreen() {
   };
 
   const redirectAfterAuth = async () => {
-    const redirect = String(params.redirectTo ?? '').trim();
+    const pending = _pendingRedirectTo;
+    _pendingRedirectTo = null;
+    const redirect = pending || String(params.redirectTo ?? '').trim();
     if (redirect) {
       router.replace(redirect as any);
       return;
@@ -249,26 +272,10 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
-    const extractUrlParams = (incomingUrl: string): { code?: string; access_token?: string; refresh_token?: string } => {
-      const fragmentStart = incomingUrl.indexOf('#');
-      const queryStart = incomingUrl.indexOf('?');
-      const searchString = queryStart !== -1 ? incomingUrl.slice(queryStart + 1, fragmentStart !== -1 ? fragmentStart : undefined) : '';
-      const params: Record<string, string> = {};
-      for (const part of searchString.split('&')) {
-        const eq = part.indexOf('=');
-        if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
-      }
-      if (fragmentStart !== -1) {
-        for (const part of incomingUrl.slice(fragmentStart + 1).split('&')) {
-          const eq = part.indexOf('=');
-          if (eq !== -1) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
-        }
-      }
-      return { code: params.code, access_token: params.access_token, refresh_token: params.refresh_token };
-    };
-
     const handleOAuthUrl = async (incomingUrl: string) => {
       if (!incomingUrl?.startsWith('grpackersmovers://auth/login')) return;
+      if (_processingOAuth) return;
+      _processingOAuth = true;
       try {
         setOauthLoading('google');
         const { code, access_token, refresh_token } = extractUrlParams(incomingUrl);
@@ -287,6 +294,7 @@ export default function LoginScreen() {
         setError('OAuth sign-in failed');
       } finally {
         setOauthLoading(null);
+        _processingOAuth = false;
       }
     };
 
@@ -365,6 +373,8 @@ export default function LoginScreen() {
       return;
     }
 
+    _pendingRedirectTo = params.redirectTo ?? null;
+    _processingOAuth = true;
     setOauthLoading(provider);
 
     try {
@@ -398,36 +408,30 @@ export default function LoginScreen() {
         return;
       }
 
-      let parsedReturnUrl: ReturnType<typeof Linking.parse> | null = null;
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
+      if (result.type !== 'success' || !result.url) return;
 
-      if (Platform.OS === 'android') {
-        Linking.openURL(url).catch(() => {});
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return;
+      const { code, access_token, refresh_token } = extractUrlParams(result.url);
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError(exchangeError.message);
+          return;
+        }
+      } else if (access_token) {
+        await setSupabaseSessionSafe({ access_token, refresh_token: refresh_token ?? '' });
       } else {
-        const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
-        if (result.type !== 'success' || !result.url) return;
-        parsedReturnUrl = Linking.parse(result.url);
-      }
-
-      const code = String((parsedReturnUrl.queryParams as any)?.code ?? '').trim();
-      if (!code) {
         setError('Sign-in did not return a code. Please try again.');
-        return;
-      }
-
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        setError(exchangeError.message);
         return;
       }
 
       const didStartCompletion = await maybeStartOAuthProfileCompletion();
       if (didStartCompletion) return;
 
-      const redirect = String(params.redirectTo ?? '').trim();
-      if (redirect) {
-        router.replace(redirect as any);
+      const savedRedirect = _pendingRedirectTo;
+      _pendingRedirectTo = null;
+      if (savedRedirect) {
+        router.replace(savedRedirect as any);
       } else {
         const didRedirect = await maybeRedirectToRegistration();
         if (!didRedirect) router.replace('/home');
@@ -436,6 +440,7 @@ export default function LoginScreen() {
       setError(e instanceof Error ? e.message : 'OAuth sign-in failed');
     } finally {
       setOauthLoading(null);
+      _processingOAuth = false;
     }
   };
 
@@ -730,7 +735,8 @@ export default function LoginScreen() {
               hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
               pressStyle={{ backgroundColor: theme.border }}
               onPress={() => handleOAuth('google')}
-              disabled={loading || oauthLoading !== null}>
+              disabled={loading || oauthLoading !== null}
+              icon={oauthLoading === 'google' ? () => <ActivityIndicator size="small" color={theme.text} /> : undefined}>
               {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
             </Button>
 

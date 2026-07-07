@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import React, { useEffect } from 'react';
+import { useWindowDimensions } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -14,6 +15,8 @@ export default function TabLayout() {
   const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '')
     .trim()
     .toLowerCase();
+  const { width: screenWidth } = useWindowDimensions();
+  const isMobile = screenWidth <= 768;
 
   const canSeeDriver = ['driver', 'staff', 'admin'].includes(role);
   const canSeeAdmin = ['admin', 'staff'].includes(role);
@@ -34,6 +37,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: isMobile ? { display: 'none' } : undefined,
       }}>
       <Tabs.Screen
         key="tab-index"

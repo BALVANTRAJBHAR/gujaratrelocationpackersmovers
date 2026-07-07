@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
@@ -10,9 +10,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
+
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
+import { t } from '@/constants/typography';
 
 const STATUS_COLORS: Record<string, string> = {
   not_started: '#94A3B8',
@@ -59,6 +61,16 @@ type Booking = {
   remaining_amount: number | null;
   created_at: string;
   updated_at?: string | null;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
+  labor_count?: number | null;
+  fare_breakdown?: Record<string, any> | null;
+  pickup_floor?: string | null;
+  drop_floor?: string | null;
+  pickup_lift_available?: boolean | null;
+  drop_lift_available?: boolean | null;
+  items_description?: string | null;
+  vehicle_type_name?: string | null;
 };
 
 type Payment = {
@@ -158,7 +170,7 @@ export default function BookingsScreen() {
   useEffect(() => {
     if (authGuard.isLoading) return;
     if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
+      router.replace('/auth/login?redirectTo=/(tabs)/bookings' as any);
     } else if (authGuard.error === 'forbidden') {
       router.replace('/unauthorized' as any);
     }
@@ -170,6 +182,12 @@ export default function BookingsScreen() {
 function BookingsContent() {
   const router = useRouter();
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
+  const sharePdf = async (data: any) => {
+    try {
+      const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
+      await shareBookingPdf(data);
+    } catch {}
+  };
   const { session, profile } = useSession();
   const colorScheme = useColorScheme();
   const [activeTab, setActiveTab] = useState<'shifting' | 'home_services' | 'properties'>('shifting');
@@ -230,7 +248,7 @@ function BookingsContent() {
           return (
             <XStack key={step.key} alignItems="center" gap="$2">
               <Text
-                fontSize={12}
+                fontSize={t(12)}
                 paddingHorizontal={10}
                 paddingVertical={6}
                 borderRadius={999}
@@ -239,7 +257,7 @@ function BookingsContent() {
                 {step.label}
               </Text>
               {idx !== STATUS_STEPS.length - 1 ? (
-                <Text color={theme.textMuted} fontSize={13}>
+                <Text color={theme.textMuted} fontSize={t(13)}>
                   —
                 </Text>
               ) : null}
@@ -285,7 +303,7 @@ function BookingsContent() {
       await supabase
         .from('bookings')
         .select(
-          'id, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at'
+          'id, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description'
         )
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -774,6 +792,7 @@ function BookingsContent() {
             value={startPickerValue}
             mode="date"
             onChange={(_event, selected) => {
+              if ((_event as any)?.type === 'dismissed') { setStartDatePickerOpen(false); return; }
               if (!selected) { setStartDatePickerOpen(false); return; }
               setStartDate(formatDate(selected));
               setStartDatePickerOpen(false);
@@ -785,6 +804,7 @@ function BookingsContent() {
             value={endPickerValue}
             mode="date"
             onChange={(_event, selected) => {
+              if ((_event as any)?.type === 'dismissed') { setEndDatePickerOpen(false); return; }
               if (!selected) { setEndDatePickerOpen(false); return; }
               setEndDate(formatDate(selected));
               setEndDatePickerOpen(false);
@@ -798,8 +818,8 @@ function BookingsContent() {
         <Text color="#FCA5A5">{errorBookings}</Text>
       ) : !filteredBookings.length ? (
         <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-          <Text color={theme.text} fontWeight="800" fontSize={15}>No moves found</Text>
-          <Text color={theme.textMuted} fontSize={13}>Try adjusting filters or create a new booking.</Text>
+          <Text color={theme.text} fontWeight="800" fontSize={t(15)}>No moves found</Text>
+          <Text color={theme.textMuted} fontSize={t(13)}>Try adjusting filters or create a new booking.</Text>
         </YStack>
       ) : null}
       <FlatList
@@ -812,46 +832,46 @@ function BookingsContent() {
         renderItem={({ item }) => (
           <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.text} fontWeight="700" fontSize={15}>
+              <Text color={theme.text} fontWeight="700" fontSize={t(15)}>
                 {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
               </Text>
-              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={13} textTransform="uppercase">
+              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
                 {item.status ?? 'pending'}
               </Text>
             </XStack>
             {renderStatusStepper(item.status)}
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={13}>Payment</Text>
-              <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={13} textTransform="uppercase">
+              <Text color={theme.textMuted} fontSize={t(13)}>Payment</Text>
+              <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
                 {item.payment_status ?? 'pending'}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={13}>Paid</Text>
-              <Text color={theme.inputText} fontSize={13} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
+              <Text color={theme.textMuted} fontSize={t(13)}>Paid</Text>
+              <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={13}>Updated</Text>
-              <Text color={theme.inputText} fontSize={13}>
+              <Text color={theme.textMuted} fontSize={t(13)}>Updated</Text>
+              <Text color={theme.inputText} fontSize={t(13)}>
                 {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
               </Text>
             </XStack>
             {item.driver_id ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={13}>Driver</Text>
-                <Text color={theme.inputText} fontSize={13}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Driver</Text>
+                <Text color={theme.inputText} fontSize={t(13)}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
               </XStack>
             ) : null}
             {!item.pickup_verified_at && item.pickup_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={13}>Pickup OTP</Text>
-                <Text color={theme.inputText} fontSize={13} fontWeight="700">{String(item.pickup_otp)}</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Pickup OTP</Text>
+                <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">{String(item.pickup_otp)}</Text>
               </XStack>
             ) : null}
             {item.pickup_verified_at && !item.delivered_verified_at && item.delivery_otp ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={13}>Delivery OTP</Text>
-                <Text color={theme.inputText} fontSize={13} fontWeight="700">{String(item.delivery_otp)}</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Delivery OTP</Text>
+                <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">{String(item.delivery_otp)}</Text>
               </XStack>
             ) : null}
             <XStack gap="$2" flexWrap="wrap">
@@ -862,6 +882,33 @@ function BookingsContent() {
                   try { await Share.share({ message: `Tracking ID: ${String(item.id)}\n\nOpen the app and go to Track, then paste this ID to see live status and driver location.` }); }
                   catch { if (Platform.OS === 'android') ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT); }
                 }}>Share ID</Button>
+              <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                onPress={async () => {
+                  try {
+                    const ok = await sharePdf({
+                      id: item.id,
+                      pickup_address: item.pickup_address,
+                      drop_address: item.drop_address,
+                      distance_km: item.distance_km,
+                      estimated_price: item.estimated_price,
+                      advance_amount: item.advance_amount,
+                      remaining_amount: item.remaining_amount,
+                      status: item.status,
+                      payment_status: item.payment_status,
+                      scheduled_date: item.scheduled_date ?? null,
+                      scheduled_time: item.scheduled_time ?? null,
+                      labor_count: item.labor_count ?? null,
+                      pickup_floor: item.pickup_floor ?? null,
+                      drop_floor: item.drop_floor ?? null,
+                      pickup_lift_available: item.pickup_lift_available ?? null,
+                      drop_lift_available: item.drop_lift_available ?? null,
+                      items_description: item.items_description ?? null,
+                      fare_breakdown: item.fare_breakdown ?? null,
+                      created_at: item.created_at,
+                    });
+                    if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+                  } catch { Alert.alert('Error', 'Failed to generate report.'); }
+                }}>Download Report</Button>
               {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                 <>
                   <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
@@ -879,12 +926,12 @@ function BookingsContent() {
                   onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>Pay Full</Button>
               </>
             ) : null}
-            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={13}>{paymentInfo[item.id]}</Text> : null}
+            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={t(13)}>{paymentInfo[item.id]}</Text> : null}
             {paymentHistory[item.id]?.length ? (
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontSize={13}>Payment history</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Payment history</Text>
                 {paymentHistory[item.id].slice(0, 2).map((payment) => (
-                  <Text key={payment.id} color={theme.inputText} fontSize={12}>
+                  <Text key={payment.id} color={theme.inputText} fontSize={t(12)}>
                     {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
                   </Text>
                 ))}
@@ -900,6 +947,7 @@ function BookingsContent() {
           value={reschedulePickerValue}
           mode="datetime"
           onChange={(_event, selected) => {
+            if ((_event as any)?.type === 'dismissed') { setReschedulePickerBookingId(null); return; }
             if (!selected) { setReschedulePickerBookingId(null); return; }
             const bookingId = reschedulePickerBookingId;
             setReschedulePickerBookingId(null);
@@ -936,7 +984,7 @@ function BookingsContent() {
           {!filtered.length && !loading ? (
             <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
               <Text color={theme.text} fontWeight="800">No requests found</Text>
-              <Text color={theme.textMuted} fontSize={13}>Request a home service from the Home Services tab.</Text>
+              <Text color={theme.textMuted} fontSize={t(13)}>Request a home service from the Home Services tab.</Text>
             </YStack>
           ) : null}
           {filtered.map((r) => {
@@ -946,14 +994,14 @@ function BookingsContent() {
             return (
               <YStack key={r.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.text} fontWeight="700" fontSize={15}>{homeServiceLabel(r.service_key ?? '')}</Text>
-                  <Text color={statusColor} fontSize={13} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
+                  <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{homeServiceLabel(r.service_key ?? '')}</Text>
+                  <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
                 </XStack>
-                <Text color={theme.textMuted} fontSize={13}>Location: {loc}</Text>
-                <Text color={theme.textMuted} fontSize={13}>Slot: {slot}</Text>
-                {r.notes ? <Text color={theme.textMuted} fontSize={13}>Notes: {r.notes}</Text> : null}
-                {r.provider_name ? <Text color={theme.textMuted} fontSize={13}>Provider: {r.provider_name}</Text> : null}
-                {r.payment_option ? <Text color={theme.textMuted} fontSize={13}>Payment: {r.payment_option}</Text> : null}
+                <Text color={theme.textMuted} fontSize={t(13)}>Location: {loc}</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Slot: {slot}</Text>
+                {r.notes ? <Text color={theme.textMuted} fontSize={t(13)}>Notes: {r.notes}</Text> : null}
+                {r.provider_name ? <Text color={theme.textMuted} fontSize={t(13)}>Provider: {r.provider_name}</Text> : null}
+                {r.payment_option ? <Text color={theme.textMuted} fontSize={t(13)}>Payment: {r.payment_option}</Text> : null}
               </YStack>
             );
           })}
@@ -987,11 +1035,11 @@ function BookingsContent() {
           <H2 color={theme.text}>Properties</H2>
           {canToggle && tabs.length > 1 ? (
             <XStack gap="$2" flexWrap="wrap">
-              {tabs.map((t) => (
-                <Button key={t.value} size="$2"
-                  backgroundColor={propertySection === t.value ? theme.accent : theme.bgCardSecondary}
-                  color={propertySection === t.value ? '#FFFFFF' : theme.text} borderRadius={999}
-                  onPress={() => setPropertySection(t.value as typeof propertySection)}>{t.label}</Button>
+              {tabs.map((tab) => (
+                <Button key={tab.value} size="$2"
+                  backgroundColor={propertySection === tab.value ? theme.accent : theme.bgCardSecondary}
+                  color={propertySection === tab.value ? '#FFFFFF' : theme.text} borderRadius={999}
+                  onPress={() => setPropertySection(tab.value as typeof propertySection)}>{tab.label}</Button>              
               ))}
             </XStack>
           ) : null}
@@ -1001,7 +1049,7 @@ function BookingsContent() {
               {!propertyBookings.length && !loading ? (
                 <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
                   <Text color={theme.text} fontWeight="800">No bookings yet</Text>
-                  <Text color={theme.textMuted} fontSize={13}>Browse properties and send an inquiry.</Text>
+                  <Text color={theme.textMuted} fontSize={t(13)}>Browse properties and send an inquiry.</Text>
                 </YStack>
               ) : null}
               {propertyBookings.map((pb) => {
@@ -1011,17 +1059,17 @@ function BookingsContent() {
                   <YStack key={pb.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                     <XStack justifyContent="space-between" alignItems="center">
                       <YStack flex={1} gap={4}>
-                        <Text color={theme.text} fontWeight="700" fontSize={15}>{prop?.title ?? 'Property'}</Text>
-                        <Text color={theme.textMuted} fontSize={13}>
+                        <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{prop?.title ?? 'Property'}</Text>
+                        <Text color={theme.textMuted} fontSize={t(13)}>
                           {[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}
                         </Text>
                         {prop?.price != null ? (
-                          <Text color={theme.success} fontWeight="600" fontSize={14}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
+                          <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
                         ) : null}
                       </YStack>
                       <YStack alignItems="flex-end" gap={6}>
-                        <Text color={statusColor} fontSize={13} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                        <Text color={theme.textMuted} fontSize={12}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                        <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                        <Text color={theme.textMuted} fontSize={t(12)}>{new Date(pb.created_at).toLocaleDateString()}</Text>
                       </YStack>
                     </XStack>
                     {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (
@@ -1063,18 +1111,18 @@ function BookingsContent() {
               {!myProperties.length && !loading ? (
                 <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
                   <Text color={theme.text} fontWeight="800">No properties listed</Text>
-                  <Text color={theme.textMuted} fontSize={13}>Post your first property listing.</Text>
+                  <Text color={theme.textMuted} fontSize={t(13)}>Post your first property listing.</Text>
                 </YStack>
               ) : null}
               {myProperties.map((p) => (
                 <YStack key={p.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                   <XStack justifyContent="space-between" alignItems="center">
                     <YStack flex={1} gap={4}>
-                      <Text color={theme.text} fontWeight="700" fontSize={15}>{p.title ?? 'Property'}</Text>
-                      <Text color={theme.textMuted} fontSize={13}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
-                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={14}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
+                      <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{p.title ?? 'Property'}</Text>
+                      <Text color={theme.textMuted} fontSize={t(13)}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
+                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
                     </YStack>
-                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={13} fontWeight="700" textTransform="uppercase">{p.status}</Text>
+                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{p.status}</Text>
                   </XStack>
                   <XStack gap="$2">
                     <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}

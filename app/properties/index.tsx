@@ -21,6 +21,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { t } from '@/constants/typography';
 
 type PropertyRow = {
   id: string;
@@ -91,6 +92,16 @@ type SearchSnapshot = {
   withPhotoOnly: boolean;
   removeSeen: boolean;
 };
+
+const parseLocalityQuery = (value: string) =>
+  Array.from(
+    new Set(
+      String(value ?? '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 3);
 
 export default function PropertiesIndexScreen() {
   const colorScheme = useColorScheme();
@@ -265,8 +276,9 @@ export default function PropertiesIndexScreen() {
     if (st) setStateValue(st);
     if (ct) setCityValue(ct);
     if (q) {
-      setLocalityValue(q);
-      setSelectedLocalities([q]);
+      const localities = parseLocalityQuery(q);
+      setLocalityValue(localities.length ? '' : q);
+      setSelectedLocalities(localities);
     }
 
     const incomingCategory = routeParam(params.property_category);
@@ -289,8 +301,8 @@ export default function PropertiesIndexScreen() {
       listingType: listingForAd,
       stateValue: st,
       cityValue: ct,
-      localityValue: q,
-      selectedLocalities: q ? [q] : [],
+      localityValue: parseLocalityQuery(q).length ? '' : q,
+      selectedLocalities: parseLocalityQuery(q),
       propertyCategory: incomingCategory,
       adType: normalizedAd,
       bhkCsv: routeParam(params.bhk),
@@ -1216,10 +1228,10 @@ export default function PropertiesIndexScreen() {
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color={theme.text} fontSize={16} fontWeight="800">
+            <Text color={theme.text} fontSize={t(16)} fontWeight="800">
               Properties
             </Text>
-            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={t(12)} fontWeight="600">
               Search listings
             </Text>
           </YStack>
@@ -1276,7 +1288,7 @@ export default function PropertiesIndexScreen() {
                     Filter your search
                   </Text>
                   <Pressable onPress={resetFilters}>
-                    <Text color={theme.info} fontSize={12} fontWeight="900">
+                    <Text color={theme.info} fontSize={t(12)} fontWeight="900">
                       Reset
                     </Text>
                   </Pressable>
@@ -1287,7 +1299,7 @@ export default function PropertiesIndexScreen() {
                     <Text color={titleColor} fontWeight="900">
                       Don’t scroll! Be Smart & Save Time!
                     </Text>
-                    <Text color={muted} fontSize={12}>
+                    <Text color={muted} fontSize={t(12)}>
                       Fasten your search using Exclusive Filters!
                     </Text>
                     <Button backgroundColor={theme.info} color="#FFFFFF" fontWeight="900" onPress={() => setUnlockModalOpen(true)}>
@@ -1298,7 +1310,7 @@ export default function PropertiesIndexScreen() {
 
                 {activeFilterTab === 'filters' ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="800">
+                  <Text color={muted} fontSize={t(12)} fontWeight="800">
                     Listing Type
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -1306,15 +1318,15 @@ export default function PropertiesIndexScreen() {
                       { label: 'Rent', value: 'rent' },
                       { label: 'Buy', value: 'buy' },
                       { label: 'Commercial', value: 'commercial' },
-                    ] as const).map((t) => (
+                    ] as const).map((item) => (
                       <Button
-                        key={t.value}
+                        key={item.value}
                         size="$2"
-                        backgroundColor={listingType === t.value ? theme.info : theme.border}
+                        backgroundColor={listingType === item.value ? theme.info : theme.border}
                         color={theme.text}
                         borderRadius={999}
-                        onPress={() => setListingType(t.value)}>
-                        {t.label}
+                        onPress={() => setListingType(item.value)}>
+                        {item.label}
                       </Button>
                     ))}
                   </XStack>
@@ -1323,7 +1335,7 @@ export default function PropertiesIndexScreen() {
 
                 {activeFilterTab === 'filters' ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="800">
+                  <Text color={muted} fontSize={t(12)} fontWeight="800">
                     Location
                   </Text>
                   <Input
@@ -1354,7 +1366,7 @@ export default function PropertiesIndexScreen() {
                       minWidth={160}
                     />
                     {localityLoading ? (
-                      <Text color={muted} fontSize={12} animation="pulse">
+                      <Text color={muted} fontSize={t(12)} animation="pulse">
                         Searching...
                       </Text>
                     ) : null}
@@ -1376,7 +1388,7 @@ export default function PropertiesIndexScreen() {
                           <Text color={titleColor} fontWeight="700" numberOfLines={1}>
                             {s.label}
                           </Text>
-                          <Text color={muted} fontSize={11} numberOfLines={1}>
+                          <Text color={muted} fontSize={t(11)} numberOfLines={1}>
                             {s.full}
                           </Text>
                         </Pressable>
@@ -1389,14 +1401,14 @@ export default function PropertiesIndexScreen() {
                       {selectedLocalities.map((loc) => (
                         <Pressable key={loc} onPress={() => setSelectedLocalities((prev) => prev.filter((l) => l !== loc))}>
                           <YStack backgroundColor={theme.info} borderRadius={999} paddingHorizontal={10} paddingVertical={4}>
-                            <Text color="#FFFFFF" fontSize={11} fontWeight="700">
+                            <Text color="#FFFFFF" fontSize={t(11)} fontWeight="700">
                               {loc} ×
                             </Text>
                           </YStack>
                         </Pressable>
                       ))}
                       {selectedLocalities.length >= 3 && (
-                        <Text color={muted} fontSize={11} fontStyle="italic">
+                        <Text color={muted} fontSize={t(11)} fontStyle="italic">
                           Max 3 selected
                         </Text>
                       )}
@@ -1407,7 +1419,7 @@ export default function PropertiesIndexScreen() {
 
                 {activeFilterTab === 'filters' ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="800">
+                  <Text color={muted} fontSize={t(12)} fontWeight="800">
                     Price Range
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -1439,7 +1451,7 @@ export default function PropertiesIndexScreen() {
 
                 {activeFilterTab === 'filters' ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="800">
+                  <Text color={muted} fontSize={t(12)} fontWeight="800">
                     Carpet Area (sq.ft.)
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
@@ -1471,7 +1483,7 @@ export default function PropertiesIndexScreen() {
 
                 {activeFilterTab === 'filters' ? (
                 <YStack gap="$2">
-                  <Text color={muted} fontSize={12} fontWeight="800">
+                  <Text color={muted} fontSize={t(12)} fontWeight="800">
                     Amenities
                   </Text>
 
@@ -1500,7 +1512,7 @@ export default function PropertiesIndexScreen() {
                 {activeFilterTab === 'premium' && premiumUnlocked ? (
                   <YStack gap="$3">
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={12} fontWeight="800">
+                      <Text color={muted} fontSize={t(12)} fontWeight="800">
                         Built Up Area (sq.ft.)
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -1530,7 +1542,7 @@ export default function PropertiesIndexScreen() {
                     </YStack>
 
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={12} fontWeight="800">
+                      <Text color={muted} fontSize={t(12)} fontWeight="800">
                         Property Age
                       </Text>
                       {([
@@ -1553,7 +1565,7 @@ export default function PropertiesIndexScreen() {
                     </YStack>
 
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={12} fontWeight="800">
+                      <Text color={muted} fontSize={t(12)} fontWeight="800">
                         Show Only
                       </Text>
                       <Pressable onPress={() => setWithPhotoOnly((v) => !v)}>
@@ -1569,7 +1581,7 @@ export default function PropertiesIndexScreen() {
                     </YStack>
 
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={12} fontWeight="800">
+                      <Text color={muted} fontSize={t(12)} fontWeight="800">
                         Bathroom
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -1592,7 +1604,7 @@ export default function PropertiesIndexScreen() {
                     </YStack>
 
                     <YStack gap="$2">
-                      <Text color={muted} fontSize={12} fontWeight="800">
+                      <Text color={muted} fontSize={t(12)} fontWeight="800">
                         Floors
                       </Text>
                       <XStack gap="$2" flexWrap="wrap">
@@ -1644,10 +1656,10 @@ export default function PropertiesIndexScreen() {
           <YStack flex={1} minWidth={320} gap="$3">
             <XStack alignItems="center" justifyContent="space-between" flexWrap="wrap" gap="$2">
               <YStack>
-                <Text color={titleColor} fontSize={16} fontWeight="900">
+                <Text color={titleColor} fontSize={t(16)} fontWeight="900">
                   Results
                 </Text>
-                <Text color={muted} fontSize={12}>
+                <Text color={muted} fontSize={t(12)}>
                   {loading ? 'Searching…' : `${results.length} listing(s)`}
                 </Text>
               </YStack>
@@ -1678,16 +1690,16 @@ export default function PropertiesIndexScreen() {
                     <XStack gap="$3" alignItems="flex-start">
                       {cardMedia.length ? <PropertyMediaGrid items={cardMedia.slice(0, 4)} size={72} /> : null}
                       <YStack flex={1} gap="$1">
-                        <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={2}>
+                        <Text color={titleColor} fontWeight="900" fontSize={t(14)} numberOfLines={2}>
                           {formatPropertyListingTitle(p)}
                         </Text>
-                        <Text color={muted} fontSize={12} numberOfLines={2}>
+                        <Text color={muted} fontSize={t(12)} numberOfLines={2}>
                           {(p.locality ?? '') + (p.locality ? ', ' : '') + (p.city ?? '') + (p.city ? ', ' : '') + (p.state ?? '')}
                         </Text>
                         <Text color={theme.info} fontWeight="900">
                           {p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on request'}
                         </Text>
-                        <Text color={muted} fontSize={11}>
+                        <Text color={muted} fontSize={t(11)}>
                           {p.bedrooms ? `${p.bedrooms}BHK` : ''} {p.area_sqft ? `• ${p.area_sqft} sqft` : ''} •{' '}
                           {String(p.listing_type ?? '').toUpperCase()}
                         </Text>
@@ -1713,11 +1725,11 @@ export default function PropertiesIndexScreen() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', padding: 16, justifyContent: 'center' }} onPress={() => setUnlockModalOpen(false)}>
           <Pressable onPress={() => {}} style={{ backgroundColor: theme.bgCard, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: theme.border }}>
             <XStack alignItems="center" justifyContent="space-between" marginBottom={10}>
-              <Text color={theme.text} fontSize={16} fontWeight="900">
+              <Text color={theme.text} fontSize={t(16)} fontWeight="900">
                 Choose a plan
               </Text>
               <Pressable onPress={() => setUnlockModalOpen(false)}>
-                <Text color={theme.textMuted} fontSize={22} fontWeight="900">
+                <Text color={theme.textMuted} fontSize={t(22)} fontWeight="900">
                   ×
                 </Text>
               </Pressable>

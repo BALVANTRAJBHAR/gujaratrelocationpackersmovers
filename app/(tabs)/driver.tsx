@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
+import { t } from '@/constants/typography';
 
 export default function DriverScreen() {
   const router = useRouter();
@@ -286,7 +287,7 @@ export default function DriverScreen() {
       <ScrollView style={{ flex: 1 } as any} contentContainerStyle={{ padding: 24, paddingBottom: 60, gap: 16 } as any}>
         <XStack justifyContent="space-between" alignItems="center">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={13} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={t(13)} letterSpacing={2} textTransform="uppercase">
               Driver
             </Text>
             <H2 color={theme.text}>Upcoming & attended moves</H2>
@@ -299,7 +300,7 @@ export default function DriverScreen() {
         {profile?.role && !['driver'].includes(profile.role) ? (
           <YStack backgroundColor={theme.bgCardSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
             <Text color={theme.text} fontWeight="700">Driver access only</Text>
-            <Text color={theme.textMuted} fontSize={13}>
+            <Text color={theme.textMuted} fontSize={t(13)}>
               Complete your profile as a driver to access this module.
             </Text>
           </YStack>
@@ -342,7 +343,7 @@ export default function DriverScreen() {
             {error ? (
               <YStack backgroundColor={theme.bgCardSecondary} padding={14} borderRadius={16} borderWidth={1} borderColor={theme.border}>
                 <Text color={theme.text} fontWeight="700">Error</Text>
-                <Text color={theme.textMuted} fontSize={13}>
+                <Text color={theme.textMuted} fontSize={t(13)}>
                   {error}
                 </Text>
               </YStack>
@@ -352,7 +353,7 @@ export default function DriverScreen() {
               <YStack backgroundColor={theme.bgCard} padding={16} borderRadius={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                 <XStack gap="$2" alignItems="center">
                   <Spinner color={theme.accent} />
-                  <Text color={theme.textMuted} fontSize={13}>
+                  <Text color={theme.textMuted} fontSize={t(13)}>
                     Loading assignments...
                   </Text>
                 </XStack>
@@ -369,7 +370,7 @@ export default function DriverScreen() {
                   <Text color={theme.text} fontWeight="700">
                     No bookings
                   </Text>
-                  <Text color={theme.textMuted} fontSize={13}>
+                  <Text color={theme.textMuted} fontSize={t(13)}>
                     {filter === 'upcoming'
                       ? 'No upcoming assignments found.'
                       : 'No completed moves found.'}
@@ -413,21 +414,21 @@ export default function DriverScreen() {
                         <Text color={theme.text} fontWeight="700">
                           Booking #{String(item.id).slice(0, 8).toUpperCase()}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={13}>
+                        <Text color={theme.textMuted} fontSize={t(13)}>
                           {customerName}{customerPhone ? ` · ${customerPhone}` : ''}
                         </Text>
                       </YStack>
 
-                      <Text color={theme.textMuted} fontSize={13}>
+                      <Text color={theme.textMuted} fontSize={t(13)}>
                         Status: {status || '—'}
                       </Text>
                     </XStack>
 
                     <YStack gap="$1">
-                      <Text color={theme.textMuted} fontSize={13}>
+                      <Text color={theme.textMuted} fontSize={t(13)}>
                         Pickup: {item.pickup_address ?? '—'}
                       </Text>
-                      <Text color={theme.textMuted} fontSize={13}>
+                      <Text color={theme.textMuted} fontSize={t(13)}>
                         Drop: {item.drop_address ?? '—'}
                       </Text>
                     </YStack>

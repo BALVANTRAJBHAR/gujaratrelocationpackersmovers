@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
+import { t } from '@/constants/typography';
 
 export default function StaffManagementScreen() {
   const colorScheme = useColorScheme();
@@ -340,7 +341,7 @@ export default function StaffManagementScreen() {
           resizeMode="contain"
         />
         
-        <H1 color={theme.accent} fontSize={30} textAlign="center">
+        <H1 color={theme.accent} fontSize={t(30)} textAlign="center">
           Add Staff Member
         </H1>
         

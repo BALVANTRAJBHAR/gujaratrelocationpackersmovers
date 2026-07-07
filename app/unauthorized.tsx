@@ -4,6 +4,7 @@ import { Button, Text, YStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 
 export default function UnauthorizedScreen() {
   const router = useRouter();
@@ -13,9 +14,9 @@ export default function UnauthorizedScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
       <YStack gap="$4" alignItems="center" maxWidth={400}>
-        <Text fontSize={64}>🔒</Text>
-        <Text color={theme.text} fontSize={24} fontWeight="900" textAlign="center">Access Denied</Text>
-        <Text color={theme.textMuted} fontSize={14} textAlign="center">
+        <Text fontSize={t(64)}>🔒</Text>
+        <Text color={theme.text} fontSize={t(24)} fontWeight="900" textAlign="center">Access Denied</Text>
+        <Text color={theme.textMuted} fontSize={t(14)} textAlign="center">
           You do not have permission to access this page. If you believe this is a mistake, please contact support.
         </Text>
         <Button

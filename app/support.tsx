@@ -6,6 +6,7 @@ import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
+import { t } from '@/constants/typography';
 
 export default function SupportScreen() {
   const params = useLocalSearchParams<{ bookingId?: string }>();
@@ -67,7 +68,7 @@ export default function SupportScreen() {
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={900} alignSelf="center">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
               Support
             </Text>
             <H2 color={theme.text}>Chat with us</H2>
@@ -75,7 +76,7 @@ export default function SupportScreen() {
               Send a WhatsApp message, call, or email—our team will help you quickly.
             </Paragraph>
             {bookingId ? (
-              <Text color={theme.textMuted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={t(12)}>
                 Booking: {bookingId}
               </Text>
             ) : null}
@@ -85,7 +86,7 @@ export default function SupportScreen() {
             <Text color={theme.text} fontWeight="800">
               In-app AI support
             </Text>
-            <Text color={theme.textMuted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={t(12)}>
               Use quick options or type your question to get instant guidance.
             </Text>
             <XStack>
@@ -99,7 +100,7 @@ export default function SupportScreen() {
             <Text color={theme.text} fontWeight="800">
               Message
             </Text>
-            <Text color={theme.textMuted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={t(12)}>
               You can keep this blank—default details will be included.
             </Text>
             <Input
@@ -133,7 +134,7 @@ export default function SupportScreen() {
             <Text color={theme.text} fontWeight="800">
               Tip
             </Text>
-            <Text color={theme.textMuted} fontSize={12}>
+            <Text color={theme.textMuted} fontSize={t(12)}>
               If your booking is assigned, the driver can update status and you can track movement in the Tracking tab.
             </Text>
           </YStack>

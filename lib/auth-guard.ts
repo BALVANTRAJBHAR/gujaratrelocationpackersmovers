@@ -22,6 +22,8 @@ export const useAuthGuard = (allowedRoles?: AllowedRole[]): AuthGuardResult => {
 
   useEffect(() => {
     let active = true;
+    let sub: { unsubscribe: () => void } | null = null;
+
     const check = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -64,13 +66,18 @@ export const useAuthGuard = (allowedRoles?: AllowedRole[]): AuthGuardResult => {
     };
     void check();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      void check();
-    });
+    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        void check();
+      });
+      sub = subscription;
+    } catch {
+      // ignore subscription failure
+    }
 
     return () => {
       active = false;
-      subscription.unsubscribe();
+      try { sub?.unsubscribe(); } catch {}
     };
   }, [allowedRoles?.join(',')]);
 

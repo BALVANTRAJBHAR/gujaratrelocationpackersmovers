@@ -6,6 +6,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
+import { t } from '@/constants/typography';
 
 export default function HomeServiceTabScreen() {
   const router = useRouter();
@@ -34,10 +35,10 @@ export default function HomeServiceTabScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
       <YStack backgroundColor={theme.headerBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
-        <Text color={titleColor} fontSize={19} fontWeight="900">
+        <Text color={titleColor} fontSize={t(19)} fontWeight="900">
           Home Service
         </Text>
-        <Text color={muted} fontSize={13} fontWeight="600">
+        <Text color={muted} fontSize={t(13)} fontWeight="600">
           Manage and track home service requests
         </Text>
       </YStack>
@@ -45,7 +46,7 @@ export default function HomeServiceTabScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
         <YStack gap="$3">
           <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-            <Text color={titleColor} fontWeight="900" fontSize={15}>
+            <Text color={titleColor} fontWeight="900" fontSize={t(15)}>
               Quick Actions
             </Text>
             <XStack gap="$2" flexWrap="wrap">
@@ -62,10 +63,10 @@ export default function HomeServiceTabScreen() {
           </YStack>
 
           <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
-            <Text color={titleColor} fontWeight="900" fontSize={15}>
+            <Text color={titleColor} fontWeight="900" fontSize={t(15)}>
               Notes
             </Text>
-            <Text color={muted} fontSize={13}>
+            <Text color={muted} fontSize={t(13)}>
               Keep your contact details correct for faster assignment.
             </Text>
           </YStack>

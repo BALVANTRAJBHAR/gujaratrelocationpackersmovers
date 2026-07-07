@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { supabase } from '@/lib/supabase';
+import { t } from '@/constants/typography';
 
 type DriverLocation = {
   id: string;
@@ -166,7 +167,7 @@ export default function TrackingScreen() {
   return (
     <YStack flex={1} backgroundColor={theme.bg} padding={24}>
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
-        <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+        <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
           Live tracking
         </Text>
         <H2 color={theme.text}>Driver signals</H2>
@@ -182,7 +183,7 @@ export default function TrackingScreen() {
             borderRadius={18}
             padding={14}
             gap="$2">
-            <Text color={theme.text} fontSize={12} fontWeight="700">
+            <Text color={theme.text} fontSize={t(12)} fontWeight="700">
               Enter Tracking ID
             </Text>
             <Input
@@ -203,13 +204,13 @@ export default function TrackingScreen() {
               }}>
               Track Now
             </Button>
-            <Text color={theme.textMuted} fontSize={11}>
+            <Text color={theme.textMuted} fontSize={t(11)}>
               Customer can share this Tracking ID to view live status and driver location.
             </Text>
           </YStack>
         ) : null}
         {params.bookingId ? (
-          <Text color={theme.textMuted} fontSize={12}>Tracking booking: {params.bookingId}</Text>
+          <Text color={theme.textMuted} fontSize={t(12)}>Tracking booking: {params.bookingId}</Text>
         ) : null}
 
         {params.bookingId ? (
@@ -220,7 +221,7 @@ export default function TrackingScreen() {
             borderRadius={18}
             padding={14}
             gap="$2">
-            <Text color={theme.text} fontSize={12} fontWeight="700">
+            <Text color={theme.text} fontSize={t(12)} fontWeight="700">
               Status
             </Text>
             <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -231,7 +232,7 @@ export default function TrackingScreen() {
                 return (
                   <XStack key={step.key} alignItems="center" gap="$2">
                     <Text
-                      fontSize={11}
+                      fontSize={t(11)}
                       paddingHorizontal={10}
                       paddingVertical={6}
                       borderRadius={999}
@@ -240,7 +241,7 @@ export default function TrackingScreen() {
                       {step.label}
                     </Text>
                     {idx !== STATUS_STEPS.length - 1 ? (
-                      <Text color={theme.textMuted} fontSize={12}>
+                      <Text color={theme.textMuted} fontSize={t(12)}>
                         —
                       </Text>
                     ) : null}
@@ -272,11 +273,11 @@ export default function TrackingScreen() {
           contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
           renderItem={({ item }) => (
             <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
-              <Text color={theme.text} fontSize={13}>Booking: {item.booking_id}</Text>
-              <Text color={theme.textMuted} fontSize={12}>
+              <Text color={theme.text} fontSize={t(13)}>Booking: {item.booking_id}</Text>
+              <Text color={theme.textMuted} fontSize={t(12)}>
                 Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
               </Text>
-              <Text color={theme.textMuted} fontSize={11}>
+              <Text color={theme.textMuted} fontSize={t(11)}>
                 {new Date(item.updated_at).toLocaleString()}
               </Text>
             </YStack>

@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { reverseGeocodeDetails, reverseGeocodeFeatures } from '@/lib/mapbox';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
+import { t } from '@/constants/typography';
 
 const SERVICE_OPTIONS = [
   { key: 'ac', label: 'AC Service' },
@@ -154,8 +155,8 @@ export default function ProviderProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bgCardSecondary }}>
       <YStack backgroundColor="#1F4E79" padding={16} paddingTop={18}>
-        <Text color="#FFFFFF" fontSize={16} fontWeight="800">Provider Profile Setup</Text>
-        <Text color={theme.textMuted} fontSize={12} fontWeight="600">Select service, state & city</Text>
+        <Text color="#FFFFFF" fontSize={t(16)} fontWeight="800">Provider Profile Setup</Text>
+        <Text color={theme.textMuted} fontSize={t(12)} fontWeight="600">Select service, state & city</Text>
       </YStack>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
@@ -167,7 +168,7 @@ export default function ProviderProfileScreen() {
           ) : null}
 
           <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-            <Text fontSize={14} fontWeight="800" color="#1F4E79">Service You Provide</Text>
+            <Text fontSize={t(14)} fontWeight="800" color="#1F4E79">Service You Provide</Text>
 
             <XStack
               backgroundColor={theme.bgSecondary}
@@ -178,20 +179,20 @@ export default function ProviderProfileScreen() {
               alignItems="center"
               onPress={() => setServicePickerOpen(true)}>
               <Text flex={1} color={selectedService ? theme.text : theme.textMuted} fontWeight="700">{selectedServiceLabel}</Text>
-              <Text color={theme.textMuted} fontSize={16}>▼</Text>
+              <Text color={theme.textMuted} fontSize={t(16)}>▼</Text>
             </XStack>
           </YStack>
 
           <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
             <XStack justifyContent="space-between" alignItems="center">
-              <Text fontSize={14} fontWeight="800" color="#1F4E79">Location</Text>
+              <Text fontSize={t(14)} fontWeight="800" color="#1F4E79">Location</Text>
               <Button size="$2" backgroundColor={theme.info} color="#FFFFFF" disabled={saving || locating} onPress={detectLocation}>
                 {locating ? 'Detecting...' : 'Use Current Location'}
               </Button>
             </XStack>
 
             <YStack gap="$2">
-              <Text fontSize={12} fontWeight="700" color={theme.textSecondary}>State</Text>
+              <Text fontSize={t(12)} fontWeight="700" color={theme.textSecondary}>State</Text>
               <XStack
                 backgroundColor={theme.bgSecondary}
                 borderRadius={12}
@@ -201,13 +202,13 @@ export default function ProviderProfileScreen() {
                 alignItems="center"
                 onPress={() => setStatePickerOpen(true)}>
                 <Text flex={1} color={selectedState ? theme.text : theme.textMuted} fontWeight="700">{selectedState || 'Select State'}</Text>
-                <Text color={selectedState ? '#1F4E79' : theme.textMuted} fontSize={16}>▼</Text>
+                <Text color={selectedState ? '#1F4E79' : theme.textMuted} fontSize={t(16)}>▼</Text>
               </XStack>
             </YStack>
 
             {selectedState ? (
               <YStack gap="$2">
-                <Text fontSize={12} fontWeight="700" color={theme.textSecondary}>City</Text>
+                <Text fontSize={t(12)} fontWeight="700" color={theme.textSecondary}>City</Text>
                 <XStack
                   backgroundColor={theme.bgSecondary}
                   borderRadius={12}
@@ -217,7 +218,7 @@ export default function ProviderProfileScreen() {
                   alignItems="center"
                   onPress={() => setCityPickerOpen(true)}>
                   <Text flex={1} color={selectedCity ? theme.text : theme.textMuted} fontWeight="700">{selectedCity || 'Select City'}</Text>
-                  {selectedCity ? <Text color={theme.success} fontSize={16} fontWeight="900">✓</Text> : <Text color={theme.textMuted} fontSize={16}>▼</Text>}
+                  {selectedCity ? <Text color={theme.success} fontSize={t(16)} fontWeight="900">✓</Text> : <Text color={theme.textMuted} fontSize={t(16)}>▼</Text>}
                 </XStack>
               </YStack>
             ) : null}
@@ -240,7 +241,7 @@ export default function ProviderProfileScreen() {
           <Dialog.Overlay opacity={0.6} backgroundColor={theme.bg} />
           <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width="92%">
             <YStack gap="$2">
-              <Text fontSize={16} fontWeight="900" color={theme.text}>Select Service</Text>
+              <Text fontSize={t(16)} fontWeight="900" color={theme.text}>Select Service</Text>
               <YStack gap="$1">
                 {SERVICE_OPTIONS.map((s) => {
                   const active = selectedService === s.key;
@@ -253,7 +254,7 @@ export default function ProviderProfileScreen() {
                         borderColor={active ? theme.success : theme.border}
                         backgroundColor={active ? theme.success : 'transparent'}
                         justifyContent="center" alignItems="center">
-                        {active ? <Text color="#FFFFFF" fontSize={14} fontWeight="900">✓</Text> : null}
+                        {active ? <Text color="#FFFFFF" fontSize={t(14)} fontWeight="900">✓</Text> : null}
                       </XStack>
                       <Text fontWeight="700" color={active ? theme.couponText : theme.text} flex={1}>{s.label}</Text>
                     </XStack>
@@ -272,7 +273,7 @@ export default function ProviderProfileScreen() {
           <Dialog.Overlay opacity={0.6} backgroundColor={theme.bg} />
           <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width="92%">
             <YStack gap="$2">
-              <Text fontSize={16} fontWeight="900" color={theme.text}>Select State</Text>
+              <Text fontSize={t(16)} fontWeight="900" color={theme.text}>Select State</Text>
               <YStack gap="$1">
                 {Object.keys(STATE_CITY_MAP).map((state) => {
                   const active = selectedState === state;
@@ -285,7 +286,7 @@ export default function ProviderProfileScreen() {
                         borderColor={active ? '#1F4E79' : theme.border}
                         backgroundColor={active ? '#1F4E79' : 'transparent'}
                         justifyContent="center" alignItems="center">
-                        {active ? <Text color="#FFFFFF" fontSize={14} fontWeight="900">✓</Text> : null}
+                        {active ? <Text color="#FFFFFF" fontSize={t(14)} fontWeight="900">✓</Text> : null}
                       </XStack>
                       <Text fontWeight="700" color={theme.text} flex={1}>{state}</Text>
                     </XStack>
@@ -304,7 +305,7 @@ export default function ProviderProfileScreen() {
           <Dialog.Overlay opacity={0.6} backgroundColor={theme.bg} />
           <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width="92%">
             <YStack gap="$2">
-              <Text fontSize={16} fontWeight="900" color={theme.text}>Select City ({selectedState})</Text>
+              <Text fontSize={t(16)} fontWeight="900" color={theme.text}>Select City ({selectedState})</Text>
               <YStack gap="$1">
                 {availableCities.map((city) => {
                   const active = selectedCity === city;
@@ -317,7 +318,7 @@ export default function ProviderProfileScreen() {
                         borderColor={active ? theme.success : theme.border}
                         backgroundColor={active ? theme.success : 'transparent'}
                         justifyContent="center" alignItems="center">
-                        {active ? <Text color="#FFFFFF" fontSize={14} fontWeight="900">✓</Text> : null}
+                        {active ? <Text color="#FFFFFF" fontSize={t(14)} fontWeight="900">✓</Text> : null}
                       </XStack>
                       <Text fontWeight="700" color={active ? theme.couponText : theme.text} flex={1}>{city}</Text>
                     </XStack>

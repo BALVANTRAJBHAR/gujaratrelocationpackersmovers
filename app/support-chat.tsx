@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
+import { t } from '@/constants/typography';
 
 type ConversationRow = {
   id: string;
@@ -211,7 +212,7 @@ export default function SupportChatScreen() {
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={980} alignSelf="center">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+            <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
               AI Support
             </Text>
             <H2 color={theme.text}>Help & Chat</H2>
@@ -219,7 +220,7 @@ export default function SupportChatScreen() {
               Select a quick query, or type your message. If urgent, use WhatsApp/Call from Support screen.
             </Paragraph>
             {bookingId ? (
-              <Text color={theme.textMuted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={t(12)}>
                 Booking: {bookingId}
               </Text>
             ) : null}
@@ -251,7 +252,7 @@ export default function SupportChatScreen() {
               <Text color={theme.text} fontWeight="800">
                 Error
               </Text>
-              <Text color={theme.textMuted} fontSize={12}>
+              <Text color={theme.textMuted} fontSize={t(12)}>
                 {error}
               </Text>
             </YStack>
@@ -283,7 +284,7 @@ export default function SupportChatScreen() {
               scrollEnabled={false}
               contentContainerStyle={{ gap: 10, paddingVertical: 10 } as any}
               ListEmptyComponent={
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={t(12)}>
                   No messages yet. Start by selecting a quick option.
                 </Text>
               }
@@ -298,10 +299,10 @@ export default function SupportChatScreen() {
                     borderRadius={16}
                     padding={12}
                     maxWidth="92%">
-                    <Text color={theme.text} fontSize={13}>
+                    <Text color={theme.text} fontSize={t(13)}>
                       {item.message}
                     </Text>
-                    <Text color={isUser ? theme.text : theme.textMuted} fontSize={10} opacity={0.85} paddingTop={6}>
+                    <Text color={isUser ? theme.text : theme.textMuted} fontSize={t(10)} opacity={0.85} paddingTop={6}>
                       {new Date(item.created_at).toLocaleString()}
                     </Text>
                   </YStack>
@@ -328,7 +329,7 @@ export default function SupportChatScreen() {
               {loading ? <Spinner color={theme.accent} /> : null}
             </XStack>
 
-            <Text color={theme.textMuted} fontSize={11} paddingTop={8}>
+            <Text color={theme.textMuted} fontSize={t(11)} paddingTop={8}>
               AI responses may be incorrect. For urgent help, use WhatsApp/Call.
             </Text>
           </YStack>

@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
+import { t } from '@/constants/typography';
 
 type PhoneFlowStep = 'idle' | 'verify_current' | 'enter_new';
 
@@ -310,7 +311,7 @@ export default function ProfileSetupScreen() {
       <Paragraph color={theme.textMuted}>Your account details</Paragraph>
 
       {sessionLoading && !profile ? (
-        <Text color={theme.textMuted} fontSize={15}>
+        <Text color={theme.textMuted} fontSize={t(15)}>
           Loading profile…
         </Text>
       ) : null}
@@ -324,16 +325,16 @@ export default function ProfileSetupScreen() {
             backgroundColor={theme.primary}
             alignItems="center"
             justifyContent="center">
-            <Text color="#FFFFFF" fontWeight="900" fontSize={20} letterSpacing={1}>
+            <Text color="#FFFFFF" fontWeight="900" fontSize={t(20)} letterSpacing={1}>
               {initials}
             </Text>
           </YStack>
 
           <YStack flex={1} gap="$1">
-            <Text color={theme.text} fontSize={20} fontWeight="900">
+            <Text color={theme.text} fontSize={t(20)} fontWeight="900">
               {profile?.name?.trim() || '—'}
             </Text>
-            <Text color={theme.textMuted} fontSize={15} numberOfLines={1}>
+            <Text color={theme.textMuted} fontSize={t(15)} numberOfLines={1}>
               {displayEmail}
             </Text>
           </YStack>
@@ -345,7 +346,7 @@ export default function ProfileSetupScreen() {
             backgroundColor={theme.bgCardSecondary}
             borderWidth={1}
             borderColor={theme.border}>
-            <Text color={theme.text} fontSize={14} fontWeight="800">
+            <Text color={theme.text} fontSize={t(14)} fontWeight="800">
               {displayRole}
             </Text>
           </YStack>
@@ -355,7 +356,7 @@ export default function ProfileSetupScreen() {
 
         <YStack gap="$2">
           <XStack justifyContent="space-between" alignItems="center">
-            <Text color={theme.textMuted} fontSize={14} textTransform="uppercase" letterSpacing={1.3}>
+            <Text color={theme.textMuted} fontSize={t(14)} textTransform="uppercase" letterSpacing={1.3}>
               Business Card
             </Text>
 
@@ -432,7 +433,7 @@ export default function ProfileSetupScreen() {
 
           {phoneEditing ? (
             <YStack gap="$2" marginTop={4}>
-              <Text color={theme.textMuted} fontSize={14} textTransform="uppercase" letterSpacing={1.3}>
+              <Text color={theme.textMuted} fontSize={t(14)} textTransform="uppercase" letterSpacing={1.3}>
                 {phoneFlow === 'verify_current'
                   ? 'Verify Current Mobile'
                   : currentPhone
@@ -441,7 +442,7 @@ export default function ProfileSetupScreen() {
               </Text>
 
               {phoneFlow === 'verify_current' ? (
-                <Text color={theme.textSecondary} fontSize={15}>
+                <Text color={theme.textSecondary} fontSize={t(15)}>
                   OTP sent to {currentPhone.slice(0, 2)}****{currentPhone.slice(-4)}
                 </Text>
               ) : (
@@ -534,7 +535,7 @@ export default function ProfileSetupScreen() {
               </XStack>
 
               {phoneFlow === 'enter_new' && currentPhone && currentPhoneVerified ? (
-                <Text color={theme.success} fontSize={14} fontWeight="700">
+                <Text color={theme.success} fontSize={t(14)} fontWeight="700">
                   Current number verified. Enter your new mobile and verify OTP.
                 </Text>
               ) : null}
@@ -545,7 +546,7 @@ export default function ProfileSetupScreen() {
 
         <YStack gap="$2">
           <XStack justifyContent="space-between" alignItems="center">
-            <Text color={theme.textMuted} fontSize={14} textTransform="uppercase" letterSpacing={1.3}>
+            <Text color={theme.textMuted} fontSize={t(14)} textTransform="uppercase" letterSpacing={1.3}>
               Security
             </Text>
 
@@ -570,7 +571,7 @@ export default function ProfileSetupScreen() {
           {editingPassword ? (
             <YStack gap="$2">
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontSize={14}>
+                <Text color={theme.textMuted} fontSize={t(14)}>
                   New Password
                 </Text>
                 <XStack alignItems="center" gap="$1">
@@ -585,7 +586,7 @@ export default function ProfileSetupScreen() {
                   <Pressable
                     onPress={() => setShowNewPwd(!showNewPwd)}
                     style={{ padding: 12 }}>
-                    <Text color={theme.primary} fontSize={18}>
+                    <Text color={theme.primary} fontSize={t(18)}>
                       {showNewPwd ? '👁️' : '👁️‍🗨️'}
                     </Text>
                   </Pressable>
@@ -593,7 +594,7 @@ export default function ProfileSetupScreen() {
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontSize={14}>
+                <Text color={theme.textMuted} fontSize={t(14)}>
                   Confirm Password
                 </Text>
                 <XStack alignItems="center" gap="$1">
@@ -608,7 +609,7 @@ export default function ProfileSetupScreen() {
                   <Pressable
                     onPress={() => setShowConfirmPwd(!showConfirmPwd)}
                     style={{ padding: 12 }}>
-                    <Text color={theme.primary} fontSize={18}>
+                    <Text color={theme.primary} fontSize={t(18)}>
                       {showConfirmPwd ? '👁️' : '👁️‍🗨️'}
                     </Text>
                   </Pressable>
@@ -626,14 +627,14 @@ export default function ProfileSetupScreen() {
               </Button>
             </YStack>
           ) : (
-            <Text color={theme.textMuted} fontSize={15}>
+            <Text color={theme.textMuted} fontSize={t(15)}>
               Manage your account security
             </Text>
           )}
         </YStack>
 
           {error ? (
-            <Text color={theme.danger} fontSize={14}>
+            <Text color={theme.danger} fontSize={t(14)}>
               {error}
             </Text>
           ) : null}
@@ -641,7 +642,7 @@ export default function ProfileSetupScreen() {
       </YStack>
 
       <YStack alignItems="center" marginTop={8}>
-        <Text color={theme.textMuted} fontSize={13}>
+        <Text color={theme.textMuted} fontSize={t(13)}>
           {Platform.OS === 'android' ? 'Android' : Platform.OS}
         </Text>
       </YStack>

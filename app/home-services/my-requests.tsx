@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
@@ -10,6 +11,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { getRazorpayKeyId } from '@/lib/public-config';
+import { t } from '@/constants/typography';
+
 
 type HomeServiceRequestRow = {
   id: string;
@@ -64,12 +67,15 @@ const homeServiceRequestSelect =
 const homeServiceRequestBaseSelect =
   'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name';
 
-const isMissingPaymentColumnError = (error: unknown) => {
+const homeServiceRequestMinimalSelect =
+  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at';
+
+const isMissingColumnError = (error: unknown, column: string) => {
   const message = String((error as any)?.message ?? error ?? '').toLowerCase();
-  return message.includes('payment_option') || message.includes('payment_status') || message.includes('advance_payment');
+  return message.includes(column);
 };
 
-const withPaymentDefaults = (rows: unknown) =>
+const withDefaults = (rows: unknown) =>
   (((rows as any) ?? []) as any[]).map((row) => ({
     payment_option: null,
     payment_status: null,
@@ -77,6 +83,8 @@ const withPaymentDefaults = (rows: unknown) =>
     after_service_payment_method: null,
     cash_paid_at: null,
     cancelled_at: null,
+    provider_id: null,
+    provider_name: null,
     ...row,
   })) as HomeServiceRequestRow[];
 
@@ -84,6 +92,13 @@ export default function MyHomeServiceRequestsScreen() {
   const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const router = useRouter();
   const { session } = useSession();
+  const insets = useSafeAreaInsets();
+  const shareHomePdf = async (data: any) => {
+    try {
+      const { shareHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
+      await shareHomeServicePdf(data);
+    } catch {}
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,21 +133,26 @@ export default function MyHomeServiceRequestsScreen() {
 
     const seq = ++fetchSeqRef.current;
 
-    try {
-      let { data, error: fetchError } = await supabase
+    const trySelect = async (select: string): Promise<{ data: any; error: any }> => {
+      return supabase
         .from('home_service_requests')
-        .select(homeServiceRequestSelect)
+        .select(select)
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(60);
+    };
 
-      if (fetchError && isMissingPaymentColumnError(fetchError)) {
-        const fallback = await supabase
-          .from('home_service_requests')
-          .select(homeServiceRequestBaseSelect)
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false })
-          .limit(60);
+    try {
+      let { data, error: fetchError } = await trySelect(homeServiceRequestSelect);
+
+      if (fetchError && (isMissingColumnError(fetchError, 'payment_option') || isMissingColumnError(fetchError, 'payment_status') || isMissingColumnError(fetchError, 'advance_payment'))) {
+        const fallback = await trySelect(homeServiceRequestBaseSelect);
+        data = fallback.data;
+        fetchError = fallback.error;
+      }
+
+      if (fetchError && (isMissingColumnError(fetchError, 'provider_id') || isMissingColumnError(fetchError, 'provider_name'))) {
+        const fallback = await trySelect(homeServiceRequestMinimalSelect);
         data = fallback.data;
         fetchError = fallback.error;
       }
@@ -144,7 +164,7 @@ export default function MyHomeServiceRequestsScreen() {
         return;
       }
 
-      setItems(withPaymentDefaults(data));
+      setItems(withDefaults(data));
     } catch (e) {
       if (seq !== fetchSeqRef.current) return;
       setError(e instanceof Error ? e.message : 'Failed to load requests.');
@@ -349,7 +369,7 @@ export default function MyHomeServiceRequestsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={18}>
+      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={16 + insets.top}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button
             size="$3"
@@ -363,10 +383,10 @@ export default function MyHomeServiceRequestsScreen() {
             ‹
           </Button>
           <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={16} fontWeight="800">
+            <Text color="#FFFFFF" fontSize={t(16)} fontWeight="800">
               My Home Service Requests
             </Text>
-            <Text color={theme.textMuted} fontSize={12} fontWeight="600">
+            <Text color={theme.textMuted} fontSize={t(12)} fontWeight="600">
               Track your requests
             </Text>
           </YStack>
@@ -377,28 +397,28 @@ export default function MyHomeServiceRequestsScreen() {
         <YStack gap="$3">
           <XStack gap="$2" flexWrap="wrap">
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.text} fontWeight="900" fontSize={16}>{statusCounts.total ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Total</Text>
+              <Text color={theme.text} fontWeight="900" fontSize={t(16)}>{statusCounts.total ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Total</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.warning} fontWeight="900" fontSize={16}>{statusCounts.pending ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Pending</Text>
+              <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{statusCounts.pending ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Pending</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.success} fontWeight="900" fontSize={16}>{statusCounts.completed ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Completed</Text>
+              <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{statusCounts.completed ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Completed</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.danger} fontWeight="900" fontSize={16}>{statusCounts.cancelled ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Cancelled</Text>
+              <Text color={theme.danger} fontWeight="900" fontSize={t(16)}>{statusCounts.cancelled ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Cancelled</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.success} fontWeight="900" fontSize={16}>{statusCounts.paid ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Paid</Text>
+              <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{statusCounts.paid ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Paid</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
-              <Text color={theme.warning} fontWeight="900" fontSize={16}>{statusCounts.unpaid ?? 0}</Text>
-              <Text color={theme.textMuted} fontSize={10}>Unpaid</Text>
+              <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{statusCounts.unpaid ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Unpaid</Text>
             </YStack>
           </XStack>
 
@@ -444,72 +464,85 @@ export default function MyHomeServiceRequestsScreen() {
                 gap="$2">
                 <XStack justifyContent="space-between" alignItems="center" gap="$2" flexWrap="wrap">
                   <YStack flex={1} gap={4}>
-                    <Text color={titleColor} fontWeight="900" fontSize={14} numberOfLines={1}>
+                    <Text color={titleColor} fontWeight="900" fontSize={t(14)} numberOfLines={1}>
                       {labelForService(r.service_key)}
                     </Text>
-                    <Text color={muted} fontSize={12} numberOfLines={2}>
+                    <Text color={muted} fontSize={t(12)} numberOfLines={2}>
                       {r.locality || r.city || r.state ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}` : 'Location not provided'}
                     </Text>
-                    <Text color={muted} fontSize={11}>
+                    <Text color={muted} fontSize={t(11)}>
                       Created: {new Date(r.created_at).toLocaleString()}
                     </Text>
                   </YStack>
 
                   <YStack alignItems="flex-end" gap={6}>
-                    <Text color={statusColor} fontSize={12} fontWeight="800">
+                    <Text color={statusColor} fontSize={t(12)} fontWeight="800">
                       {statusText}
                     </Text>
-                    <Button
-                      size="$2"
-                      backgroundColor={panelBg}
-                      color={titleColor}
-                      borderRadius={10}
-                      onPress={async () => {
-                        const next = isOpen ? null : r.id;
-                        setOpenId(next);
-                        if (next) await fetchUploads(r.id);
-                      }}>
-                      {isOpen ? 'Hide' : 'Details'}
-                    </Button>
+                    <XStack gap={6} alignItems="center">
+                      {(r.status === 'completed' && (r.payment_status === 'paid' || r.after_service_payment_method)) ? (
+                        <Button
+                          size="$2"
+                          backgroundColor={theme.primary || '#1F4E79'}
+                          color="#FFFFFF"
+                          borderRadius={10}
+                          paddingHorizontal={10}
+                          onPress={() => void shareHomePdf(r as any)}>
+                          PDF
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="$2"
+                        backgroundColor={panelBg}
+                        color={titleColor}
+                        borderRadius={10}
+                        onPress={async () => {
+                          const next = isOpen ? null : r.id;
+                          setOpenId(next);
+                          if (next) await fetchUploads(r.id);
+                        }}>
+                        {isOpen ? 'Hide' : 'Details'}
+                      </Button>
+                    </XStack>
                   </YStack>
                 </XStack>
 
                 {isOpen ? (
                   <YStack backgroundColor={panelBg} borderRadius={14} padding={12} gap={10} borderWidth={1} borderColor={border}>
                     <YStack gap={6}>
-                      <Text color={titleColor} fontWeight="800" fontSize={12}>
+                      <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                         Contact
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={muted} fontSize={t(12)}>
                         {r.customer_name ?? '—'} • {r.customer_phone ?? '—'}
                       </Text>
                     </YStack>
 
                     <YStack gap={6}>
-                      <Text color={titleColor} fontWeight="800" fontSize={12}>
+                      <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                         Address
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={muted} fontSize={t(12)}>
                         {r.address_line1 ?? '—'}
                         {r.address_line2 ? `, ${r.address_line2}` : ''}
                       </Text>
                     </YStack>
 
                     <YStack gap={6}>
-                      <Text color={titleColor} fontWeight="800" fontSize={12}>
+                      <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                         Preferred slot
                       </Text>
-                      <Text color={muted} fontSize={12}>
+                      <Text color={muted} fontSize={t(12)}>
                         {(r.preferred_date ?? '—') + (r.preferred_time ? ` • ${r.preferred_time}` : '')}
                       </Text>
                     </YStack>
 
                     {r.notes ? (
                       <YStack gap={6}>
-                        <Text color={titleColor} fontWeight="800" fontSize={12}>
+                        <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                           Notes
                         </Text>
-                        <Text color={muted} fontSize={12}>
+                        <Text color={muted} fontSize={t(12)}>
                           {r.notes}
                         </Text>
                       </YStack>
@@ -517,7 +550,7 @@ export default function MyHomeServiceRequestsScreen() {
 
                     <YStack gap={6}>
                       <XStack alignItems="center" justifyContent="space-between" gap="$2">
-                        <Text color={titleColor} fontWeight="800" fontSize={12}>
+                        <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                           Uploads
                         </Text>
                         <Button
@@ -553,14 +586,14 @@ export default function MyHomeServiceRequestsScreen() {
                                 borderColor={border}
                                 gap="$2">
                                 <YStack flex={1} gap={2}>
-                                  <Text color={titleColor} fontSize={12} fontWeight="700" numberOfLines={1}>
+                                  <Text color={titleColor} fontSize={t(12)} fontWeight="700" numberOfLines={1}>
                                     {label}
                                   </Text>
-                                  <Text color={muted} fontSize={11} numberOfLines={1}>
+                                  <Text color={muted} fontSize={t(11)} numberOfLines={1}>
                                     {u.file_type}
                                   </Text>
                                 </YStack>
-                                <Text color={muted} fontSize={11}>
+                                <Text color={muted} fontSize={t(11)}>
                                   Open
                                 </Text>
                               </XStack>
@@ -568,15 +601,26 @@ export default function MyHomeServiceRequestsScreen() {
                           );
                         })
                       ) : (
-                        <Text color={muted} fontSize={12}>
+                        <Text color={muted} fontSize={t(12)}>
                           No uploads.
                         </Text>
                       )}
                     </YStack>
 
+                    {(r.status === 'completed' && (r.payment_status === 'paid' || r.after_service_payment_method)) ? (
+                      <Button
+                        size="$2"
+                        backgroundColor={theme.primary || '#1F4E79'}
+                        color="#FFFFFF"
+                        borderRadius={10}
+                        onPress={() => void shareHomePdf(r as any)}>
+                        Download Report
+                      </Button>
+                    ) : null}
+
                     {r.status === 'pending' && r.payment_option === 'after_service' ? (
                       <YStack gap={6}>
-                        <Text color={titleColor} fontWeight="800" fontSize={12}>
+                        <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                           Payment
                         </Text>
                         <XStack gap="$2" flexWrap="wrap">
@@ -609,7 +653,7 @@ export default function MyHomeServiceRequestsScreen() {
                     ) : null}
 
                     {r.status === 'cancelled' && r.payment_status === 'cancelled_with_charge' ? (
-                      <Text color={theme.danger} fontSize={12} fontWeight="800">
+                      <Text color={theme.danger} fontSize={t(12)} fontWeight="800">
                         ₹150 charge applied (cancelled within 1 hour of schedule).
                       </Text>
                     ) : null}
@@ -623,7 +667,7 @@ export default function MyHomeServiceRequestsScreen() {
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.headerBg} padding={14} borderTopWidth={1} borderTopColor={theme.border}>
+      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.headerBg} padding={14} paddingBottom={14 + insets.bottom} borderTopWidth={1} borderTopColor={theme.border}>
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
           <Button backgroundColor={theme.border} color={theme.text} onPress={() => router.replace('/home' as any)}>
             Home

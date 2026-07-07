@@ -5,6 +5,7 @@ import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { t } from '@/constants/typography';
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function ExploreScreen() {
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} style={{ backgroundColor: theme.bg }}>
       <YStack gap="$4">
         <YStack gap="$1">
-          <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+          <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
             Explore
           </Text>
           <H2 color={theme.text}>Services & support</H2>
@@ -41,10 +42,10 @@ export default function ExploreScreen() {
               flexBasis={260}
               borderWidth={1}
               borderColor={theme.border}>
-              <Text color={theme.text} fontSize={15} fontWeight="800">
+              <Text color={theme.text} fontSize={t(15)} fontWeight="800">
                 {card.title}
               </Text>
-              <Text color={theme.textMuted} fontSize={12} lineHeight={16}>
+              <Text color={theme.textMuted} fontSize={t(12)} lineHeight={16}>
                 {card.body}
               </Text>
             </YStack>
@@ -55,7 +56,7 @@ export default function ExploreScreen() {
           <Text color={theme.text} fontWeight="800">
             Need help?
           </Text>
-          <Text color={theme.textMuted} fontSize={12} lineHeight={16}>
+          <Text color={theme.textMuted} fontSize={t(12)} lineHeight={16}>
             Open the Contact section on Home for call/email support.
           </Text>
           <XStack paddingTop={8}>

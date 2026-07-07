@@ -9,6 +9,7 @@ import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { t } from '@/constants/typography';
 
 type Payment = {
   id: string;
@@ -115,7 +116,7 @@ export default function ModalScreen() {
 
   return (
     <YStack flex={1} backgroundColor={pageBg} padding={24} gap="$3">
-      <Text color={activeBtnBg} fontSize={12} letterSpacing={2} textTransform="uppercase">
+      <Text color={activeBtnBg} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
         Payment history
       </Text>
       <H2 color={titleColor}>All transactions</H2>
@@ -139,8 +140,8 @@ export default function ModalScreen() {
         ))}
       </XStack>
       <YStack backgroundColor={cardBg} padding={16} borderRadius={16}>
-        <Text color={muted} fontSize={12}>Total paid</Text>
-        <Text color={titleColor} fontSize={18} fontWeight="700">₹{totalPaid.toFixed(2)}</Text>
+        <Text color={muted} fontSize={t(12)}>Total paid</Text>
+        <Text color={titleColor} fontSize={t(18)} fontWeight="700">₹{totalPaid.toFixed(2)}</Text>
       </YStack>
 
       {loading ? <Text color={muted}>Loading...</Text> : null}
@@ -152,10 +153,10 @@ export default function ModalScreen() {
         contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
         renderItem={({ item }) => (
           <YStack backgroundColor={cardBg} padding={16} borderRadius={16} gap="$1">
-            <Text color={text} fontSize={13}>Status: {item.status ?? 'pending'}</Text>
-            <Text color={muted} fontSize={12}>Amount: ₹{Number(item.amount ?? 0).toFixed(2)}</Text>
-            <Text color={muted} fontSize={12}>Payment ID: {item.razorpay_payment_id ?? '—'}</Text>
-            <Text color={muted} fontSize={11}>
+            <Text color={text} fontSize={t(13)}>Status: {item.status ?? 'pending'}</Text>
+            <Text color={muted} fontSize={t(12)}>Amount: ₹{Number(item.amount ?? 0).toFixed(2)}</Text>
+            <Text color={muted} fontSize={t(12)}>Payment ID: {item.razorpay_payment_id ?? '—'}</Text>
+            <Text color={muted} fontSize={t(11)}>
               {new Date(item.created_at).toLocaleString()}
             </Text>
             <Button

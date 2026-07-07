@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
+import { t } from '@/constants/typography';
 
 type ApprovalRecord = {
   id: string;
@@ -228,7 +229,7 @@ export default function AdminHistoryScreen() {
     <YStack flex={1} backgroundColor={theme.bg} padding={24} gap="$4">
       <XStack justifyContent="space-between" alignItems="center">
         <YStack gap="$1">
-          <Text color={theme.accent} fontSize={12} letterSpacing={2} textTransform="uppercase">
+          <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
             Admin
           </Text>
           <H2 color={theme.text}>Approval history</H2>
@@ -249,7 +250,7 @@ export default function AdminHistoryScreen() {
 
       <XStack gap="$2" flexWrap="wrap" alignItems="center">
         <YStack gap="$1">
-          <Text color={theme.textMuted} fontSize={11}>Start date (YYYY-MM-DD)</Text>
+          <Text color={theme.textMuted} fontSize={t(11)}>Start date (YYYY-MM-DD)</Text>
           <Input
             value={startDate}
             onChangeText={setStartDate}
@@ -272,7 +273,7 @@ export default function AdminHistoryScreen() {
           Pick
         </Button>
         <YStack gap="$1">
-          <Text color={theme.textMuted} fontSize={11}>End date (YYYY-MM-DD)</Text>
+          <Text color={theme.textMuted} fontSize={t(11)}>End date (YYYY-MM-DD)</Text>
           <Input
             value={endDate}
             onChangeText={setEndDate}
@@ -319,7 +320,7 @@ export default function AdminHistoryScreen() {
       {!canManage ? (
         <YStack backgroundColor={theme.bgSecondary} padding={20} borderRadius={18} gap="$2" borderWidth={1} borderColor={theme.border}>
           <Text color={theme.text} fontWeight="700">Admin access only</Text>
-          <Text color={theme.textMuted} fontSize={12}>
+          <Text color={theme.textMuted} fontSize={t(12)}>
             You do not have permission to view approvals.
           </Text>
         </YStack>
@@ -336,7 +337,7 @@ export default function AdminHistoryScreen() {
                 <Text color={theme.text} fontWeight="700">Admin action logs</Text>
                 <XStack gap="$2" flexWrap="wrap" alignItems="center">
                   <YStack gap="$1">
-                    <Text color={theme.textMuted} fontSize={11}>Log start (YYYY-MM-DD)</Text>
+                    <Text color={theme.textMuted} fontSize={t(11)}>Log start (YYYY-MM-DD)</Text>
                     <Input
                       value={logsStartDate}
                       onChangeText={setLogsStartDate}
@@ -359,7 +360,7 @@ export default function AdminHistoryScreen() {
                     Pick
                   </Button>
                   <YStack gap="$1">
-                    <Text color={theme.textMuted} fontSize={11}>Log end (YYYY-MM-DD)</Text>
+                    <Text color={theme.textMuted} fontSize={t(11)}>Log end (YYYY-MM-DD)</Text>
                     <Input
                       value={logsEndDate}
                       onChangeText={setLogsEndDate}
@@ -433,14 +434,14 @@ export default function AdminHistoryScreen() {
                 {logsLoading ? <Text color={theme.textMuted}>Loading logs...</Text> : null}
 
                 {!actionLogs.length && !logsLoading ? (
-                  <Text color={theme.textMuted} fontSize={12}>No action logs yet.</Text>
+                  <Text color={theme.textMuted} fontSize={t(12)}>No action logs yet.</Text>
                 ) : (
                   actionLogs.map((log) => (
                     <YStack key={log.id} backgroundColor={theme.bgCard} borderRadius={16} padding={14} gap="$1" borderWidth={1} borderColor={theme.border}>
-                      <Text color={theme.text} fontSize={12} fontWeight="600">
+                      <Text color={theme.text} fontSize={t(12)} fontWeight="600">
                         {log.action_type ?? 'action'}
                       </Text>
-                      <Text color={theme.textMuted} fontSize={11}>
+                      <Text color={theme.textMuted} fontSize={t(11)}>
                         {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                       </Text>
                     </YStack>
@@ -461,11 +462,11 @@ export default function AdminHistoryScreen() {
             }
             renderItem={({ item }) => (
               <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-                <Text color={theme.text} fontWeight="700" fontSize={14}>
+                <Text color={theme.text} fontWeight="700" fontSize={t(14)}>
                   {item.name ?? 'Driver'}
                 </Text>
-                <Text color={theme.textMuted} fontSize={12}>Phone: {item.phone ?? '—'}</Text>
-                <Text color={theme.textMuted} fontSize={12}>
+                <Text color={theme.textMuted} fontSize={t(12)}>Phone: {item.phone ?? '—'}</Text>
+                <Text color={theme.textMuted} fontSize={t(12)}>
                   Approved: {item.approved_at ? new Date(item.approved_at).toLocaleString() : '—'}
                 </Text>
               </YStack>

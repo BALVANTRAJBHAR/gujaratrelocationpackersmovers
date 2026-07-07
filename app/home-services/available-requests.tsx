@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 
 type AvailableRequest = {
   id: string;
@@ -191,7 +192,7 @@ export default function AvailableRequestsScreen() {
       <YStack backgroundColor={theme.headerBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
         <XStack alignItems="center" gap="$2">
           <Button chromeless color={titleColor} onPress={() => router.back()}>‹ Back</Button>
-          <Text color={titleColor} fontSize={18} fontWeight="900">
+          <Text color={titleColor} fontSize={t(18)} fontWeight="900">
             Available Requests
           </Text>
         </XStack>
@@ -235,30 +236,30 @@ export default function AvailableRequestsScreen() {
           {items.map((req) => (
             <YStack key={req.id} backgroundColor={panelBg} borderRadius={14} padding={14} borderWidth={1} borderColor={border} gap="$2">
               <XStack alignItems="center" justifyContent="space-between">
-                <Text color={titleColor} fontWeight="900" fontSize={14}>
+                <Text color={titleColor} fontWeight="900" fontSize={t(14)}>
                   {labelForService(req.service_key)}
                 </Text>
-                <Text color={muted} fontSize={11}>
+                <Text color={muted} fontSize={t(11)}>
                   {new Date(req.created_at).toLocaleDateString()}
                 </Text>
               </XStack>
 
-              <Text color={muted} fontSize={12}>
+              <Text color={muted} fontSize={t(12)}>
                 {req.customer_name ? `${req.customer_name} · ` : ''}
                 {req.locality}{req.locality ? ', ' : ''}{req.city}{req.city ? ', ' : ''}{req.state}
               </Text>
 
               {req.preferred_date ? (
-                <Text color={titleColor} fontSize={12}>Preferred: {req.preferred_date}{req.preferred_time ? `, ${req.preferred_time}` : ''}</Text>
+                <Text color={titleColor} fontSize={t(12)}>Preferred: {req.preferred_date}{req.preferred_time ? `, ${req.preferred_time}` : ''}</Text>
               ) : null}
 
               {req.notes ? (
-                <Text color={muted} fontSize={11} numberOfLines={2}>{req.notes}</Text>
+                <Text color={muted} fontSize={t(11)} numberOfLines={2}>{req.notes}</Text>
               ) : null}
 
               {statusFilter === 'accepted' && req.provider_name ? (
                 <YStack gap="$2">
-                  <Text color={theme.success} fontSize={12} fontWeight="700">Accepted by you</Text>
+                  <Text color={theme.success} fontSize={t(12)} fontWeight="700">Accepted by you</Text>
                   {req.after_service_payment_method === 'cash' && !req.cash_paid_at ? (
                     <Button
                       backgroundColor="#22C55E"
@@ -268,7 +269,7 @@ export default function AvailableRequestsScreen() {
                     </Button>
                   ) : null}
                   {req.cash_paid_at ? (
-                    <Text color={theme.success} fontSize={12} fontWeight="700">✓ Cash received</Text>
+                    <Text color={theme.success} fontSize={t(12)} fontWeight="700">✓ Cash received</Text>
                   ) : null}
                 </YStack>
               ) : null}

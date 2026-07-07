@@ -1,6 +1,8 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { t } from '@/constants/typography';
+import { signOutSupabaseSafe } from '@/lib/supabase';
 import {
   Dimensions,
   Platform,
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image, Text, XStack, YStack } from 'tamagui';
+
 
 const { width: screenWidth } = Dimensions.get('window');
 const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
@@ -61,9 +64,17 @@ export default function StickyHeader({
 }: StickyHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const handleLogin = () => (onLoginPress ? onLoginPress() : router.push('/auth/login'));
+  const handleLogoutClick = async () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      await signOutSupabaseSafe();
+      router.replace('/home');
+    }
+  };
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;
   const [headerHovered, setHeaderHovered] = React.useState<string | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [servicesOpen, setServicesOpen] = React.useState(false);
 
   const handleMenuPress = (item: string) => {
@@ -121,13 +132,13 @@ export default function StickyHeader({
             minWidth={0}
             maxWidth={isSmallScreen ? '58%' : 250}>
             <Image
-              source={Platform.OS === 'web' ? require('../../assets/images/PackersMoversLogo.png') : require('../../assets/images/apico.png')}
+              source={Platform.OS === 'web' ? require('../../assets/images/PackersMoversLogo.png') : require('../../assets/images/MAppLogo.png')}
               style={[styles.logo, isSmallScreen && styles.logoMobile]}
             />
             <YStack flexShrink={1} minWidth={0}>
               <Text
                 color={theme.text}
-                fontSize={isSmallScreen ? 14 : 17}
+                fontSize={isSmallScreen ? t(14) : t(17)}
                 fontWeight="900"
                 lineHeight={isSmallScreen ? 16 : 19}
                 numberOfLines={1}
@@ -137,7 +148,7 @@ export default function StickyHeader({
               </Text>
               <Text
                 color={theme.text}
-                fontSize={isSmallScreen ? 14 : 17}
+                fontSize={isSmallScreen ? t(14) : t(17)}
                 fontWeight="900"
                 lineHeight={isSmallScreen ? 16 : 19}
                 numberOfLines={1}
@@ -172,7 +183,7 @@ export default function StickyHeader({
                         style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                         <Text
                           color={theme.menuText}
-                          fontSize={15}
+                          fontSize={t(15)}
                           fontWeight="700"
                           letterSpacing={0.3}
                           style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
@@ -199,7 +210,7 @@ export default function StickyHeader({
                               borderRadius={10}>
                               <Text
                                 color={theme.text}
-                                fontSize={14}
+                                fontSize={t(14)}
                                 fontWeight="600"
                                 style={{ fontFamily: APP_SERIF_FONT }}>
                                 {sub.label}
@@ -227,12 +238,70 @@ export default function StickyHeader({
                       shadowRadius={6}
                       elevation={3}
                       style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
+                      <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
                         {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
                       </Text>
                     </YStack>
                   </Pressable>
                 ) : null}
+
+                {!session ? (
+                  <Pressable
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    onPress={handleLogin}>
+                    <YStack
+                      paddingHorizontal={22}
+                      paddingVertical={12}
+                      borderRadius={14}
+                      backgroundColor={theme.menuBg}
+                      borderWidth={1}
+                      borderColor={headerHovered === 'signin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                      shadowColor={theme.shadow}
+                      shadowOffset={{ width: 0, height: 3 }}
+                      shadowOpacity={0.12}
+                      shadowRadius={6}
+                      elevation={3}
+                      style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                      <Text
+                        color={theme.menuText}
+                        fontSize={t(15)}
+                        fontWeight="800"
+                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                        Sign In
+                      </Text>
+                    </YStack>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    onPress={handleLogoutClick}>
+                    <YStack
+                      paddingHorizontal={16}
+                      paddingVertical={12}
+                      borderRadius={14}
+                      backgroundColor={theme.menuBg}
+                      borderWidth={1}
+                      borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                      shadowColor={theme.shadow}
+                      shadowOffset={{ width: 0, height: 3 }}
+                      shadowOpacity={0.12}
+                      shadowRadius={6}
+                      elevation={3}
+                      alignItems="center"
+                      justifyContent="center"
+                      style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                      {MaterialIcons ? (
+                        <MaterialIcons name="logout" size={20} color={theme.menuText} />
+                      ) : (
+                        <Text color={theme.menuText} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
+                          Logout
+                        </Text>
+                      )}
+                    </YStack>
+                  </Pressable>
+                )}
 
                 {session && canManage ? (
                   <Pressable
@@ -270,7 +339,7 @@ export default function StickyHeader({
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}>
-                            <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                            <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
                               {unreadCount > 99 ? '99+' : String(unreadCount)}
                             </Text>
                           </View>
@@ -297,7 +366,7 @@ export default function StickyHeader({
                       style={headerHovered === 'dashboard' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text
                         color={theme.menuText}
-                        fontSize={15}
+                        fontSize={t(15)}
                         fontWeight="700"
                         style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
                         Dashboard
@@ -325,64 +394,10 @@ export default function StickyHeader({
                       style={headerHovered === 'profile' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text
                         color={theme.menuText}
-                        fontSize={15}
+                        fontSize={t(15)}
                         fontWeight="700"
                         style={{ fontFamily: APP_SERIF_FONT }}>
                         {'\uD83D\uDC64'} Profile
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                ) : null}
-
-                {session && onLogout ? (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={onLogout}>
-                    <YStack
-                      paddingHorizontal={16}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      {MaterialIcons ? (
-                        <MaterialIcons name="logout" size={20} color={theme.menuText} />
-                      ) : (
-                        <Text color={theme.menuText} fontSize={15} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
-                          Logout
-                        </Text>
-                      )}
-                    </YStack>
-                  </Pressable>
-                ) : null}
-
-                {!session && onLoginPress ? (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={onLoginPress}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'signin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={15}
-                        fontWeight="800"
-                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                        Sign In
                       </Text>
                     </YStack>
                   </Pressable>
@@ -406,7 +421,7 @@ export default function StickyHeader({
                     shadowRadius={6}
                     elevation={3}
                     style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text fontSize={18} style={{ textDecorationLine: 'none' }}>
+                    <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
                       {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
                     </Text>
                   </YStack>
@@ -449,7 +464,7 @@ export default function StickyHeader({
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}>
-                          <Text color="#FFFFFF" fontSize={10} fontWeight="700">
+                          <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
                             {unreadCount > 99 ? '99+' : String(unreadCount)}
                           </Text>
                         </View>
@@ -459,117 +474,65 @@ export default function StickyHeader({
                 </Pressable>
               ) : null}
 
-              <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mhamburger') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                <YStack
-                  paddingHorizontal={16}
-                  paddingVertical={11}
-                  borderRadius={12}
-                  backgroundColor={theme.menuBg}
-                  borderWidth={1}
-                  borderColor={headerHovered === 'mhamburger' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                  shadowColor={theme.shadow}
-                  shadowOffset={{ width: 0, height: 3 }}
-                  shadowOpacity={0.12}
-                  shadowRadius={6}
-                  elevation={3}
-                  style={headerHovered === 'mhamburger' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                  <Text color={theme.menuText} fontSize={18} style={{ textDecorationLine: 'none' }}>
-                    {'\u2630'}
-                  </Text>
-                </YStack>
-              </Pressable>
+              {!session ? (
+                <Pressable onPress={handleLogin}>
+                  <YStack
+                    paddingHorizontal={14}
+                    paddingVertical={11}
+                    borderRadius={12}
+                    backgroundColor={theme.menuBg}
+                    borderWidth={1}
+                    borderColor={headerHovered === 'mlogin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                    shadowColor={theme.shadow}
+                    shadowOffset={{ width: 0, height: 3 }}
+                    shadowOpacity={0.12}
+                    shadowRadius={6}
+                    elevation={3}
+                    style={headerHovered === 'mlogin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                    <Text
+                      color={theme.menuText}
+                      fontSize={t(14)}
+                      fontWeight="800"
+                      style={{ fontFamily: APP_SERIF_FONT }}>
+                      Log In
+                    </Text>
+                  </YStack>
+                </Pressable>
+              ) : null}
+
+              {session && onLogout ? (
+                <Pressable onPress={handleLogoutClick}>
+                  <YStack
+                    paddingHorizontal={14}
+                    paddingVertical={11}
+                    borderRadius={12}
+                    backgroundColor={theme.menuBg}
+                    borderWidth={1}
+                    borderColor={headerHovered === 'mlogout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+                    shadowColor={theme.shadow}
+                    shadowOffset={{ width: 0, height: 3 }}
+                    shadowOpacity={0.12}
+                    shadowRadius={6}
+                    elevation={3}
+                    alignItems="center"
+                    justifyContent="center"
+                    style={headerHovered === 'mlogout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+                    {MaterialIcons ? (
+                      <MaterialIcons name="logout" size={18} color={theme.menuText} />
+                    ) : (
+                      <Text color={theme.menuText} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
+                        Logout
+                      </Text>
+                    )}
+                  </YStack>
+                </Pressable>
+              ) : null}
             </XStack>
           )}
         </XStack>
       </View>
 
-      {isSmallScreen && mobileMenuOpen ? (
-        <Pressable style={[styles.mobileMenuOverlay, { top: 56 }]} onPress={() => setMobileMenuOpen(false)}>
-          <Pressable onPress={() => {}} style={{ width: '100%' } as any}>
-            <YStack
-              backgroundColor={theme.bgCard}
-              borderRadius={18}
-              padding={22}
-              gap={14}
-              borderWidth={1}
-              borderColor={theme.border}
-              shadowColor={theme.shadow}
-              shadowOffset={{ width: 0, height: 10 }}
-              shadowOpacity={0.18}
-              shadowRadius={20}
-              elevation={10}>
-              {menuItems.map((item) => (
-                <View key={item}>
-                  <Pressable onPress={() => handleMenuPress(item)}>
-                    <Text color={theme.text} fontSize={17} fontWeight="700" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                      {item}
-                    </Text>
-                  </Pressable>
-                  {item === 'Services' && servicesOpen ? (
-                    <YStack paddingLeft={16} gap={4} paddingBottom={4}>
-                      {serviceSubMenuItems.map((sub) => (
-                        <Pressable key={sub.label} onPress={() => handleServicesItemPress(sub.route)}>
-                          <Text color={theme.textSecondary ?? theme.text} fontSize={15} fontWeight="500" paddingVertical={8} style={{ fontFamily: APP_SERIF_FONT }}>
-                            {sub.label}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </YStack>
-                  ) : null}
-                </View>
-              ))}
 
-              {session && onDashboardPress ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    onDashboardPress();
-                  }}>
-                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                    Dashboard
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              {session && onProfilePress ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    onProfilePress();
-                  }}>
-                  <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                    My Profile
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              {session && onLogout ? (
-                <Pressable
-                  onPress={() => {
-                    setMobileMenuOpen(false);
-                    onLogout();
-                  }}>
-                  <Text color={theme.accent} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                    Logout
-                  </Text>
-                </Pressable>
-              ) : (
-                onLoginPress ? (
-                  <Pressable
-                    onPress={() => {
-                      setMobileMenuOpen(false);
-                      onLoginPress();
-                    }}>
-                    <Text color={theme.primary} fontSize={17} fontWeight="800" paddingVertical={10} style={{ fontFamily: APP_SERIF_FONT }}>
-                      Login
-                    </Text>
-                  </Pressable>
-                ) : null
-              )}
-            </YStack>
-          </Pressable>
-        </Pressable>
-      ) : null}
     </>
   );
 }
@@ -614,7 +577,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   logoMobile: {
-    width: 41,
-    height: 41,
+    width: 64,
+    height: 64,
   },
 });

@@ -4,13 +4,15 @@ import '@/lib/font-web-guard-init';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform, Text as RNText, TextInput as RNTextInput } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Platform, Text as RNText, TextInput as RNTextInput, useWindowDimensions } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
+import MobileBottomNav from '@/app/components/MobileBottomNav';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import '@/lib/driver-location-task';
 import { themes } from '@/constants/theme';
@@ -18,6 +20,7 @@ import { installFontTimeoutGuard, preloadWebIconFonts } from '@/lib/font-web-gua
 import { installSupabaseAuthAbortGuard } from '@/lib/supabase-auth-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider } from '@/providers/session-provider';
+import { useSession } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
 
 const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
@@ -41,6 +44,47 @@ installDefaultTextFont();
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+function AppLayoutInner() {
+  const { session } = useSession();
+  const { width: screenWidth } = useWindowDimensions();
+  const pathname = usePathname();
+  const isMobile = screenWidth <= 768;
+  const hideNav = pathname === '/' || pathname.startsWith('/auth');
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  return (
+    <>
+      <Stack>
+        <Stack.Screen name="splash" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
+        <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
+        <Stack.Screen name="home-services/request" options={{ headerShown: false }} />
+        <Stack.Screen name="home-services/my-requests" options={{ headerShown: false }} />
+        <Stack.Screen name="home-services/available-requests" options={{ headerShown: false }} />
+        <Stack.Screen name="properties/index" options={{ headerShown: false }} />
+        <Stack.Screen name="properties/post" options={{ headerShown: false }} />
+        <Stack.Screen name="properties/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="properties/my-properties" options={{ headerShown: false }} />
+        <Stack.Screen name="book/index" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+        <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/login" options={{ title: 'Login' }} />
+        <Stack.Screen name="auth/register" options={{ title: 'Register' }} />
+        <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/staff-management" options={{ headerShown: false }} />
+      </Stack>
+      {isMobile && !hideNav ? <MobileBottomNav theme={theme} session={session} /> : null}
+    </>
+  );
+}
 
 function AppLayout() {
   const colorScheme = useColorScheme();
@@ -68,31 +112,7 @@ function AppLayout() {
       <TamaguiProvider config={tamaguiConfig}>
         <PortalProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="splash" options={{ headerShown: false }} />
-              <Stack.Screen name="home" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="notifications" options={{ headerShown: false }} />
-              <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />
-              <Stack.Screen name="services/[slug]" options={{ headerShown: false }} />
-              <Stack.Screen name="home-services/request" options={{ headerShown: false }} />
-              <Stack.Screen name="home-services/my-requests" options={{ headerShown: false }} />
-              <Stack.Screen name="home-services/available-requests" options={{ headerShown: false }} />
-              <Stack.Screen name="properties/index" options={{ headerShown: false }} />
-              <Stack.Screen name="properties/post" options={{ headerShown: false }} />
-              <Stack.Screen name="properties/[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="properties/my-properties" options={{ headerShown: false }} />
-              <Stack.Screen name="book/index" options={{ headerShown: false }} />
-              <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
-              <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
-              <Stack.Screen name="auth/login" options={{ title: 'Login' }} />
-              <Stack.Screen name="auth/register" options={{ title: 'Register' }} />
-              <Stack.Screen name="auth/profile" options={{ title: 'Profile' }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
-              <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
-              <Stack.Screen name="admin/staff-management" options={{ headerShown: false }} />
-            </Stack>
+            <AppLayoutInner />
             <StatusBar
               style={colorScheme === 'dark' ? 'light' : 'dark'}
               backgroundColor={statusTheme.headerBg}

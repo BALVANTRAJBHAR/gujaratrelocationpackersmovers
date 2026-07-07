@@ -26,18 +26,34 @@ CREATE INDEX IF NOT EXISTS idx_home_service_acceptances_provider_id
 ALTER TABLE public.home_service_acceptances ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Providers can insert own acceptances
-CREATE POLICY IF NOT EXISTS "Providers can accept requests"
-  ON public.home_service_acceptances
-  FOR INSERT
-  WITH CHECK (provider_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'home_service_acceptances' AND policyname = 'Providers can accept requests'
+  ) THEN
+    CREATE POLICY "Providers can accept requests"
+      ON public.home_service_acceptances
+      FOR INSERT
+      WITH CHECK (provider_id = auth.uid());
+  END IF;
+END $$;
 
 -- Policy: Users can view acceptances for their requests
-CREATE POLICY IF NOT EXISTS "Users can view acceptances for their requests"
-  ON public.home_service_acceptances
-  FOR SELECT
-  USING (
-    request_id IN (
-      SELECT id FROM public.home_service_requests WHERE user_id = auth.uid()
-    )
-    OR provider_id = auth.uid()
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'home_service_acceptances' AND policyname = 'Users can view acceptances for their requests'
+  ) THEN
+    CREATE POLICY "Users can view acceptances for their requests"
+      ON public.home_service_acceptances
+      FOR SELECT
+      USING (
+        request_id IN (
+          SELECT id FROM public.home_service_requests WHERE user_id = auth.uid()
+        )
+        OR provider_id = auth.uid()
+      );
+  END IF;
+END $$;
