@@ -10,7 +10,6 @@ import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from '
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AppDateTimePicker from '@/components/AppDateTimePicker';
 import BookingMapPicker from '@/components/booking-map-picker';
 import { PropertyMediaGrid, type PropertyMediaItem } from '@/components/property-media-grid';
 import { usePropertyWizardFlowSync } from '@/hooks/use-property-wizard-flow-sync';
@@ -30,6 +29,98 @@ import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { t } from '@/constants/typography';
+
+function MobileTimePicker({ value, onChange, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; open: boolean; onClose: () => void;
+}) {
+  const [h, setH] = useState(value.getHours());
+  const [m, setM] = useState(value.getMinutes());
+  useEffect(() => { if (open) { setH(value.getHours()); setM(value.getMinutes()); } }, [open, value]);
+  const pick = () => { const d = new Date(value); d.setHours(h, m, 0, 0); onChange(d); onClose(); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={24} ai="center" w="80%" maw={300}>
+          <Text fontWeight="800" fontSize={18} color="#000" mb={20}>Select Time</Text>
+          <XStack ai="center" gap={4} mb={24}>
+            <YStack ai="center">
+              <Pressable onPress={() => setH(h => h === 23 ? 0 : h + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
+              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+                <Text fontWeight="800" fontSize={24} color="#000">{String(h).padStart(2, '0')}</Text>
+              </YStack>
+              <Pressable onPress={() => setH(h => h === 0 ? 23 : h - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
+            </YStack>
+            <Text fontWeight="800" fontSize={24} color="#000">:</Text>
+            <YStack ai="center">
+              <Pressable onPress={() => setM(m => m === 59 ? 0 : m + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
+              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+                <Text fontWeight="800" fontSize={24} color="#000">{String(m).padStart(2, '0')}</Text>
+              </YStack>
+              <Pressable onPress={() => setM(m => m === 0 ? 59 : m - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
+            </YStack>
+          </XStack>
+          <XStack gap={16}>
+            <Pressable onPress={onClose}><YStack bg="#E0E0E0" br={8} px={24} py={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
+            <Pressable onPress={pick}><YStack bg="#1F4E79" br={8} px={24} py={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
+          </XStack>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
+
+function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; minDate?: Date; maxDate?: Date; open: boolean; onClose: () => void;
+}) {
+  const [vy, setVy] = useState(value.getFullYear());
+  const [vm, setVm] = useState(value.getMonth());
+  const daysIn = new Date(vy, vm + 1, 0).getDate();
+  const fdow = new Date(vy, vm, 1).getDay();
+  const days: (number | null)[] = Array(fdow).fill(null);
+  for (let d = 1; d <= daysIn; d++) days.push(d);
+  const monNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dis = (d: number) => {
+    const dt = new Date(vy, vm, d, 12, 0, 0, 0);
+    dt.setHours(0, 0, 0, 0);
+    if (minDate && dt.getTime() < minDate.getTime()) return true;
+    if (maxDate && dt.getTime() > maxDate.getTime()) return true;
+    return false;
+  };
+  const pick = (d: number) => { onChange(new Date(vy, vm, d, 12, 0, 0, 0)); onClose(); };
+  const prevM = () => { if (vm === 0) { setVy(y => y - 1); setVm(11); } else setVm(m => m - 1); };
+  const nextM = () => { if (vm === 11) { setVy(y => y + 1); setVm(0); } else setVm(m => m + 1); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
+          <XStack jc="space-between" ai="center" mb={12}>
+            <Pressable onPress={prevM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'◀'}</Text></Pressable>
+            <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]} {vy}</Text>
+            <Pressable onPress={nextM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'▶'}</Text></Pressable>
+          </XStack>
+          <XStack flexWrap="wrap">
+            {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+          </XStack>
+          <XStack flexWrap="wrap">
+            {days.map((d, i) => (
+              <YStack key={i} w="14.28%" ai="center" py={2}>
+                {d ? (
+                  <Pressable onPress={() => pick(d)} disabled={dis(d)}>
+                    <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                      <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
+                    </YStack>
+                  </Pressable>
+                ) : <YStack w={36} h={36} />}
+              </YStack>
+            ))}
+          </XStack>
+          <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
@@ -390,6 +481,22 @@ export default function PostPropertyScreen() {
 
   const createdPropertyIdRef = useRef<string | null>(null);
   const mediaMimeByUriRef = useRef<Record<string, string>>({});
+  const lastPickTimeRef = useRef(0);
+  const [pgAvailOpen, setPgAvailOpen] = useState(false);
+  const [availDateOpen, setAvailDateOpen] = useState(false);
+  const [pgGateTimeOpen, setPgGateTimeOpen] = useState(false);
+  const [startTimeOpen, setStartTimeOpen] = useState(false);
+  const [endTimeOpen, setEndTimeOpen] = useState(false);
+
+  const pickAvailDate = (d: Date) => {
+    const clamped = clampAvailableFromDate(d);
+    if (!clamped) return;
+    setAvailableFromDate(clamped);
+    setAvailableFromText(formatDateDdMmYyyy(clamped));
+  };
+
+  const datePickerToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const datePickerMax = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() + 2); d.setHours(23, 59, 59, 999); return d; }, []);
 
   useEffect(() => {
     if (!editId || !session?.user?.id) return;
@@ -2030,16 +2137,10 @@ export default function PostPropertyScreen() {
   const valueWeight: any = '400';
 
   const clampAvailableFromDate = (d: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const max = new Date(today);
-    max.setMonth(max.getMonth() + 2);
-    max.setHours(23, 59, 59, 999);
-
     const picked = new Date(d);
     picked.setHours(0, 0, 0, 0);
-    if (picked.getTime() < today.getTime()) return null;
-    if (picked.getTime() > max.getTime()) return null;
+    if (picked.getTime() < datePickerToday.getTime()) return null;
+    if (picked.getTime() > datePickerMax.getTime()) return null;
     return picked;
   };
 
@@ -3709,27 +3810,23 @@ export default function PostPropertyScreen() {
                   <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Available From*
                   </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                    <YStack padding={12}>
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {pgAvailableFromDate ? formatDateDdMmYyyy(pgAvailableFromDate) : pgAvailableFromText || 'Select date'}
-                      </Text>
+                  <Pressable onPress={() => setPgAvailOpen(true)}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                      <YStack padding={12}>
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {pgAvailableFromDate ? formatDateDdMmYyyy(pgAvailableFromDate) : pgAvailableFromText || 'Select date'}
+                        </Text>
+                      </YStack>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01}>
-                      <AppDateTimePicker
-                        value={pgAvailableFromDate ?? new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(_e: any, d?: Date) => {
-                          if ((_e as any)?.type === 'dismissed') return;
-                          if (!d) return;
-                          setPgAvailableFromDate(d);
-                          setPgAvailableFromText('');
-                        }}
-                        style={{ height: 48, padding: '0 12px' }}
-                      />
-                    </YStack>
-                  </YStack>
+                  </Pressable>
+                  <MobileDatePicker
+                    value={pgAvailableFromDate ?? datePickerToday}
+                    minDate={datePickerToday}
+                    maxDate={datePickerMax}
+                    open={pgAvailOpen}
+                    onClose={() => setPgAvailOpen(false)}
+                    onChange={(d) => { setPgAvailableFromDate(d); setPgAvailableFromText(''); }}
+                  />
                 </YStack>
               </XStack>
 
@@ -3856,24 +3953,13 @@ export default function PostPropertyScreen() {
                   Gate Closing Time*
                 </Text>
                 <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                  <YStack padding={12}>
-                    <Text color={valueColor} fontWeight={valueWeight}>
-                      {pgGateClosingTime ? formatTimeHhMm(pgGateClosingTime) : 'Gate Closing Time'}
-                    </Text>
-                  </YStack>
-                  <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01}>
-                    <AppDateTimePicker
-                      value={pgGateClosingTime ?? new Date()}
-                      mode="time"
-                      display="default"
-                      onChange={(_e: any, d?: Date) => {
-                          if ((_e as any)?.type === 'dismissed') return;
-                          if (!d) return;
-                          setPgGateClosingTime(d);
-                        }}
-                      style={{ height: 48, padding: '0 12px' }}
-                    />
-                  </YStack>
+                  <Pressable onPress={() => setPgGateTimeOpen(true)}>
+                    <YStack padding={12}>
+                      <Text color={valueColor} fontWeight={valueWeight}>
+                        {pgGateClosingTime ? formatTimeHhMm(pgGateClosingTime) : 'Gate Closing Time'}
+                      </Text>
+                    </YStack>
+                  </Pressable>
                 </YStack>
               </YStack>
 
@@ -4162,7 +4248,7 @@ export default function PostPropertyScreen() {
                       <YStack minWidth={220} flexGrow={2} gap="$2">
                         <Input
                           value={secondaryPhoneDigits}
-                          onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                          onChangeText={(t) => { const d = String(t ?? '').replace(/[^0-9]/g, ''); if (d.length > 10) return; setSecondaryPhone(d); }}
                           placeholder="Secondary Number"
                           keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                           backgroundColor={theme.bgCard}
@@ -4402,7 +4488,7 @@ export default function PostPropertyScreen() {
                     </Text>
                     <Input
                       value={secondaryPhoneDigits}
-                      onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                      onChangeText={(t) => { const d = String(t ?? '').replace(/[^0-9]/g, ''); if (d.length > 10) return; setSecondaryPhone(d); }}
                       placeholder="10 digit number"
                       keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                       backgroundColor={theme.bgCard}
@@ -4485,55 +4571,33 @@ export default function PostPropertyScreen() {
               </YStack>
 
               <XStack gap="$2" flexWrap="wrap" alignItems="flex-end">
-                <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <Text color={muted} fontSize={t(14)} fontWeight="700">
-                    Select Time Schedule
-                  </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                    <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {scheduleStart ? formatTimeHhMm(scheduleStart) : 'Start time'}
-                      </Text>
-                    </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
-                      <AppDateTimePicker
-                        value={scheduleStart ?? new Date()}
-                        mode="time"
-                        display="default"
-                        onChange={(_e: any, d?: Date) => {
-                          if ((_e as any)?.type === 'dismissed') return;
-                          if (!d) return;
-                          setScheduleStart(d);
-                        }}
-                        style={{ height: 48, padding: '0 12px' }}
-                      />
-                    </YStack>
+                  <YStack flexGrow={1} minWidth={220} gap="$2">
+                    <Text color={muted} fontSize={t(14)} fontWeight="700">
+                      Select Time Schedule
+                    </Text>
+                    <Pressable onPress={() => setStartTimeOpen(true)}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                        <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {scheduleStart ? formatTimeHhMm(scheduleStart) : 'Start time'}
+                          </Text>
+                        </YStack>
+                      </YStack>
+                    </Pressable>
                   </YStack>
-                </YStack>
 
-                <YStack flexGrow={1} minWidth={220} gap="$2">
-                  <YStack height={16} />
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                    <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {scheduleEnd ? formatTimeHhMm(scheduleEnd) : 'End time'}
-                      </Text>
-                    </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={scheduleAllDay ? 0 : Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents={scheduleAllDay ? 'none' : 'auto'}>
-                      <AppDateTimePicker
-                        value={scheduleEnd ?? new Date()}
-                        mode="time"
-                        display="default"
-                        onChange={(_e: any, d?: Date) => {
-                          if ((_e as any)?.type === 'dismissed') return;
-                          if (!d) return;
-                          setScheduleEnd(d);
-                        }}
-                        style={{ height: 48, padding: '0 12px' }}
-                      />
-                    </YStack>
+                  <YStack flexGrow={1} minWidth={220} gap="$2">
+                    <YStack height={16} />
+                    <Pressable onPress={() => setEndTimeOpen(true)}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                        <YStack padding={12} opacity={scheduleAllDay ? 0.5 : 1}>
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {scheduleEnd ? formatTimeHhMm(scheduleEnd) : 'End time'}
+                          </Text>
+                        </YStack>
+                      </YStack>
+                    </Pressable>
                   </YStack>
-                </YStack>
               </XStack>
 
               <Pressable
@@ -5595,27 +5659,15 @@ export default function PostPropertyScreen() {
                   <Text color={muted} fontSize={t(14)} fontWeight="700">
                     Available From*
                   </Text>
-                  <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                    <YStack padding={12}>
-                      <Text color={valueColor} fontWeight={valueWeight}>
-                        {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
-                      </Text>
+                  <Pressable onPress={() => setAvailDateOpen(true)}>
+                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                      <YStack padding={12}>
+                        <Text color={valueColor} fontWeight={valueWeight}>
+                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                        </Text>
+                      </YStack>
                     </YStack>
-                    <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
-                      <AppDateTimePicker
-                        value={availableFromDate ?? new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(_e: any, d?: Date) => {
-                          if ((_e as any)?.type === 'dismissed') return;
-                          if (!d) return;
-                          setAvailableFromDate(d);
-                          setAvailableFromText(formatDateDdMmYyyy(d));
-                        }}
-                        style={{ height: 48, padding: '0 12px' }}
-                      />
-                    </YStack>
-                  </YStack>
+                  </Pressable>
                 </YStack>
               ) : null}
 
@@ -5856,42 +5908,15 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                      <YStack padding={12}>
-                        <Text color={valueColor} fontWeight={valueWeight}>
-                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
-                        </Text>
+                    <Pressable onPress={() => setAvailDateOpen(true)}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                        <YStack padding={12}>
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                          </Text>
+                        </YStack>
                       </YStack>
-                      <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
-                        <AppDateTimePicker
-                          value={availableFromDate ?? new Date()}
-                          mode="date"
-                          display="default"
-                          onChange={(_e: any, d?: Date) => {
-                            if ((_e as any)?.type === 'dismissed') return;
-                            if (!d) return;
-                            const clamped = clampAvailableFromDate(d);
-                            if (!clamped) return;
-                            setAvailableFromDate(clamped);
-                            setAvailableFromText(formatDateDdMmYyyy(clamped));
-                          }}
-                          minimumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            return t;
-                          })()}
-                          maximumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            const m = new Date(t);
-                            m.setMonth(m.getMonth() + 2);
-                            m.setHours(23, 59, 59, 999);
-                            return m;
-                          })()}
-                          style={{ height: 48, padding: '0 12px' }}
-                        />
-                      </YStack>
-                    </YStack>
+                    </Pressable>
                   </YStack>
 
                   {isLandPlot ? null : (
@@ -6026,42 +6051,15 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                      <YStack padding={12}>
-                        <Text color={valueColor} fontWeight={valueWeight}>
-                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
-                        </Text>
+                    <Pressable onPress={() => setAvailDateOpen(true)}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                        <YStack padding={12}>
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                          </Text>
+                        </YStack>
                       </YStack>
-                      <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
-                        <AppDateTimePicker
-                          value={availableFromDate ?? new Date()}
-                          mode="date"
-                          display="default"
-                          onChange={(_e: any, d?: Date) => {
-                            if ((_e as any)?.type === 'dismissed') return;
-                            if (!d) return;
-                            const clamped = clampAvailableFromDate(d);
-                            if (!clamped) return;
-                            setAvailableFromDate(clamped);
-                            setAvailableFromText(formatDateDdMmYyyy(clamped));
-                          }}
-                          minimumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            return t;
-                          })()}
-                          maximumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            const m = new Date(t);
-                            m.setMonth(m.getMonth() + 2);
-                            m.setHours(23, 59, 59, 999);
-                            return m;
-                          })()}
-                          style={{ height: 48, padding: '0 12px' }}
-                        />
-                      </YStack>
-                    </YStack>
+                    </Pressable>
                   </YStack>
 
                   <YStack gap="$2">
@@ -6289,42 +6287,15 @@ export default function PostPropertyScreen() {
                     <Text color={muted} fontSize={t(14)} fontWeight="700">
                       Available From*
                     </Text>
-                    <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                      <YStack padding={12}>
-                        <Text color={valueColor} fontWeight={valueWeight}>
-                          {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
-                        </Text>
+                    <Pressable onPress={() => setAvailDateOpen(true)}>
+                      <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                        <YStack padding={12}>
+                          <Text color={valueColor} fontWeight={valueWeight}>
+                            {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                          </Text>
+                        </YStack>
                       </YStack>
-                      <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
-                        <AppDateTimePicker
-                          value={availableFromDate ?? new Date()}
-                          mode="date"
-                          display="default"
-                          onChange={(_e: any, d?: Date) => {
-                            if ((_e as any)?.type === 'dismissed') return;
-                            if (!d) return;
-                            const clamped = clampAvailableFromDate(d);
-                            if (!clamped) return;
-                            setAvailableFromDate(clamped);
-                            setAvailableFromText(formatDateDdMmYyyy(clamped));
-                          }}
-                          minimumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            return t;
-                          })()}
-                          maximumDate={(() => {
-                            const t = new Date();
-                            t.setHours(0, 0, 0, 0);
-                            const m = new Date(t);
-                            m.setMonth(m.getMonth() + 2);
-                            m.setHours(23, 59, 59, 999);
-                            return m;
-                          })()}
-                          style={{ height: 48, padding: '0 12px' }}
-                        />
-                      </YStack>
-                    </YStack>
+                    </Pressable>
                   </YStack>
 
                   <YStack gap="$2">
@@ -6517,42 +6488,15 @@ export default function PostPropertyScreen() {
                         <Text color={muted} fontSize={t(14)} fontWeight="700">
                           Available From*
                         </Text>
-                        <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard} position="relative">
-                          <YStack padding={12}>
-                            <Text color={valueColor} fontWeight={valueWeight}>
-                              {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
-                            </Text>
+                        <Pressable onPress={() => setAvailDateOpen(true)}>
+                          <YStack borderWidth={1} borderColor={border} borderRadius={12} overflow="hidden" backgroundColor={theme.bgCard}>
+                            <YStack padding={12}>
+                              <Text color={valueColor} fontWeight={valueWeight}>
+                                {availableFromDate ? formatDateDdMmYyyy(availableFromDate) : availableFromText || 'Select date'}
+                              </Text>
+                            </YStack>
                           </YStack>
-                          <YStack position="absolute" top={0} left={0} right={0} bottom={0} opacity={Platform.OS === 'web' ? 0.02 : 0.01} pointerEvents="auto">
-                            <AppDateTimePicker
-                              value={availableFromDate ?? new Date()}
-                              mode="date"
-                              display="default"
-                              onChange={(_e: any, d?: Date) => {
-                                if ((_e as any)?.type === 'dismissed') return;
-                                if (!d) return;
-                                const clamped = clampAvailableFromDate(d);
-                                if (!clamped) return;
-                                setAvailableFromDate(clamped);
-                                setAvailableFromText(formatDateDdMmYyyy(clamped));
-                              }}
-                              minimumDate={(() => {
-                                const t = new Date();
-                                t.setHours(0, 0, 0, 0);
-                                return t;
-                              })()}
-                              maximumDate={(() => {
-                                const t = new Date();
-                                t.setHours(0, 0, 0, 0);
-                                const m = new Date(t);
-                                m.setMonth(m.getMonth() + 2);
-                                m.setHours(23, 59, 59, 999);
-                                return m;
-                              })()}
-                              style={{ height: 48, padding: '0 12px' }}
-                            />
-                          </YStack>
-                        </YStack>
+                        </Pressable>
                       </YStack>
 
                       {propertyCategory === 'residential' && adType === 'rent' ? (
@@ -7350,7 +7294,7 @@ export default function PostPropertyScreen() {
                       </Text>
                       <Input
                         value={secondaryPhone}
-                        onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                        onChangeText={(t) => { const d = String(t ?? '').replace(/[^0-9]/g, ''); if (d.length > 10) return; setSecondaryPhone(d); }}
                         placeholder="10 digit number"
                         keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                         backgroundColor={theme.bgCard}
@@ -7543,7 +7487,7 @@ export default function PostPropertyScreen() {
                     </Text>
                     <Input
                       value={secondaryPhone}
-                      onChangeText={(t) => setSecondaryPhone(String(t ?? '').replace(/[^0-9]/g, '').slice(0, 10))}
+                      onChangeText={(t) => { const d = String(t ?? '').replace(/[^0-9]/g, ''); if (d.length > 10) return; setSecondaryPhone(d); }}
                       placeholder="10 digit number"
                       keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                       backgroundColor={theme.bgCard}
@@ -8208,6 +8152,25 @@ export default function PostPropertyScreen() {
           )}
         </XStack>
       </YStack>
+      <MobileDatePicker
+        value={pgAvailableFromDate ?? datePickerToday}
+        minDate={datePickerToday}
+        maxDate={datePickerMax}
+        open={pgAvailOpen}
+        onClose={() => setPgAvailOpen(false)}
+        onChange={(d) => { setPgAvailableFromDate(d); setPgAvailableFromText(''); }}
+      />
+      <MobileDatePicker
+        value={availableFromDate ?? datePickerToday}
+        minDate={datePickerToday}
+        maxDate={datePickerMax}
+        open={availDateOpen}
+        onClose={() => setAvailDateOpen(false)}
+        onChange={(d) => { const c = clampAvailableFromDate(d); if (!c) return; setAvailableFromDate(c); setAvailableFromText(formatDateDdMmYyyy(c)); }}
+      />
+      <MobileTimePicker value={pgGateClosingTime ?? datePickerToday} open={pgGateTimeOpen} onClose={() => setPgGateTimeOpen(false)} onChange={(d) => setPgGateClosingTime(d)} />
+      <MobileTimePicker value={scheduleStart ?? datePickerToday} open={startTimeOpen} onClose={() => setStartTimeOpen(false)} onChange={(d) => setScheduleStart(d)} />
+      <MobileTimePicker value={scheduleEnd ?? datePickerToday} open={endTimeOpen} onClose={() => setEndTimeOpen(false)} onChange={(d) => setScheduleEnd(d)} />
     </View>
   );
 }

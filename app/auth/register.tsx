@@ -349,7 +349,7 @@ export default function RegisterDetailsScreen() {
   const normalizePhoneDigits = (value: string) => {
     const v = String(value ?? '').replace(/\s+/g, '');
     if (!v) return '';
-    return v.replace(/\D/g, '').slice(0, 10);
+    return v.replace(/\D/g, '');
   };
 
   const normalizeCountryCode = (value: string) => {
@@ -411,7 +411,7 @@ export default function RegisterDetailsScreen() {
         if (!rowError && row) {
           if (isMounted) {
             setName(String(row.name ?? (user.user_metadata as any)?.name ?? '').trim());
-            setPhone(String(row.phone ?? '').replace(/\D/g, '').slice(0, 10));
+            const p = String(row.phone ?? '').replace(/\D/g, ''); setPhone(p.length > 10 ? p.slice(0, 10) : p);
             setOtpVerified(Boolean((user.user_metadata as any)?.phone_verified) || Boolean((row as any)?.is_verified));
 
             const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();

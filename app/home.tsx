@@ -2818,7 +2818,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 <TextInput
                   value={quotePhone}
                   onChangeText={(t) => {
-                    const digits = String(t ?? '').replace(/\D/g, '').slice(0, 10);
+                    const digits = String(t ?? '').replace(/\D/g, '');
+                    if (digits.length > 10) return;
                     setQuotePhone(digits);
                   }}
                   placeholder="Phone Number *"

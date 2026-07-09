@@ -95,7 +95,7 @@ export default function StickyHeader({
         router.push('/(tabs)/tracking');
       }
     } else if (item === 'Contact') {
-      onContactPress ? onContactPress() : router.push('/home');
+      onContactPress ? onContactPress() : router.push('/support');
     }
   };
 

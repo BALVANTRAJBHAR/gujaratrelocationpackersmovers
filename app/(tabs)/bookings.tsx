@@ -1,10 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
+import { Alert, FlatList, Linking, Modal, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
-import DateTimePicker from '@/components/AppDateTimePicker';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
@@ -13,7 +12,59 @@ import { supabase } from '@/lib/supabase';
 
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAuthGuard } from '@/lib/auth-guard';
+
+function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; minDate?: Date; maxDate?: Date; open: boolean; onClose: () => void;
+}) {
+  const [vy, setVy] = useState(value.getFullYear());
+  const [vm, setVm] = useState(value.getMonth());
+  const daysIn = new Date(vy, vm + 1, 0).getDate();
+  const fdow = new Date(vy, vm, 1).getDay();
+  const days: (number | null)[] = Array(fdow).fill(null);
+  for (let d = 1; d <= daysIn; d++) days.push(d);
+  const monNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dis = (d: number) => {
+    const dt = new Date(vy, vm, d, 12, 0, 0, 0);
+    dt.setHours(0, 0, 0, 0);
+    if (minDate && dt.getTime() < minDate.getTime()) return true;
+    if (maxDate && dt.getTime() > maxDate.getTime()) return true;
+    return false;
+  };
+  const pick = (d: number) => { onChange(new Date(vy, vm, d, 12, 0, 0, 0)); onClose(); };
+  const prevM = () => { if (vm === 0) { setVy(y => y - 1); setVm(11); } else setVm(m => m - 1); };
+  const nextM = () => { if (vm === 11) { setVy(y => y + 1); setVm(0); } else setVm(m => m + 1); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
+          <XStack jc="space-between" ai="center" mb={12}>
+            <Pressable onPress={prevM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'◀'}</Text></Pressable>
+            <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]} {vy}</Text>
+            <Pressable onPress={nextM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'▶'}</Text></Pressable>
+          </XStack>
+          <XStack flexWrap="wrap">
+            {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+          </XStack>
+          <XStack flexWrap="wrap">
+            {days.map((d, i) => (
+              <YStack key={i} w="14.28%" ai="center" py={2}>
+                {d ? (
+                  <Pressable onPress={() => pick(d)} disabled={dis(d)}>
+                    <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                      <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
+                    </YStack>
+                  </Pressable>
+                ) : <YStack w={36} h={36} />}
+              </YStack>
+            ))}
+          </XStack>
+          <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
 import { t } from '@/constants/typography';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -166,16 +217,14 @@ const STATUS_COLORS_HS: Record<string, string> = {
 
 export default function BookingsScreen() {
   const router = useRouter();
-  const authGuard = useAuthGuard();
+  const { session, loading } = useSession();
   useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+    if (loading) return;
+    if (!session) {
       router.replace('/auth/login?redirectTo=/(tabs)/bookings' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
     }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+  }, [loading, session, router]);
+  if (loading || !session) return null;
   return <BookingsContent />;
 }
 
@@ -787,30 +836,8 @@ function BookingsContent() {
             </Button>
           )}
         />
-        {startDatePickerOpen ? (
-          <DateTimePicker
-            value={startPickerValue}
-            mode="date"
-            onChange={(_event, selected) => {
-              if ((_event as any)?.type === 'dismissed') { setStartDatePickerOpen(false); return; }
-              if (!selected) { setStartDatePickerOpen(false); return; }
-              setStartDate(formatDate(selected));
-              setStartDatePickerOpen(false);
-            }}
-          />
-        ) : null}
-        {endDatePickerOpen ? (
-          <DateTimePicker
-            value={endPickerValue}
-            mode="date"
-            onChange={(_event, selected) => {
-              if ((_event as any)?.type === 'dismissed') { setEndDatePickerOpen(false); return; }
-              if (!selected) { setEndDatePickerOpen(false); return; }
-              setEndDate(formatDate(selected));
-              setEndDatePickerOpen(false);
-            }}
-          />
-        ) : null}
+        <MobileDatePicker value={startPickerValue} open={startDatePickerOpen} onClose={() => setStartDatePickerOpen(false)} onChange={(d) => { setStartDate(formatDate(d)); }} />
+        <MobileDatePicker value={endPickerValue} open={endDatePickerOpen} onClose={() => setEndDatePickerOpen(false)} onChange={(d) => { setEndDate(formatDate(d)); }} />
       </YStack>
       {loading ? (
         <Text color={theme.textMuted}>Loading bookings...</Text>
@@ -942,21 +969,13 @@ function BookingsContent() {
           </YStack>
         )}
       />
-      {reschedulePickerBookingId ? (
-        <DateTimePicker
-          value={reschedulePickerValue}
-          mode="datetime"
-          onChange={(_event, selected) => {
-            if ((_event as any)?.type === 'dismissed') { setReschedulePickerBookingId(null); return; }
-            if (!selected) { setReschedulePickerBookingId(null); return; }
-            const bookingId = reschedulePickerBookingId;
-            setReschedulePickerBookingId(null);
-            const iso = selected.toISOString();
-            setRescheduleDate(iso);
-            void updateBookingStatus(bookingId, 'rescheduled', iso);
-          }}
-        />
-      ) : null}
+      <MobileDatePicker value={reschedulePickerValue} open={!!reschedulePickerBookingId} onClose={() => setReschedulePickerBookingId(null)} onChange={(d) => {
+        const bookingId = reschedulePickerBookingId;
+        setReschedulePickerBookingId(null);
+        const iso = d.toISOString();
+        setRescheduleDate(iso);
+        void updateBookingStatus(bookingId, 'rescheduled', iso);
+      }} />
     </>
   );
 

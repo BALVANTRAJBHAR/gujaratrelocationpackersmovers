@@ -1,16 +1,107 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { ResizeMode, Video } from 'expo-av';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+
+function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; minDate?: Date; maxDate?: Date; open: boolean; onClose: () => void;
+}) {
+  const [vy, setVy] = useState(value.getFullYear());
+  const [vm, setVm] = useState(value.getMonth());
+  const daysIn = new Date(vy, vm + 1, 0).getDate();
+  const fdow = new Date(vy, vm, 1).getDay();
+  const days: (number | null)[] = Array(fdow).fill(null);
+  for (let d = 1; d <= daysIn; d++) days.push(d);
+  const monNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dis = (d: number) => {
+    const dt = new Date(vy, vm, d, 12, 0, 0, 0);
+    dt.setHours(0, 0, 0, 0);
+    if (minDate && dt.getTime() < minDate.getTime()) return true;
+    if (maxDate && dt.getTime() > maxDate.getTime()) return true;
+    return false;
+  };
+  const pick = (d: number) => { onChange(new Date(vy, vm, d, 12, 0, 0, 0)); onClose(); };
+  const prevM = () => { if (vm === 0) { setVy(y => y - 1); setVm(11); } else setVm(m => m - 1); };
+  const nextM = () => { if (vm === 11) { setVy(y => y + 1); setVm(0); } else setVm(m => m + 1); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
+          <XStack jc="space-between" ai="center" mb={12}>
+            <Pressable onPress={prevM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'◀'}</Text></Pressable>
+            <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]} {vy}</Text>
+            <Pressable onPress={nextM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'▶'}</Text></Pressable>
+          </XStack>
+          <XStack flexWrap="wrap">
+            {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+          </XStack>
+          <XStack flexWrap="wrap">
+            {days.map((d, i) => (
+              <YStack key={i} w="14.28%" ai="center" py={2}>
+                {d ? (
+                  <Pressable onPress={() => pick(d)} disabled={dis(d)}>
+                    <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                      <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
+                    </YStack>
+                  </Pressable>
+                ) : <YStack w={36} h={36} />}
+              </YStack>
+            ))}
+          </XStack>
+          <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
+
+function MobileTimePicker({ value, onChange, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; open: boolean; onClose: () => void;
+}) {
+  const [h, setH] = useState(value.getHours());
+  const [m, setM] = useState(value.getMinutes());
+  useEffect(() => { if (open) { setH(value.getHours()); setM(value.getMinutes()); } }, [open, value]);
+  const pick = () => { const d = new Date(value); d.setHours(h, m, 0, 0); onChange(d); onClose(); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={24} ai="center" w="80%" maw={300}>
+          <Text fontWeight="800" fontSize={18} color="#000" mb={20}>Select Time</Text>
+          <XStack ai="center" gap={4} mb={24}>
+            <YStack ai="center">
+              <Pressable onPress={() => setH(h => h === 23 ? 0 : h + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
+              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+                <Text fontWeight="800" fontSize={24} color="#000">{String(h).padStart(2, '0')}</Text>
+              </YStack>
+              <Pressable onPress={() => setH(h => h === 0 ? 23 : h - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
+            </YStack>
+            <Text fontWeight="800" fontSize={24} color="#000">:</Text>
+            <YStack ai="center">
+              <Pressable onPress={() => setM(m => m === 59 ? 0 : m + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
+              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+                <Text fontWeight="800" fontSize={24} color="#000">{String(m).padStart(2, '0')}</Text>
+              </YStack>
+              <Pressable onPress={() => setM(m => m === 0 ? 59 : m - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
+            </YStack>
+          </XStack>
+          <XStack gap={16}>
+            <Pressable onPress={onClose}><YStack bg="#E0E0E0" br={8} px={24} py={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
+            <Pressable onPress={pick}><YStack bg="#1F4E79" br={8} px={24} py={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
+          </XStack>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
 import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
 import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validation';
 import { getRazorpayKeyId } from '@/lib/public-config';
@@ -259,6 +350,9 @@ export default function HomeServiceRequestScreen() {
   const [notes, setNotes] = useState<string>('');
   const [paymentOption, setPaymentOption] = useState<'online_now' | 'after_service'>('after_service');
   const [paying, setPaying] = useState(false);
+
+  const todayDate = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const lastPickTimeRef = useRef(0);
 
   const [statePickerOpen, setStatePickerOpen] = useState(false);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
@@ -1208,7 +1302,7 @@ export default function HomeServiceRequestScreen() {
                   <YStack style={{ flexBasis: '66%' } as any}>
                     <Input
                       value={customerPhone}
-                      onChangeText={(v) => setCustomerPhone(normalizePhoneDigits(v).slice(0, 10))}
+                      onChangeText={(v) => { const d = normalizePhoneDigits(v); if (d.length > 10) return; setCustomerPhone(d); }}
                       placeholder="10-digit mobile"
                       keyboardType={Platform.OS === 'web' ? 'default' : 'number-pad'}
                       inputMode={Platform.OS === 'web' ? ('numeric' as any) : undefined}
@@ -2139,49 +2233,19 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
         </Pressable>
       </Modal>
 
-      {Platform.OS !== 'web' && datePickerOpen ? (
-        <DateTimePicker
-          value={parseDateDDMMYYYY(preferredDate) ?? new Date()}
-          minimumDate={new Date()}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            if (event?.type === 'dismissed') {
-              setDatePickerOpen(false);
-              return;
-            }
-            if (date) {
-              setPreferredDate(formatDateDDMMYYYY(date));
-            }
-            setDatePickerOpen(false);
-          }}
-        />
-      ) : null}
-
-      {Platform.OS !== 'web' && timePickerOpen ? (
-        <DateTimePicker
-          value={new Date()}
-          mode="time"
-          display="default"
-          onChange={(event, date) => {
-            if (event?.type === 'dismissed') {
-              setTimePickerOpen(false);
-              return;
-            }
-            if (!date) {
-              setTimePickerOpen(false);
-              return;
-            }
-            const t = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            setPreferredTime(t);
-            setTimePickerOpen(false);
-          }}
-        />
-      ) : null}
-
-      {Platform.OS === 'web' && datePickerOpen ? null : null}
-
-      {Platform.OS === 'web' && timePickerOpen ? null : null}
+      <MobileDatePicker
+        value={parseDateDDMMYYYY(preferredDate) ?? todayDate}
+        minDate={todayDate}
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        onChange={(d) => { setPreferredDate(formatDateDDMMYYYY(d)); }}
+      />
+      <MobileTimePicker
+        value={todayDate}
+        open={timePickerOpen}
+        onClose={() => setTimePickerOpen(false)}
+        onChange={(d) => { setPreferredTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })); }}
+      />
 
       <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.92)', padding: 16, justifyContent: 'center' }}>

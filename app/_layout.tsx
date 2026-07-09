@@ -4,7 +4,7 @@ import '@/lib/font-web-guard-init';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
 import { useFonts } from 'expo-font';
-import { Stack, usePathname } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
@@ -48,9 +48,9 @@ export const unstable_settings = {
 function AppLayoutInner() {
   const { session } = useSession();
   const { width: screenWidth } = useWindowDimensions();
-  const pathname = usePathname();
+  const segments = useSegments();
   const isMobile = screenWidth <= 768;
-  const hideNav = pathname === '/' || pathname.startsWith('/auth');
+  const hideNav = segments.length === 0 || (segments[0] === 'auth') || (segments[0] === 'book') || (segments[0] === 'home-services' && segments[1] === 'request') || (segments[0] === 'properties' && segments[1] === 'post');
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
@@ -59,6 +59,7 @@ function AppLayoutInner() {
       <Stack>
         <Stack.Screen name="splash" options={{ headerShown: false }} />
         <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="services/household-shifting" options={{ headerShown: false }} />

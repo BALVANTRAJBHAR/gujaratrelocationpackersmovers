@@ -63,8 +63,9 @@ export default function AppDateTimePicker(props: DateTimePickerProps) {
           onChange?.(e, next);
           return;
         }
-        const d = new Date(`${nextVal}T00:00:00`);
-        onChange?.(e, d);
+        const [y, m, day] = nextVal.split('-').map(Number);
+        const d = new Date(y, m - 1, day, 12, 0, 0, 0);
+        onChange?.({ type: 'set' }, d);
       }}
       style={{
         width: '100%',

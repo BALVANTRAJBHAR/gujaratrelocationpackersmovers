@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
@@ -865,7 +865,14 @@ export default function PropertiesIndexScreen() {
     return list;
   };
 
+  const requireSearchSession = useCallback(() => {
+    if (session?.user?.id) return true;
+    router.replace({ pathname: '/auth/login', params: { redirectTo: '/properties' } } as any);
+    return false;
+  }, [session, router]);
+
   const search = async (reset = true, override?: Partial<SearchSnapshot>) => {
+    if (reset && !requireSearchSession()) return;
     const requestId = ++searchRequestIdRef.current;
     const snap: SearchSnapshot = { ...buildSnapshotFromState(), ...override };
     setError(null);

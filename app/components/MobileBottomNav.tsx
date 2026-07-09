@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '@/constants/typography';
+import { signOutSupabaseSafe } from '@/lib/supabase';
 
 const TABS = [
   { key: 'home', icon: 'home', label: 'Home' },
@@ -69,6 +70,10 @@ export default function MobileBottomNav({
   const handleServiceRoute = (route: string) => {
     setSheetOpen(null);
     setActiveTab('services');
+    if (route === '/home-services/request' && !session) {
+      router.push({ pathname: '/auth/login', params: { redirectTo: '/home-services/request' } } as any);
+      return;
+    }
     router.push(route as any);
   };
 
@@ -83,10 +88,10 @@ export default function MobileBottomNav({
     } else if (action === 'track') {
       onTrackPress ? onTrackPress() : router.push('/(tabs)/tracking');
     } else if (action === 'contact') {
-      onContactPress ? onContactPress() : router.push('/home');
+      onContactPress ? onContactPress() : router.push('/support');
     } else if (action === 'logout') {
       setActiveTab('home');
-      onLogout ? onLogout() : null;
+      if (onLogout) { onLogout(); } else { signOutSupabaseSafe(); }
     } else if (action === 'login') {
       onLoginPress ? onLoginPress() : router.push('/auth/login');
     }

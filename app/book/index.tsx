@@ -4,13 +4,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useAuthGuard } from '@/lib/auth-guard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import AppDateTimePicker from '@/components/AppDateTimePicker';
 import BookingMapPicker from '@/components/booking-map-picker';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -22,6 +20,60 @@ import { supabase } from '@/lib/supabase';
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+
+function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: {
+  value: Date; onChange: (d: Date) => void; minDate?: Date; maxDate?: Date; open: boolean; onClose: () => void;
+}) {
+  const [vy, setVy] = useState(value.getFullYear());
+  const [vm, setVm] = useState(value.getMonth());
+  const dims = useRef({ w: 0, h: 0 }).current;
+  const daysIn = new Date(vy, vm + 1, 0).getDate();
+  const fdow = new Date(vy, vm, 1).getDay();
+  const days: (number | null)[] = Array(fdow).fill(null);
+  for (let d = 1; d <= daysIn; d++) days.push(d);
+  const monNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dis = (d: number) => {
+    const dt = new Date(vy, vm, d, 12, 0, 0, 0);
+    dt.setHours(0, 0, 0, 0);
+    if (minDate && dt.getTime() < minDate.getTime()) return true;
+    if (maxDate && dt.getTime() > maxDate.getTime()) return true;
+    return false;
+  };
+  const pick = (d: number) => { onChange(new Date(vy, vm, d, 12, 0, 0, 0)); onClose(); };
+  const prevM = () => { if (vm === 0) { setVy(y => y - 1); setVm(11); } else setVm(m => m - 1); };
+  const nextM = () => { if (vm === 11) { setVy(y => y + 1); setVm(0); } else setVm(m => m + 1); };
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
+        <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
+          <XStack jc="space-between" ai="center" mb={12}>
+            <Pressable onPress={prevM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'◀'}</Text></Pressable>
+            <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]} {vy}</Text>
+            <Pressable onPress={nextM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'▶'}</Text></Pressable>
+          </XStack>
+          <XStack flexWrap="wrap">
+            {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+          </XStack>
+          <XStack flexWrap="wrap">
+            {days.map((d, i) => (
+              <YStack key={i} w="14.28%" ai="center" py={2}>
+                {d ? (
+                  <Pressable onPress={() => pick(d)} disabled={dis(d)}>
+                    <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                      <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
+                    </YStack>
+                  </Pressable>
+                ) : <YStack w={36} h={36} />}
+              </YStack>
+            ))}
+          </XStack>
+          <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
+        </YStack>
+      </YStack>
+    </Modal>
+  );
+}
 
 type StepKey = 'info' | 'location' | 'vehicle' | 'items' | 'payment';
 
@@ -238,17 +290,14 @@ const shiftingMaxDate = () => {
 
 export default function BookingWizardScreen() {
   const router = useRouter();
-  const authGuard = useAuthGuard();
+  const { session, profile, refreshProfile, loading } = useSession();
   useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+    if (loading) return;
+    if (!session) {
       router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
     }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
-  const { session, profile, refreshProfile } = useSession();
+  }, [loading, session, router]);
+  if (loading || !session) return null;
   const sharePdf = async (data: any) => {
     try {
       const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
@@ -362,7 +411,10 @@ export default function BookingWizardScreen() {
   const viewerVideoRef = useRef<Video>(null);
   const viewerWebVideoRef = useRef<HTMLVideoElement | null>(null);
   const [shiftingDateValue, setShiftingDateValue] = useState<Date | null>(null);
+  const [shiftingDatePickerOpen, setShiftingDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const minDate = useMemo(() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }, []);
+  const maxDate = useMemo(() => { const t = new Date(); t.setFullYear(t.getFullYear() + 2); t.setHours(23, 59, 59, 999); return t; }, []);
 
   useEffect(() => {
     if (step !== 'info') return;
@@ -664,25 +716,6 @@ export default function BookingWizardScreen() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!form.shiftingDate) {
-      setShiftingDateValue(null);
-      return;
-    }
-    const parsed = parseDateDdMmYyyy(form.shiftingDate);
-    if (parsed) setShiftingDateValue(parsed);
-  }, [form.shiftingDate]);
-
-  const onShiftingDateChange = (_e: any, picked?: Date) => {
-    if ((_e as any)?.type === 'dismissed') return;
-    if (!picked) return;
-    const min = shiftingMinDate();
-    const max = shiftingMaxDate();
-    const clamped = new Date(Math.min(Math.max(picked.getTime(), min.getTime()), max.getTime()));
-    setShiftingDateValue(clamped);
-    setForm((p) => ({ ...p, shiftingDate: formatDateDdMmYyyy(clamped) }));
-  };
 
   const selectedVehicleLabel = useMemo(() => {
     if (!selectedVehicle) return '';
@@ -1910,10 +1943,10 @@ export default function BookingWizardScreen() {
                     {...inputUi}
                     value={form.mobile}
                     keyboardType="number-pad"
+                    maxLength={10}
                     ref={mobileRef}
-                    onChangeText={(v) => {
-                      const digits = v.replace(/\D/g, '').slice(0, 10);
-                      setForm((p) => ({ ...p, mobile: digits }));
+                    onChangeText={(text) => {
+                      setForm((p) => ({ ...p, mobile: text.replace(/[^0-9]/g, '') }));
                     }}
                     placeholder="10 digit mobile"
                   />
@@ -1965,11 +1998,11 @@ export default function BookingWizardScreen() {
                           borderWidth={2}
                           borderColor={selected ? '#1F4E79' : theme.border}
                           gap="$1">
-                          <Text fontWeight="800" color="#2f52a0ff">
-                            {t.title}
+                          <Text fontWeight="800" color={theme.text}>
+                            {moveType.title}
                           </Text>
-                          <Text fontSize={t(13)} color="#64748B">
-                            {t.subtitle}
+                          <Text fontSize={t(13)} color={theme.textMuted}>
+                            {moveType.subtitle}
                           </Text>
                         </YStack>
                       </Pressable>
@@ -2400,39 +2433,34 @@ export default function BookingWizardScreen() {
                       <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                         Shifting Date
                       </Text>
-                      <YStack
-                        borderWidth={1}
-                        borderColor={theme.inputBorder}
-                        borderRadius={12}
-                        overflow="hidden"
-                        backgroundColor={theme.inputBg}
-                        position="relative">
-                        <YStack padding={12}>
-                          <Text color={theme.inputText} fontWeight="700">
-                            {shiftingDateValue
-                              ? formatDateDdMmYyyy(shiftingDateValue)
-                              : form.shiftingDate || 'Select date'}
-                          </Text>
-                        </YStack>
+                      <Pressable onPress={() => { if (Platform.OS !== 'web') setShiftingDatePickerOpen(true); }}>
                         <YStack
-                          position="absolute"
-                          top={0}
-                          left={0}
-                          right={0}
-                          bottom={0}
-                          opacity={Platform.OS === 'web' ? 0.02 : 0.01}
-                          pointerEvents="auto">
-                          <AppDateTimePicker
-                            value={shiftingDateValue ?? shiftingMinDate()}
-                            mode="date"
-                            display="default"
-                            minimumDate={shiftingMinDate()}
-                            maximumDate={shiftingMaxDate()}
-                            onChange={onShiftingDateChange}
-                            style={{ height: 48, padding: '0 12px' }}
-                          />
+                          borderWidth={1}
+                          borderColor={theme.inputBorder}
+                          borderRadius={12}
+                          overflow="hidden"
+                          backgroundColor={theme.inputBg}
+                          position="relative">
+                          <YStack padding={12}>
+                            <Text color={theme.inputText} fontWeight="700">
+                              {shiftingDateValue
+                                ? formatDateDdMmYyyy(shiftingDateValue)
+                                : form.shiftingDate || 'Select date'}
+                            </Text>
+                          </YStack>
                         </YStack>
-                      </YStack>
+                      </Pressable>
+                      <MobileDatePicker
+                        value={shiftingDateValue ?? minDate}
+                        minDate={minDate}
+                        maxDate={maxDate}
+                        open={shiftingDatePickerOpen}
+                        onClose={() => setShiftingDatePickerOpen(false)}
+                        onChange={(d) => {
+                          setShiftingDateValue(d);
+                          setForm((p) => ({ ...p, shiftingDate: formatDateDdMmYyyy(d) }));
+                        }}
+                      />
                     </YStack>
                     <YStack flex={1} minWidth={240} gap="$2">
                       <Text fontSize={t(14)} fontWeight="700" color={theme.text}>

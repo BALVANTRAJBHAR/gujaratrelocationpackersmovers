@@ -450,7 +450,9 @@ export default function ProfileSetupScreen() {
                   {...inputUi}
                   value={phoneDraft}
                   onChangeText={(v) => {
-                    setPhoneDraft(v.replace(/\D/g, '').slice(0, 10));
+                    const d = v.replace(/\D/g, '');
+                    if (d.length > 10) return;
+                    setPhoneDraft(d);
                     setOtpVerified(false);
                     setOtpSent(false);
                     setOtpCode('');
