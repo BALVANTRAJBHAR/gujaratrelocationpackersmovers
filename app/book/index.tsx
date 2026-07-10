@@ -513,16 +513,30 @@ export default function BookingWizardScreen() {
     setMapPickerOpen(true);
   };
 
-  const confirmMapPicker = async () => {
+  /**
+   * confirmMapPicker — called by BookingMapPicker on confirm.
+   *
+   * On mobile (native): the picker component performs Google reverse geocode
+   * internally and passes the resolved address as `nativeResolvedAddress`.
+   * We use that directly — no Mapbox API call needed on mobile.
+   *
+   * On web: nativeResolvedAddress is undefined, so we fall back to the
+   * existing Mapbox reverseGeocode() call (behaviour unchanged).
+   */
+  const confirmMapPicker = async (nativeResolvedAddress?: string) => {
     if (!mapPickerCoord) return;
     setMapPickerBusy(true);
     try {
       const coords: [number, number] = [mapPickerCoord.lng, mapPickerCoord.lat];
-      let address = '';
-      try {
-        address = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat);
-      } catch {
-        address = '';
+      let address = nativeResolvedAddress ?? '';
+
+      // Web fallback: use Mapbox reverse geocode if native didn't supply address
+      if (!address && Platform.OS === 'web') {
+        try {
+          address = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat);
+        } catch {
+          address = '';
+        }
       }
 
       if (mapPickerTarget === 'pickup') {
@@ -2074,42 +2088,44 @@ export default function BookingWizardScreen() {
                       </Text>
                     ) : null}
                   </YStack>
-                  <YStack flex={1} minWidth={220} gap="$2">
-                    <Text fontSize={t(14)} fontWeight="700" color="#4062acff">
-                      Lift
-                    </Text>
-                    <Pressable onPress={() => setForm((p) => ({ ...p, pickupLift: !p.pickupLift }))}>
-                      <YStack
-                        backgroundColor={theme.bgSecondary}
-                        borderRadius={12}
-                        paddingHorizontal={14}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        height={48}
-                        justifyContent="center"
-                        flexDirection="row"
-                        alignItems="center">
-                        <Text fontWeight="700" color="#3d5ea5ff">
-                          Lift Available?
-                        </Text>
+                  {!isGroundFloor(form.pickupFloor) ? (
+                    <YStack flex={1} minWidth={220} gap="$2">
+                      <Text fontSize={t(14)} fontWeight="700" color="#4062acff">
+                        Lift
+                      </Text>
+                      <Pressable onPress={() => setForm((p) => ({ ...p, pickupLift: !p.pickupLift }))}>
                         <YStack
-                          width={42}
-                          height={24}
-                          borderRadius={999}
-                          backgroundColor={form.pickupLift ? theme.success : theme.border}
+                          backgroundColor={theme.bgSecondary}
+                          borderRadius={12}
+                          paddingHorizontal={14}
+                          borderWidth={1}
+                          borderColor={theme.border}
+                          height={48}
                           justifyContent="center"
-                          paddingHorizontal={3}>
+                          flexDirection="row"
+                          alignItems="center">
+                          <Text fontWeight="700" color="#3d5ea5ff">
+                            Lift Available?
+                          </Text>
                           <YStack
-                            width={18}
-                            height={18}
+                            width={42}
+                            height={24}
                             borderRadius={999}
-                            backgroundColor={theme.bgCard}
-                            alignSelf={form.pickupLift ? 'flex-end' : 'flex-start'}
-                          />
+                            backgroundColor={form.pickupLift ? theme.success : theme.border}
+                            justifyContent="center"
+                            paddingHorizontal={3}>
+                            <YStack
+                              width={18}
+                              height={18}
+                              borderRadius={999}
+                              backgroundColor={theme.bgCard}
+                              alignSelf={form.pickupLift ? 'flex-end' : 'flex-start'}
+                            />
+                          </YStack>
                         </YStack>
-                      </YStack>
-                    </Pressable>
-                  </YStack>
+                      </Pressable>
+                    </YStack>
+                  ) : null}
                 </XStack>
 
                 <YStack height={1} backgroundColor={theme.bgSecondary} marginVertical={8} />
@@ -2162,42 +2178,44 @@ export default function BookingWizardScreen() {
                       </YStack>
                     </Pressable>
                   </YStack>
-                  <YStack flex={1} minWidth={220} gap="$2">
-                    <Text fontSize={t(14)} fontWeight="700" color="#4163adff">
-                      Lift
-                    </Text>
-                    <Pressable onPress={() => setForm((p) => ({ ...p, dropLift: !p.dropLift }))}>
-                      <YStack
-                        backgroundColor={theme.bgSecondary}
-                        borderRadius={12}
-                        paddingHorizontal={14}
-                        borderWidth={1}
-                        borderColor={theme.border}
-                        height={48}
-                        justifyContent="center"
-                        flexDirection="row"
-                        alignItems="center">
-                        <Text fontWeight="700" color="#4163adff">
-                          Lift Available?
-                        </Text>
+                  {!isGroundFloor(form.dropFloor) ? (
+                    <YStack flex={1} minWidth={220} gap="$2">
+                      <Text fontSize={t(14)} fontWeight="700" color="#4163adff">
+                        Lift
+                      </Text>
+                      <Pressable onPress={() => setForm((p) => ({ ...p, dropLift: !p.dropLift }))}>
                         <YStack
-                          width={42}
-                          height={24}
-                          borderRadius={999}
-                          backgroundColor={form.dropLift ? theme.success : theme.border}
+                          backgroundColor={theme.bgSecondary}
+                          borderRadius={12}
+                          paddingHorizontal={14}
+                          borderWidth={1}
+                          borderColor={theme.border}
+                          height={48}
                           justifyContent="center"
-                          paddingHorizontal={3}>
+                          flexDirection="row"
+                          alignItems="center">
+                          <Text fontWeight="700" color="#4163adff">
+                            Lift Available?
+                          </Text>
                           <YStack
-                            width={18}
-                            height={18}
+                            width={42}
+                            height={24}
                             borderRadius={999}
-                            backgroundColor={theme.bgCard}
-                            alignSelf={form.dropLift ? 'flex-end' : 'flex-start'}
-                          />
+                            backgroundColor={form.dropLift ? theme.success : theme.border}
+                            justifyContent="center"
+                            paddingHorizontal={3}>
+                            <YStack
+                              width={18}
+                              height={18}
+                              borderRadius={999}
+                              backgroundColor={theme.bgCard}
+                              alignSelf={form.dropLift ? 'flex-end' : 'flex-start'}
+                            />
+                          </YStack>
                         </YStack>
-                      </YStack>
-                    </Pressable>
-                  </YStack>
+                      </Pressable>
+                    </YStack>
+                  ) : null}
                 </XStack>
 
                 <XStack justifyContent="space-between" alignItems="center">
@@ -3076,7 +3094,7 @@ export default function BookingWizardScreen() {
                 ) : null}
               </YStack>
 
-              <XStack gap="$2" justifyContent="center" flexWrap="wrap">
+              <XStack gap="$1.5" justifyContent="center" flexWrap="wrap">
                 {otpDigits.map((d, i) => (
                   <Input
                     key={i}
@@ -3084,13 +3102,13 @@ export default function BookingWizardScreen() {
                     value={d}
                     keyboardType="number-pad"
                     maxLength={6}
-                    width={52}
-                    height={60}
+                    width={42}
+                    height={54}
                     textAlign="center"
-                    fontSize={t(22)}
+                    fontSize={t(18)}
                     fontWeight="900"
                     borderWidth={2}
-                    borderRadius={12}
+                    borderRadius={10}
                     ref={(r: any) => {
                       otpRefs.current[i] = r;
                     }}
