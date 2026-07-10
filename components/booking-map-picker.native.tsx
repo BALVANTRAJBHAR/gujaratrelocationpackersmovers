@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
+
+import { reverseGeocode } from '@/lib/mapbox';
+import { getGoogleMapsKey } from '@/lib/public-config';
 
 type Coord = { lat: number; lng: number };
 
@@ -16,7 +19,23 @@ export default function BookingMapPicker(props: {
   busy: boolean;
   isWide: boolean;
 }) {
-  const googleMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+  const mapRef = useRef<MapView>(null);
+  const [googleMapsKey, setGoogleMapsKey] = useState(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '');
+
+  useEffect(() => {
+    if (!googleMapsKey) {
+      getGoogleMapsKey().then(setGoogleMapsKey).catch(() => {});
+    }
+  }, []);
+
+  const handlePress = useCallback(
+    async (e: any) => {
+      const c = e.nativeEvent.coordinate;
+      props.onCoordChange({ lat: c.latitude, lng: c.longitude });
+      mapRef.current?.animateCamera({ center: { latitude: c.latitude, longitude: c.longitude }, zoom: 14 }, { duration: 400 });
+    },
+    [props.onCoordChange],
+  );
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -31,37 +50,36 @@ export default function BookingMapPicker(props: {
             {Platform.OS === 'android' && !googleMapsKey ? (
               <YStack backgroundColor="#F8FAFC" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
                 <Text color="#64748B" fontSize={12} textAlign="center">
-                  Map is disabled on Android until Google Maps API key is configured.
-                </Text>
-              </YStack>
-            ) : !props.token ? (
-              <YStack backgroundColor="#F8FAFC" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
-                <Text color="#64748B" fontSize={12} textAlign="center">
-                  Mapbox token missing.
+                  Map is disabled until Google Maps API key is configured.
                 </Text>
               </YStack>
             ) : (
               <YStack height={320} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB">
                 <MapView
+                  ref={mapRef}
                   style={StyleSheet.absoluteFillObject}
+                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
                   region={{
                     latitude: props.coord?.lat ?? 19.076,
                     longitude: props.coord?.lng ?? 72.8777,
                     latitudeDelta: 0.03,
                     longitudeDelta: 0.03,
                   }}
-                  onPress={(e) => {
-                    const c = e.nativeEvent.coordinate;
-                    props.onCoordChange({ lat: c.latitude, lng: c.longitude });
-                  }}>
-                  <UrlTile
-                    urlTemplate={`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${props.token}`}
-                    maximumZ={19}
-                  />
+                  onPress={handlePress}
+                  showsUserLocation={false}
+                  showsMyLocationButton={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}>
                   {props.coord ? <Marker coordinate={{ latitude: props.coord.lat, longitude: props.coord.lng }} /> : null}
                 </MapView>
               </YStack>
             )}
+
+            {props.coord ? (
+              <Text color="#64748B" fontSize={12} textAlign="center">
+                Lat: {props.coord.lat.toFixed(6)}  Lng: {props.coord.lng.toFixed(6)}
+              </Text>
+            ) : null}
 
             <XStack justifyContent="space-between" gap="$2" flexWrap="wrap">
               <Button
@@ -79,13 +97,8 @@ export default function BookingMapPicker(props: {
                 backgroundColor="#F97316"
                 color="#0B0B12"
                 onPress={() => void props.onConfirm()}
-                disabled={
-                  props.busy ||
-                  !props.coord ||
-                  !props.token ||
-                  (Platform.OS === 'android' && !googleMapsKey)
-                }>
-                {props.busy ? 'Saving…' : 'Confirm'}
+                disabled={props.busy || !props.coord || (Platform.OS === 'android' && !googleMapsKey)}>
+                {props.busy ? 'Saving\u2026' : 'Confirm'}
               </Button>
             </XStack>
           </YStack>

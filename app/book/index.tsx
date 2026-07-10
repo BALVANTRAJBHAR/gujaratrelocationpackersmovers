@@ -227,9 +227,9 @@ const isAllowedMp4 = (value: string) => {
 };
 
 const TIME_SLOTS = [
-  '10:00 AM', '11:00 AM', '12:00 PM',
-  '2:00 PM', '3:00 PM', '4:00 PM',
-  '5:00 PM', '6:00 PM', '7:00 PM',
+  '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+  '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM',
+  '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM',
 ];
 
 const parseDateDdMmYyyy = (value: string) => {
@@ -902,21 +902,21 @@ export default function BookingWizardScreen() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
   }, [emailTrimmed]);
 
+  const isGroundFloor = (floor: string) => floor.toLowerCase().includes('ground');
+
+  const calcFloorCharge = (floor: string, liftAvailable: boolean) => {
+    if (!floor || isGroundFloor(floor)) return 0;
+    if (liftAvailable) return 0;
+    return 500;
+  };
+
   const pickupFloorCharge = useMemo(() => {
-    const opt = floorOptions.find((f) => f.label === form.pickupFloor) ?? null;
-    if (!opt) return 0;
-    const withLift = typeof opt.charge_with_lift === 'number' ? opt.charge_with_lift : 0;
-    const withoutLift = typeof opt.charge_without_lift === 'number' ? opt.charge_without_lift : 0;
-    return form.pickupLift ? withLift : withoutLift;
-  }, [floorOptions, form.pickupFloor, form.pickupLift]);
+    return calcFloorCharge(form.pickupFloor, form.pickupLift);
+  }, [form.pickupFloor, form.pickupLift]);
 
   const dropFloorCharge = useMemo(() => {
-    const opt = floorOptions.find((f) => f.label === form.dropFloor) ?? null;
-    if (!opt) return 0;
-    const withLift = typeof opt.charge_with_lift === 'number' ? opt.charge_with_lift : 0;
-    const withoutLift = typeof opt.charge_without_lift === 'number' ? opt.charge_without_lift : 0;
-    return form.dropLift ? withLift : withoutLift;
-  }, [floorOptions, form.dropFloor, form.dropLift]);
+    return calcFloorCharge(form.dropFloor, form.dropLift);
+  }, [form.dropFloor, form.dropLift]);
 
   const pickupFloorSort = useMemo(() => {
     const opt = floorOptions.find((f) => f.label === form.pickupFloor) ?? null;
@@ -1992,7 +1992,7 @@ export default function BookingWizardScreen() {
                         onPress={() => setForm((p) => ({ ...p, moveType: moveType.key }))}
                         style={{ width: isWide ? '32%' : '48%' }}>
                         <YStack
-                          backgroundColor={selected ? theme.bgSecondary : '#FFFFFF'}
+                          backgroundColor={selected ? theme.bgSecondary : theme.bgCard}
                           borderRadius={14}
                           padding={14}
                           borderWidth={2}
@@ -2207,12 +2207,7 @@ export default function BookingWizardScreen() {
                   </Text>
                 </XStack>
 
-                <XStack justifyContent="space-between" alignItems="center">
-                  <Text color="#64748B">Floor charges</Text>
-                  <Text fontWeight="800" color="#4163adff">
-                    {currency(pickupFloorCharge + dropFloorCharge)}
-                  </Text>
-                </XStack>
+
 
               </YStack>
             </YStack>
@@ -2474,30 +2469,6 @@ export default function BookingWizardScreen() {
                     </YStack>
                   </XStack>
 
-                  <YStack
-                    backgroundColor="#1F4E79"
-                    borderRadius={14}
-                    padding={16}
-                    justifyContent="space-between"
-                    flexDirection="row"
-                    alignItems="center">
-                    <YStack>
-                      <Text color="#CFE3F4" fontSize={t(14)} fontWeight="700">
-                        Estimated Price
-                      </Text>
-                      <Text color="#FFFFFF" fontSize={t(28)} fontWeight="900">
-                        {currency(total)}
-                      </Text>
-                    </YStack>
-                    <YStack alignItems="flex-end">
-                      <Text color="#CFE3F4" fontSize={t(14)} fontWeight="700">
-                        Pay Advance
-                      </Text>
-                      <Text color="#FFFFFF" fontSize={t(20)} fontWeight="900">
-                        {currency(form.advanceAmount)}
-                      </Text>
-                    </YStack>
-                  </YStack>
                 </YStack>
               </YStack>
             </>
@@ -2565,10 +2536,10 @@ export default function BookingWizardScreen() {
                           paddingVertical={10}
                           minWidth={100}
                           onPress={() => {
-                            setForm((p) => ({ ...p, preferredTime: t }));
+                            setForm((p) => ({ ...p, preferredTime: slot }));
                             setTimePickerOpen(false);
                           }}>
-                          {t}
+                          {slot}
                         </Button>
                       );
                     })}
@@ -2871,47 +2842,47 @@ export default function BookingWizardScreen() {
                 </Text>
                 <YStack gap="$2">
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Base Fare</Text>
-                    <Text fontWeight="800" color={theme.text}>{currency(vehiclePricing?.baseFare ?? 0)}</Text>
+                    <Text fontSize={t(14)} color="#64748B">Base Fare</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(vehiclePricing?.baseFare ?? 0)}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Distance ({distanceKm ? Math.round(distanceKm) : 0} km)</Text>
-                    <Text fontWeight="800" color={theme.text}>{currency((distanceKm ?? 0) * (vehiclePricing?.perKm ?? 0))}</Text>
+                    <Text fontSize={t(14)} color="#64748B">Distance ({distanceKm ? Math.round(distanceKm) : 0} km)</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency((distanceKm ?? 0) * (vehiclePricing?.perKm ?? 0))}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Floor charges</Text>
-                    <Text fontWeight="800" color={theme.text}>{currency(pickupFloorCharge + dropFloorCharge)}</Text>
+                    <Text fontSize={t(14)} color="#64748B">Floor charges</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(pickupFloorCharge + dropFloorCharge)}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Labor ({form.laborers} Worker)</Text>
-                    <Text fontWeight="800" color={theme.text}>{currency(form.laborers * (vehiclePricing?.laborUnit ?? 0))}</Text>
+                    <Text fontSize={t(14)} color="#64748B">Labor ({form.laborers} Worker)</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(form.laborers * (vehiclePricing?.laborUnit ?? 0))}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">GST (18%)</Text>
-                    <Text fontWeight="800" color={theme.text}>{currency(gst)}</Text>
+                    <Text fontSize={t(14)} color="#64748B">GST (18%)</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(gst)}</Text>
                   </XStack>
 
                   {discountAmount > 0 ? (
                     <XStack justifyContent="space-between">
-                      <Text color="#64748B">Discount</Text>
-                      <Text fontWeight="800" color={theme.text}>- {currency(discountAmount)}</Text>
+                      <Text fontSize={t(14)} color="#64748B">Discount</Text>
+                      <Text fontSize={t(14)} fontWeight="800" color={theme.text}>- {currency(discountAmount)}</Text>
                     </XStack>
                   ) : null}
                   <YStack height={1} backgroundColor={theme.bgSecondary} marginVertical={8} />
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(18)} fontWeight="900">Total</Text>
-                    <Text fontSize={t(18)} fontWeight="900">{currency(total)}</Text>
+                    <Text fontSize={t(20)} fontWeight="900">Total</Text>
+                    <Text fontSize={t(20)} fontWeight="900">{currency(total)}</Text>
                   </XStack>
 
                   <XStack justifyContent="space-between" marginTop={6}>
-                    <Text color="#64748B">Advance Payment</Text>
-                    <Text fontWeight="800" color="#16A34A">
+                    <Text fontSize={t(14)} color="#64748B">Advance Payment</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color="#16A34A">
                       - {currency(form.advanceAmount)}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(18)} fontWeight="900">Remaining</Text>
-                    <Text fontSize={t(18)} fontWeight="900">{currency(Math.max(total - form.advanceAmount, 0))}</Text>
+                    <Text fontSize={t(20)} fontWeight="900">Remaining</Text>
+                    <Text fontSize={t(20)} fontWeight="900">{currency(Math.max(total - form.advanceAmount, 0))}</Text>
                   </XStack>
                 </YStack>
               </YStack>

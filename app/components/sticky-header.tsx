@@ -227,7 +227,7 @@ export default function StickyHeader({
                   <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
                     <YStack
                       paddingHorizontal={18}
-                      paddingVertical={12}
+                      paddingVertical={10}
                       borderRadius={14}
                       backgroundColor={theme.menuBg}
                       borderWidth={1}
@@ -237,6 +237,8 @@ export default function StickyHeader({
                       shadowOpacity={0.12}
                       shadowRadius={6}
                       elevation={3}
+                      alignItems="center"
+                      justifyContent="center"
                       style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
                         {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
@@ -262,6 +264,8 @@ export default function StickyHeader({
                       shadowOpacity={0.12}
                       shadowRadius={6}
                       elevation={3}
+                      alignItems="center"
+                      justifyContent="center"
                       style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                       <Text
                         color={theme.menuText}
@@ -410,7 +414,7 @@ export default function StickyHeader({
                 <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
                   <YStack
                     paddingHorizontal={16}
-                    paddingVertical={11}
+                    paddingVertical={9}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -420,6 +424,8 @@ export default function StickyHeader({
                     shadowOpacity={0.12}
                     shadowRadius={6}
                     elevation={3}
+                    alignItems="center"
+                    justifyContent="center"
                     style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                     <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
                       {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
@@ -488,6 +494,8 @@ export default function StickyHeader({
                     shadowOpacity={0.12}
                     shadowRadius={6}
                     elevation={3}
+                    alignItems="center"
+                    justifyContent="center"
                     style={headerHovered === 'mlogin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                     <Text
                       color={theme.menuText}

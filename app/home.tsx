@@ -1830,7 +1830,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: (isSmallScreen ? 70 : 86) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: isSmallScreen ? 8 : 24,
+            paddingBottom: isSmallScreen ? 80 : 24,
           },
         ]}
         showsVerticalScrollIndicator={false}

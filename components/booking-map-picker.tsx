@@ -179,13 +179,7 @@ export default function BookingMapPicker(props: {
               {props.title}
             </Text>
 
-            {!isWeb ? (
-              <YStack backgroundColor="#F8FAFC" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
-                <Text color="#64748B" fontSize={12} textAlign="center">
-                  Map picker is available on web only.
-                </Text>
-              </YStack>
-            ) : !props.token ? (
+            {!props.token ? (
               <YStack backgroundColor="#F8FAFC" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
                 <Text color="#64748B" fontSize={12} textAlign="center">
                   Mapbox token missing.
@@ -222,13 +216,13 @@ export default function BookingMapPicker(props: {
                 {showNoResults ? (
                   <Text color="#64748B" fontSize={12}>No results found.</Text>
                 ) : null}
-                <YStack height={280} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB">
+                <YStack height={280} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB" style={{ position: 'relative' } as any}>
                   <YStack ref={setMapContainer as any} width="100%" height="100%" />
                 </YStack>
               </YStack>
             )}
 
-            {isWeb && props.coord ? (
+            {props.coord ? (
               <Text color="#64748B" fontSize={12}>
                 Lat: {props.coord.lat.toFixed(6)}  Lng: {props.coord.lng.toFixed(6)}
               </Text>

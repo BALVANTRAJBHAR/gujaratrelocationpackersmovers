@@ -107,6 +107,7 @@ import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validat
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
+import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
 
@@ -307,7 +308,7 @@ export default function HomeServiceRequestScreen() {
   const params = useLocalSearchParams<{ service?: string }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
-  const { session, profile } = useSession();
+  const { session, profile, refreshProfile } = useSession();
 
   const serviceOptions = useMemo(
     () =>
@@ -378,15 +379,14 @@ export default function HomeServiceRequestScreen() {
     () =>
       [
         { label: 'India (+91)', value: '+91' },
-        { label: 'Pakistan (+92)', value: '+92' },
-        { label: 'Bangladesh (+880)', value: '+880' },
         { label: 'Nepal (+977)', value: '+977' },
+        { label: 'Bhutan (+975)', value: '+975' },
+        { label: 'Bangladesh (+880)', value: '+880' },
+        { label: 'Myanmar (+95)', value: '+95' },
+        { label: 'Pakistan (+92)', value: '+92' },
+        { label: 'Afghanistan (+93)', value: '+93' },
         { label: 'Sri Lanka (+94)', value: '+94' },
-        { label: 'UAE (+971)', value: '+971' },
-        { label: 'Saudi Arabia (+966)', value: '+966' },
-        { label: 'UK (+44)', value: '+44' },
-        { label: 'USA (+1)', value: '+1' },
-        { label: 'Canada (+1)', value: '+1' },
+        { label: 'China (+86)', value: '+86' },
       ] as const,
     []
   );
@@ -676,9 +676,6 @@ export default function HomeServiceRequestScreen() {
     setOtpSending(true);
     try {
       const phone = `${countryCode}${digits}`;
-      if (session?.user?.id) {
-        await supabase.from('users').update({ phone: digits }).eq('id', session.user.id);
-      }
       const data = await invokeEdgeFunction<{ sent?: boolean; error?: string }>('send-booking-otp', {
         phone,
         purpose: 'booking',
@@ -727,6 +724,17 @@ export default function HomeServiceRequestScreen() {
       if (!data?.valid) {
         setError(data?.error ? String(data.error) : 'Invalid OTP.');
         return;
+      }
+
+      if (session?.user?.id && digits.length === 10) {
+        const ownedByOther = await findExistingUserByPhone(supabase, digits, session.user.id);
+        if (!ownedByOther) {
+          const { error: phoneErr } = await supabase
+            .from('users')
+            .update({ phone: digits })
+            .eq('id', session.user.id);
+          if (!phoneErr) await refreshProfile?.();
+        }
       }
 
       const requestId = await createRequestIfNeeded();
@@ -1283,15 +1291,17 @@ export default function HomeServiceRequestScreen() {
                 <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
                   Phone *
                 </Text>
-                <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                  <Pressable onPress={() => setCountryCodePickerOpen(true)} style={{ flexBasis: '32%' } as any}>
+                <XStack gap="$2" alignItems="center">
+                  <Pressable onPress={() => setCountryCodePickerOpen(true)} style={{ flexShrink: 0 } as any}>
                     <YStack
                       backgroundColor={theme.bgCard}
                       borderRadius={12}
-                      padding={12}
+                      paddingVertical={12}
+                      paddingHorizontal={10}
                       borderWidth={1}
-                      borderColor={theme.border}>
-                      <Text fontSize={t(13)} fontWeight="800" color={theme.textMuted}>
+                      borderColor={theme.border}
+                      minWidth={75}>
+                      <Text fontSize={t(12)} fontWeight="800" color={theme.textMuted}>
                         Code
                       </Text>
                       <Text fontSize={t(15)} fontWeight="900" color={theme.text}>
@@ -1299,7 +1309,7 @@ export default function HomeServiceRequestScreen() {
                       </Text>
                     </YStack>
                   </Pressable>
-                  <YStack style={{ flexBasis: '66%' } as any}>
+                  <YStack flex={1}>
                     <Input
                       value={customerPhone}
                       onChangeText={(v) => { const d = normalizePhoneDigits(v); if (d.length > 10) return; setCustomerPhone(d); }}
@@ -1618,145 +1628,145 @@ export default function HomeServiceRequestScreen() {
                 </Text>
               ) : null}
 
-              <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
-                    State
-                  </Text>
-                  <Pressable onPress={() => setStatePickerOpen(true)}>
-                    <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+              <YStack gap="$2">
+                <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
+                  State
+                </Text>
+                <Pressable onPress={() => setStatePickerOpen(true)}>
+                  <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                    {!state ? (
                       <Text fontSize={t(13)} fontWeight="800" color={theme.textMuted}>
                         Select
                       </Text>
-                      <Text fontSize={t(15)} fontWeight="900" color={theme.text} numberOfLines={1}>
-                        {state || 'State'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
-                    City
-                  </Text>
-                  <Pressable onPress={() => setCityPickerOpen(true)}>
-                    <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                    ) : null}
+                    <Text fontSize={t(15)} fontWeight="900" color={theme.text} numberOfLines={1}>
+                      {state || 'State'}
+                    </Text>
+                  </YStack>
+                </Pressable>
+              </YStack>
+              <YStack gap="$2">
+                <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
+                  City
+                </Text>
+                <Pressable onPress={() => setCityPickerOpen(true)}>
+                  <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                    {!city ? (
                       <Text fontSize={t(13)} fontWeight="800" color={theme.textMuted}>
                         Select
                       </Text>
-                      <Text fontSize={t(15)} fontWeight="900" color={theme.text} numberOfLines={1}>
-                        {city || 'City'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                </YStack>
-              </XStack>
+                    ) : null}
+                    <Text fontSize={t(15)} fontWeight="900" color={theme.text} numberOfLines={1}>
+                      {city || 'City'}
+                    </Text>
+                  </YStack>
+                </Pressable>
+              </YStack>
 
-              <XStack gap="$2" flexWrap="wrap" justifyContent="space-between">
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
-                    Preferred date
-                  </Text>
-                  {Platform.OS === 'web'
-                    ? React.createElement('input', {
-                        type: 'date',
-                        min: new Date().toISOString().slice(0, 10),
-                        value: toISODateFromDDMMYYYY(preferredDate) || '',
-                        style: {
-                          width: '100%',
-                          maxWidth: '100%',
-                          minWidth: 0,
-                          boxSizing: 'border-box',
-                          display: 'block',
-                          height: 46,
-                          fontSize: 16,
-                          padding: '10px 12px',
-                          borderRadius: 12,
-                          border: '1px solid ' + theme.border,
-                          outline: 'none',
-                          background: theme.bgCard,
-                          color: theme.text,
-                        },
-                        onFocus: (e: any) => {
-                          try {
-                            e?.target?.showPicker?.();
-                          } catch {}
-                        },
-                        onClick: (e: any) => {
-                          try {
-                            e?.target?.showPicker?.();
-                          } catch {}
-                        },
-                        onChange: (e: any) => {
-                          const iso = String(e?.target?.value ?? '');
-                          const next = fromISOToDDMMYYYY(iso);
-                          if (next) setPreferredDate(next);
-                        },
-                      } as any)
-                    : (
-                        <Pressable onPress={() => setDatePickerOpen(true)}>
-                          <Input
-                            value={preferredDate}
-                            editable={false}
-                            placeholder="DD/MM/YYYY"
-                            backgroundColor={theme.bgCard}
-                            borderColor={theme.border}
-                            color={theme.text}
-                          />
-                        </Pressable>
-                      )}
-                </YStack>
-                <YStack gap="$2" style={{ flexBasis: '49%' } as any}>
-                  <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
-                    Preferred time
-                  </Text>
-                  {Platform.OS === 'web'
-                    ? React.createElement('input', {
-                        type: 'time',
-                        value: preferredTime || '',
-                        style: {
-                          width: '100%',
-                          maxWidth: '100%',
-                          minWidth: 0,
-                          boxSizing: 'border-box',
-                          display: 'block',
-                          height: 46,
-                          fontSize: 16,
-                          padding: '10px 12px',
-                          borderRadius: 12,
-                          border: '1px solid ' + theme.border,
-                          outline: 'none',
-                          background: theme.bgCard,
-                          color: theme.text,
-                        },
-                        onFocus: (e: any) => {
-                          try {
-                            e?.target?.showPicker?.();
-                          } catch {}
-                        },
-                        onClick: (e: any) => {
-                          try {
-                            e?.target?.showPicker?.();
-                          } catch {}
-                        },
-                        onChange: (e: any) => {
-                          const t = String(e?.target?.value ?? '').trim();
-                          if (t) setPreferredTime(t);
-                        },
-                      } as any)
-                    : (
-                        <Pressable onPress={() => setTimePickerOpen(true)}>
-                          <Input
-                            value={preferredTime}
-                            editable={false}
-                            placeholder="Select time"
-                            backgroundColor={theme.bgCard}
-                            borderColor={theme.border}
-                            color={theme.text}
-                          />
-                        </Pressable>
-                      )}
-                </YStack>
-              </XStack>
+              <YStack gap="$2">
+                <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
+                  Preferred date
+                </Text>
+                {Platform.OS === 'web'
+                  ? React.createElement('input', {
+                      type: 'date',
+                      min: new Date().toISOString().slice(0, 10),
+                      value: toISODateFromDDMMYYYY(preferredDate) || '',
+                      style: {
+                        width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        display: 'block',
+                        height: 46,
+                        fontSize: 16,
+                        padding: '10px 12px',
+                        borderRadius: 12,
+                        border: '1px solid ' + theme.border,
+                        outline: 'none',
+                        background: theme.bgCard,
+                        color: theme.text,
+                      },
+                      onFocus: (e: any) => {
+                        try {
+                          e?.target?.showPicker?.();
+                        } catch {}
+                      },
+                      onClick: (e: any) => {
+                        try {
+                          e?.target?.showPicker?.();
+                        } catch {}
+                      },
+                      onChange: (e: any) => {
+                        const iso = String(e?.target?.value ?? '');
+                        const next = fromISOToDDMMYYYY(iso);
+                        if (next) setPreferredDate(next);
+                      },
+                    } as any)
+                  : (
+                      <Pressable onPress={() => setDatePickerOpen(true)}>
+                        <Input
+                          value={preferredDate}
+                          editable={false}
+                          placeholder="DD/MM/YYYY"
+                          backgroundColor={theme.bgCard}
+                          borderColor={theme.border}
+                          color={theme.text}
+                        />
+                      </Pressable>
+                    )}
+              </YStack>
+              <YStack gap="$2">
+                <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
+                  Preferred time
+                </Text>
+                {Platform.OS === 'web'
+                  ? React.createElement('input', {
+                      type: 'time',
+                      value: preferredTime || '',
+                      style: {
+                        width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        display: 'block',
+                        height: 46,
+                        fontSize: 16,
+                        padding: '10px 12px',
+                        borderRadius: 12,
+                        border: '1px solid ' + theme.border,
+                        outline: 'none',
+                        background: theme.bgCard,
+                        color: theme.text,
+                      },
+                      onFocus: (e: any) => {
+                        try {
+                          e?.target?.showPicker?.();
+                        } catch {}
+                      },
+                      onClick: (e: any) => {
+                        try {
+                          e?.target?.showPicker?.();
+                        } catch {}
+                      },
+                      onChange: (e: any) => {
+                        const t = String(e?.target?.value ?? '').trim();
+                        if (t) setPreferredTime(t);
+                      },
+                    } as any)
+                  : (
+                      <Pressable onPress={() => setTimePickerOpen(true)}>
+                        <Input
+                          value={preferredTime}
+                          editable={false}
+                          placeholder="Select time"
+                          backgroundColor={theme.bgCard}
+                          borderColor={theme.border}
+                          color={theme.text}
+                        />
+                      </Pressable>
+                    )}
+              </YStack>
 
               <YStack gap="$2">
                 <Text fontSize={t(14)} fontWeight="700" color={theme.textSecondary}>
@@ -1797,7 +1807,7 @@ export default function HomeServiceRequestScreen() {
                 <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => void pickPhotos()}>
                   Add Photos ({photos.length}/10)
                 </Button>
-                <Button backgroundColor={theme.bgSecondary} color="#FFFFFF" onPress={() => void pickVideo()}>
+                <Button backgroundColor={theme.info} color="#FFFFFF" onPress={() => void pickVideo()}>
                   Add Video ({videos.length}/2)
                 </Button>
               </XStack>
@@ -1935,37 +1945,37 @@ export default function HomeServiceRequestScreen() {
               </Text>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Name
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {customerName.trim() || 'Not provided'}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Service
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {serviceOptions.find((x) => x.key === serviceKey)?.label ?? serviceKey}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Phone
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {countryCode}{normalizePhoneDigits(customerPhone)}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Location
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {addressLine1 || addressLine2 || locality || city || state
                     ? `${addressLine1}${addressLine1 ? ', ' : ''}${addressLine2}${addressLine2 ? ', ' : ''}${locality}${locality ? ', ' : ''}${city}${city ? ', ' : ''}${state}`
                     : 'Not provided'}
@@ -1973,34 +1983,34 @@ export default function HomeServiceRequestScreen() {
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Preferred date & time
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {preferredDate && preferredTime ? `${preferredDate}, ${preferredTime}` : 'Not provided'}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Remark
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {notes.trim() || 'Not provided'}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Payment
                 </Text>
-                <Text color={theme.text} fontWeight="900" style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
                   {paymentOption === 'online_now' ? 'Pay Online Now (₹150 advance)' : 'Pay After Service'}
                 </Text>
               </YStack>
 
               <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="700">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Uploads
                 </Text>
                 <XStack gap="$3" flexWrap="wrap" alignItems="center">
@@ -2346,7 +2356,7 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
               ) : null}
             </YStack>
 
-            <XStack gap="$2" justifyContent="space-between" marginBottom={12}>
+            <XStack gap="$1.5" justifyContent="space-between" marginBottom={12} paddingHorizontal={0}>
               {otpDigits.map((d, idx) => (
                 <TextInput
                   key={idx}
@@ -2392,13 +2402,13 @@ hoverStyle={{ backgroundColor: theme.success, color: '#FFFFFF' } as any}
                   inputMode={Platform.OS === 'web' ? ('numeric' as any) : undefined}
                   maxLength={1}
                   style={{
-                    width: 56,
-                    height: 64,
+                    width: 48,
+                    height: 58,
                     borderWidth: 1,
                     borderColor: theme.border,
                     borderRadius: 14,
                     textAlign: 'center',
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: '900',
                     color: theme.text,
                     backgroundColor: theme.bgCard,

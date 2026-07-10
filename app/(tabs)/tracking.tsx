@@ -167,7 +167,7 @@ export default function TrackingScreen() {
   return (
     <YStack flex={1} backgroundColor={theme.bg} padding={24}>
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
-        <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
+        <Text color={theme.accent} fontSize={t(18)} fontWeight="900" letterSpacing={2} textTransform="uppercase">
           Live tracking
         </Text>
         <H2 color={theme.text}>Driver signals</H2>
@@ -252,7 +252,7 @@ export default function TrackingScreen() {
           </YStack>
         ) : null}
 
-        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary}>
+        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary} style={{ position: 'relative' } as any}>
           <TrackingMap
             token={mapboxToken}
             latitude={mapLat}

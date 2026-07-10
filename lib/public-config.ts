@@ -5,6 +5,7 @@ type PublicConfigResponse = {
   mapbox_token?: string;
   razorpay_key_id?: string;
   vapid_public_key?: string;
+  google_maps_api_key?: string;
   error?: string;
   missing?: { mapbox?: boolean; razorpayKeyId?: boolean };
 };
@@ -13,6 +14,7 @@ type PublicConfig = {
   mapboxToken: string;
   razorpayKeyId: string;
   vapidPublicKey: string;
+  googleMapsKey: string;
 };
 
 let cached: PublicConfig | null = null;
@@ -69,8 +71,9 @@ export async function getPublicConfig(forceRefresh = false): Promise<PublicConfi
     const mapboxToken = String(parsed?.mapbox_token ?? '').trim();
     const razorpayKeyId = String(parsed?.razorpay_key_id ?? '').trim();
     const vapidPublicKey = String(parsed?.vapid_public_key ?? '').trim();
+    const googleMapsKey = String(parsed?.google_maps_api_key ?? '').trim();
 
-    cached = { mapboxToken, razorpayKeyId, vapidPublicKey };
+    cached = { mapboxToken, razorpayKeyId, vapidPublicKey, googleMapsKey };
     return cached;
   };
 
@@ -94,4 +97,9 @@ export async function getRazorpayKeyId(): Promise<string> {
 export async function getVapidPublicKey(): Promise<string> {
   const cfg = await getPublicConfig();
   return cfg.vapidPublicKey;
+}
+
+export async function getGoogleMapsKey(): Promise<string> {
+  const cfg = await getPublicConfig();
+  return cfg.googleMapsKey;
 }

@@ -18,12 +18,14 @@ serve(async (req) => {
     const mapboxToken = Deno.env.get('MAPBOX_TOKEN') ?? '';
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
+    const googleMapsKey = Deno.env.get('GOOGLE_MAPS_API_KEY') ?? '';
 
     return new Response(
       JSON.stringify({
         mapbox_token: mapboxToken,
         razorpay_key_id: razorpayKeyId,
         vapid_public_key: vapidPublicKey,
+        google_maps_api_key: googleMapsKey,
       }),
       {
         status: 200,
