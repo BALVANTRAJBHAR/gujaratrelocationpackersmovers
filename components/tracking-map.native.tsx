@@ -1,38 +1,28 @@
 /**
  * tracking-map.native.tsx
  *
- * MOBILE-ONLY (Android & iOS) — Independent Google Maps live-tracking component.
- * Used in the Tracking tab to show:
+ * MOBILE-ONLY (Android & iOS) — Mapbox GL JS map inside react-native-webview.
+ * Used in the Tracking screen to show:
  *   - Green marker  → Pickup location
  *   - Red marker    → Drop location
- *   - Orange marker → Driver live position (updates in realtime via Supabase)
+ *   - Pulsing orange circle → Driver live position
  *
  * Key design decisions:
- *  - 100% self-contained: Google Maps key fetched internally on mount
- *  - No Mapbox imports, no shared map hooks/utilities
- *  - token prop (Mapbox) is accepted for API compatibility but IGNORED on native
- *  - Web version (tracking-map.tsx) is NOT modified
- *  - fitToCoordinates called whenever markers change for optimal viewport
- *  - Animated driver marker via React Native Animated + marker key cycling
+ *  - 100% self-contained: Google Maps API key is NOT required anymore
+ *  - Uses Mapbox GL JS rendered in WebView using the token prop (passed from tracking.tsx)
+ *  - Syncs coordinates (pickup, drop, live driver position) dynamically
+ *  - Fits the map bounds automatically inside WebView Mapbox GL to show all active pins
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, StyleSheet, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Text, YStack } from 'tamagui';
 
-import { getGoogleMapsKey } from '@/lib/public-config';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type TrackingMapProps = {
-  /** Mapbox token — accepted for API compatibility with web version, IGNORED on native */
   token: string;
-  /** Driver's current latitude (used when hasLiveLocation is true) */
   latitude: number;
-  /** Driver's current longitude (used when hasLiveLocation is true) */
   longitude: number;
-  /** Whether a live driver location is available */
   hasLiveLocation: boolean;
   pickupLat?: number;
   pickupLng?: number;
@@ -42,16 +32,128 @@ type TrackingMapProps = {
   dropAddress?: string;
 };
 
-// ─── Custom marker callout text helper ────────────────────────────────────────
+function getHtml(token: string, defLat: number, defLng: number) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #F1F5F9; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
+    .driver-marker {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: #F97316;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
+      animation: pulse 1.4s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map;
+    var pickupMarker;
+    var dropMarker;
+    var driverMarker;
+    var token = '${token}';
+    
+    mapboxgl.accessToken = token;
+    
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [${defLng}, ${defLat}],
+      zoom: 12
+    });
 
-function truncateAddress(addr?: string, maxLen = 60): string {
-  if (!addr) return '';
-  return addr.length > maxLen ? addr.slice(0, maxLen) + '…' : addr;
+    function updateMarkers(data) {
+      var bounds = new mapboxgl.LngLatBounds();
+      var hasCoords = false;
+
+      if (data.pickup && data.pickup.lat != null && data.pickup.lng != null) {
+        if (!pickupMarker) {
+          pickupMarker = new mapboxgl.Marker({ color: '#22C55E' });
+        }
+        pickupMarker.setLngLat([data.pickup.lng, data.pickup.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(data.pickup.addr || 'Pickup'))
+          .addTo(map);
+        bounds.extend([data.pickup.lng, data.pickup.lat]);
+        hasCoords = true;
+      } else if (pickupMarker) {
+        pickupMarker.remove();
+        pickupMarker = null;
+      }
+
+      if (data.drop && data.drop.lat != null && data.drop.lng != null) {
+        if (!dropMarker) {
+          dropMarker = new mapboxgl.Marker({ color: '#EF4444' });
+        }
+        dropMarker.setLngLat([data.drop.lng, data.drop.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(data.drop.addr || 'Drop'))
+          .addTo(map);
+        bounds.extend([data.drop.lng, data.drop.lat]);
+        hasCoords = true;
+      } else if (dropMarker) {
+        dropMarker.remove();
+        dropMarker = null;
+      }
+
+      if (data.driver && data.driver.lat != null && data.driver.lng != null) {
+        if (!driverMarker) {
+          var el = document.createElement('div');
+          el.className = 'driver-marker';
+          driverMarker = new mapboxgl.Marker(el);
+        }
+        driverMarker.setLngLat([data.driver.lng, data.driver.lat]).addTo(map);
+        bounds.extend([data.driver.lng, data.driver.lat]);
+        hasCoords = true;
+      } else if (driverMarker) {
+        driverMarker.remove();
+        driverMarker = null;
+      }
+
+      if (hasCoords) {
+        map.fitBounds(bounds, { padding: 60, maxZoom: 15 });
+      }
+    }
+
+    window.addEventListener('message', function(event) {
+      try {
+        var msg = JSON.parse(event.data);
+        if (msg.type === 'update') {
+          updateMarkers(msg.data);
+        }
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    map.on('load', function() {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+      }
+    });
+  </script>
+</body>
+</html>
+  `;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function TrackingMap({
+  token,
   latitude,
   longitude,
   hasLiveLocation,
@@ -62,233 +164,164 @@ export default function TrackingMap({
   pickupAddress,
   dropAddress,
 }: TrackingMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
+  const [webViewReady, setWebViewReady] = useState(false);
+  const webViewReadyRef = useRef(false);
 
-  // ── Google Maps API Key (fetched internally) ──
-  const [googleMapsKey, setGoogleMapsKey] = useState('');
-  const [keyLoading, setKeyLoading] = useState(true);
-  const keyFetchedRef = useRef(false);
+  const getMarkerData = useCallback(() => {
+    return {
+      pickup:
+        pickupLat != null && pickupLng != null
+          ? { lat: pickupLat, lng: pickupLng, addr: pickupAddress }
+          : null,
+      drop:
+        dropLat != null && dropLng != null
+          ? { lat: dropLat, lng: dropLng, addr: dropAddress }
+          : null,
+      driver:
+        hasLiveLocation && latitude && longitude
+          ? { lat: latitude, lng: longitude }
+          : null,
+    };
+  }, [
+    pickupLat,
+    pickupLng,
+    pickupAddress,
+    dropLat,
+    dropLng,
+    dropAddress,
+    hasLiveLocation,
+    latitude,
+    longitude,
+  ]);
 
+  const sendUpdate = useCallback(() => {
+    if (!webViewReadyRef.current) return;
+    const data = getMarkerData();
+    const js = `window.postMessage(JSON.stringify({ type: "update", data: ${JSON.stringify(
+      data,
+    )} }), "*"); true;`;
+    webViewRef.current?.injectJavaScript(js);
+  }, [getMarkerData]);
+
+  // Sync coords whenever inputs update
   useEffect(() => {
-    if (keyFetchedRef.current) return;
-    keyFetchedRef.current = true;
-    getGoogleMapsKey()
-      .then((k) => setGoogleMapsKey(k ?? ''))
-      .catch(() => setGoogleMapsKey(''))
-      .finally(() => setKeyLoading(false));
-  }, []);
+    sendUpdate();
+  }, [
+    latitude,
+    longitude,
+    hasLiveLocation,
+    pickupLat,
+    pickupLng,
+    dropLat,
+    dropLng,
+    sendUpdate,
+  ]);
 
-  // ── Driver pulse animation ──
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (!hasLiveLocation) {
-      pulseLoop.current?.stop();
-      pulseAnim.setValue(1);
-      return;
+  const handleMessage = (event: any) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'ready') {
+        webViewReadyRef.current = true;
+        setWebViewReady(true);
+        // Push initial markers immediately on load
+        const data = getMarkerData();
+        const js = `window.postMessage(JSON.stringify({ type: "update", data: ${JSON.stringify(
+          data,
+        )} }), "*"); true;`;
+        webViewRef.current?.injectJavaScript(js);
+      }
+    } catch {
+      // ignore
     }
-    pulseLoop.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.35, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    pulseLoop.current.start();
-    return () => pulseLoop.current?.stop();
-  }, [hasLiveLocation]);
+  };
 
-  // ── Fit map to show all markers ──
-  const fitToMarkers = useCallback(() => {
-    const coords: { latitude: number; longitude: number }[] = [];
-    if (pickupLat != null && pickupLng != null)
-      coords.push({ latitude: pickupLat, longitude: pickupLng });
-    if (dropLat != null && dropLng != null)
-      coords.push({ latitude: dropLat, longitude: dropLng });
-    if (hasLiveLocation && latitude && longitude)
-      coords.push({ latitude, longitude });
-
-    if (coords.length === 0) return;
-    if (coords.length === 1) {
-      mapRef.current?.animateCamera(
-        { center: { latitude: coords[0].latitude, longitude: coords[0].longitude }, zoom: 14 },
-        { duration: 500 },
-      );
-      return;
-    }
-    mapRef.current?.fitToCoordinates(coords, {
-      edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-      animated: true,
-    });
-  }, [pickupLat, pickupLng, dropLat, dropLng, hasLiveLocation, latitude, longitude]);
-
-  useEffect(() => {
-    // Delay slightly to allow map to settle after data arrives
-    const t = setTimeout(fitToMarkers, 350);
-    return () => clearTimeout(t);
-  }, [fitToMarkers]);
-
-  // ── Render guards ──
-  const isAndroid = Platform.OS === 'android';
-  const noKey = !keyLoading && !googleMapsKey;
-
-  if (keyLoading) {
+  if (!token) {
     return (
-      <YStack flex={1} alignItems="center" justifyContent="center">
-        <ActivityIndicator size="large" color="#1F4E79" />
+      <YStack flex={1} alignItems="center" justifyContent="center" padding={12}>
+        <ActivityIndicator size="small" color="#F97316" />
         <Text color="#94A3B8" fontSize={12} marginTop={8}>
-          Loading map…
+          Loading configuration...
         </Text>
       </YStack>
     );
   }
 
-  if (isAndroid && noKey) {
-    return (
-      <YStack flex={1} alignItems="center" justifyContent="center" padding={16}>
-        <Text color="#EF4444" fontSize={13} fontWeight="700" textAlign="center">
-          Google Maps Unavailable
-        </Text>
-        <Text color="#94A3B8" fontSize={12} textAlign="center" marginTop={4}>
-          Google Maps API key is not configured. Please contact support.
-        </Text>
-      </YStack>
-    );
-  }
-
-  // Default centre — Mumbai if no data yet
-  const centerLat =
+  // Fallback center is pickup, drop, live, or default to Mumbai
+  const defLat =
     pickupLat ?? dropLat ?? (hasLiveLocation ? latitude : null) ?? 19.076;
-  const centerLng =
+  const defLng =
     pickupLng ?? dropLng ?? (hasLiveLocation ? longitude : null) ?? 72.8777;
+
+  const htmlSource = getHtml(token, defLat, defLng);
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        provider={isAndroid ? PROVIDER_GOOGLE : undefined}
-        initialRegion={{
-          latitude: centerLat,
-          longitude: centerLng,
-          latitudeDelta: 0.06,
-          longitudeDelta: 0.06,
-        }}
-        rotateEnabled={false}
-        pitchEnabled={false}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass
-        toolbarEnabled={false}
-        onMapReady={fitToMarkers}
-        onLayout={fitToMarkers}>
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: htmlSource }}
+        style={styles.webview}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        onMessage={handleMessage}
+        androidHardwareAccelerationDisabled={true}
+      />
 
-        {/* ── Pickup marker (green) ── */}
-        {pickupLat != null && pickupLng != null ? (
-          <Marker
-            coordinate={{ latitude: pickupLat, longitude: pickupLng }}
-            title="📦 Pickup"
-            description={truncateAddress(pickupAddress, 80)}
-            pinColor="#22C55E"
-            identifier="pickup"
-          />
-        ) : null}
+      {/* Loading Overlay */}
+      {!webViewReady && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#F97316" />
+        </View>
+      )}
 
-        {/* ── Drop marker (red) ── */}
-        {dropLat != null && dropLng != null ? (
-          <Marker
-            coordinate={{ latitude: dropLat, longitude: dropLng }}
-            title="🏁 Drop"
-            description={truncateAddress(dropAddress, 80)}
-            pinColor="#EF4444"
-            identifier="drop"
-          />
-        ) : null}
-
-        {/* ── Driver live marker (orange, animated pulse ring) ── */}
-        {hasLiveLocation && latitude && longitude ? (
-          <Marker
-            coordinate={{ latitude, longitude }}
-            title="🚛 Driver"
-            description="Live position"
-            identifier="driver"
-            anchor={{ x: 0.5, y: 0.5 }}>
-            {/* Custom animated driver marker */}
-            <View style={driverStyles.wrapper}>
-              <Animated.View
-                style={[driverStyles.pulse, { transform: [{ scale: pulseAnim }] }]}
-              />
-              <View style={driverStyles.dot} />
+      {/* Legend Overlay */}
+      {webViewReady && (
+        <View style={styles.legendContainer} pointerEvents="none">
+          {pickupLat != null && (
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
+              <Text style={styles.legendLabel}>Pickup</Text>
             </View>
-          </Marker>
-        ) : null}
-      </MapView>
+          )}
+          {dropLat != null && (
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+              <Text style={styles.legendLabel}>Drop</Text>
+            </View>
+          )}
+          {hasLiveLocation && (
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: '#F97316' }]} />
+              <Text style={styles.legendLabel}>Driver</Text>
+            </View>
+          )}
+        </View>
+      )}
 
-      {/* Legend overlay */}
-      <View style={legendStyles.container} pointerEvents="none">
-        {pickupLat != null && (
-          <View style={legendStyles.row}>
-            <View style={[legendStyles.dot, { backgroundColor: '#22C55E' }]} />
-            <Text style={legendStyles.label}>Pickup</Text>
-          </View>
-        )}
-        {dropLat != null && (
-          <View style={legendStyles.row}>
-            <View style={[legendStyles.dot, { backgroundColor: '#EF4444' }]} />
-            <Text style={legendStyles.label}>Drop</Text>
-          </View>
-        )}
-        {hasLiveLocation && (
-          <View style={legendStyles.row}>
-            <View style={[legendStyles.dot, { backgroundColor: '#F97316' }]} />
-            <Text style={legendStyles.label}>Driver</Text>
-          </View>
-        )}
-      </View>
-
-      {/* "No live signal" overlay when bookingId provided but no live coord */}
-      {!hasLiveLocation && (
-        <View style={noSignalStyles.badge} pointerEvents="none">
-          <Text style={noSignalStyles.text}>Waiting for driver signal…</Text>
+      {/* Waiting Signal Overlay */}
+      {webViewReady && !hasLiveLocation && (
+        <View style={styles.signalBadge} pointerEvents="none">
+          <Text style={styles.signalText}>Waiting for driver signal…</Text>
         </View>
       )}
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const driverStyles = StyleSheet.create({
-  wrapper: {
-    width: 36,
-    height: 36,
+const styles = StyleSheet.create({
+  webview: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 9,
   },
-  pulse: {
-    position: 'absolute',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(249, 115, 22, 0.30)',
-  },
-  dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#F97316',
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.5,
-    shadowRadius: 3,
-  },
-});
-
-const legendStyles = StyleSheet.create({
-  container: {
+  legendContainer: {
     position: 'absolute',
     top: 10,
     left: 10,
@@ -302,27 +335,25 @@ const legendStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.12,
     shadowRadius: 3,
+    zIndex: 99,
   },
-  row: {
+  legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginVertical: 2,
   },
-  dot: {
+  legendDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
   },
-  label: {
+  legendLabel: {
     fontSize: 11,
     color: '#1E293B',
     fontWeight: '600',
   },
-});
-
-const noSignalStyles = StyleSheet.create({
-  badge: {
+  signalBadge: {
     position: 'absolute',
     bottom: 14,
     alignSelf: 'center',
@@ -330,8 +361,9 @@ const noSignalStyles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 20,
+    zIndex: 99,
   },
-  text: {
+  signalText: {
     color: '#F1F5F9',
     fontSize: 11,
     fontWeight: '600',

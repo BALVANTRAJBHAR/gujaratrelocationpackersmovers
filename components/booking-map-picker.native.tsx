@@ -1,16 +1,16 @@
 /**
  * booking-map-picker.native.tsx
  *
- * MOBILE-ONLY (Android & iOS) — Independent Google Maps picker.
+ * MOBILE-ONLY (Android & iOS) — Mapbox GL JS map inside react-native-webview.
  * Used in the Shifting Booking wizard for pickup / drop location selection.
  *
  * Key design decisions:
- *  - 100% self-contained: no shared map hooks, no Mapbox imports
- *  - Google Maps API key fetched internally via getGoogleMapsKey() → Supabase Edge Function
- *  - Search: Google Places Autocomplete REST API
- *  - Reverse geocode (address from tap): Google Geocoding REST API
- *  - "My Location" button: expo-location (permission requested on tap)
- *  - Web version (booking-map-picker.tsx) is NOT modified
+ *  - 100% self-contained webview: loads Mapbox GL JS from CDN
+ *  - Uses props.token (which contains Mapbox token from book/index.tsx)
+ *  - Search: Mapbox Geocoding API via searchPlaces helper in @/lib/mapbox
+ *  - Reverse geocode: Mapbox Geocoding API via reverseGeocode helper in @/lib/mapbox
+ *  - WebView messages handled via window.ReactNativeWebView.postMessage
+ *  - Supports manual tapping on map and marker dragging to adjust coordinates
  */
 
 import * as Location from 'expo-location';
@@ -25,174 +25,148 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
-import { getGoogleMapsKey } from '@/lib/public-config';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { searchPlaces, reverseGeocode } from '@/lib/mapbox';
 
 type Coord = { lat: number; lng: number };
 
 type PlaceCandidate = {
-  place_id: string;
-  description: string;
-  structured_formatting?: { main_text: string; secondary_text?: string };
+  id: string;
+  place_name: string;
+  center: [number, number]; // [lng, lat]
 };
 
-// ─── Google REST helpers (self-contained, no shared imports) ──────────────────
+function getHtml(token: string, initialLat: number, initialLng: number) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; background-color: #F8FAFC; width: 100%; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map;
+    var marker;
+    var token = '${token}';
+    var initialCoord = [${initialLng}, ${initialLat}];
+    
+    mapboxgl.accessToken = token;
+    
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: initialCoord,
+      zoom: 14
+    });
 
-/** Reverse geocode via Google Geocoding API — returns address string */
-async function googleReverseGeocode(apiKey: string, lat: number, lng: number): Promise<string> {
-  if (!apiKey) return '';
-  try {
-    const url =
-      `https://maps.googleapis.com/maps/api/geocode/json` +
-      `?latlng=${lat},${lng}&key=${apiKey}&language=en&result_type=street_address|route|sublocality|locality`;
-    const res = await fetch(url);
-    if (!res.ok) return '';
-    const data = (await res.json()) as { results?: { formatted_address?: string }[] };
-    return String(data.results?.[0]?.formatted_address ?? '').trim();
-  } catch {
-    return '';
-  }
+    // Create draggable marker
+    marker = new mapboxgl.Marker({ draggable: true })
+      .setLngLat(initialCoord)
+      .addTo(map);
+
+    function sendToRN(type, data) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, data: data }));
+      }
+    }
+
+    // Report coordinate when marker drag ends
+    marker.on('dragend', function() {
+      var lngLat = marker.getLngLat();
+      sendToRN('coord_change', { lat: lngLat.lat, lng: lngLat.lng });
+    });
+
+    // Map click moves marker and reports coordinate
+    map.on('click', function(e) {
+      marker.setLngLat(e.lngLat);
+      sendToRN('coord_change', { lat: e.lngLat.lat, lng: e.lngLat.lng });
+    });
+
+    // Handle incoming messages
+    window.addEventListener('message', function(event) {
+      try {
+        var msg = JSON.parse(event.data);
+        if (msg.type === 'set_coord') {
+          var lngLat = [msg.data.lng, msg.data.lat];
+          marker.setLngLat(lngLat);
+          map.flyTo({ center: lngLat, zoom: 15 });
+        }
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    map.on('load', function() {
+      sendToRN('loaded', {});
+    });
+  </script>
+</body>
+</html>
+  `;
 }
-
-/** Google Places Autocomplete — returns list of place candidates */
-async function googleAutocompletePlaces(
-  apiKey: string,
-  input: string,
-  sessionToken: string,
-): Promise<PlaceCandidate[]> {
-  if (!apiKey || !input.trim()) return [];
-  try {
-    const url =
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-      `?input=${encodeURIComponent(input)}` +
-      `&key=${apiKey}` +
-      `&language=en` +
-      `&components=country:in` +
-      `&sessiontoken=${sessionToken}` +
-      `&types=geocode|establishment`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = (await res.json()) as { predictions?: PlaceCandidate[] };
-    return data.predictions ?? [];
-  } catch {
-    return [];
-  }
-}
-
-/** Google Place Details — returns lat/lng for a place_id */
-async function googlePlaceDetails(
-  apiKey: string,
-  placeId: string,
-  sessionToken: string,
-): Promise<Coord | null> {
-  if (!apiKey || !placeId) return null;
-  try {
-    const url =
-      `https://maps.googleapis.com/maps/api/place/details/json` +
-      `?place_id=${encodeURIComponent(placeId)}` +
-      `&fields=geometry` +
-      `&key=${apiKey}` +
-      `&sessiontoken=${sessionToken}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      result?: { geometry?: { location?: { lat?: number; lng?: number } } };
-    };
-    const loc = data.result?.geometry?.location;
-    if (loc?.lat == null || loc?.lng == null) return null;
-    return { lat: Number(loc.lat), lng: Number(loc.lng) };
-  } catch {
-    return null;
-  }
-}
-
-/** Generate a short session token for Places API billing grouping */
-function newSessionToken(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BookingMapPicker(props: {
   open: boolean;
   onOpenChange: (next: boolean) => void;
   title: string;
-  /** token prop is present for API compatibility with web version — ignored on native */
   token: string;
   coord: Coord | null;
   onCoordChange: (next: Coord) => void;
-  /** Called after user confirms; receives resolved address string */
   onConfirm: (resolvedAddress?: string) => Promise<void> | void;
   busy: boolean;
   isWide: boolean;
   resetKey?: string;
 }) {
-  const mapRef = useRef<MapView>(null);
-
-  // ── API Key (fetched once internally) ──
-  const [googleMapsKey, setGoogleMapsKey] = useState('');
-  const [keyLoading, setKeyLoading] = useState(true);
-  const keyFetchedRef = useRef(false);
-
-  useEffect(() => {
-    if (keyFetchedRef.current) return;
-    keyFetchedRef.current = true;
-    getGoogleMapsKey()
-      .then((k) => setGoogleMapsKey(k ?? ''))
-      .catch(() => setGoogleMapsKey(''))
-      .finally(() => setKeyLoading(false));
-  }, []);
-
-  // ── Search state ──
+  const webViewRef = useRef<WebView>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
-  const sessionTokenRef = useRef(newSessionToken());
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedPlaceRef = useRef('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Local coord (map region) ──
-  const [mapRegion, setMapRegion] = useState<Region>({
-    latitude: props.coord?.lat ?? 19.076,
-    longitude: props.coord?.lng ?? 72.8777,
-    latitudeDelta: 0.04,
-    longitudeDelta: 0.04,
-  });
-
-  // Reset state when dialog opens or target changes
+  // Reset state on open or target change
   useEffect(() => {
     if (!props.open) return;
     setSearchQuery('');
     setSearchResults([]);
     setSearching(false);
     selectedPlaceRef.current = '';
-    sessionTokenRef.current = newSessionToken();
 
-    const initLat = props.coord?.lat ?? 19.076;
-    const initLng = props.coord?.lng ?? 72.8777;
-    setMapRegion({
-      latitude: initLat,
-      longitude: initLng,
-      latitudeDelta: 0.04,
-      longitudeDelta: 0.04,
-    });
+    // If there is an existing address, set search query input to it
+    if (props.coord) {
+      setReverseGeocoding(true);
+      reverseGeocode(props.coord.lng, props.coord.lat)
+        .then((addr) => {
+          if (addr) {
+            setSearchQuery(addr);
+            selectedPlaceRef.current = addr;
+          }
+        })
+        .catch(() => {})
+        .finally(() => setReverseGeocoding(false));
+    }
   }, [props.open, props.resetKey]);
 
-  // Animate map to coord when it changes externally
+  // Sync external coordinates changes to WebView Map
   useEffect(() => {
-    if (!props.coord) return;
-    mapRef.current?.animateCamera(
-      { center: { latitude: props.coord.lat, longitude: props.coord.lng }, zoom: 15 },
-      { duration: 400 },
-    );
-  }, [props.coord?.lat, props.coord?.lng]);
+    if (!props.coord || !props.open) return;
+    const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${props.coord.lat}, lng: ${props.coord.lng} } }), "*"); true;`;
+    webViewRef.current?.injectJavaScript(js);
+  }, [props.coord?.lat, props.coord?.lng, props.open]);
 
-  // ── Search debounce ──
+  // Search debounce
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
@@ -201,6 +175,7 @@ export default function BookingMapPicker(props: {
       setSearching(false);
       return;
     }
+
     if (selectedPlaceRef.current && searchQuery.trim() === selectedPlaceRef.current) {
       setSearchResults([]);
       setSearching(false);
@@ -209,71 +184,65 @@ export default function BookingMapPicker(props: {
 
     setSearching(true);
     searchTimerRef.current = setTimeout(async () => {
-      const results = await googleAutocompletePlaces(
-        googleMapsKey,
-        searchQuery.trim(),
-        sessionTokenRef.current,
-      );
-      setSearchResults(results);
-      setSearching(false);
+      try {
+        const results = await searchPlaces(searchQuery.trim());
+        setSearchResults(results as PlaceCandidate[]);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
     }, 450);
 
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [searchQuery, googleMapsKey]);
+  }, [searchQuery]);
 
-  // ── Handlers ──
-  const handleMapTap = useCallback(
-    async (e: any) => {
-      Keyboard.dismiss();
-      const { latitude, longitude } = e.nativeEvent.coordinate;
-      props.onCoordChange({ lat: latitude, lng: longitude });
-      mapRef.current?.animateCamera(
-        { center: { latitude, longitude }, zoom: 15 },
-        { duration: 300 },
-      );
+  const handleMessage = useCallback(
+    async (event: any) => {
+      try {
+        const msg = JSON.parse(event.nativeEvent.data);
+        if (msg.type === 'coord_change') {
+          const { lat, lng } = msg.data;
+          props.onCoordChange({ lat, lng });
 
-      // Reverse geocode the tapped point
-      if (googleMapsKey) {
-        setReverseGeocoding(true);
-        const address = await googleReverseGeocode(googleMapsKey, latitude, longitude);
-        setReverseGeocoding(false);
-        if (address) {
-          selectedPlaceRef.current = address;
-          setSearchQuery(address);
-          setSearchResults([]);
+          // Update address query input dynamically
+          setReverseGeocoding(true);
+          try {
+            const addr = await reverseGeocode(lng, lat);
+            if (addr) {
+              setSearchQuery(addr);
+              selectedPlaceRef.current = addr;
+            }
+          } catch (e) {
+            console.error('[BookingMapPicker] reverse geocode failed:', e);
+          } finally {
+            setReverseGeocoding(false);
+          }
         }
+      } catch (e) {
+        // ignore
       }
     },
-    [props.onCoordChange, googleMapsKey],
+    [props.onCoordChange],
   );
 
   const handleSelectResult = useCallback(
-    async (place: PlaceCandidate) => {
+    (place: PlaceCandidate) => {
       Keyboard.dismiss();
       setSearchResults([]);
       setSearching(false);
-      selectedPlaceRef.current = place.description;
-      setSearchQuery(place.description);
+      selectedPlaceRef.current = place.place_name;
+      setSearchQuery(place.place_name);
 
-      const coords = await googlePlaceDetails(
-        googleMapsKey,
-        place.place_id,
-        sessionTokenRef.current,
-      );
-      // Refresh session token after details call (per billing rules)
-      sessionTokenRef.current = newSessionToken();
+      const [lng, lat] = place.center;
+      props.onCoordChange({ lat, lng });
 
-      if (coords) {
-        props.onCoordChange(coords);
-        mapRef.current?.animateCamera(
-          { center: { latitude: coords.lat, longitude: coords.lng }, zoom: 15 },
-          { duration: 500 },
-        );
-      }
+      const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
+      webViewRef.current?.injectJavaScript(js);
     },
-    [googleMapsKey, props.onCoordChange],
+    [props.onCoordChange],
   );
 
   const handleMyLocation = useCallback(async () => {
@@ -281,41 +250,50 @@ export default function BookingMapPicker(props: {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
+
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude, longitude } = loc.coords;
-      props.onCoordChange({ lat: latitude, lng: longitude });
-      mapRef.current?.animateCamera(
-        { center: { latitude, longitude }, zoom: 16 },
-        { duration: 500 },
-      );
-      if (googleMapsKey) {
-        setReverseGeocoding(true);
-        const address = await googleReverseGeocode(googleMapsKey, latitude, longitude);
-        setReverseGeocoding(false);
-        if (address) {
-          selectedPlaceRef.current = address;
-          setSearchQuery(address);
-          setSearchResults([]);
-        }
+      const { latitude: lat, longitude: lng } = loc.coords;
+      props.onCoordChange({ lat, lng });
+
+      const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
+      webViewRef.current?.injectJavaScript(js);
+
+      setReverseGeocoding(true);
+      const addr = await reverseGeocode(lng, lat);
+      setReverseGeocoding(false);
+      if (addr) {
+        selectedPlaceRef.current = addr;
+        setSearchQuery(addr);
       }
     } catch {
-      // Permission denied or location unavailable — silently ignore
+      setReverseGeocoding(false);
     }
-  }, [props.onCoordChange, googleMapsKey]);
+  }, [props.onCoordChange]);
 
   const handleConfirm = useCallback(async () => {
-    // Pass resolved address back (from search query) so book/index.tsx doesn't need Mapbox
     await props.onConfirm(searchQuery.trim() || undefined);
   }, [props.onConfirm, searchQuery]);
 
-  // ── Render guards ──
-  const noKey = !keyLoading && !googleMapsKey;
-  const isAndroid = Platform.OS === 'android';
+  const htmlSource = getHtml(
+    props.token,
+    props.coord?.lat ?? 19.076,
+    props.coord?.lng ?? 72.8777,
+  );
 
-  // ── Styles ──
   const styles = StyleSheet.create({
-    mapContainer: { width: '100%', height: 300, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' },
-    map: { ...StyleSheet.absoluteFillObject },
+    mapContainer: {
+      width: '100%',
+      height: 320,
+      borderRadius: 14,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      position: 'relative',
+    },
+    webview: {
+      flex: 1,
+      backgroundColor: '#F8FAFC',
+    },
     searchInput: {
       height: 44,
       borderWidth: 1,
@@ -342,9 +320,10 @@ export default function BookingMapPicker(props: {
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.18,
       shadowRadius: 4,
+      zIndex: 99,
     },
     resultRow: {
-      paddingVertical: 10,
+      paddingVertical: 12,
       paddingHorizontal: 12,
       borderBottomWidth: 1,
       borderBottomColor: '#F1F5F9',
@@ -362,44 +341,35 @@ export default function BookingMapPicker(props: {
           width={props.isWide ? 680 : '93%'}
           maxHeight="92%">
           <YStack gap="$3">
-            {/* Header */}
             <Text fontSize={16} fontWeight="900" color="#111827">
               {props.title}
             </Text>
 
-            {/* API Key loading */}
-            {keyLoading ? (
-              <YStack alignItems="center" justifyContent="center" height={100}>
-                <ActivityIndicator size="large" color="#1F4E79" />
-                <Text color="#64748B" fontSize={12} marginTop={8}>
-                  Loading map…
-                </Text>
-              </YStack>
-            ) : noKey ? (
-              /* No API Key */
+            {!props.token ? (
               <YStack
                 backgroundColor="#FEF2F2"
                 borderRadius={12}
                 padding={14}
                 borderWidth={1}
-                borderColor="#FECACA">
+                borderColor="#FECACA"
+                alignItems="center"
+                justifyContent="center">
                 <Text color="#DC2626" fontSize={13} fontWeight="700" marginBottom={4}>
-                  Google Maps Unavailable
+                  Map Token Missing
                 </Text>
-                <Text color="#991B1B" fontSize={12}>
-                  Google Maps API key is not configured. Please contact support.
+                <Text color="#991B1B" fontSize={12} textAlign="center">
+                  Mapbox token is not configured. Please contact support.
                 </Text>
               </YStack>
             ) : (
-              /* Main map UI */
               <YStack gap="$2">
-                {/* Search bar */}
-                <View>
+                {/* Search Bar */}
+                <View style={{ position: 'relative' }}>
                   <TextInput
                     style={styles.searchInput}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
-                    placeholder="Search address or place…"
+                    placeholder="Search address or area..."
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -407,37 +377,32 @@ export default function BookingMapPicker(props: {
                   />
                   {(searching || reverseGeocoding) && (
                     <View style={{ position: 'absolute', right: 12, top: 12 }}>
-                      <ActivityIndicator size="small" color="#1F4E79" />
+                      <ActivityIndicator size="small" color="#F97316" />
                     </View>
                   )}
                 </View>
 
-                {/* Autocomplete results */}
+                {/* Results dropdown */}
                 {searchResults.length > 0 ? (
                   <View
                     style={{
-                      maxHeight: 180,
+                      maxHeight: 160,
                       borderWidth: 1,
                       borderColor: '#E5E7EB',
                       borderRadius: 10,
                       backgroundColor: '#FFFFFF',
-                      overflow: 'hidden',
+                      zIndex: 999,
                     }}>
                     <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
                       {searchResults.map((place) => (
                         <Pressable
-                          key={place.place_id}
-                          onPress={() => void handleSelectResult(place)}
+                          key={place.id}
+                          onPress={() => handleSelectResult(place)}
                           android_ripple={{ color: '#F1F5F9' }}>
                           <View style={styles.resultRow}>
                             <Text style={{ fontSize: 13, color: '#1E293B', fontWeight: '600' }}>
-                              {place.structured_formatting?.main_text ?? place.description}
+                              {place.place_name}
                             </Text>
-                            {place.structured_formatting?.secondary_text ? (
-                              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
-                                {place.structured_formatting.secondary_text}
-                              </Text>
-                            ) : null}
                           </View>
                         </Pressable>
                       ))}
@@ -445,34 +410,18 @@ export default function BookingMapPicker(props: {
                   </View>
                 ) : null}
 
-                {/* Map */}
+                {/* Map Area */}
                 <View style={styles.mapContainer}>
-                  <MapView
-                    ref={mapRef}
-                    style={styles.map}
-                    provider={isAndroid ? PROVIDER_GOOGLE : undefined}
-                    region={mapRegion}
-                    onRegionChangeComplete={setMapRegion}
-                    onPress={(e) => void handleMapTap(e)}
-                    showsUserLocation={false}
-                    showsMyLocationButton={false}
-                    showsCompass
-                    showsScale={false}
-                    rotateEnabled={false}
-                    pitchEnabled={false}
-                    moveOnMarkerPress={false}>
-                    {props.coord ? (
-                      <Marker
-                        coordinate={{ latitude: props.coord.lat, longitude: props.coord.lng }}
-                        title={
-                          props.title.toLowerCase().includes('pickup') ? 'Pickup' : 'Drop'
-                        }
-                        pinColor={
-                          props.title.toLowerCase().includes('pickup') ? '#22C55E' : '#EF4444'
-                        }
-                      />
-                    ) : null}
-                  </MapView>
+                  <WebView
+                    ref={webViewRef}
+                    originWhitelist={['*']}
+                    source={{ html: htmlSource }}
+                    style={styles.webview}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    onMessage={handleMessage}
+                    androidHardwareAccelerationDisabled={true}
+                  />
 
                   {/* My Location button */}
                   <Pressable
@@ -483,11 +432,10 @@ export default function BookingMapPicker(props: {
                   </Pressable>
                 </View>
 
-                {/* Coord hint */}
+                {/* Info Text */}
                 {props.coord ? (
                   <Text color="#94A3B8" fontSize={11} textAlign="center">
                     {props.coord.lat.toFixed(6)}, {props.coord.lng.toFixed(6)}
-                    {reverseGeocoding ? '  ·  Fetching address…' : ''}
                   </Text>
                 ) : (
                   <Text color="#94A3B8" fontSize={11} textAlign="center">
@@ -497,7 +445,7 @@ export default function BookingMapPicker(props: {
               </YStack>
             )}
 
-            {/* Action buttons */}
+            {/* Actions */}
             <XStack justifyContent="space-between" gap="$2" flexWrap="wrap">
               <Button
                 size="$3"
@@ -511,10 +459,10 @@ export default function BookingMapPicker(props: {
               </Button>
               <Button
                 size="$3"
-                backgroundColor="#1F4E79"
-                color="#FFFFFF"
+                backgroundColor="#F97316"
+                color="#0B0B12"
                 onPress={() => void handleConfirm()}
-                disabled={props.busy || !props.coord || noKey || keyLoading}>
+                disabled={props.busy || !props.coord || !props.token}>
                 {props.busy ? 'Saving…' : 'Confirm Location'}
               </Button>
             </XStack>
