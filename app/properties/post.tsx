@@ -2638,6 +2638,8 @@ export default function PostPropertyScreen() {
             color={titleColor}
             position="absolute"
             left={0}
+            fontSize={36}
+            fontWeight="900"
             hoverStyle={{ backgroundColor: 'transparent' }}
             pressStyle={{ backgroundColor: 'transparent' }}
             onPress={back}>

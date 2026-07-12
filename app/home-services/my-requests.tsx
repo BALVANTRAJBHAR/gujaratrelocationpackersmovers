@@ -377,6 +377,8 @@ export default function MyHomeServiceRequestsScreen() {
             color="#FFFFFF"
             position="absolute"
             left={0}
+            fontSize={36}
+            fontWeight="900"
             onPress={() => {
               router.back();
             }}>

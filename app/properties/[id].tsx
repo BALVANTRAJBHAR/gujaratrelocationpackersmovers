@@ -182,7 +182,15 @@ export default function PropertyDetailScreen() {
     <View style={{ flex: 1, backgroundColor: pageBg }}>
       <YStack backgroundColor={theme.primary} padding={16} paddingTop={18}>
         <XStack alignItems="center" justifyContent="center" position="relative">
-          <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
+          <Button
+            size="$3"
+            chromeless
+            color="#FFFFFF"
+            position="absolute"
+            left={0}
+            fontSize={36}
+            fontWeight="900"
+            onPress={() => router.back()}>
             ‹
           </Button>
           <YStack alignItems="center">

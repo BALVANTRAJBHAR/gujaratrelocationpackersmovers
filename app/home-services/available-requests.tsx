@@ -191,7 +191,14 @@ export default function AvailableRequestsScreen() {
     <View style={{ flex: 1, backgroundColor: pageBg }}>
       <YStack backgroundColor={theme.headerBg} padding={16} paddingTop={18} borderBottomWidth={1} borderBottomColor={border}>
         <XStack alignItems="center" gap="$2">
-          <Button chromeless color={titleColor} onPress={() => router.back()}>‹ Back</Button>
+          <Button
+            chromeless
+            color={titleColor}
+            fontSize={22}
+            fontWeight="900"
+            onPress={() => router.back()}>
+            ‹ Back
+          </Button>
           <Text color={titleColor} fontSize={t(18)} fontWeight="900">
             Available Requests
           </Text>

@@ -124,7 +124,7 @@ export default function StickyHeader({
           flexWrap="wrap"
           justifyContent="space-between"
           paddingHorizontal={isSmallScreen ? 14 : 24}
-          paddingVertical={isSmallScreen ? 12 : 14}>
+          paddingVertical={isSmallScreen ? 10 : 12}>
           <XStack
             alignItems="center"
             gap={isSmallScreen ? '$2' : '$2.5'}
@@ -414,7 +414,7 @@ export default function StickyHeader({
                 <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
                   <YStack
                     paddingHorizontal={16}
-                    paddingVertical={9}
+                    paddingVertical={isSmallScreen ? 7 : 9}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -441,7 +441,7 @@ export default function StickyHeader({
                   onPress={() => router.push('/notifications' as any)}>
                   <YStack
                     paddingHorizontal={14}
-                    paddingVertical={11}
+                    paddingVertical={isSmallScreen ? 8.5 : 11}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -484,7 +484,7 @@ export default function StickyHeader({
                 <Pressable onPress={handleLogin}>
                   <YStack
                     paddingHorizontal={14}
-                    paddingVertical={11}
+                    paddingVertical={isSmallScreen ? 8.5 : 11}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -512,7 +512,7 @@ export default function StickyHeader({
                 <Pressable onPress={handleLogoutClick}>
                   <YStack
                     paddingHorizontal={14}
-                    paddingVertical={11}
+                    paddingVertical={isSmallScreen ? 8.5 : 11}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -580,12 +580,12 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   logo: {
-    width: 51,
-    height: 51,
+    width: 46,
+    height: 46,
     resizeMode: 'contain',
   },
   logoMobile: {
-    width: 64,
-    height: 64,
+    width: 57,
+    height: 57,
   },
 });

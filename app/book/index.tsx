@@ -819,37 +819,10 @@ export default function BookingWizardScreen() {
     };
   }, []);
 
-  const addressTextRef = useRef('');
+  // Search suggestions on input fields are disabled as per user request.
+  // Location selection is now preferred via "Select on Map".
   useEffect(() => {
-    let cancelled = false;
-    const query = activeLocationField === 'pickup' ? form.pickupAddress : form.dropAddress;
-    if (query === addressTextRef.current) return;
-    addressTextRef.current = query;
-
-    if (!activeLocationField || !query.trim()) {
-      setPlaceResults([]);
-      return;
-    }
-
-    const timeout = setTimeout(async () => {
-      try {
-        setLoadingPlaces(true);
-        const data = await searchPlaces(query);
-        if (cancelled) return;
-        setPlaceResults(data as PlaceItem[]);
-      } catch {
-        if (cancelled) return;
-        setPlaceResults([]);
-      } finally {
-        if (cancelled) return;
-        setLoadingPlaces(false);
-      }
-    }, 350);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
+    setPlaceResults([]);
   }, [form.dropAddress, form.pickupAddress, activeLocationField]);
 
   useEffect(() => {
@@ -1867,6 +1840,8 @@ export default function BookingWizardScreen() {
             color="#FFFFFF"
             position="absolute"
             left={0}
+            fontSize={36}
+            fontWeight="900"
             onPress={() => {
               handleBack();
             }}>

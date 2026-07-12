@@ -50,7 +50,13 @@ function AppLayoutInner() {
   const { width: screenWidth } = useWindowDimensions();
   const segments = useSegments();
   const isMobile = screenWidth <= 768;
-  const hideNav = segments.length === 0 || (segments[0] === 'auth') || (segments[0] === 'book') || (segments[0] === 'home-services' && segments[1] === 'request') || (segments[0] === 'properties' && segments[1] === 'post');
+  const hideNav =
+    segments.length === 0 ||
+    (segments[0] === 'auth') ||
+    (segments[0] === 'book') ||
+    (segments[0] === 'home-services' && segments[1] === 'request') ||
+    (segments[0] === 'properties' && segments[1] === 'post') ||
+    (segments[0] === 'properties' && segments[1] === 'my-properties');
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
