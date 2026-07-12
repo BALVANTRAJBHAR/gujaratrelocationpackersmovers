@@ -108,7 +108,7 @@ export default function SplashScreen() {
             <Image
               source={
                 Platform.OS === 'web'
-                  ? require('../assets/images/PackersMoversLogo.png')
+                  ? require('../assets/images/splash-professional.png')
                   : require('../assets/images/GR-New-Icon.png')
               }
               resizeMode="contain"

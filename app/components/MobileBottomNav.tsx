@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
@@ -44,23 +44,37 @@ export default function MobileBottomNav({
   onLoginPress,
 }: MobileBottomNavProps) {
   const router = useRouter();
+  const segments = useSegments();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<string>('home');
   const [sheetOpen, setSheetOpen] = useState<string | null>(null);
+
+  // Detect if we are already on /home to avoid duplicate navigation
+  const isOnHome = segments.length === 0 || segments[0] === 'home' || segments[0] === 'index';
 
   const handleTabPress = (key: string) => {
     setActiveTab(key);
     if (key === 'home') {
       setSheetOpen(null);
-      onHomePress ? onHomePress() : router.push('/home');
+      if (onHomePress) {
+        onHomePress();
+      } else if (!isOnHome) {
+        // Use replace so home doesn't stack on top of itself
+        router.replace('/home' as any);
+      }
     } else if (key === 'services') {
       setSheetOpen(sheetOpen === 'services' ? null : 'services');
     } else if (key === 'dashboard') {
       setSheetOpen(null);
-      if (!session) {
-        router.push('/auth/login?redirectTo=/(tabs)/bookings');
-      } else {
-        onDashboardPress ? onDashboardPress() : router.push('/(tabs)/bookings');
+      try {
+        if (!session) {
+          router.replace('/auth/login' as any);
+        } else {
+          onDashboardPress ? onDashboardPress() : router.replace('/(tabs)/bookings' as any);
+        }
+      } catch {
+        // fallback: replace to home if navigation fails
+        router.replace('/home' as any);
       }
     } else if (key === 'profile') {
       setSheetOpen(sheetOpen === 'profile' ? null : 'profile');
