@@ -42,6 +42,7 @@ const labelForService = (key: string) => {
   if (k === 'pest') return 'Pest Control';
   if (k === 'cleaning') return 'Deep Cleaning';
   if (k === 'painting') return 'Painting';
+  if (k === 'ro') return 'RO Service';
   return key;
 };
 

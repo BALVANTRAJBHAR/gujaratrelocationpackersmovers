@@ -318,8 +318,9 @@ export default function HomeServiceRequestScreen() {
         { key: 'electrician', label: 'Electrician' },
         { key: 'plumber', label: 'Plumber' },
         { key: 'pest', label: 'Pest Control' },
-        { key: 'cleaning', label: 'Deep Cleaning' },
-        { key: 'painting', label: 'Painting' },
+      { key: 'cleaning', label: 'Deep Cleaning' },
+      { key: 'painting', label: 'Painting' },
+      { key: 'ro', label: 'RO Service' },
       ] as const,
     []
   );

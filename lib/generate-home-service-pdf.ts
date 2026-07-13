@@ -38,6 +38,7 @@ const serviceLabels: Record<string, string> = {
   pest: 'Pest Control',
   cleaning: 'Deep Cleaning',
   painting: 'Painting',
+  ro: 'RO Service',
 };
 
 function labelForService(key: string): string {

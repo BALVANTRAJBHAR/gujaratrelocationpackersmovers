@@ -1148,8 +1148,9 @@ export default function AdminScreen() {
     if (k === 'plumber') return 'Plumber';
     if (k === 'pest') return 'Pest Control';
     if (k === 'cleaning') return 'Deep Cleaning';
-    if (k === 'painting') return 'Painting';
-    return key;
+  if (k === 'painting') return 'Painting';
+  if (k === 'ro') return 'RO Service';
+  return key;
   };
 
   const fetchHomeServiceRequests = async () => {

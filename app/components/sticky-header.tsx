@@ -285,8 +285,8 @@ export default function StickyHeader({
                       alignItems="center"
                       justifyContent="center"
                       style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
-                        {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+<Text fontSize={t(15)} style={{ textDecorationLine: 'none' }}>
+{isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
                       </Text>
                     </YStack>
                   </Pressable>
@@ -395,7 +395,7 @@ export default function StickyHeader({
                     alignItems="center"
                     justifyContent="center"
                     style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text fontSize={t(18)} style={{ textDecorationLine: 'none' }}>
+                    <Text fontSize={t(13)} style={{ textDecorationLine: 'none' }}>
                       {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
                     </Text>
                   </YStack>

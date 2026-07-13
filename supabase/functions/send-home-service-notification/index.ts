@@ -170,6 +170,7 @@ function getServiceLabel(serviceKey: string): string {
     pest: 'Pest Control',
     cleaning: 'Deep Cleaning',
     painting: 'Painting',
+    ro: 'RO Service',
   };
   return labels[serviceKey] || serviceKey;
 }

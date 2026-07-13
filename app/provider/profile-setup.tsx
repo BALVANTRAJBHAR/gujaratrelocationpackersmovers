@@ -19,6 +19,7 @@ const SERVICE_OPTIONS = [
   { key: 'pest', label: 'Pest Control' },
   { key: 'cleaning', label: 'Deep Cleaning' },
   { key: 'painting', label: 'Painting' },
+  { key: 'ro', label: 'RO Service' },
 ] as const;
 
 const STATES = ['Gujarat', 'Maharashtra', 'Rajasthan', 'Madhya Pradesh'];
