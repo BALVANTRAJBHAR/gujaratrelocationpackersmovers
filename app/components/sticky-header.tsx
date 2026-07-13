@@ -188,7 +188,7 @@ export default function StickyHeader({
             minWidth={0}
             maxWidth={isSmallScreen ? '58%' : 250}>
             <Image
-              source={Platform.OS === 'web' ? require('../../assets/images/PackersMoversLogo.png') : require('../../assets/images/MAppLogo.png')}
+              source={require('../../assets/images/PackersMoversLogo.png')}
               // ← 10% reduction: was 46/57, now 42/52
               style={[styles.logo, isSmallScreen && styles.logoMobile]}
             />

@@ -106,13 +106,9 @@ export default function SplashScreen() {
               justifyContent: 'center',
             }}>
             <Image
-              source={
-                Platform.OS === 'web'
-                  ? require('../assets/images/SplashIconAboveGujaratR.png')
-                  : require('../assets/images/GR-New-Icon.png')
-              }
+              source={require('../assets/images/PackersMoversLogo.png')}
               resizeMode="contain"
-              style={{ width: Platform.OS === 'web' ? 100 : 130, height: Platform.OS === 'web' ? 100 : 130 }}
+              style={{ width: 130, height: 130 }}
             />
           </View>
 

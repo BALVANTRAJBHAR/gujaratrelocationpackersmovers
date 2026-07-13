@@ -40,7 +40,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "splash": {
-      "image": "./assets/images/GR-New-Icon.png",
+      "image": "./assets/images/PackersMoversLogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#F8FAFC"
     },
@@ -54,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/GR-New-Icon.png",
+          "image": "./assets/images/PackersMoversLogo.png",
           "imageWidth": 140,
           "resizeMode": "contain",
           "backgroundColor": "#F8FAFC",
