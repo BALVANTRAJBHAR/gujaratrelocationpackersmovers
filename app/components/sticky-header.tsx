@@ -28,9 +28,9 @@ const MENU_ICONS: Record<string, string> = {
 };
 
 const serviceSubMenuItems = [
-  { label: 'Shifting Services', route: '/book' },
-  { label: 'Home Services', route: '/home-services/request' },
-  { label: 'Property Management', route: '/properties' },
+  { label: 'Shifting Services', route: '/book', icon: 'truck' },
+  { label: 'Home Services', route: '/home-services/request', icon: 'wrench' },
+  { label: 'Property Management', route: '/properties', icon: 'building' },
 ];
 
 interface StickyHeaderProps {
@@ -249,13 +249,16 @@ export default function StickyHeader({
                               paddingVertical={12}
                               backgroundColor={headerHovered === sub.label ? theme.menuBg : 'transparent'}
                               borderRadius={10}>
-                              <Text
-                                color={theme.text}
-                                fontSize={t(14)}
-                                fontWeight="600"
-                                style={{ fontFamily: APP_SERIF_FONT }}>
-                                {sub.label}
-                              </Text>
+                              <XStack gap={10} alignItems="center">
+                                <FontAwesome name={sub.icon as any} size={14} color={theme.text} />
+                                <Text
+                                  color={theme.text}
+                                  fontSize={t(14)}
+                                  fontWeight="600"
+                                  style={{ fontFamily: APP_SERIF_FONT }}>
+                                  {sub.label}
+                                </Text>
+                              </XStack>
                             </YStack>
                           </Pressable>
                         ))}
@@ -445,13 +448,16 @@ export default function StickyHeader({
                     alignItems="center"
                     justifyContent="center"
                     style={headerHovered === 'mlogin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text
-                      color={theme.menuText}
-                      fontSize={t(13)}
-                      fontWeight="800"
-                      style={{ fontFamily: APP_SERIF_FONT }}>
-                      Log In
-                    </Text>
+                    <XStack gap={4} alignItems="center">
+                      <FontAwesome name="sign-in" size={14} color={theme.menuText} />
+                      <Text
+                        color={theme.menuText}
+                        fontSize={t(13)}
+                        fontWeight="800"
+                        style={{ fontFamily: APP_SERIF_FONT }}>
+                        Log In
+                      </Text>
+                    </XStack>
                   </YStack>
                 </Pressable>
               ) : null}
