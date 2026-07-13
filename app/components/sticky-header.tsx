@@ -264,32 +264,12 @@ export default function StickyHeader({
                   </View>
                 ))}
 
-                {/* Theme toggle — same height as other buttons (paddingVertical: 12) */}
                 {toggleTheme ? (
-                  <Pressable
-                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined}
-                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={toggleTheme}>
-                    <YStack
-                      paddingHorizontal={14}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'theme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'theme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-<Text fontSize={t(15)} style={{ textDecorationLine: 'none' }}>
-{isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                  <MenuBtn id="theme" hovered={headerHovered} setHovered={setHeaderHovered} onPress={toggleTheme} theme={theme}>
+                    <Text fontSize={menuFontSize} style={{ textDecorationLine: 'none' }}>
+                      {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+                    </Text>
+                  </MenuBtn>
                 ) : null}
 
                 {!session ? (
