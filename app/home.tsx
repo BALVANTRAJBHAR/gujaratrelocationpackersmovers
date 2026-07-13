@@ -602,19 +602,20 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const nativeWebView = useMemo(() => {
     if (Platform.OS === 'web') return null;
     try {
-      return require('react-native-webview');
+      return require('react-native-' + 'webview');
     } catch {
       return null;
     }
   }, []);
-  const nativeMaps = useMemo(() => {
+  const getNativeMaps = () => {
     if (Platform.OS === 'web') return null;
     try {
-      return require('react-native-maps');
+      return require('react-native-' + 'maps');
     } catch {
       return null;
     }
-  }, []);
+  };
+  const nativeMaps = useMemo(getNativeMaps, []);
   const NativeWebView = nativeWebView?.WebView as any;
   const NativeMapView = nativeMaps?.default as any;
   const NativeMapMarker = nativeMaps?.Marker as any;
