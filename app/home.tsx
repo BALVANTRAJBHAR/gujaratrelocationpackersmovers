@@ -1,4 +1,6 @@
 import StickyHeader from '@/app/components/sticky-header';
+import { MapView as NativeMapView, Marker as NativeMapMarker } from '@/components/NativeMap';
+import { WebView as NativeWebView } from '@/components/NativeWebView';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -599,26 +601,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const pricingHeaderFontSize = isSmallScreen ? 12 : 14;
   const pricingBodyFontSize = isSmallScreen ? 12 : 14;
   const pricingBodyLineHeight = isSmallScreen ? 17 : 23;
-  const nativeWebView = useMemo(() => {
-    if (Platform.OS === 'web') return null;
-    try {
-      return require('react-native-' + 'webview');
-    } catch {
-      return null;
-    }
-  }, []);
-  const getNativeMaps = () => {
-    if (Platform.OS === 'web') return null;
-    try {
-      return require('react-native-' + 'maps');
-    } catch {
-      return null;
-    }
-  };
-  const nativeMaps = useMemo(getNativeMaps, []);
-  const NativeWebView = nativeWebView?.WebView as any;
-  const NativeMapView = nativeMaps?.default as any;
-  const NativeMapMarker = nativeMaps?.Marker as any;
   const sectionGap = isSmallScreen ? 20 : 64;
   const tightSectionGap = isSmallScreen ? 12 : 28;
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
