@@ -26,7 +26,7 @@ function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: 
 }) {
   const [vy, setVy] = useState(value.getFullYear());
   const [vm, setVm] = useState(value.getMonth());
-  const dims = useRef({ w: 0, h: 0 }).current;
+  const [showYearSelect, setShowYearSelect] = useState(false);
   const daysIn = new Date(vy, vm + 1, 0).getDate();
   const fdow = new Date(vy, vm, 1).getDay();
   const days: (number | null)[] = Array(fdow).fill(null);
@@ -48,26 +48,58 @@ function MobileDatePicker({ value, onChange, minDate, maxDate, open, onClose }: 
       <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
         <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
           <XStack jc="space-between" ai="center" mb={12}>
-            <Pressable onPress={prevM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'◀'}</Text></Pressable>
-            <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]} {vy}</Text>
-            <Pressable onPress={nextM}><Text fontSize={22} color="#1F4E79" fontWeight="700">{'▶'}</Text></Pressable>
+            <Pressable onPress={prevM} disabled={showYearSelect}><Text fontSize={22} color={showYearSelect ? "#CCC" : "#1F4E79"} fontWeight="700">{'◀'}</Text></Pressable>
+            <XStack ai="center" gap={6}>
+              <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]}</Text>
+              <Pressable onPress={() => setShowYearSelect(!showYearSelect)}>
+                <XStack ai="center" gap={4} bg="#F0F4F8" px={8} py={3} br={6}>
+                  <Text fontWeight="800" fontSize={16} color="#1F4E79">{vy}</Text>
+                  <Text fontSize={9} color="#1F4E79">▼</Text>
+                </XStack>
+              </Pressable>
+            </XStack>
+            <Pressable onPress={nextM} disabled={showYearSelect}><Text fontSize={22} color={showYearSelect ? "#CCC" : "#1F4E79"} fontWeight="700">{'▶'}</Text></Pressable>
           </XStack>
-          <XStack flexWrap="wrap">
-            {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
-          </XStack>
-          <XStack flexWrap="wrap">
-            {days.map((d, i) => (
-              <YStack key={i} w="14.28%" ai="center" py={2}>
-                {d ? (
-                  <Pressable onPress={() => pick(d)} disabled={dis(d)}>
-                    <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
-                      <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
-                    </YStack>
+          
+          {showYearSelect ? (
+            <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+              <XStack flexWrap="wrap" jc="center" gap={8} py={10}>
+                {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i).map(year => (
+                  <Pressable
+                    key={year}
+                    onPress={() => { setVy(year); setShowYearSelect(false); }}
+                    style={{
+                      width: '28%',
+                      alignItems: 'center',
+                      paddingVertical: 10,
+                      backgroundColor: vy === year ? '#1F4E79' : '#F0F4F8',
+                      borderRadius: 8
+                    }}>
+                    <Text fontWeight="700" color={vy === year ? '#FFF' : '#333'}>{year}</Text>
                   </Pressable>
-                ) : <YStack w={36} h={36} />}
-              </YStack>
-            ))}
-          </XStack>
+                ))}
+              </XStack>
+            </ScrollView>
+          ) : (
+            <>
+              <XStack flexWrap="wrap">
+                {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+              </XStack>
+              <XStack flexWrap="wrap">
+                {days.map((d, i) => (
+                  <YStack key={i} w="14.28%" ai="center" py={2}>
+                    {d ? (
+                      <Pressable onPress={() => pick(d)} disabled={dis(d)}>
+                        <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                          <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
+                        </YStack>
+                      </Pressable>
+                    ) : <YStack w={36} h={36} />}
+                  </YStack>
+                ))}
+              </XStack>
+            </>
+          )}
           <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
         </YStack>
       </YStack>

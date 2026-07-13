@@ -135,17 +135,20 @@ export default function HouseholdShiftingScreen() {
         theme={theme}
         isSmallScreen={isSmallScreen}
         session={session}
+        onHomePress={() => router.push('/home')}
+        onLogout={handleLogout}
+        onLoginPress={() => router.push('/auth/login')}
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 76 : 96 }]} showsVerticalScrollIndicator={false}>
 
-        <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={styles.hero} imageStyle={styles.heroImage}>
+        <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={[styles.hero, { height: isSmallScreen ? 260 : 340 }]} imageStyle={styles.heroImage}>
           <View style={styles.heroOverlay} />
-          <YStack padding={18} gap="$2">
-            <H1 color="#FFFFFF" fontSize={t(28)} fontWeight="900">Household Shifting</H1>
+          <YStack padding={isSmallScreen ? 18 : 28} gap="$2" justifyContent="flex-end" flex={1}>
+            <H1 color="#FFFFFF" fontSize={isSmallScreen ? 26 : 40} fontWeight="900" lineHeight={isSmallScreen ? 32 : 50}>Household Shifting</H1>
             <XStack gap="$3" alignItems="center" flexWrap="wrap">
-              <Text color={theme.accent} fontWeight="900">★ {heroMeta.rating}</Text>
+              <Text color={theme.accent} fontWeight="900" fontSize={isSmallScreen ? 14 : 16}>★ {heroMeta.rating}</Text>
               <Text color="rgba(255,255,255,0.85)" fontWeight="700">|</Text>
-              <Text color="rgba(255,255,255,0.92)" fontWeight="800">{heroMeta.exp}</Text>
+              <Text color="rgba(255,255,255,0.92)" fontWeight="800" fontSize={isSmallScreen ? 13 : 15}>{heroMeta.exp}</Text>
             </XStack>
           </YStack>
         </ImageBackground>
@@ -153,9 +156,9 @@ export default function HouseholdShiftingScreen() {
         <YStack paddingHorizontal={16} marginTop={14} gap="$3">
           <YStack backgroundColor="#1F3B63" borderRadius={16} padding={16} gap="$2" shadowColor="rgba(0,0,0,0.2)" shadowOffset={{ width: 0, height: 8 }} shadowOpacity={0.2} shadowRadius={16} elevation={6}>
             <YStack>
-              <Text color={theme.textMuted} fontSize={t(12)} fontWeight="700">Starting from</Text>
-              <Text color="#FFFFFF" fontSize={t(22)} fontWeight="900">₹3,000</Text>
-              <Text color="rgba(255,255,255,0.85)" fontSize={t(11)} fontWeight="700">Starting price for 1 BHK within 10km</Text>
+              <Text color={theme.textMuted} fontSize={isSmallScreen ? 13 : 15} fontWeight="700">Starting from</Text>
+              <Text color="#FFFFFF" fontSize={isSmallScreen ? 26 : 32} fontWeight="900">₹3,000</Text>
+              <Text color="rgba(255,255,255,0.85)" fontSize={isSmallScreen ? 13 : 14} fontWeight="700">Starting price for 1 BHK within 10km</Text>
             </YStack>
             <XStack gap="$2" flexWrap="wrap" marginTop={10}>
               <Pressable
@@ -178,17 +181,17 @@ export default function HouseholdShiftingScreen() {
           </YStack>
 
           <YStack gap="$2">
-            <H2 color={theme.text} fontSize={t(19)} fontWeight="900">Overview</H2>
-            <Paragraph color={theme.textMuted} fontSize={t(14)} lineHeight={22} fontWeight="600">
+            <H2 color={theme.text} fontSize={isSmallScreen ? 19 : 23} fontWeight="900">Overview</H2>
+            <Paragraph color={theme.textMuted} fontSize={isSmallScreen ? 15 : 17} lineHeight={isSmallScreen ? 23 : 26} fontWeight="600">
               Our household shifting services ensure a smooth and stress-free relocation experience. We handle everything from packing delicate items to safe transportation of your furniture and belongings to your new home.
             </Paragraph>
-            <Paragraph color={theme.textMuted} fontSize={t(14)} lineHeight={22} fontWeight="600">
+            <Paragraph color={theme.textMuted} fontSize={isSmallScreen ? 15 : 17} lineHeight={isSmallScreen ? 23 : 26} fontWeight="600">
               Our trained professionals use high-quality packing materials and modern equipment to ensure your items are protected throughout the journey. We offer door-to-door service with complete transparency in pricing.
             </Paragraph>
           </YStack>
 
           <YStack backgroundColor={theme.bgCard} borderRadius={16} borderWidth={1} borderColor={theme.border} padding={16} gap="$2">
-            <Text color={theme.text} fontSize={t(17)} fontWeight="900">What’s Included</Text>
+            <Text color={theme.text} fontSize={isSmallScreen ? 17 : 21} fontWeight="900">What’s Included</Text>
             {[
               'Professional packing with quality materials',
               'Careful handling of delicate items',
@@ -199,8 +202,8 @@ export default function HouseholdShiftingScreen() {
               'Unpacking and arrangement at destination',
             ].map((feature) => (
               <XStack key={feature} gap="$2" alignItems="center">
-                <Text color={theme.success} fontSize={t(14)} fontWeight="900">✓</Text>
-                <Text color={theme.textMuted} fontSize={t(13)} fontWeight="700" flex={1}>
+                <Text color={theme.success} fontSize={isSmallScreen ? 15 : 17} fontWeight="900">✓</Text>
+                <Text color={theme.textMuted} fontSize={isSmallScreen ? 14 : 16} fontWeight="700" flex={1}>
                   {feature}
                 </Text>
               </XStack>
@@ -208,22 +211,22 @@ export default function HouseholdShiftingScreen() {
           </YStack>
 
           <YStack backgroundColor={theme.bgCard} borderRadius={16} borderWidth={1} borderColor={theme.border} padding={16} gap="$2">
-            <Text color={theme.text} fontSize={t(16)} fontWeight="900">Frequently Asked Questions</Text>
+            <Text color={theme.text} fontSize={isSmallScreen ? 16 : 19} fontWeight="900">Frequently Asked Questions</Text>
             {FAQS.map((f, idx) => {
               const open = openFaq === idx;
               return (
                 <YStack key={f.q} borderRadius={12} borderWidth={1} borderColor={theme.border} overflow="hidden">
                   <Pressable onPress={() => setOpenFaq(open ? null : idx)}>
                     <XStack alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={12} backgroundColor={theme.bgSecondary}>
-                      <Text color={theme.text} fontSize={t(12)} fontWeight="800" flex={1}>
+                      <Text color={theme.text} fontSize={isSmallScreen ? 14 : 16} fontWeight="800" flex={1}>
                         {f.q}
                       </Text>
-                      <Text color={theme.textMuted} fontSize={t(18)} fontWeight="900">{open ? '−' : '+'}</Text>
+                      <Text color={theme.textMuted} fontSize={18} fontWeight="900">{open ? '−' : '+'}</Text>
                     </XStack>
                   </Pressable>
                   {open ? (
                     <YStack paddingHorizontal={14} paddingVertical={12} backgroundColor={theme.bgCard}>
-                      <Text color={theme.textMuted} fontSize={t(12)} fontWeight="700" lineHeight={18}>
+                      <Text color={theme.textMuted} fontSize={isSmallScreen ? 14 : 15} fontWeight="700" lineHeight={18}>
                         {f.a}
                       </Text>
                     </YStack>
@@ -269,22 +272,22 @@ export default function HouseholdShiftingScreen() {
       <YStack style={styles.bottomBar}>
         <XStack alignItems="center" justifyContent="space-between" gap="$2" flexWrap="wrap">
           <YStack flex={1} minWidth={130}>
-            <Text color={theme.text} fontSize={t(12)} fontWeight="900">Ready to Book?</Text>
+            <Text color={theme.text} fontSize={isSmallScreen ? 14 : 16} fontWeight="900">Ready to Book?</Text>
           </YStack>
           <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
             <Pressable onPress={handleCallNow}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgCard }]}>
-                <Text color={theme.text} fontWeight="900" fontSize={t(13)}>Call Now</Text>
+                <Text color={theme.text} fontWeight="900" fontSize={isSmallScreen ? 14 : 16}>Call Now</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleWhatsApp}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.success }]}>
-                <Text color="#FFFFFF" fontWeight="900" fontSize={t(13)}>WhatsApp</Text>
+                <Text color="#FFFFFF" fontWeight="900" fontSize={isSmallScreen ? 14 : 16}>WhatsApp</Text>
               </YStack>
             </Pressable>
             <Pressable onPress={handleBook}>
               <YStack style={[styles.bottomBtn, { backgroundColor: theme.bgSecondary }]}>
-                <Text color={theme.text} fontWeight="900" fontSize={t(13)}>Book Online →</Text>
+                <Text color={theme.text} fontWeight="900" fontSize={isSmallScreen ? 14 : 16}>Book Online →</Text>
               </YStack>
             </Pressable>
           </XStack>
@@ -387,10 +390,10 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0,0,0,0.08)',
   },
   bottomBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderRadius: 12,
-    minWidth: 96,
+    minWidth: 110,
     alignItems: 'center',
     justifyContent: 'center',
   },

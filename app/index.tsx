@@ -108,7 +108,7 @@ export default function SplashScreen() {
             <Image
               source={
                 Platform.OS === 'web'
-                  ? require('../assets/images/splash-professional.png')
+                  ? require('../assets/images/SplashIconAboveGujaratR.png')
                   : require('../assets/images/GR-New-Icon.png')
               }
               resizeMode="contain"

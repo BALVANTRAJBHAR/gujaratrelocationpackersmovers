@@ -19,6 +19,14 @@ const { width: screenWidth } = Dimensions.get('window');
 const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 const menuItems = ['Home', 'Services', 'Track', 'Contact'];
 
+// Icon mapping for desktop menu items
+const MENU_ICONS: Record<string, string> = {
+  Home: 'home',
+  Services: 'list',
+  Track: 'map-marker',
+  Contact: 'phone',
+};
+
 const serviceSubMenuItems = [
   { label: 'Shifting Services', route: '/book' },
   { label: 'Home Services', route: '/home-services/request' },
@@ -42,6 +50,49 @@ interface StickyHeaderProps {
   onProfilePress?: () => void;
   onLogout?: () => void;
   onLoginPress?: () => void;
+}
+
+/** Shared button shell for desktop menu items */
+function MenuBtn({
+  id,
+  hovered,
+  setHovered,
+  onPress,
+  children,
+  theme,
+}: {
+  id: string;
+  hovered: string | null;
+  setHovered: (v: string | null) => void;
+  onPress: () => void;
+  children: React.ReactNode;
+  theme: any;
+}) {
+  return (
+    <Pressable
+      onHoverIn={Platform.OS === 'web' ? () => setHovered(id) : undefined}
+      onHoverOut={Platform.OS === 'web' ? () => setHovered(null) : undefined}
+      onPress={onPress}>
+      <YStack
+        paddingHorizontal={18}
+        paddingVertical={12}
+        borderRadius={14}
+        backgroundColor={theme.menuBg}
+        borderWidth={1}
+        borderColor={hovered === id ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+        shadowColor={theme.shadow}
+        shadowOffset={{ width: 0, height: 3 }}
+        shadowOpacity={0.12}
+        shadowRadius={6}
+        elevation={3}
+        flexDirection="row"
+        alignItems="center"
+        gap={6}
+        style={hovered === id ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+        {children}
+      </YStack>
+    </Pressable>
+  );
 }
 
 export default function StickyHeader({
@@ -76,6 +127,7 @@ export default function StickyHeader({
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;
   const [headerHovered, setHeaderHovered] = React.useState<string | null>(null);
   const [servicesOpen, setServicesOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleMenuPress = (item: string) => {
     if (item === 'Services') {
@@ -105,6 +157,9 @@ export default function StickyHeader({
     router.push(route as any);
   };
 
+  const menuTextColor = theme.menuText;
+  const menuFontSize = t(15);
+
   return (
     <>
       <View
@@ -124,7 +179,8 @@ export default function StickyHeader({
           flexWrap="wrap"
           justifyContent="space-between"
           paddingHorizontal={isSmallScreen ? 14 : 24}
-          paddingVertical={isSmallScreen ? 10 : 12}>
+          // ← 10% height reduction: was 10/12, now 9/11
+          paddingVertical={isSmallScreen ? 9 : 11}>
           <XStack
             alignItems="center"
             gap={isSmallScreen ? '$2' : '$2.5'}
@@ -133,14 +189,15 @@ export default function StickyHeader({
             maxWidth={isSmallScreen ? '58%' : 250}>
             <Image
               source={Platform.OS === 'web' ? require('../../assets/images/PackersMoversLogo.png') : require('../../assets/images/MAppLogo.png')}
+              // ← 10% reduction: was 46/57, now 42/52
               style={[styles.logo, isSmallScreen && styles.logoMobile]}
             />
             <YStack flexShrink={1} minWidth={0}>
               <Text
                 color={theme.text}
-                fontSize={isSmallScreen ? t(14) : t(17)}
+                fontSize={isSmallScreen ? t(13) : t(17)}
                 fontWeight="900"
-                lineHeight={isSmallScreen ? 16 : 19}
+                lineHeight={isSmallScreen ? 15 : 19}
                 numberOfLines={1}
                 letterSpacing={0.4}
                 fontFamily={APP_SERIF_FONT}>
@@ -148,9 +205,9 @@ export default function StickyHeader({
               </Text>
               <Text
                 color={theme.text}
-                fontSize={isSmallScreen ? t(14) : t(17)}
+                fontSize={isSmallScreen ? t(13) : t(17)}
                 fontWeight="900"
-                lineHeight={isSmallScreen ? 16 : 19}
+                lineHeight={isSmallScreen ? 15 : 19}
                 numberOfLines={1}
                 letterSpacing={0.4}
                 fontFamily={APP_SERIF_FONT}>
@@ -164,33 +221,17 @@ export default function StickyHeader({
               <XStack gap="$2" alignItems="center" flexWrap="wrap">
                 {menuItems.map((item) => (
                   <View key={item} style={{ position: 'relative' }}>
-                    <Pressable
-                      onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered(item) : undefined}
-                      onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                      onPress={() => handleMenuPress(item)}>
-                      <YStack
-                        paddingHorizontal={22}
-                        paddingVertical={12}
-                        borderRadius={14}
-                        backgroundColor={theme.menuBg}
-                        borderWidth={1}
-                        borderColor={headerHovered === item ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                        shadowColor={theme.shadow}
-                        shadowOffset={{ width: 0, height: 3 }}
-                        shadowOpacity={0.12}
-                        shadowRadius={6}
-                        elevation={3}
-                        style={headerHovered === item ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                        <Text
-                          color={theme.menuText}
-                          fontSize={t(15)}
-                          fontWeight="700"
-                          letterSpacing={0.3}
-                          style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                          {item}
-                        </Text>
-                      </YStack>
-                    </Pressable>
+                    <MenuBtn id={item} hovered={headerHovered} setHovered={setHeaderHovered} onPress={() => handleMenuPress(item)} theme={theme}>
+                      <FontAwesome name={MENU_ICONS[item] as any} size={14} color={menuTextColor} />
+                      <Text
+                        color={menuTextColor}
+                        fontSize={menuFontSize}
+                        fontWeight="700"
+                        letterSpacing={0.3}
+                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                        {item}
+                      </Text>
+                    </MenuBtn>
                     {item === 'Services' && servicesOpen ? (
                       <View
                         style={[
@@ -223,11 +264,15 @@ export default function StickyHeader({
                   </View>
                 ))}
 
+                {/* Theme toggle — same height as other buttons (paddingVertical: 12) */}
                 {toggleTheme ? (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
+                  <Pressable
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    onPress={toggleTheme}>
                     <YStack
-                      paddingHorizontal={18}
-                      paddingVertical={10}
+                      paddingHorizontal={14}
+                      paddingVertical={12}
                       borderRadius={14}
                       backgroundColor={theme.menuBg}
                       borderWidth={1}
@@ -248,63 +293,19 @@ export default function StickyHeader({
                 ) : null}
 
                 {!session ? (
-                  <Pressable
-                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined}
-                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={handleLogin}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'signin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'signin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={t(15)}
-                        fontWeight="800"
-                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                        Sign In
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                  <MenuBtn id="signin" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogin} theme={theme}>
+                    <FontAwesome name="sign-in" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Sign In
+                    </Text>
+                  </MenuBtn>
                 ) : (
-                  <Pressable
-                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined}
-                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={handleLogoutClick}>
-                    <YStack
-                      paddingHorizontal={16}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'logout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'logout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      {MaterialIcons ? (
-                        <MaterialIcons name="logout" size={20} color={theme.menuText} />
-                      ) : (
-                        <Text color={theme.menuText} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
-                          Logout
-                        </Text>
-                      )}
-                    </YStack>
-                  </Pressable>
+                  <MenuBtn id="logout" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogoutClick} theme={theme}>
+                    <FontAwesome name="sign-out" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Logout
+                    </Text>
+                  </MenuBtn>
                 )}
 
                 {session && canManage ? (
@@ -354,67 +355,34 @@ export default function StickyHeader({
                 ) : null}
 
                 {session && onDashboardPress ? (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('dashboard') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={onDashboardPress}>
-                    <YStack
-                      paddingHorizontal={22}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'dashboard' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      style={headerHovered === 'dashboard' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={t(15)}
-                        fontWeight="700"
-                        style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                        Dashboard
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                  <MenuBtn id="dashboard" hovered={headerHovered} setHovered={setHeaderHovered} onPress={onDashboardPress} theme={theme}>
+                    <FontAwesome name="tachometer" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Dashboard
+                    </Text>
+                  </MenuBtn>
                 ) : null}
 
                 {session && onProfilePress ? (
-                  <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('profile') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={onProfilePress}>
-                    <YStack
-                      paddingHorizontal={16}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'profile' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'profile' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <Text
-                        color={theme.menuText}
-                        fontSize={t(15)}
-                        fontWeight="700"
-                        style={{ fontFamily: APP_SERIF_FONT }}>
-                        {'\uD83D\uDC64'} Profile
-                      </Text>
-                    </YStack>
-                  </Pressable>
+                  <MenuBtn id="profile" hovered={headerHovered} setHovered={setHeaderHovered} onPress={onProfilePress} theme={theme}>
+                    <FontAwesome name="user" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
+                      Profile
+                    </Text>
+                  </MenuBtn>
                 ) : null}
               </XStack>
             </ScrollView>
           ) : (
             <XStack gap="$2" alignItems="center">
               {toggleTheme ? (
-                <Pressable onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined} onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined} onPress={toggleTheme}>
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                  onPress={toggleTheme}>
                   <YStack
-                    paddingHorizontal={16}
-                    paddingVertical={isSmallScreen ? 7 : 9}
+                    paddingHorizontal={12}
+                    paddingVertical={8}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -440,8 +408,8 @@ export default function StickyHeader({
                   onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                   onPress={() => router.push('/notifications' as any)}>
                   <YStack
-                    paddingHorizontal={14}
-                    paddingVertical={isSmallScreen ? 8.5 : 11}
+                    paddingHorizontal={12}
+                    paddingVertical={8}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -483,8 +451,8 @@ export default function StickyHeader({
               {!session ? (
                 <Pressable onPress={handleLogin}>
                   <YStack
-                    paddingHorizontal={14}
-                    paddingVertical={isSmallScreen ? 8.5 : 11}
+                    paddingHorizontal={12}
+                    paddingVertical={8}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -499,7 +467,7 @@ export default function StickyHeader({
                     style={headerHovered === 'mlogin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
                     <Text
                       color={theme.menuText}
-                      fontSize={t(14)}
+                      fontSize={t(13)}
                       fontWeight="800"
                       style={{ fontFamily: APP_SERIF_FONT }}>
                       Log In
@@ -511,8 +479,8 @@ export default function StickyHeader({
               {session && onLogout ? (
                 <Pressable onPress={handleLogoutClick}>
                   <YStack
-                    paddingHorizontal={14}
-                    paddingVertical={isSmallScreen ? 8.5 : 11}
+                    paddingHorizontal={12}
+                    paddingVertical={8}
                     borderRadius={12}
                     backgroundColor={theme.menuBg}
                     borderWidth={1}
@@ -528,9 +496,12 @@ export default function StickyHeader({
                     {MaterialIcons ? (
                       <MaterialIcons name="logout" size={18} color={theme.menuText} />
                     ) : (
-                      <Text color={theme.menuText} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
-                        Logout
-                      </Text>
+                      <XStack alignItems="center" gap={4}>
+                        <FontAwesome name="sign-out" size={14} color={theme.menuText} />
+                        <Text color={theme.menuText} fontSize={t(12)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
+                          Out
+                        </Text>
+                      </XStack>
                     )}
                   </YStack>
                 </Pressable>
@@ -580,12 +551,12 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   logo: {
-    width: 46,
-    height: 46,
+    width: 42,
+    height: 42,
     resizeMode: 'contain',
   },
   logoMobile: {
-    width: 57,
-    height: 57,
+    width: 52,
+    height: 52,
   },
 });

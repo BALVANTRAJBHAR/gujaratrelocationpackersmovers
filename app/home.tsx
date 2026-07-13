@@ -1828,9 +1828,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: (isSmallScreen ? 70 : 86) + statusBarHeight,
+            paddingTop: (isSmallScreen ? 63 : 77) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: isSmallScreen ? 80 : 24,
+            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 24 : 48) : (isSmallScreen ? 80 : 24),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1840,7 +1840,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 3 : 6}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 1 : 2}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}
@@ -1880,10 +1880,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
                     <H1
                       color="#FFFFFF"
-                      fontSize={isSmallScreen ? t(25) : t(48)}
+                      fontSize={isSmallScreen ? t(28) : t(56)}
                       textAlign={isSmallScreen ? 'center' : 'left'}
                       fontWeight="900"
-                      lineHeight={isSmallScreen ? 29 : 58}
+                      lineHeight={isSmallScreen ? 34 : 66}
                       style={{ fontFamily: APP_SERIF_FONT }}>
                       {heroSlides[heroIndex]?.title}
                     </H1>
@@ -1891,9 +1891,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     <Paragraph
                       color="#F1F5F9"
                       textAlign={isSmallScreen ? 'center' : 'left'}
-                      fontSize={isSmallScreen ? t(11) : t(16)}
+                      fontSize={isSmallScreen ? t(13) : t(19)}
                       fontWeight="700"
-                      lineHeight={isSmallScreen ? 15 : 24}
+                      lineHeight={isSmallScreen ? 19 : 28}
                       paddingHorizontal={isSmallScreen ? 10 : 0}
                       style={{ fontFamily: APP_SERIF_FONT }}>
                       {heroSlides[heroIndex]?.subtitle}
@@ -4580,8 +4580,8 @@ const styles = StyleSheet.create({
     minHeight: 96,
     borderRadius: 16,
     borderWidth: 1.5,
-    paddingHorizontal: 8,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -4745,6 +4745,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 24,
     backgroundColor: '#0B1B2B',
+    marginBottom: 8,
   },
   footerCol: {
     minWidth: 0,
