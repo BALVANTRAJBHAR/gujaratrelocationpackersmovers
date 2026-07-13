@@ -106,7 +106,11 @@ export default function SplashScreen() {
               justifyContent: 'center',
             }}>
             <Image
-              source={require('../assets/images/PackersMoversLogo.png')}
+              source={
+                Platform.OS === 'web'
+                  ? { uri: Image.resolveAssetSource(require('../assets/images/PackersMoversLogo.png')).uri + '?v=2' }
+                  : require('../assets/images/PackersMoversLogo.png')
+              }
               resizeMode="contain"
               style={{ width: 130, height: 130 }}
             />

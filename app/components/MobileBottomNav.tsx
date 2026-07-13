@@ -15,9 +15,9 @@ const TABS = [
 ];
 
 const serviceItems = [
-  { label: 'Shifting Services', route: '/book' },
-  { label: 'Home Services', route: '/home-services/request' },
-  { label: 'Property Management', route: '/properties' },
+  { label: 'Shifting Services', route: '/book', icon: 'truck' },
+  { label: 'Home Services', route: '/home-services/request', icon: 'wrench' },
+  { label: 'Property Management', route: '/properties', icon: 'building' },
 ];
 
 interface MobileBottomNavProps {
@@ -151,9 +151,12 @@ export default function MobileBottomNav({
           {serviceItems.map((item) => (
             <Pressable key={item.route} onPress={() => handleServiceRoute(item.route)}>
               <YStack paddingVertical={14} borderBottomWidth={1} borderBottomColor={theme.border}>
-                <Text color={theme.text} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
-                  {item.label}
-                </Text>
+                <XStack gap={12} alignItems="center">
+                  <FontAwesome name={item.icon as any} size={22} color={theme.text} />
+                  <Text color={theme.text} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>
+                    {item.label}
+                  </Text>
+                </XStack>
               </YStack>
             </Pressable>
           ))}
