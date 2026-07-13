@@ -108,7 +108,7 @@ export default function SplashScreen() {
             <Image
               source={
                 Platform.OS === 'web'
-                  ? { uri: Image.resolveAssetSource(require('../assets/images/PackersMoversLogo.png')).uri + '?v=2' }
+                  ? { uri: require('../assets/images/PackersMoversLogo.png') + '?v=2' }
                   : require('../assets/images/PackersMoversLogo.png')
               }
               resizeMode="contain"
