@@ -28,7 +28,7 @@ type HomeServicePdfData = {
 
 const COMPANY_NAME = 'Gujarat Relocation Packers & Movers';
 const COMPANY_ADDRESS = 'Ahmedabad, Gujarat, India';
-const COMPANY_CONTACT = 'Phone: +91-9876543210 | Email: info@gujaratrelocation.com';
+const COMPANY_CONTACT = 'Phone: +91-9876543210 | Email: support@gujaratrelocationpackers.com';
 
 const serviceLabels: Record<string, string> = {
   ac: 'AC Service & Repair',

@@ -68,7 +68,7 @@ export default function PrivacyPolicyScreen() {
               4. Contact Us
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
-              If you have any questions about this Privacy Policy, please contact us at info@gujaratrelocation.com or call
+              If you have any questions about this Privacy Policy, please contact us at support@gujaratrelocationpackers.com or call
               +91 9987963470.
             </Text>
           </YStack>

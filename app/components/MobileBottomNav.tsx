@@ -253,7 +253,7 @@ export default function MobileBottomNav({
 
       {/* Bottom Tab Bar */}
       <YStack
-        position="absolute"
+        position="fixed"
         bottom={0}
         left={0}
         right={0}

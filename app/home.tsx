@@ -273,7 +273,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
                 numberOfLines={isCardNarrow ? 2 : 1}
                 lineHeight={20}
                 style={{ fontFamily: APP_SERIF_FONT, flexShrink: 1 }}>
-                info@gujaratrelocation.com
+                support@gujaratrelocationpackers.com
               </Text>
             </XStack>
 
@@ -306,7 +306,6 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             marginTop={1}
             alignSelf="center"
             width="100%"
-            maxWidth={320}
             alignItems="center"
             justifyContent="center">
             <Text
@@ -330,7 +329,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             borderRadius={16}
             borderWidth={2}
             borderColor={theme.border}>
-            <QRCode value="tel:+919987963470" size={isCardNarrow ? 118 : 110} color={theme.text} backgroundColor={theme.bgCard} />
+            <QRCode value="https://gujaratrelocationpackers.com" size={isCardNarrow ? 118 : 110} color={theme.text} backgroundColor={theme.bgCard} />
           </YStack>
           <Text
             color={theme.textMuted}
@@ -338,7 +337,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             fontWeight="700"
             textAlign="center"
             style={{ fontFamily: APP_SERIF_FONT }}>
-            Scan to Call
+            Scan to Visit
           </Text>
         </YStack>
       </XStack>
@@ -351,7 +350,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
           textAlign="center"
           lineHeight={16}
           style={{ fontFamily: APP_SERIF_FONT }}>
-          www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers
+          www.gujaratrelocationpackers.com • 2026 GujaratRelocationPackers
         </Text>
       </YStack>
     </YStack>
@@ -597,10 +596,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
   const isSmallScreen = windowWidth <= 768;
-  const pricingTableWidth = isSmallScreen ? '100%' : '80%';
-  const pricingHeaderFontSize = isSmallScreen ? 12 : 14;
-  const pricingBodyFontSize = isSmallScreen ? 12 : 14;
-  const pricingBodyLineHeight = isSmallScreen ? 17 : 23;
+  const pricingTableWidth = isSmallScreen ? '100%' : '95%';
+  const pricingHeaderFontSize = isSmallScreen ? 12 : 17;
+  const pricingBodyFontSize = isSmallScreen ? 12 : 17;
+  const pricingBodyLineHeight = isSmallScreen ? 17 : 26;
   const sectionGap = isSmallScreen ? 20 : 64;
   const tightSectionGap = isSmallScreen ? 12 : 28;
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
@@ -1682,7 +1681,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <span class="icon">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
             </span>
-            <span>info@gujaratrelocation.com</span>
+            <span>support@gujaratrelocationpackers.com</span>
           </div>
           <div class="row">
             <span class="icon">
@@ -1694,11 +1693,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         </div>
         <div class="qrWrap">
           ${qrSvg ? '<div class="qr">' + qrSvg + '</div>' : '<div class="muted">QR unavailable</div>'}
-          <div class="muted" style="margin-top: 8px;">Scan to Call</div>
+          <div class="muted" style="margin-top: 8px;">Scan to Visit</div>
         </div>
       </div>
       <div class="tagWrap"><div class="tag">White-glove relocation • GPS tracking</div></div>
-      <div class="footer">www.gujaratrelocation.com • 2026 GujaratRelocationMoversPackers</div>
+      <div class="footer">www.gujaratrelocationpackers.com • 2026 GujaratRelocationPackers</div>
     </div>
   </div>
 </body></html>`;
@@ -3178,6 +3177,26 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               </XStack>
             </YStack>
 
+          <YStack alignItems="center" gap="$2.5" marginTop={sectionGap}>
+            <Text
+              color="#D97706"
+              fontSize={t(14)}
+              letterSpacing={2.4}
+              textTransform="uppercase"
+              fontWeight="900"
+              style={{ fontFamily: APP_SERIF_FONT }}>
+              Why Choose Us
+            </Text>
+            <H2
+              color={theme.text}
+              fontWeight="900"
+              textAlign="center"
+              fontSize={isSmallScreen ? t(26) : t(34)}
+              style={{ fontFamily: APP_SERIF_FONT }}>
+              Trusted by Thousands
+            </H2>
+          </YStack>
+
           <YStack
             style={[
               styles.statsStrip,
@@ -3190,7 +3209,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 overflow: 'hidden',
               },
             ]}
-            marginTop={sectionGap}>
+            marginTop={18}>
             {isSmallScreen ? (
               <YStack width="100%" gap="$2.5">
                 {[
@@ -3558,7 +3577,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
           </YStack>
 
-          <YStack style={styles.transparentPricingSection} marginTop={sectionGap}>
+          <YStack style={styles.transparentPricingSection} marginTop={sectionGap} paddingHorizontal={isSmallScreen ? 20 : 40}>
             <YStack alignItems="center" gap="$2.5" marginBottom={18}>
               <Text
                 color="#FFFFFF"
@@ -3635,17 +3654,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 ))}
               </YStack>
             ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ alignItems: 'center' } as any}
-                style={{ width: '100%' } as any}>
+              <YStack alignItems="center" width="100%">
                 <YStack
                   style={[
                     styles.transparentPricingTable,
                     {
                       width: pricingTableWidth,
-                      maxWidth: 760,
+                      maxWidth: 1200,
                     } as any,
                   ] as any}>
                   <XStack style={styles.transparentPricingHeaderRow}>
@@ -3693,7 +3708,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     </XStack>
                   ))}
                 </YStack>
-              </ScrollView>
+              </YStack>
             )}
 
             <XStack
@@ -3838,7 +3853,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 paddingHorizontal={26}
                 paddingVertical={12}
                 borderRadius={22}
-                alignSelf="flex-start">
+                alignSelf="center">
                 <Text
                   ref={contactHeadingRef}
                   color={theme.primary}
@@ -4692,7 +4707,7 @@ const styles = StyleSheet.create({
   transparentPricingCell: {
     flex: 1,
     paddingHorizontal: 14,
-    paddingVertical: 34,
+    paddingVertical: 51,
     justifyContent: 'center',
   },
   transparentPricingHeaderCell: {

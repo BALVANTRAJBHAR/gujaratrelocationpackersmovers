@@ -27,7 +27,7 @@ type BookingPdfData = {
 
 const COMPANY_NAME = 'Gujarat Relocation Packers & Movers';
 const COMPANY_ADDRESS = 'Ahmedabad, Gujarat, India';
-const COMPANY_CONTACT = 'Phone: +91-9876543210 | Email: info@gujaratrelocation.com';
+const COMPANY_CONTACT = 'Phone: +91-9876543210 | Email: support@gujaratrelocationpackers.com';
 
 async function getLogoBase64(): Promise<string | null> {
   try {

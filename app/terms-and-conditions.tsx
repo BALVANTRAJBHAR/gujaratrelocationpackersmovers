@@ -78,7 +78,7 @@ export default function TermsAndConditionsScreen() {
               5. Contact
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
-              For queries regarding these Terms, contact info@gujaratrelocation.com or call +91 9987963470.
+              For queries regarding these Terms, contact support@gujaratrelocationpackers.com or call +91 9987963470.
             </Text>
           </YStack>
         </YStack>
