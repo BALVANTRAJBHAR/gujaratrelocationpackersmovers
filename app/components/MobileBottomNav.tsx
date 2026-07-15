@@ -129,7 +129,7 @@ export default function MobileBottomNav({
       {/* Services Sheet */}
       {sheetOpen === 'services' ? (
         <YStack
-          position="absolute"
+          position="fixed"
           bottom={52 + insets.bottom}
           left={0}
           right={0}
@@ -160,18 +160,13 @@ export default function MobileBottomNav({
               </YStack>
             </Pressable>
           ))}
-          <XStack justifyContent="center" marginTop={8}>
-            <Pressable onPress={() => setSheetOpen(null)}>
-              <Text color={theme.textMuted} fontSize={t(13)}>Close</Text>
-            </Pressable>
-          </XStack>
         </YStack>
       ) : null}
 
       {/* Profile Sheet */}
       {sheetOpen === 'profile' ? (
         <YStack
-          position="absolute"
+          position="fixed"
           bottom={52 + insets.bottom}
           left={0}
           right={0}
@@ -293,7 +288,7 @@ const APP_SERIF_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif"
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,

@@ -229,7 +229,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             <YStack style={{ flexShrink: 1, minWidth: 0, flex: 1 }}>
               <Text
                 color={theme.text}
-                fontSize={isCardNarrow ? 19 : 22}
+                fontSize={isCardNarrow ? 20 : 23}
                 fontWeight="900"
                 lineHeight={isCardNarrow ? 22 : 26}
                 numberOfLines={2}
@@ -257,7 +257,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               <FontAwesome name="phone" size={18} color="#2563EB" />
               <Text
                 color={theme.text}
-                fontSize={t(15)}
+                fontSize={t(14)}
                 fontWeight="700"
                 style={{ fontFamily: APP_SERIF_FONT }}>
                 +91 9987963470
@@ -268,7 +268,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               <FontAwesome name="envelope" size={18} color="#22C55E" />
               <Text
                 color={theme.text}
-                fontSize={t(15)}
+                fontSize={t(14)}
                 fontWeight="700"
                 numberOfLines={isCardNarrow ? 2 : 1}
                 lineHeight={20}
@@ -281,7 +281,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               <FontAwesome name="map-marker" size={20} color="#EF4444" style={{ marginTop: 1 }} />
               <Text
                 color={theme.text}
-                fontSize={t(15)}
+                fontSize={t(14)}
                 fontWeight="700"
                 flex={1}
                 lineHeight={22}
@@ -337,7 +337,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
             fontWeight="700"
             textAlign="center"
             style={{ fontFamily: APP_SERIF_FONT }}>
-            Scan to Visit
+            Scan to Visit Our Website
           </Text>
         </YStack>
       </XStack>
@@ -590,8 +590,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 290;
   const bookBannerPaddingLeft = windowWidth < 480 ? 22 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 22 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 38 : windowWidth < 900 ? 44 : 60;
-  const bookBannerMinHeight = windowWidth < 480 ? 240 : windowWidth < 900 ? 230 : 255;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 41 : windowWidth < 900 ? 47 : 65;
+  const bookBannerMinHeight = windowWidth < 480 ? 259 : windowWidth < 900 ? 248 : 275;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
@@ -1693,7 +1693,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         </div>
         <div class="qrWrap">
           ${qrSvg ? '<div class="qr">' + qrSvg + '</div>' : '<div class="muted">QR unavailable</div>'}
-          <div class="muted" style="margin-top: 8px;">Scan to Visit</div>
+          <div class="muted" style="margin-top: 8px;">Scan to Visit Our Website</div>
         </div>
       </div>
       <div class="tagWrap"><div class="tag">White-glove relocation • GPS tracking</div></div>
@@ -1813,7 +1813,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: (isSmallScreen ? 63 : 77) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 24 : 48) : (isSmallScreen ? 80 : 24),
+            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 80 : 24),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1823,7 +1823,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 1 : 2}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 14 : 1) : 2}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}
@@ -2023,6 +2023,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                 shadowRadius: selected ? 14 : 8,
                                 shadowOffset: { width: 0, height: selected ? 8 : 3 },
                                 elevation: selected ? 10 : 4,
+                                paddingVertical: isSmallScreen ? 20 : 22,
+                                minHeight: isSmallScreen ? 96 : 106,
                               },
                             ]}>
                             <YStack
@@ -2945,7 +2947,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             <YStack marginTop={18} gap="$2.5">
               <Text
                 color={theme.textMuted}
-                fontSize={t(13)}
+                fontSize={t(11)}
                 fontWeight="800"
                 textAlign="center"
                 style={{ fontFamily: APP_SERIF_FONT }}>
@@ -3047,7 +3049,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 color={theme.text}
                 fontWeight="900"
                 textAlign="center"
-                fontSize={isSmallScreen ? t(27) : t(35)}
+                fontSize={isSmallScreen ? t(25) : t(33)}
                 style={{ fontFamily: APP_SERIF_FONT }}>
                 We&apos;re Quick, Friendly & Professional
               </H2>
@@ -3244,7 +3246,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
                   { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
                 ].map((s) => (
-                  <YStack key={s.label} style={[styles.statItem, { width: '24%' }]} alignItems="center" gap="$1.5">
+                  <YStack key={s.label} style={[styles.statItem, { width: '23.5%' }]} alignItems="center" gap="$1.5">
                     <YStack style={styles.statIcon}>
                       <Text fontSize={t(20)}>{s.icon}</Text>
                     </YStack>
@@ -3726,7 +3728,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textColor="#0B1220"
                 glowOnHover
                 containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonLight]}
-                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 16, fontWeight: '900' }}
+                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 18, fontWeight: '900' }}
               />
               <AppButton
                 label={activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Explore' : 'Search'}
@@ -3735,7 +3737,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textColor="#FFFFFF"
                 glowOnHover
                 containerStyle={[styles.transparentPricingActionButton, styles.transparentPricingActionButtonGreen]}
-                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 16, fontWeight: '900' }}
+                labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: 18, fontWeight: '900' }}
               />
             </XStack>
           </YStack>
@@ -3758,7 +3760,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               paddingHorizontal={26}
               paddingVertical={12}
               borderRadius={22}
-              alignSelf="flex-start">
+              alignSelf="center">
               <Text
                 color={theme.primary}
                 fontSize={t(15)}
@@ -3971,7 +3973,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textTransform="uppercase"
                 fontWeight="900"
                 style={{ fontFamily: APP_SERIF_FONT }}>
-                Google Map
+                Address On Google Map
               </Text>
             </YStack>
 
@@ -4023,7 +4025,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 <YStack alignItems="center" justifyContent="center" width="100%" flex={1} gap="$3" padding={20}>
                   <FontAwesome name="map-marker" size={34} color={theme.accent} />
                   <Text color={theme.text} fontSize={t(17)} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
-                    Google Map
+                    Address On Google Map
                   </Text>
                 </YStack>
               )}
@@ -4109,6 +4111,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     fontSize={t(14)}
                     fontWeight="900"
                     marginTop={8}
+                    marginBottom={6}
                     style={{ fontFamily: APP_SERIF_FONT }}>
                     Follow Us
                   </Text>
@@ -4460,7 +4463,7 @@ const styles = StyleSheet.create({
   },
   heroCta: {
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 15,
     borderRadius: 14,
     minWidth: 120,
     alignItems: 'center',
@@ -4473,7 +4476,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
@@ -4483,7 +4486,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },
@@ -4635,7 +4638,7 @@ const styles = StyleSheet.create({
   bookBannerButton: {
     backgroundColor: '#1F3B63',
     paddingHorizontal: 26,
-    paddingVertical: 16,
+    paddingVertical: 17,
     borderRadius: 16,
     minWidth: 180,
     alignItems: 'center',
