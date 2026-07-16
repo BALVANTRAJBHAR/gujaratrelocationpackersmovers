@@ -1813,7 +1813,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: (isSmallScreen ? 63 : 77) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 56 : 24),
+            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 0 : 24),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1823,7 +1823,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 14 : 1) : 2}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 7 : 0) : 2}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}
@@ -4065,7 +4065,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </Text>
           </YStack>
 
-          <YStack style={[styles.footerWrap, { borderColor: theme.border }]} marginTop={sectionGap}>
+          <YStack style={[styles.footerWrap, { borderColor: theme.border, marginBottom: isSmallScreen ? 0 : 8 }]} marginTop={sectionGap}>
             <XStack
               flexWrap={isSmallScreen ? 'wrap' : 'nowrap'}
               justifyContent="space-between"
@@ -4429,7 +4429,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroBgMobile: {
-    height: 232,
+    height: 237,
     marginLeft: 0,
     marginRight: 0,
   },
@@ -4467,7 +4467,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
-    paddingVertical: 6.5,
+    paddingVertical: 6,
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
@@ -4477,7 +4477,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
-    paddingVertical: 6.5,
+    paddingVertical: 6,
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },

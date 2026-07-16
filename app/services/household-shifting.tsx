@@ -141,7 +141,7 @@ export default function HouseholdShiftingScreen() {
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 76 : 96 }]} showsVerticalScrollIndicator={false}>
 
-        <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={[styles.hero, { height: isSmallScreen ? 260 : 340, marginHorizontal: isSmallScreen ? 16 : 0 }]} imageStyle={styles.heroImage}>
+        <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={[styles.hero, { height: isSmallScreen ? 260 : 340, width: isSmallScreen ? screenWidth - 32 : '100%', alignSelf: 'center' }]} imageStyle={styles.heroImage}>
           <View style={styles.heroOverlay} />
           <YStack padding={isSmallScreen ? 18 : 28} gap="$2" justifyContent="flex-end" flex={1}>
             <H1 color="#FFFFFF" fontSize={isSmallScreen ? 26 : 40} fontWeight="900" lineHeight={isSmallScreen ? 32 : 50}>Household Shifting</H1>

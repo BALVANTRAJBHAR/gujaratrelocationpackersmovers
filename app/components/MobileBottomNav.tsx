@@ -121,7 +121,7 @@ export default function MobileBottomNav({
     <>
       {/* Bottom Sheet Overlay */}
       {sheetOpen ? (
-        <Pressable style={styles.overlay} onPress={() => setSheetOpen(null)}>
+        <Pressable style={[styles.overlay, Platform.OS !== 'web' && { position: 'absolute' }]} onPress={() => setSheetOpen(null)}>
           <View />
         </Pressable>
       ) : null}
@@ -129,8 +129,8 @@ export default function MobileBottomNav({
       {/* Services Sheet */}
       {sheetOpen === 'services' ? (
         <YStack
-          position="fixed"
-          bottom={52 + insets.bottom}
+          position={Platform.OS === 'web' ? 'fixed' : 'absolute'}
+          bottom={54 + insets.bottom}
           left={0}
           right={0}
           backgroundColor={sheetBg}
@@ -163,11 +163,11 @@ export default function MobileBottomNav({
         </YStack>
       ) : null}
 
-      {/* Profile Sheet */}
+        {/* Profile Sheet */}
       {sheetOpen === 'profile' ? (
         <YStack
-          position="fixed"
-          bottom={52 + insets.bottom}
+          position={Platform.OS === 'web' ? 'fixed' : 'absolute'}
+          bottom={54 + insets.bottom}
           left={0}
           right={0}
           backgroundColor={sheetBg}
@@ -248,7 +248,7 @@ export default function MobileBottomNav({
 
       {/* Bottom Tab Bar */}
       <YStack
-        position="fixed"
+        position={Platform.OS === 'web' ? 'fixed' : 'absolute'}
         bottom={0}
         left={0}
         right={0}

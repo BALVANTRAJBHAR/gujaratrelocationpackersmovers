@@ -382,7 +382,7 @@ export default function ServiceDetailScreen() {
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 76 : 96 }]} showsVerticalScrollIndicator={false}>
 
-        <YStack style={[styles.hero, { height: isSmallScreen ? 260 : 340, marginHorizontal: isSmallScreen ? 16 : 0 }]}>
+        <YStack style={[styles.hero, { height: isSmallScreen ? 260 : 340, width: isSmallScreen ? screenWidth - 32 : '100%', alignSelf: 'center' }]}>
           <Image source={service.heroImage} style={styles.heroImage} />
           <View style={styles.heroOverlay} />
           <YStack padding={isSmallScreen ? 18 : 28} gap="$2" justifyContent="flex-end" flex={1}>
