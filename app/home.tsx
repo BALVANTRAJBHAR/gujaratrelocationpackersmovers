@@ -2047,7 +2047,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                 <Text
                                   key={i}
                                   color={selected ? '#FFFFFF' : theme.text}
-                                  fontSize={isSmallScreen ? t(12) : t(14)}
+                                  fontSize={isSmallScreen ? t(11) : t(13)}
                                   fontWeight={selected ? (isSmallScreen ? '900' : '800') : (isSmallScreen ? '800' : '700')}
                                   lineHeight={isSmallScreen ? 13 : 17}
                                   textAlign="center"
@@ -4454,7 +4454,7 @@ const styles = StyleSheet.create({
   },
   heroCta: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 15.5,
     borderRadius: 14,
     minWidth: 120,
     alignItems: 'center',
@@ -4467,7 +4467,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6.5,
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
@@ -4477,7 +4477,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6.5,
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },
