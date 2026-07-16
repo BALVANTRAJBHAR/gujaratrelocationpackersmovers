@@ -586,12 +586,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? 20 : windowWidth < 900 ? 44 : 124;
-  const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 290;
+  const statsPaddingVertical = windowWidth < 480 ? 22 : windowWidth < 900 ? 48 : 136;
+  const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 319;
   const bookBannerPaddingLeft = windowWidth < 480 ? 22 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 22 : windowWidth < 900 ? 52 : 70;
-  const bookBannerPaddingVertical = windowWidth < 480 ? 41 : windowWidth < 900 ? 47 : 65;
-  const bookBannerMinHeight = windowWidth < 480 ? 259 : windowWidth < 900 ? 248 : 275;
+  const bookBannerPaddingVertical = windowWidth < 480 ? 45 : windowWidth < 900 ? 52 : 72;
+  const bookBannerMinHeight = windowWidth < 480 ? 285 : windowWidth < 900 ? 273 : 303;
 
   const isDarkMode = appColorScheme?.colorScheme === 'dark';
   const theme = isDarkMode ? themes.dark : themes.light;
