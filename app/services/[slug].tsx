@@ -598,6 +598,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   hero: {
+    width: '100%',
     borderRadius: 18,
     overflow: 'hidden',
   },
@@ -630,10 +631,10 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0,0,0,0.08)',
   },
   bottomBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    minWidth: 110,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 7,
+    minWidth: 66,
     alignItems: 'center',
     justifyContent: 'center',
   },
