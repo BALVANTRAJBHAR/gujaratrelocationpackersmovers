@@ -1796,7 +1796,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         canManage={canManage}
         MaterialIcons={MaterialIcons}
         onHomePress={() => router.push('/home')}
-        onServicesPress={() => scrollToSection('services')}
+        onServicesPress={() => scrollToServiceMenu()}
         onContactPress={() => scrollToSection('contact')}
         onDashboardPress={handleDashboardSafe}
         onProfilePress={() => router.push('/auth/profile')}
@@ -1813,7 +1813,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: (isSmallScreen ? 63 : 77) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 80 : 24),
+            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 56 : 24),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -2047,8 +2047,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                 <Text
                                   key={i}
                                   color={selected ? '#FFFFFF' : theme.text}
-                                  fontSize={isSmallScreen ? t(11) : t(14)}
-                                  fontWeight={selected ? '800' : '700'}
+                                  fontSize={isSmallScreen ? t(12) : t(14)}
+                                  fontWeight={selected ? (isSmallScreen ? '900' : '800') : (isSmallScreen ? '800' : '700')}
                                   lineHeight={isSmallScreen ? 13 : 17}
                                   textAlign="center"
                                   style={{ fontFamily: APP_SERIF_FONT }}>
@@ -3043,7 +3043,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textTransform="uppercase"
                 fontWeight="900"
                 style={{ fontFamily: APP_SERIF_FONT }}>
-                OUR SERVICES
+                OUR SHIFTING SERVICES
               </Text>
               <H2
                 color={theme.text}
@@ -3179,16 +3179,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               </XStack>
             </YStack>
 
-          <YStack alignItems="center" gap="$2.5" marginTop={sectionGap}>
-            <Text
-              color="#D97706"
-              fontSize={t(14)}
-              letterSpacing={2.4}
-              textTransform="uppercase"
-              fontWeight="900"
-              style={{ fontFamily: APP_SERIF_FONT }}>
-              Why Choose Us
-            </Text>
+          <YStack alignItems="center" marginTop={sectionGap}>
             <H2
               color={theme.text}
               fontWeight="900"
@@ -3220,7 +3211,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   { label: 'Shifting Done', value: '48,500+', icon: '🚚' },
                   { label: 'Satisfaction Rate', value: '80%', icon: '⭐' },
                 ].map((s) => (
-                  <YStack key={s.label} style={[styles.statItem, styles.mobileStatItem]} alignItems="center" gap="$1.5">
+                  <YStack key={s.label} style={[styles.statItem, styles.mobileStatItem, { alignSelf: 'center' }]} alignItems="center" gap="$1.5">
                     <YStack style={styles.statIcon}>
                       <Text fontSize={t(20)}>{s.icon}</Text>
                     </YStack>
@@ -3309,7 +3300,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   alignItems="center"
                   gap="$2">
                   <FontAwesome name="map-marker" size={28} color="#EF4444" />
-                  <Text color={theme.text} fontSize={t(16)} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
+                  <Text color={theme.text} fontSize={t(17)} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                     {b.name}
                   </Text>
                   <Text color={theme.textMuted} fontSize={t(13)} fontWeight="700" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
@@ -3408,7 +3399,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 textAlign="center"
                 fontSize={isSmallScreen ? t(26) : t(34)}
                 style={{ fontFamily: APP_SERIF_FONT }}>
-                Why We Are The Best
+                We Are The Best
               </H2>
             </YStack>
 
@@ -3968,7 +3959,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               alignSelf="flex-start">
               <Text
                 color={theme.primary}
-                fontSize={t(14)}
+                fontSize={t(13)}
                 letterSpacing={2.8}
                 textTransform="uppercase"
                 fontWeight="900"
@@ -4463,7 +4454,7 @@ const styles = StyleSheet.create({
   },
   heroCta: {
     paddingHorizontal: 24,
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderRadius: 14,
     minWidth: 120,
     alignItems: 'center',
@@ -4476,7 +4467,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
@@ -4486,7 +4477,7 @@ const styles = StyleSheet.create({
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },
@@ -4606,7 +4597,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   mobileStatItem: {
-    width: '100%',
+    width: '90%',
     minHeight: 112,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.06)',

@@ -57,6 +57,7 @@ export default function LoginScreen() {
   const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
   const [pendingOAuthUser, setPendingOAuthUser] = useState<{ email: string; name?: string } | null>(null);
   const [showEmailSignup, setShowEmailSignup] = useState(false);
+  const [initialProcessing, setInitialProcessing] = useState(false);
 
   // Pre-fill name and email when pendingOAuthUser changes
   useEffect(() => {
@@ -232,6 +233,9 @@ export default function LoginScreen() {
           setInfo('Verifying reset link…');
           setError(null);
         }
+
+        const hasOAuthParams = Boolean(access_token || refresh_token || code);
+        if (hasOAuthParams) setInitialProcessing(true);
 
         if (access_token && refresh_token) {
           await setSupabaseSessionSafe({ access_token, refresh_token });
@@ -647,7 +651,11 @@ export default function LoginScreen() {
     }
   };
 
-  return (
+  return initialProcessing ? (
+    <YStack flex={1} backgroundColor={theme.bg} alignItems="center" justifyContent="center">
+      <ActivityIndicator size="large" color={theme.primary} />
+    </YStack>
+  ) : (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg } as any}
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 } as any}
