@@ -132,6 +132,7 @@ export default function StickyHeader({
   const handleMenuPress = (item: string) => {
     if (item === 'Services') {
       setServicesOpen((prev) => !prev);
+      onServicesPress?.();
       return;
     }
     setMobileMenuOpen(false);
