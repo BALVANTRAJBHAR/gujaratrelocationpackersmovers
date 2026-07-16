@@ -267,30 +267,6 @@ export default function StickyHeader({
                   </View>
                 ))}
 
-                {toggleTheme ? (
-                  <MenuBtn id="theme" hovered={headerHovered} setHovered={setHeaderHovered} onPress={toggleTheme} theme={theme}>
-                    <Text fontSize={menuFontSize} style={{ textDecorationLine: 'none' }}>
-                      {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-                    </Text>
-                  </MenuBtn>
-                ) : null}
-
-                {!session ? (
-                  <MenuBtn id="signin" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogin} theme={theme}>
-                    <FontAwesome name="sign-in" size={14} color={menuTextColor} />
-                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                      Sign In
-                    </Text>
-                  </MenuBtn>
-                ) : (
-                  <MenuBtn id="logout" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogoutClick} theme={theme}>
-                    <FontAwesome name="sign-out" size={14} color={menuTextColor} />
-                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                      Logout
-                    </Text>
-                  </MenuBtn>
-                )}
-
                 {session && canManage ? (
                   <Pressable
                     onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('notif') : undefined}
@@ -354,6 +330,30 @@ export default function StickyHeader({
                     </Text>
                   </MenuBtn>
                 ) : null}
+
+                {toggleTheme ? (
+                  <MenuBtn id="theme" hovered={headerHovered} setHovered={setHeaderHovered} onPress={toggleTheme} theme={theme}>
+                    <Text fontSize={menuFontSize} style={{ textDecorationLine: 'none' }}>
+                      {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+                    </Text>
+                  </MenuBtn>
+                ) : null}
+
+                {!session ? (
+                  <MenuBtn id="signin" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogin} theme={theme}>
+                    <FontAwesome name="sign-in" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Sign In
+                    </Text>
+                  </MenuBtn>
+                ) : (
+                  <MenuBtn id="logout" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogoutClick} theme={theme}>
+                    <FontAwesome name="sign-out" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Logout
+                    </Text>
+                  </MenuBtn>
+                )}
               </XStack>
             </ScrollView>
           ) : (

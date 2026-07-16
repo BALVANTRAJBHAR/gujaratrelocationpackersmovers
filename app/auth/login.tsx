@@ -347,6 +347,7 @@ export default function LoginScreen() {
     color: theme.inputText as const,
     placeholderTextColor: theme.textMuted as const,
     fontFamily: 'Times New Roman' as const,
+    fontSize: 16,
   };
 
   const title = useMemo(() => {
@@ -765,7 +766,7 @@ export default function LoginScreen() {
         <YStack gap="$3">
           {mode === 'signup' && showEmailSignup ? (
             <YStack gap="$2">
-              <Text color={theme.textSecondary}>Name (optional)</Text>
+              <Text color={theme.textSecondary} fontSize={15}>Name (optional)</Text>
               <Input
                 {...commonInputProps}
                 value={name}
@@ -778,7 +779,7 @@ export default function LoginScreen() {
 
           {mode === 'signup' && showEmailSignup ? (
             <YStack gap="$2">
-              <Text color={theme.textSecondary}>You are a</Text>
+              <Text color={theme.textSecondary} fontSize={15}>You are a</Text>
               <XStack gap="$2">
                 <Button
                   flex={1}
@@ -816,7 +817,7 @@ export default function LoginScreen() {
 
           {mode === 'signup' && showEmailSignup && signupRole === 'provider' ? (
             <YStack gap="$2">
-              <Text color={theme.textSecondary}>Provider type</Text>
+              <Text color={theme.textSecondary} fontSize={15}>Provider type</Text>
               <XStack gap="$2" flexWrap="wrap">
                 <Button
                   flex={1}
@@ -869,7 +870,7 @@ export default function LoginScreen() {
           ) : null}
           {mode !== 'signup' ? (
             <YStack gap="$2">
-              <Text color={theme.textSecondary}>Email</Text>
+              <Text color={theme.textSecondary} fontSize={15}>Email</Text>
               <Input
                 {...commonInputProps}
                 value={email}
@@ -883,7 +884,7 @@ export default function LoginScreen() {
           ) : null}
 
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
-            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingHorizontal={12} gap="$2">
+            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingRight={12} gap="$2">
               <Input
                 {...commonInputProps}
                 flex={1}
@@ -906,7 +907,7 @@ export default function LoginScreen() {
 
           {mode === 'forgot' && forgotStep === 'set_password' ? (
             <YStack gap="$2">
-              <Text color={theme.textSecondary}>New Password</Text>
+              <Text color={theme.textSecondary} fontSize={15}>New Password</Text>
               <Input
                 {...commonInputProps}
                 value={newPassword}
