@@ -2332,6 +2332,28 @@ export default function AdminScreen() {
     setLoading(false);
   };
 
+  const deleteVehicleType = async (id: string, name: string) => {
+    if (!canManage) return;
+    const confirmed = window.confirm
+      ? window.confirm(`Delete "${name}"? This cannot be undone.`)
+      : await new Promise((resolve) => {
+          Alert.alert('Delete Vehicle', `Delete "${name}"? This cannot be undone.`, [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+    if (!confirmed) return;
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.from('vehicle_types').delete().eq('id', id);
+    if (error) {
+      setError(error.message);
+    } else {
+      setVehicleTypes((prev) => prev.filter((v) => v.id !== id));
+    }
+    setLoading(false);
+  };
+
   const fetchStaff = async () => {
     if (!canManage) return;
     setLoading(true);
@@ -3476,6 +3498,16 @@ export default function AdminScreen() {
                             });
                           }}>
                           Edit
+                        </Button>
+                        <Button
+                          size="$2"
+                          backgroundColor="#991B1B"
+                          color="#FFFFFF"
+                          borderRadius={10}
+                          disabled={loading}
+                          opacity={loading ? 0.6 : 1}
+                          onPress={() => deleteVehicleType(item.id, item.name ?? 'Vehicle')}>
+                          Delete
                         </Button>
                       </XStack>
                     </YStack>

@@ -1823,7 +1823,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
         <YStack>
 
-          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 7 : 0) : 2}>
+          <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 14 : 0) : 2}>
             <YStack alignItems="center" gap="$3" width="100%">
               <ImageBackground
                 source={heroSlides[heroIndex]?.image}

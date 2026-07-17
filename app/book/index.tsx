@@ -23,6 +23,14 @@ import { t } from '@/constants/typography';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import { getWalletBalance, debitWallet, creditWallet } from '@/lib/wallet';
 
+const resolveVehicleImageUrl = (value: string | null | undefined) => {
+  const v = String(value ?? '').trim();
+  if (!v) return '';
+  if (v.startsWith('http://') || v.startsWith('https://')) return v;
+  const { data } = supabase.storage.from('vehicle-images').getPublicUrl(v);
+  return data?.publicUrl ?? '';
+};
+
 type StepKey = 'info' | 'location' | 'vehicle' | 'items' | 'payment';
 
 type BookingFormState = {
@@ -2324,7 +2332,7 @@ export default function BookingWizardScreen() {
                                 gap="$2">
                                 <XStack gap="$3" alignItems="center">
                                   {v.image_url ? (
-                                    <ExpoImage source={{ uri: v.image_url }} style={{ width: 64, height: 52, borderRadius: 10 }} contentFit="cover" />
+                                    <ExpoImage source={{ uri: resolveVehicleImageUrl(v.image_url) }} style={{ width: 64, height: 52, borderRadius: 10 }} contentFit="cover" />
                                   ) : (
                                     <YStack
                                       width={64}
