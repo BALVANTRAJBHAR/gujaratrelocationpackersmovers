@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable } from 'react-native';
+import { Linking, Platform, Pressable } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
@@ -641,6 +641,121 @@ export default function ProfileSetupScreen() {
             </Text>
           ) : null}
         </YStack>
+      </YStack>
+
+      {/* Wallet Section */}
+      <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3">
+        <XStack justifyContent="space-between" alignItems="center">
+          <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
+            Wallet
+          </Text>
+          <YStack backgroundColor={theme.primary} borderRadius={999} paddingHorizontal={14} paddingVertical={6}>
+            <Text color="#FFFFFF" fontWeight="900" fontSize={t(16)}>
+              ₹{profile?.wallet_balance?.toLocaleString('en-IN') ?? '0'}
+            </Text>
+          </YStack>
+        </XStack>
+        <Text color={theme.textMuted} fontSize={t(13)}>
+          Use wallet balance for bookings or add money
+        </Text>
+        <XStack gap="$2">
+          <Button
+            flex={1}
+            backgroundColor={theme.bgSecondary}
+            color={theme.text}
+            borderRadius={12}
+            borderWidth={1}
+            borderColor={theme.border}
+            onPress={() => router.push('/wallet')}>
+            View Transactions
+          </Button>
+          <Button
+            flex={1}
+            backgroundColor={activeBtnBg}
+            color={activeBtnText}
+            borderRadius={12}
+            fontWeight="800"
+            onPress={() => router.push('/wallet/add')}>
+            Add Money
+          </Button>
+        </XStack>
+      </YStack>
+
+      {/* Refer & Earn Section */}
+      <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3">
+        <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
+          Refer & Earn
+        </Text>
+        <Text color={theme.textMuted} fontSize={t(13)}>
+          Share your referral code with friends. You both get ₹500!
+        </Text>
+        <YStack backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={14} alignItems="center" gap="$2">
+          <Text color={theme.textMuted} fontSize={t(12)}>
+            Your Referral Code
+          </Text>
+          <Text fontSize={t(24)} fontWeight="900" color={theme.primary} letterSpacing={3}>
+            {profile?.referral_code || '------'}
+          </Text>
+        </YStack>
+        <XStack gap="$2" flexWrap="wrap">
+          <Button
+            flex={1}
+            backgroundColor="#25D366"
+            color="#FFFFFF"
+            borderRadius={12}
+            fontWeight="700"
+            onPress={() => {
+              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+              if (Platform.OS === 'web') window.open(url, '_blank');
+              else Linking.openURL(url);
+            }}>
+            WhatsApp
+          </Button>
+          <Button
+            flex={1}
+            backgroundColor="#1877F2"
+            color="#FFFFFF"
+            borderRadius={12}
+            fontWeight="700"
+            onPress={() => {
+              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(msg)}`;
+              if (Platform.OS === 'web') window.open(url, '_blank');
+            }}>
+            Facebook
+          </Button>
+          <Button
+            flex={1}
+            backgroundColor="#E4405F"
+            color="#FFFFFF"
+            borderRadius={12}
+            fontWeight="700"
+            onPress={() => {
+              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              const url = `instagram://library?AssetPath=${encodeURIComponent(msg)}`;
+              if (Platform.OS === 'web') {
+                navigator.clipboard.writeText(msg);
+                alert('Referral link copied! Share on Instagram!');
+              }
+            }}>
+            Instagram
+          </Button>
+          <Button
+            flex={1}
+            backgroundColor={theme.bgSecondary}
+            color={theme.text}
+            borderRadius={12}
+            borderWidth={1}
+            borderColor={theme.border}
+            fontWeight="700"
+            onPress={() => {
+              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              if (Platform.OS === 'web') navigator.clipboard.writeText(msg);
+            }}>
+            Copy Link
+          </Button>
+        </XStack>
       </YStack>
 
       <YStack alignItems="center" marginTop={8}>

@@ -21,6 +21,7 @@ import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
 import MobileDatePicker from '@/components/MobileDatePicker';
+import { getWalletBalance, debitWallet, creditWallet } from '@/lib/wallet';
 
 type StepKey = 'info' | 'location' | 'vehicle' | 'items' | 'payment';
 
@@ -362,6 +363,8 @@ export default function BookingWizardScreen() {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const minDate = useMemo(() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }, []);
   const maxDate = useMemo(() => { const t = new Date(); t.setFullYear(t.getFullYear() + 2); t.setHours(23, 59, 59, 999); return t; }, []);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletAmount, setWalletAmount] = useState(0);
 
   useEffect(() => {
     if (step !== 'info') return;
@@ -899,6 +902,15 @@ export default function BookingWizardScreen() {
     setCouponApplied(null);
   }, [subtotal]);
 
+  useEffect(() => {
+    if (step !== 'payment' || !session?.user?.id) return;
+    getWalletBalance(session.user.id).then(setWalletBalance).catch(() => {});
+  }, [step, session?.user?.id]);
+
+  useEffect(() => {
+    setWalletAmount(0);
+  }, [step]);
+
   const applyCoupon = async () => {
     setError(null);
     const raw = form.coupon.trim();
@@ -1290,46 +1302,64 @@ export default function BookingWizardScreen() {
       const pickupOtp = generateOtp();
       const deliveryOtp = generateOtp();
 
-      const payAmountRupees = paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0);
-      const order = await createRazorpayOrder({
+      const walletUsed = Math.min(walletAmount, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0));
+      const payAmountRupees = (paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0)) - walletUsed;
+
+      if (walletUsed > 0) {
+        await debitWallet({
+          userId: session.user.id,
+          amount: walletUsed,
+          referenceType: 'booking_payment',
+          referenceId: null,
+          description: `Used ₹${walletUsed} from wallet for shifting booking`,
+        });
+      }
+
+      const order = payAmountRupees > 0 ? await createRazorpayOrder({
         amount: Math.round(payAmountRupees * 100),
         currency: 'INR',
         receipt: `bk_${Date.now()}`,
-      });
+      }) : null;
 
-      const razorpayKeyId = await getRazorpayKeyId();
+      let razorpayPaymentId: string | null = null;
 
-      const options: any = {
-        key: razorpayKeyId,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Gujarat Relocation PackersMovers',
-        description: paymentMode === 'full' ? 'Full Payment' : 'Advance Payment',
-        order_id: order.id,
-        prefill: {
-          name: form.fullName,
-          email: form.email,
-          contact: form.mobile,
-        },
-        theme: { color: '#1F4E79' },
-      };
+      if (order) {
+        const razorpayKeyId = await getRazorpayKeyId();
 
-      if (!options.key) {
-        setError('Missing Razorpay public key. Configure RAZORPAY_KEY_ID in Supabase secrets.');
-        return;
-      }
+        const options: any = {
+          key: razorpayKeyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'Gujarat Relocation PackersMovers',
+          description: paymentMode === 'full' ? 'Full Payment' : 'Advance Payment',
+          order_id: order.id,
+          prefill: {
+            name: form.fullName,
+            email: form.email,
+            contact: form.mobile,
+          },
+          theme: { color: '#1F4E79' },
+        };
 
-      const paymentData: any = await openRazorpayCheckout(options);
+        if (!options.key) {
+          setError('Missing Razorpay public key. Configure RAZORPAY_KEY_ID in Supabase secrets.');
+          return;
+        }
 
-      const valid = await verifyRazorpaySignature({
-        order_id: order.id,
-        payment_id: paymentData.razorpay_payment_id,
-        signature: paymentData.razorpay_signature,
-      });
+        const paymentData: any = await openRazorpayCheckout(options);
 
-      if (!valid) {
-        setError('Payment verification failed.');
-        return;
+        const valid = await verifyRazorpaySignature({
+          order_id: order.id,
+          payment_id: paymentData.razorpay_payment_id,
+          signature: paymentData.razorpay_signature,
+        });
+
+        if (!valid) {
+          setError('Payment verification failed.');
+          return;
+        }
+
+        razorpayPaymentId = paymentData.razorpay_payment_id;
       }
 
       const { data: booking, error: insertError } = await supabase
@@ -1387,19 +1417,20 @@ export default function BookingWizardScreen() {
 
       if (insertError || !booking?.id) {
         const reason = insertError?.message ?? 'Booking insert returned no ID';
-        await supabase.from('payments').insert({
-          booking_id: null,
-          user_id: session.user.id,
-          amount: (order.amount ?? 0) / 100,
-          status: 'paid',
-          razorpay_order_id: order.id,
-          razorpay_payment_id: paymentData.razorpay_payment_id,
-          error: { booking_insert_error: reason },
-          metadata: {
-            mode: paymentMode,
-            razorpay_signature: paymentData.razorpay_signature,
-          },
-        });
+        if (order) {
+          await supabase.from('payments').insert({
+            booking_id: null,
+            user_id: session.user.id,
+            amount: (order.amount ?? 0) / 100,
+            status: 'paid',
+            razorpay_order_id: order.id,
+            razorpay_payment_id: razorpayPaymentId,
+            error: { booking_insert_error: reason },
+            metadata: {
+              mode: paymentMode,
+            },
+          });
+        }
 
         setError(`Payment succeeded, but booking creation failed: ${reason}. Please contact support.`);
         return;
@@ -1421,22 +1452,40 @@ export default function BookingWizardScreen() {
         console.error('[Booking] Upload failed after booking created:', e);
       }
 
-      const { error: paymentInsertError } = await supabase.from('payments').insert({
-        booking_id: createdBookingId,
-        user_id: session.user.id,
-        amount: (order.amount ?? 0) / 100,
-        status: 'paid',
-        razorpay_order_id: order.id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        error: null,
-        metadata: {
-          mode: paymentMode,
-          razorpay_signature: paymentData.razorpay_signature,
-        },
-      });
+      if (order) {
+        const { error: paymentInsertError } = await supabase.from('payments').insert({
+          booking_id: createdBookingId,
+          user_id: session.user.id,
+          amount: (order.amount ?? 0) / 100,
+          status: 'paid',
+          razorpay_order_id: order.id,
+          razorpay_payment_id: razorpayPaymentId,
+          error: null,
+          metadata: {
+            mode: paymentMode,
+          },
+        });
+        if (paymentInsertError) {
+          console.error('[Booking] Payment record insert failed after booking created:', paymentInsertError);
+        }
+      }
 
-      if (paymentInsertError) {
-        console.error('[Booking] Payment record insert failed after booking created:', paymentInsertError);
+      // Credit excess payment to wallet
+      const totalPaid = walletUsed + (order ? (order.amount ?? 0) / 100 : 0);
+      const requiredAmount = paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0);
+      const excessAmount = totalPaid - requiredAmount;
+      if (excessAmount > 0) {
+        try {
+          await creditWallet({
+            userId: session.user.id,
+            amount: excessAmount,
+            referenceType: 'booking_refund',
+            referenceId: createdBookingId,
+            description: `Excess payment of ₹${excessAmount} credited to wallet (Booking: ${createdBookingId.slice(0, 8)})`,
+          });
+        } catch (e) {
+          console.error('[Booking] Failed to credit excess to wallet:', e);
+        }
       }
 
       setBookingId(createdBookingId);
@@ -2775,6 +2824,46 @@ export default function BookingWizardScreen() {
                   </YStack>
                 ) : null}
               </YStack>
+
+              {walletBalance > 0 ? (
+                <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize={t(16)} fontWeight="800" color={theme.text}>
+                      Wallet Balance
+                    </Text>
+                    <Text fontSize={t(16)} fontWeight="900" color="#16A34A">
+                      ₹{walletBalance.toLocaleString('en-IN')}
+                    </Text>
+                  </XStack>
+                  <XStack gap="$2" alignItems="center">
+                    <Input
+                      flex={1}
+                      placeholder="Enter amount"
+                      value={walletAmount > 0 ? String(walletAmount) : ''}
+                      onChangeText={(v) => setWalletAmount(Math.min(parseInt(v || '0', 10) || 0, walletBalance, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount)))}
+                      keyboardType="number-pad"
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.inputBorder}
+                      color={theme.inputText}
+                      placeholderTextColor={theme.textMuted}
+                    />
+                    <Button
+                      backgroundColor={theme.bgSecondary}
+                      color={theme.text}
+                      borderRadius={10}
+                      onPress={() => setWalletAmount(Math.min(walletBalance, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount)))}
+                      fontWeight="700">
+                      Max
+                    </Button>
+                  </XStack>
+                  {walletAmount > 0 ? (
+                    <XStack justifyContent="space-between">
+                      <Text fontSize={t(14)} color="#64748B">Using Wallet</Text>
+                      <Text fontSize={t(14)} fontWeight="800" color={theme.text}>- ₹{walletAmount.toLocaleString('en-IN')}</Text>
+                    </XStack>
+                  ) : null}
+                </YStack>
+              ) : null}
 
               <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <Text fontSize={t(18)} fontWeight="800" color={theme.text}>

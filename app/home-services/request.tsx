@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import { getWalletBalance, debitWallet, creditWallet } from '@/lib/wallet';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import MobileDatePicker from '@/components/MobileDatePicker';
@@ -300,6 +301,8 @@ export default function HomeServiceRequestScreen() {
   const [notes, setNotes] = useState<string>('');
   const [paymentOption, setPaymentOption] = useState<'online_now' | 'after_service'>('after_service');
   const [paying, setPaying] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
 
   const todayDate = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const lastPickTimeRef = useRef(0);
@@ -459,6 +462,11 @@ export default function HomeServiceRequestScreen() {
     const next = (cityOptions ?? [])[0] ?? '';
     if (next) setCity(next);
   }, [state, city, cityOptions]);
+
+  React.useEffect(() => {
+    if (!session?.user?.id) return;
+    getWalletBalance(session.user.id).then(setWalletBalance).catch(() => {});
+  }, [session?.user?.id]);
 
   const localityOptions = useMemo(() => {
     if (localities.length) return localities.map((l) => l.name);
@@ -983,68 +991,94 @@ export default function HomeServiceRequestScreen() {
       if (paymentOpt === 'online_now') {
         setPaying(true);
         try {
-          const order = await createRazorpayOrder({
-            amount: 15000, // ₹150 minimum charge as advance
-            currency: 'INR',
-            receipt: `hs_${Date.now()}`,
-            notes: { request_id: requestId, purpose: 'home_service_advance' },
-          });
+          const advanceAmount = 150;
+          const walletUsed = useWallet ? Math.min(walletBalance, advanceAmount) : 0;
+          const payViaRazorpay = advanceAmount - walletUsed;
 
-          const razorpayKeyId = await getRazorpayKeyId();
-          if (!razorpayKeyId) {
-            throw new Error('Payment gateway not configured.');
+          // Deduct wallet amount first
+          if (walletUsed > 0) {
+            await debitWallet({
+              userId: session!.user.id,
+              amount: walletUsed,
+              referenceType: 'booking',
+              referenceId: requestId,
+              description: `Used ₹${walletUsed} from wallet for home service advance`,
+            });
           }
 
-          const paymentData: any = await openRazorpayCheckout({
-            key: razorpayKeyId,
-            amount: order.amount,
-            currency: order.currency,
-            name: 'PackersMovers',
-            description: 'Home Service Advance',
-            order_id: order.id,
-            prefill: {
-              name: customerName,
-              contact: `${countryCode}${normalizePhoneDigits(customerPhone)}`,
-            },
-            theme: { color: '#1F4E79' },
-          });
+          if (payViaRazorpay > 0) {
+            const order = await createRazorpayOrder({
+              amount: payViaRazorpay * 100,
+              currency: 'INR',
+              receipt: `hs_${Date.now()}`,
+              notes: { request_id: requestId, purpose: 'home_service_advance' },
+            });
 
-          const valid = await verifyRazorpaySignature({
-            order_id: order.id,
-            payment_id: paymentData.razorpay_payment_id,
-            signature: paymentData.razorpay_signature,
-          });
+            const razorpayKeyId = await getRazorpayKeyId();
+            if (!razorpayKeyId) {
+              throw new Error('Payment gateway not configured.');
+            }
 
-          if (!valid) {
-            throw new Error('Payment verification failed.');
-          }
+            const paymentData: any = await openRazorpayCheckout({
+              key: razorpayKeyId,
+              amount: order.amount,
+              currency: order.currency,
+              name: 'PackersMovers',
+              description: 'Home Service Advance',
+              order_id: order.id,
+              prefill: {
+                name: customerName,
+                contact: `${countryCode}${normalizePhoneDigits(customerPhone)}`,
+              },
+              theme: { color: '#1F4E79' },
+            });
 
-          // Record payment
-          await supabase.from('payments').insert({
-            booking_id: null,
-            user_id: session?.user?.id,
-            amount: 150,
-            status: 'paid',
-            razorpay_order_id: order.id,
-            razorpay_payment_id: paymentData.razorpay_payment_id,
-            metadata: {
-              request_id: requestId,
-              purpose: 'home_service_advance',
-              razorpay_signature: paymentData.razorpay_signature,
-            },
-          });
+            const valid = await verifyRazorpaySignature({
+              order_id: order.id,
+              payment_id: paymentData.razorpay_payment_id,
+              signature: paymentData.razorpay_signature,
+            });
 
-          // Update request with payment info
-          await supabase
-            .from('home_service_requests')
-            .update({
-              payment_option: 'online_now',
-              payment_status: 'paid',
-              advance_payment: 150,
+            if (!valid) {
+              throw new Error('Payment verification failed.');
+            }
+
+            // Record payment
+            await supabase.from('payments').insert({
+              booking_id: null,
+              user_id: session?.user?.id,
+              amount: payViaRazorpay,
+              status: 'paid',
               razorpay_order_id: order.id,
               razorpay_payment_id: paymentData.razorpay_payment_id,
-            })
-            .eq('id', requestId);
+              metadata: {
+                request_id: requestId,
+                purpose: 'home_service_advance',
+              },
+            });
+
+            // Update request with payment info
+            await supabase
+              .from('home_service_requests')
+              .update({
+                payment_option: 'online_now',
+                payment_status: 'paid',
+                advance_payment: advanceAmount,
+                razorpay_order_id: order.id,
+                razorpay_payment_id: paymentData.razorpay_payment_id,
+              })
+              .eq('id', requestId);
+          } else {
+            // Wallet covered full advance — no Razorpay
+            await supabase
+              .from('home_service_requests')
+              .update({
+                payment_option: 'online_now',
+                payment_status: 'paid',
+                advance_payment: advanceAmount,
+              })
+              .eq('id', requestId);
+          }
         } catch (e: any) {
           const msg = e?.message ?? 'Payment failed.';
           if (msg.toLowerCase().includes('cancel')) {
@@ -1062,6 +1096,27 @@ export default function HomeServiceRequestScreen() {
           .from('home_service_requests')
           .update({ payment_option: 'after_service', payment_status: 'pending', after_service_payment_method: 'cash' })
           .eq('id', requestId);
+      }
+
+      // Credit excess payment to wallet (if user paid more than ₹150)
+      if (paymentOpt === 'online_now') {
+        const walletUsed = useWallet ? Math.min(walletBalance, 150) : 0;
+        const paidViaRazorpay = Math.max(150 - walletUsed, 0);
+        const totalPaid = walletUsed + paidViaRazorpay;
+        if (totalPaid > 150) {
+          const excess = totalPaid - 150;
+          try {
+            await creditWallet({
+              userId: session!.user.id,
+              amount: excess,
+              referenceType: 'booking_refund',
+              referenceId: requestId,
+              description: `Excess payment of ₹${excess} credited to wallet (Request: ${requestId.slice(0, 8)})`,
+            });
+          } catch (e) {
+            console.error('[HomeService] Failed to credit excess to wallet:', e);
+          }
+        }
       }
 
       await uploadMedia(requestId);
@@ -1892,6 +1947,33 @@ export default function HomeServiceRequestScreen() {
                   </Text>
                 </YStack>
               </Pressable>
+
+              {paymentOption === 'online_now' && walletBalance > 0 ? (
+                <Pressable
+                  onPress={() => setUseWallet((p) => !p)}
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: useWallet ? '#22C55E' : theme.border,
+                    backgroundColor: useWallet ? '#052E16' : theme.bgCardSecondary,
+                  }}>
+                  <XStack alignItems="center" justifyContent="space-between">
+                    <YStack gap="$1" flex={1}>
+                      <Text color={useWallet ? '#22C55E' : theme.text} fontWeight="900" fontSize={t(16)}>
+                        Use Wallet Balance
+                      </Text>
+                      <Text color={useWallet ? '#86EFAC' : theme.textMuted} fontSize={t(13)}>
+                        Pay ₹{Math.min(walletBalance, 150)} from wallet
+                        {walletBalance >= 150 ? ' (covers full advance)' : `, then pay ₹${150 - walletBalance} via card/UPI`}
+                      </Text>
+                    </YStack>
+                    <Text color="#22C55E" fontWeight="900" fontSize={t(15)}>
+                      ₹{walletBalance}
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ) : null}
             </YStack>
           ) : null}
 
@@ -1962,7 +2044,7 @@ export default function HomeServiceRequestScreen() {
                   Payment
                 </Text>
                 <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
-                  {paymentOption === 'online_now' ? 'Pay Online Now (₹150 advance)' : 'Pay After Service'}
+                  {paymentOption === 'after_service' ? 'Pay After Service' : useWallet ? `Pay ₹${Math.min(walletBalance, 150)} from wallet${walletBalance >= 150 ? '' : ` + ₹${150 - walletBalance} via card/UPI`}` : 'Pay Online Now (₹150 advance)'}
                 </Text>
               </YStack>
 

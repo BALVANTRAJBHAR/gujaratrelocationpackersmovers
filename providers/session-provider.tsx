@@ -21,6 +21,8 @@ type UserProfile = {
   id_doc_url: string | null;
   driver_status: string | null;
   driver_verified: boolean | null;
+  wallet_balance: number;
+  referral_code: string | null;
 };
 
 type SessionContextValue = {
@@ -107,7 +109,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
 
     activeProfileUserIdRef.current = userId;
-    const baseSelect = 'id, name, phone, email, role, provider_services';
+    const baseSelect = 'id, name, phone, email, role, provider_services, wallet_balance, referral_code';
 
     const promise = (async () => {
       const { data: baseData, error: baseError } = await supabase
@@ -131,6 +133,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         id_doc_url: null,
         driver_status: null,
         driver_verified: null,
+        wallet_balance: (baseData as any)?.wallet_balance ?? 0,
+        referral_code: (baseData as any)?.referral_code ?? null,
       } as UserProfile);
     })()
       .catch(() => {
