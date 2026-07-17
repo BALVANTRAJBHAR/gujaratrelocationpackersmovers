@@ -2368,7 +2368,7 @@ export default function BookingWizardScreen() {
                       <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                         Shifting Date
                       </Text>
-                      <Pressable onPress={() => { if (Platform.OS !== 'web') setShiftingDatePickerOpen(true); }}>
+                      <Pressable onPress={() => setShiftingDatePickerOpen(true)}>
                         <YStack
                           borderWidth={1}
                           borderColor={theme.inputBorder}
