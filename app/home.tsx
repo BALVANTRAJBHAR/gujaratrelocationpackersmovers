@@ -586,7 +586,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? 22 : windowWidth < 900 ? 48 : 136;
+  const statsPaddingVertical = windowWidth < 480 ? (Platform.OS === 'web' ? 25 : 22) : windowWidth < 900 ? (Platform.OS === 'web' ? 55 : 48) : 136;
   const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 319;
   const bookBannerPaddingLeft = windowWidth < 480 ? 22 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 22 : windowWidth < 900 ? 52 : 70;
@@ -1813,7 +1813,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           {
             paddingTop: (isSmallScreen ? 63 : 77) + statusBarHeight,
             paddingHorizontal: isSmallScreen ? 14 : 24,
-            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 12 : 24),
+            paddingBottom: Platform.OS === 'web' ? (isSmallScreen ? 80 : 48) : (isSmallScreen ? 64 : 24),
           },
         ]}
         showsVerticalScrollIndicator={false}

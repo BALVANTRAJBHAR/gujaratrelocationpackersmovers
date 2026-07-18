@@ -89,6 +89,8 @@ function AppLayoutInner() {
         <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
         <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
         <Stack.Screen name="admin/staff-management" options={{ headerShown: false }} />
+        <Stack.Screen name="ref/[code]" options={{ headerShown: false }} />
+        <Stack.Screen name="refer-and-earn/index" options={{ headerShown: false }} />
       </Stack>
       {isMobile && !hideNav ? <MobileBottomNav theme={theme} session={session} /> : null}
     </>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 
+import { rewardReferralOnBooking } from '@/lib/wallet';
 import { PropertyMediaGrid, uploadsToMediaItems } from '@/components/property-media-grid';
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import { supabase } from '@/lib/supabase';
@@ -147,6 +148,11 @@ export default function PropertyDetailScreen() {
         contact_phone: phone || null,
       });
       if (insErr) throw new Error(insErr.message);
+      try {
+        await rewardReferralOnBooking(session.user.id, item.id);
+      } catch {
+        // ignore referral reward failures
+      }
       Alert.alert('Booking sent!', 'The property owner has been notified. You can track the status in your dashboard.');
       setBookMsg('');
       setExistingBooking('temp');

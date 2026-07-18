@@ -181,7 +181,8 @@ export default function SupportChatScreen() {
         });
 
         if (fnError) {
-          setError(fnError.message);
+          const detail = (fnError as any)?.context ? JSON.stringify((fnError as any).context) : '';
+          setError(detail || fnError.message);
           return;
         }
 

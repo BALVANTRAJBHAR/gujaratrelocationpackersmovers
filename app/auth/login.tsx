@@ -11,6 +11,7 @@ import type { AuthChangeEvent } from '@supabase/supabase-js';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
+import { lookupReferralCode } from '@/lib/wallet';
 
 let _pendingRedirectTo: string | null = null;
 let _processingOAuth = false;
@@ -58,6 +59,16 @@ export default function LoginScreen() {
   const [pendingOAuthUser, setPendingOAuthUser] = useState<{ email: string; name?: string } | null>(null);
   const [showEmailSignup, setShowEmailSignup] = useState(false);
   const [initialProcessing, setInitialProcessing] = useState(false);
+  const [referredById, setReferredById] = useState<string | null>(null);
+
+  // Resolve referral code from URL param
+  useEffect(() => {
+    const refCode = (params as any).ref as string | undefined;
+    if (!refCode) return;
+    lookupReferralCode(refCode).then((id) => {
+      if (id) setReferredById(id);
+    });
+  }, [params]);
 
   // Pre-fill name and email when pendingOAuthUser changes
   useEffect(() => {
@@ -124,7 +135,7 @@ export default function LoginScreen() {
       // Auto-assign customer role for new Google users — skip the form
       if (!isProvider) {
         await supabase.from('users').upsert(
-          { id: user.id, email: user.email ?? null, name: (user.user_metadata as any)?.name ?? null, role: 'customer' },
+          { id: user.id, email: user.email ?? null, name: (user.user_metadata as any)?.name ?? null, role: 'customer', referred_by: referredById },
           { onConflict: 'id' }
         );
         await supabase.auth.updateUser({ data: { ...(user.user_metadata as any), role_intent: 'customer' } });
@@ -525,6 +536,7 @@ export default function LoginScreen() {
                   role: resolveDbRole(signupRole),
                   provider_services: signupRole === 'provider' ? resolveProviderServices(signupProviderSubtype) : null,
                   provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
+                  referred_by: referredById,
                 },
                 { onConflict: 'id' }
               );
@@ -586,6 +598,7 @@ export default function LoginScreen() {
                     ? resolveProviderServices(signupProviderSubtype)
                     : null,
                 provider_type: signupRole === 'provider' ? signupProviderSubtype : null,
+                referred_by: referredById,
               },
               { onConflict: 'id' }
             );

@@ -155,14 +155,15 @@ export default function AddMoneyScreen() {
           color="#0B1220"
           borderRadius={12}
           fontWeight="800"
-          paddingVertical={14}
+          paddingVertical={16}
+          minHeight={52}
           disabled={processing || !effectiveAmount || effectiveAmount < 1}
           opacity={processing || !effectiveAmount || effectiveAmount < 1 ? 0.6 : 1}
           onPress={handleAddMoney}>
           {processing ? (
             <ActivityIndicator size="small" color="#0B1220" />
           ) : (
-            `Pay ₹${effectiveAmount?.toLocaleString('en-IN') || '0'}`
+            `Add ₹${effectiveAmount?.toLocaleString('en-IN') || '0'}`
           )}
         </Button>
       </YStack>

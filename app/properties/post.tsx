@@ -10,6 +10,7 @@ import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from '
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { rewardReferralOnBooking } from '@/lib/wallet';
 import BookingMapPicker from '@/components/booking-map-picker';
 import { PropertyMediaGrid, type PropertyMediaItem } from '@/components/property-media-grid';
 import { usePropertyWizardFlowSync } from '@/hooks/use-property-wizard-flow-sync';
@@ -2064,6 +2065,12 @@ export default function PostPropertyScreen() {
 
       const { error: updateError } = await supabase.from('properties').update({ status: 'published' }).eq('id', propertyId);
       if (updateError) throw new Error(updateError.message);
+
+      try {
+        await rewardReferralOnBooking(session!.user.id, propertyId);
+      } catch {
+        // ignore referral reward failures
+      }
 
       Alert.alert(
         isEditMode ? 'Property published' : 'Property posted',

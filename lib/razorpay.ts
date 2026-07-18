@@ -5,6 +5,10 @@ const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> =
     throw new Error('Supabase env vars missing. Check EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
   }
 
+  const { supabase } = await import('@/lib/supabase');
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token ?? '';
+
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timeout = setTimeout(() => ctrl?.abort(), 20000);
 
@@ -13,7 +17,7 @@ const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> =
       method: 'POST',
       headers: {
         apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body ?? {}),

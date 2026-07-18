@@ -8,7 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
-import { getWalletBalance, debitWallet, creditWallet } from '@/lib/wallet';
+import { getWalletBalance, debitWallet, creditWallet, rewardReferralOnBooking } from '@/lib/wallet';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import MobileDatePicker from '@/components/MobileDatePicker';
@@ -719,6 +719,12 @@ export default function HomeServiceRequestScreen() {
         console.error('Failed to send provider notifications:', e);
       }
 
+      try {
+        await rewardReferralOnBooking(session!.user.id, requestId);
+      } catch {
+        // ignore referral reward failures
+      }
+
       setOtpOpen(false);
       submitAfterOtpRef.current = false;
       Alert.alert('Booking Confirmed ✓',
@@ -1117,6 +1123,12 @@ export default function HomeServiceRequestScreen() {
             console.error('[HomeService] Failed to credit excess to wallet:', e);
           }
         }
+      }
+
+      try {
+        await rewardReferralOnBooking(session!.user.id, requestId);
+      } catch {
+        // ignore referral reward failures
       }
 
       await uploadMedia(requestId);

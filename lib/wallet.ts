@@ -119,3 +119,51 @@ export async function debitWallet(input: DebitInput): Promise<void> {
 export async function generateReferralLink(referralCode: string): Promise<string> {
   return `https://grpackersmovers.com/ref/${referralCode}`;
 }
+
+export async function lookupReferralCode(code: string): Promise<string | null> {
+  const v = String(code ?? '').trim().toUpperCase();
+  if (!v) return null;
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('referral_code', v)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.id;
+}
+
+export async function rewardReferralOnBooking(userId: string, bookingRef: string): Promise<void> {
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('referred_by')
+    .eq('id', userId)
+    .single();
+  if (userError || !user?.referred_by) return;
+
+  const referrerId = user.referred_by;
+
+  const { data: existing } = await supabase
+    .from('wallet_transactions')
+    .select('id')
+    .eq('user_id', referrerId)
+    .eq('reference_type', 'referral_credit')
+    .eq('reference_id', userId)
+    .maybeSingle();
+  if (existing) return;
+
+  await creditWallet({
+    userId: referrerId,
+    amount: 500,
+    referenceType: 'referral_credit',
+    referenceId: userId,
+    description: `Referral reward for referring a new user (${bookingRef})`,
+  });
+
+  await creditWallet({
+    userId,
+    amount: 500,
+    referenceType: 'referral_credit',
+    referenceId: referrerId,
+    description: `Congratulations! You earned ₹500 for your first booking (${bookingRef})`,
+  });
+}

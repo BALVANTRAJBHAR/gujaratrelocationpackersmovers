@@ -21,7 +21,7 @@ import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
 import MobileDatePicker from '@/components/MobileDatePicker';
-import { getWalletBalance, debitWallet, creditWallet } from '@/lib/wallet';
+import { getWalletBalance, debitWallet, creditWallet, rewardReferralOnBooking } from '@/lib/wallet';
 
 const resolveVehicleImageUrl = (value: string | null | undefined) => {
   const v = String(value ?? '').trim();
@@ -1214,6 +1214,13 @@ export default function BookingWizardScreen() {
       } catch {
         // ignore email failures
       }
+
+      try {
+        await rewardReferralOnBooking(session.user.id, data.id);
+      } catch {
+        // ignore referral reward failures
+      }
+
       setOtpOpen(false);
 
       const pdfData = {
@@ -1494,6 +1501,12 @@ export default function BookingWizardScreen() {
         } catch (e) {
           console.error('[Booking] Failed to credit excess to wallet:', e);
         }
+      }
+
+      try {
+        await rewardReferralOnBooking(session.user.id, createdBookingId);
+      } catch {
+        // ignore referral reward failures
       }
 
       setBookingId(createdBookingId);

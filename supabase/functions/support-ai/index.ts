@@ -77,49 +77,22 @@ async function postRest<T>(url: string, serviceKey: string, payload: unknown): P
   return (await res.json()) as T;
 }
 
-function buildInstructPrompt(messages: Array<{ role: string; content: string }>) {
-  const lines: string[] = [];
-  for (const m of messages) {
-    const role = String(m.role ?? '').trim();
-    const content = String(m.content ?? '').trim();
-    if (!content) continue;
-    if (role === 'system') {
-      lines.push(`[SYSTEM]\n${content}`);
-      continue;
-    }
-    if (role === 'user') {
-      lines.push(`[USER]\n${content}`);
-      continue;
-    }
-    lines.push(`[ASSISTANT]\n${content}`);
-  }
-  lines.push('[ASSISTANT]\n');
-  return lines.join('\n\n');
-}
-
 async function callHuggingFace(args: {
   apiKey: string;
   model: string;
   messages: Array<{ role: string; content: string }>;
 }) {
-  const prompt = buildInstructPrompt(args.messages);
-
-  const res = await fetch(`https://api-inference.huggingface.co/models/${encodeURIComponent(args.model)}`, {
+  const res = await fetch('https://api-inference.huggingface.co/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${args.apiKey}`,
     },
     body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: 280,
-        temperature: 0.2,
-        return_full_text: false,
-      },
-      options: {
-        wait_for_model: true,
-      },
+      model: args.model,
+      messages: args.messages,
+      max_tokens: 280,
+      temperature: 0.2,
     }),
   });
 
@@ -135,21 +108,12 @@ async function callHuggingFace(args: {
     const msg =
       parsed?.error ||
       parsed?.message ||
-      (Array.isArray(parsed) ? parsed?.[0]?.error : null) ||
       text ||
       `Hugging Face error: ${res.status}`;
     throw new Error(String(msg));
   }
 
-  // Common HF responses:
-  // - [{ generated_text: "..." }]
-  // - { generated_text: "..." }
-  // - { error: "..." }
-  const generated =
-    (Array.isArray(parsed) ? parsed?.[0]?.generated_text : parsed?.generated_text) ??
-    (Array.isArray(parsed) ? parsed?.[0]?.text : parsed?.text) ??
-    '';
-
+  const generated = parsed?.choices?.[0]?.message?.content ?? '';
   return String(generated ?? '').trim();
 }
 
@@ -189,7 +153,7 @@ serve(async (req) => {
       Deno.env.get('HF_API_KEY') ??
       Deno.env.get('HF_TOKEN') ??
       '';
-    const hfModel = Deno.env.get('HUGGINGFACE_MODEL') ?? 'mistralai/Mistral-7B-Instruct-v0.2';
+    const hfModel = Deno.env.get('HUGGINGFACE_MODEL') ?? 'TinyLlama/TinyLlama-1.1B-Chat-v1.0';
 
     if (!supabaseUrl || !anonKey || !serviceKey) {
       return jsonResponse({ error: 'Supabase env missing' }, 500);

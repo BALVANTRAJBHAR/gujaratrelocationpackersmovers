@@ -704,6 +704,8 @@ export default function ProfileSetupScreen() {
             color="#FFFFFF"
             borderRadius={12}
             fontWeight="700"
+            paddingVertical={14}
+            minHeight={48}
             onPress={() => {
               const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
               const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -718,6 +720,8 @@ export default function ProfileSetupScreen() {
             color="#FFFFFF"
             borderRadius={12}
             fontWeight="700"
+            paddingVertical={14}
+            minHeight={48}
             onPress={() => {
               const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
               const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(msg)}`;
@@ -731,6 +735,8 @@ export default function ProfileSetupScreen() {
             color="#FFFFFF"
             borderRadius={12}
             fontWeight="700"
+            paddingVertical={14}
+            minHeight={48}
             onPress={() => {
               const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
               const url = `instagram://library?AssetPath=${encodeURIComponent(msg)}`;
@@ -749,6 +755,8 @@ export default function ProfileSetupScreen() {
             borderWidth={1}
             borderColor={theme.border}
             fontWeight="700"
+            paddingVertical={14}
+            minHeight={48}
             onPress={() => {
               const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
               if (Platform.OS === 'web') navigator.clipboard.writeText(msg);
