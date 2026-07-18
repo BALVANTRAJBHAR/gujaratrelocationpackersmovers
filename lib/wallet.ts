@@ -116,20 +116,15 @@ export async function debitWallet(input: DebitInput): Promise<void> {
   if (updateError) throw updateError;
 }
 
-export async function generateReferralLink(referralCode: string): Promise<string> {
-  return `https://grpackersmovers.com/ref/${referralCode}`;
+export async function generateReferralLink(userId: string): Promise<string> {
+  return `https://gujaratrelocationpackers.com/auth/login?ref=${userId}`;
 }
 
 export async function lookupReferralCode(code: string): Promise<string | null> {
-  const v = String(code ?? '').trim().toUpperCase();
+  const v = String(code ?? '').trim();
   if (!v) return null;
-  const { data, error } = await supabase
-    .from('users')
-    .select('id')
-    .eq('referral_code', v)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data.id;
+  const { data } = await supabase.from('users').select('id').eq('id', v).maybeSingle();
+  return data?.id ?? null;
 }
 
 export async function rewardReferralOnBooking(userId: string, bookingRef: string): Promise<void> {

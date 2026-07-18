@@ -687,14 +687,14 @@ export default function ProfileSetupScreen() {
           Refer & Earn
         </Text>
         <Text color={theme.textMuted} fontSize={t(13)}>
-          Share your referral code with friends. You both get ₹500!
+          Share your referral link with friends. You both get ₹500 on their first booking!
         </Text>
         <YStack backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={14} alignItems="center" gap="$2">
           <Text color={theme.textMuted} fontSize={t(12)}>
-            Your Referral Code
+            Your Referral Link
           </Text>
-          <Text fontSize={t(24)} fontWeight="900" color={theme.primary} letterSpacing={3}>
-            {profile?.referral_code || '------'}
+          <Text fontSize={t(14)} fontWeight="700" color={theme.primary} numberOfLines={2} textAlign="center" selectable>
+            {session?.user?.id ? `gujaratrelocationpackers.com/auth/login?ref=${session.user.id.slice(0, 8)}...` : 'Login to get link'}
           </Text>
         </YStack>
         <XStack gap="$2" flexWrap="wrap">
@@ -707,7 +707,8 @@ export default function ProfileSetupScreen() {
             paddingVertical={14}
             minHeight={48}
             onPress={() => {
-              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              const link = `https://gujaratrelocationpackers.com/auth/login?ref=${session?.user?.id || ''}`;
+              const msg = `Get ₹500 cashback on GR Packers! Sign up using this link: ${link}`;
               const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
               if (Platform.OS === 'web') window.open(url, '_blank');
               else Linking.openURL(url);
@@ -723,7 +724,8 @@ export default function ProfileSetupScreen() {
             paddingVertical={14}
             minHeight={48}
             onPress={() => {
-              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
+              const link = `https://gujaratrelocationpackers.com/auth/login?ref=${session?.user?.id || ''}`;
+              const msg = `Get ₹500 cashback on GR Packers! Sign up using this link: ${link}`;
               const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(msg)}`;
               if (Platform.OS === 'web') window.open(url, '_blank');
             }}>
@@ -738,8 +740,8 @@ export default function ProfileSetupScreen() {
             paddingVertical={14}
             minHeight={48}
             onPress={() => {
-              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
-              const url = `instagram://library?AssetPath=${encodeURIComponent(msg)}`;
+              const link = `https://gujaratrelocationpackers.com/auth/login?ref=${session?.user?.id || ''}`;
+              const msg = `Get ₹500 cashback on GR Packers! Sign up using this link: ${link}`;
               if (Platform.OS === 'web') {
                 navigator.clipboard.writeText(msg);
                 alert('Referral link copied! Share on Instagram!');
@@ -758,8 +760,8 @@ export default function ProfileSetupScreen() {
             paddingVertical={14}
             minHeight={48}
             onPress={() => {
-              const msg = `Use my referral code ${profile?.referral_code} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${profile?.referral_code}`;
-              if (Platform.OS === 'web') navigator.clipboard.writeText(msg);
+              const link = `https://gujaratrelocationpackers.com/auth/login?ref=${session?.user?.id || ''}`;
+              if (Platform.OS === 'web') navigator.clipboard.writeText(link);
             }}>
             Copy Link
           </Button>

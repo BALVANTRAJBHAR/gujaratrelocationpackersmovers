@@ -10,12 +10,13 @@ import { useSession } from '@/providers/session-provider';
 
 export default function ReferAndEarnScreen() {
   const router = useRouter();
-  const { profile } = useSession();
+  const { session } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
-  const referralCode = profile?.referral_code || '------';
-  const shareMsg = `Use my referral code ${referralCode} to get ₹500 cashback on GR Packers! Download now: https://grpackersmovers.com/ref/${referralCode}`;
+  const userId = session?.user?.id || '';
+  const referralLink = `https://gujaratrelocationpackers.com/auth/login?ref=${userId}`;
+  const shareMsg = `Get ₹500 cashback on GR Packers! Sign up using this link: ${referralLink}`;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -32,7 +33,7 @@ export default function ReferAndEarnScreen() {
           <Text fontSize={t(32)}>🎉</Text>
           <Text fontSize={t(20)} fontWeight="900" color={theme.text} textAlign="center">Refer a Friend & Earn ₹500</Text>
           <Text color={theme.textMuted} fontSize={t(14)} textAlign="center">
-            Share your referral code with friends. When they sign up and complete their first booking, you both get ₹500!
+            Share your referral link with friends. When they sign up and complete their first booking, you both get ₹500!
           </Text>
         </YStack>
 
@@ -41,8 +42,8 @@ export default function ReferAndEarnScreen() {
           <Text fontSize={t(16)} fontWeight="900" color={theme.text}>How it works</Text>
           <YStack gap="$3">
             {[
-              { step: '1', title: 'Share your code', desc: 'Share your unique referral code with friends via WhatsApp, Facebook, or Instagram.' },
-              { step: '2', title: 'Friend signs up', desc: 'Your friend clicks your referral link and creates an account.' },
+              { step: '1', title: 'Share your link', desc: 'Share your unique referral link with friends via WhatsApp, Facebook, or Instagram.' },
+              { step: '2', title: 'Friend signs up', desc: 'Your friend clicks your link and creates an account.' },
               { step: '3', title: 'Complete a booking', desc: 'Your friend completes any service — shifting, home service, property post, or buy/rent.' },
               { step: '4', title: 'You both earn ₹500', desc: '₹500 is credited to your wallet and your friend\'s wallet instantly!' },
             ].map((item) => (
@@ -59,14 +60,14 @@ export default function ReferAndEarnScreen() {
           </YStack>
         </YStack>
 
-        {/* Referral Code */}
+        {/* Referral Link Display */}
         <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3" alignItems="center">
-          <Text color={theme.textMuted} fontSize={t(13)}>Your Referral Code</Text>
-          <Text fontSize={t(28)} fontWeight="900" color={theme.primary} letterSpacing={4}>
-            {referralCode}
+          <Text color={theme.textMuted} fontSize={t(13)}>Your Referral Link</Text>
+          <Text fontSize={t(14)} fontWeight="700" color={theme.primary} textAlign="center" selectable numberOfLines={3}>
+            {userId ? referralLink : 'Login to get your referral link'}
           </Text>
           <Text color={theme.textMuted} fontSize={t(13)} textAlign="center">
-            Share this code with your friends to earn rewards!
+            Share this link with your friends to earn rewards!
           </Text>
         </YStack>
 
@@ -106,7 +107,7 @@ export default function ReferAndEarnScreen() {
               flex={1} backgroundColor={theme.bgSecondary} color={theme.text} borderRadius={12} fontWeight="700" paddingVertical={14} minHeight={48}
               borderWidth={1} borderColor={theme.border}
               onPress={() => {
-                if (Platform.OS === 'web') navigator.clipboard.writeText(shareMsg);
+                if (Platform.OS === 'web') navigator.clipboard.writeText(referralLink);
               }}>
               Copy Link
             </Button>

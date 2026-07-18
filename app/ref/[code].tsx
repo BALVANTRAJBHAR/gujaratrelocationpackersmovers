@@ -7,7 +7,7 @@ export default function ReferralRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const ref = String(code ?? '').trim().toUpperCase();
+    const ref = String(code ?? '').trim();
     if (ref) {
       router.replace(`/auth/login?ref=${encodeURIComponent(ref)}`);
     } else {
