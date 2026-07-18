@@ -634,8 +634,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
     void fetchUnread();
 
+    const channelName = `home-notification-unread-${userId}`;
+
     const channel = supabase
-      .channel('home-notification-unread')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },

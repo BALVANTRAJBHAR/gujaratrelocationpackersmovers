@@ -100,7 +100,9 @@ export default function AddMoneyScreen() {
       router.back();
     } catch (e: any) {
       if (e?.message !== 'Payment cancelled') {
-        alert(e?.message || 'Payment failed');
+        const msg = String(e?.message ?? '');
+        const cleaned = msg.replace(/^\(\d+\)\s*/, '');
+        alert(cleaned || 'Payment failed. Please try again.');
       }
     } finally {
       setProcessing(false);

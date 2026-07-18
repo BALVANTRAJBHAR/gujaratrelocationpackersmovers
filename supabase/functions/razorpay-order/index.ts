@@ -97,7 +97,8 @@ serve(async (req) => {
     const data = await orderResponse.json();
 
     if (!orderResponse.ok) {
-      return new Response(JSON.stringify({ error: data.error ?? 'Razorpay error' }), {
+      const errMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error ?? 'Razorpay error');
+      return new Response(JSON.stringify({ error: errMsg }), {
         status: orderResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
