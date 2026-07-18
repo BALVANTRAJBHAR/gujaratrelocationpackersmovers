@@ -27,6 +27,13 @@ type NotificationRow = {
 export default function NotificationsScreen() {
   const router = useRouter();
   const authGuard = useAuthGuard();
+  const { session } = useSession();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const [items, setItems] = useState<NotificationRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     if (authGuard.isLoading) return;
     if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
@@ -36,13 +43,6 @@ export default function NotificationsScreen() {
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
   if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
-  const { session } = useSession();
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
-
-  const [items, setItems] = useState<NotificationRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   const userId = session?.user?.id ?? '';
 

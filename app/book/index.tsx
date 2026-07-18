@@ -247,6 +247,12 @@ const shiftingMaxDate = () => {
 export default function BookingWizardScreen() {
   const router = useRouter();
   const { session, profile, refreshProfile, loading } = useSession();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isWide = screenWidth >= 820;
+  const mediaViewerWidth = Math.min(screenWidth - 32, 720);
+  const mediaViewerHeight = Math.min(screenHeight * 0.65, 520);
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   useEffect(() => {
     if (loading) return;
     if (!session) {
@@ -260,12 +266,6 @@ export default function BookingWizardScreen() {
       await shareBookingPdf(data);
     } catch {}
   };
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const isWide = screenWidth >= 820;
-  const mediaViewerWidth = Math.min(screenWidth - 32, 720);
-  const mediaViewerHeight = Math.min(screenHeight * 0.65, 520);
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const inputUi = useMemo(
     () => ({

@@ -23,15 +23,6 @@ type Payment = {
 export default function ModalScreen() {
   const router = useRouter();
   const authGuard = useAuthGuard();
-  useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -51,6 +42,15 @@ export default function ModalScreen() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'failed'>('all');
 
   const paidStatuses = useMemo(() => new Set(['captured', 'paid']), []);
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const filteredPayments = useMemo(() => {
     if (statusFilter === 'all') return payments;
     if (statusFilter === 'paid') {

@@ -520,6 +520,11 @@ export default function AdminScreen() {
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const { isLoading: authLoading, isAuthenticated, error: authError } = useAuthGuard(['admin', 'staff']);
+
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated || authError === 'not_authenticated') router.replace('/auth/login' as any);
@@ -528,11 +533,6 @@ export default function AdminScreen() {
   if (authLoading || !isAuthenticated || authError) return null;
 
   const maxContentWidth = 1100;
-
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const userId = session?.user?.id ?? '';

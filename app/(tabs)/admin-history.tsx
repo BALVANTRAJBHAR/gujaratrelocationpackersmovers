@@ -32,15 +32,6 @@ type ActionLog = {
 export default function AdminHistoryScreen() {
   const router = useRouter();
   const authGuard = useAuthGuard(['admin', 'staff']);
-  useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const { profile } = useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -58,6 +49,15 @@ export default function AdminHistoryScreen() {
   const [logsHasMore, setLogsHasMore] = useState(true);
   const [logsStartDate, setLogsStartDate] = useState('');
   const [logsEndDate, setLogsEndDate] = useState('');
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
 
   const logsPageSize = 10;
 

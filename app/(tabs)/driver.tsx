@@ -14,15 +14,6 @@ import { t } from '@/constants/typography';
 export default function DriverScreen() {
   const router = useRouter();
   const authGuard = useAuthGuard(['driver']);
-  useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const { profile, session } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -36,6 +27,15 @@ export default function DriverScreen() {
   const [trackingEnabled, setTrackingEnabled] = useState(false);
 
   const fetchSeqRef = useRef(0);
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
 
   const isDriver = profile?.role === 'driver';
 
