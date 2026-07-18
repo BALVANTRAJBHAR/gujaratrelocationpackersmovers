@@ -79,6 +79,35 @@ const nativeStorage = {
 
 const globalForSupabase = globalThis as any;
 
+// Noop WebSocket for SSR (Node <22) — never actually connects during server render.
+class NoopWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  url = '';
+  readyState = NoopWebSocket.CLOSED;
+  binaryType: BinaryType = 'blob';
+  bufferedAmount = 0;
+  extensions = '';
+  protocol = '';
+  onopen: ((e: any) => void) | null = null;
+  onclose: ((e: any) => void) | null = null;
+  onerror: ((e: any) => void) | null = null;
+  onmessage: ((e: any) => void) | null = null;
+  send(_data: any) {}
+  close(_code?: number, _reason?: string) {}
+  addEventListener() {}
+  removeEventListener() {}
+  dispatchEvent(_e: Event) { return true; }
+}
+
+const resolveTransport = () => {
+  if (typeof WebSocket !== 'undefined') return WebSocket;
+  if (typeof (globalThis as any).WebSocket !== 'undefined') return (globalThis as any).WebSocket;
+  return NoopWebSocket as any;
+};
+
 const createSupabaseClient = () =>
   createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -87,13 +116,15 @@ const createSupabaseClient = () =>
       persistSession: true,
       detectSessionInUrl: false,
     },
+    realtime: { transport: resolveTransport() },
   });
 
 if (!globalForSupabase.__supabase) {
   globalForSupabase.__supabase = createSupabaseClient();
 }
 
-export const supabase = globalForSupabase.__supabase as ReturnType<typeof createSupabaseClient>;
+const supabaseClient = globalForSupabase.__supabase as ReturnType<typeof createSupabaseClient>;
+export { supabaseClient as supabase };
 
 let authChain: Promise<unknown> = Promise.resolve();
 
