@@ -18,25 +18,45 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/**
+ * Web storage using localStorage so the session persists across:
+ * - Page refreshes ✓
+ * - New browser tabs ✓
+ * - Browser restarts ✓
+ * Falls back to sessionStorage if localStorage is blocked (strict private mode).
+ */
 const webStorage = {
-  getItem: (key: string) => {
+  getItem: (key: string): string | null => {
     if (typeof window === 'undefined') return null;
     try {
-      return window.sessionStorage.getItem(key);
+      return window.localStorage.getItem(key);
     } catch {
-      return null;
+      try {
+        return window.sessionStorage.getItem(key);
+      } catch {
+        return null;
+      }
     }
   },
-  setItem: (key: string, value: string) => {
+  setItem: (key: string, value: string): void => {
     if (typeof window === 'undefined') return;
     try {
-      window.sessionStorage.setItem(key, value);
+      window.localStorage.setItem(key, value);
+    } catch {
+      try {
+        window.sessionStorage.setItem(key, value);
+      } catch {
+        // ignore – both storages blocked
+      }
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(key);
     } catch {
       // ignore
     }
-  },
-  removeItem: (key: string) => {
-    if (typeof window === 'undefined') return;
     try {
       window.sessionStorage.removeItem(key);
     } catch {
@@ -166,7 +186,7 @@ export async function getSupabaseUserSafe() {
 export async function signOutSupabaseSafe() {
   return runSupabaseAuth(async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (e) {
       if (!isSupabaseAuthAbortError(e)) throw e;
     }

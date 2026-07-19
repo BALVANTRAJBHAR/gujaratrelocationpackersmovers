@@ -121,7 +121,7 @@ export default function StickyHeader({
       onLogout();
     } else {
       await signOutSupabaseSafe();
-      router.replace('/auth/login' as any);
+      router.replace('/home' as any);
     }
   };
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;

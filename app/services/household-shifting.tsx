@@ -61,7 +61,7 @@ export default function HouseholdShiftingScreen() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.replace('/auth/login' as any);
+    router.replace('/home' as any);
   };
 
   const submitQuoteRequest = async () => {

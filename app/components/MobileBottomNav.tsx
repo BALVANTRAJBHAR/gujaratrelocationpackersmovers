@@ -111,7 +111,7 @@ export default function MobileBottomNav({
         onLogout();
       } else {
         signOutSupabaseSafe().then(() => {
-          router.replace('/auth/login' as any);
+          router.replace('/home' as any);
         });
       }
     } else if (action === 'login') {
