@@ -7,7 +7,7 @@ import * as Font from 'expo-font';
 import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Platform, Text as RNText, TextInput as RNTextInput, useWindowDimensions } from 'react-native';
+import { Platform, Text as RNText, TextInput as RNTextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
@@ -155,20 +155,29 @@ class RootErrorBoundary extends React.Component<any, { hasError: boolean }> {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('Unhandled error at root:', error, info);
+  componentDidCatch(error: Error, _info: React.ErrorInfo) {
+    if (typeof console !== 'undefined') {
+      console.error('Root error:', error.message);
+    }
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <YStack flex={1} backgroundColor="#F8FAFC" alignItems="center" justifyContent="center" padding={24}>
-          <YStack gap="$3" alignItems="center">
-            <Text fontSize={20} fontWeight="900">Something went wrong</Text>
-            <Text fontSize={14} color="#475569">We encountered a temporary issue. Reload to continue.</Text>
-            <Button onPress={() => (typeof window !== 'undefined' ? window.location.reload() : null)}>Reload</Button>
-          </YStack>
-        </YStack>
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            <RNText style={{ fontSize: 20, fontWeight: '900', color: '#0B1F3A' }}>Something went wrong</RNText>
+            <RNText style={{ fontSize: 14, color: '#475569' }}>We encountered a temporary issue. Reload to continue.</RNText>
+            <TouchableOpacity
+              onPress={() => { if (typeof window !== 'undefined') window.location.reload(); }}
+              style={{
+                backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12,
+                borderRadius: 8, marginTop: 8,
+              }}>
+              <RNText style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>Reload</RNText>
+            </TouchableOpacity>
+          </View>
+        </View>
       );
     }
     return this.props.children;
