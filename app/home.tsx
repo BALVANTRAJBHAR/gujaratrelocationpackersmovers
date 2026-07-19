@@ -636,6 +636,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
     const channelName = `home-notification-unread-${userId}`;
 
+    const existing = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`);
+    if (existing) supabase.removeChannel(existing);
+
     const channel = supabase
       .channel(channelName)
       .on(
