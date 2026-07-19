@@ -83,11 +83,6 @@ function AppLayoutInner() {
         <Stack.Screen name="auth/login" options={{ title: 'Sign In' }} />
         <Stack.Screen name="auth/register" options={{ title: 'Sign Up' }} />
         <Stack.Screen name="auth/profile" options={{ title: 'My Profile' }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-        <Stack.Screen name="driver" options={{ headerShown: false }} />
-        <Stack.Screen name="properties" options={{ headerShown: false }} />
-        <Stack.Screen name="home-services" options={{ headerShown: false }} />
-        <Stack.Screen name="bookings" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
         <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
