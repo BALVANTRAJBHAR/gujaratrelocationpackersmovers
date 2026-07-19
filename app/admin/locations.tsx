@@ -36,10 +36,28 @@ Madhya Pradesh,Indore
 Madhya Pradesh,Jabalpur
 Madhya Pradesh,Gwalior`;
 
-export default function AdminLocationsScreen() {
-  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+function AdminLocationsGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard(['admin', 'staff']);
+
+  useEffect(() => {
+    if (!authGuard.isLoading && (authGuard.error === 'not_authenticated' || !authGuard.isAuthenticated)) {
+      router.replace('/auth/login' as any);
+    } else if (!authGuard.isLoading && authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  return <AdminLocationsInner />;
+}
+
+export default function AdminLocationsScreen() {
+  return <AdminLocationsGuard />;
+}
+
+function AdminLocationsInner() {
+  const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -50,15 +68,6 @@ export default function AdminLocationsScreen() {
   const [newState, setNewState] = useState('');
   const [selectedStateId, setSelectedStateId] = useState('');
   const [newCity, setNewCity] = useState('');
-
-  useEffect(() => {
-    if (!authGuard.isLoading && (authGuard.error === 'not_authenticated' || !authGuard.isAuthenticated)) {
-      router.replace('/auth/login' as any);
-    } else if (!authGuard.isLoading && authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
 
   // Fetch states on mount
   useEffect(() => {

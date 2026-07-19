@@ -515,7 +515,26 @@ type PropertyUploadAdmin = {
   uploaded_at?: string | null;
 };
 
-export default function AdminScreen() {
+function AdminGuardFallback() {
+  const router = useRouter();
+  const { isLoading: authLoading, isAuthenticated, error: authError } = useAuthGuard(['admin', 'staff']);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || authError === 'not_authenticated') router.replace('/auth/login' as any);
+    else if (authError === 'forbidden') router.replace('/unauthorized' as any);
+  }, [authLoading, isAuthenticated, authError, router]);
+
+  if (authLoading || !isAuthenticated || authError) return null;
+
+  return <AdminScreenInner />;
+}
+
+export default function AdminGuardFallbackWrapper() {
+  return <AdminGuardFallback />;
+}
+
+function AdminScreenInner() {
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string }>();
   const section = params?.section;
@@ -524,18 +543,9 @@ export default function AdminScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
-  const { isLoading: authLoading, isAuthenticated, error: authError } = useAuthGuard(['admin', 'staff']);
-
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated || authError === 'not_authenticated') router.replace('/auth/login' as any);
-    else if (authError === 'forbidden') router.replace('/unauthorized' as any);
-  }, [authLoading, isAuthenticated, authError, router]);
-  if (authLoading || !isAuthenticated || authError) return null;
 
   const maxContentWidth = 1100;
 

@@ -11,10 +11,29 @@ import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
 
-export default function DriverScreen() {
+function DriverGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard(['driver']);
   const { profile, session } = useSession();
+
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  return <DriverScreenInner profile={profile} session={session} />;
+}
+
+export default function DriverScreen() {
+  return <DriverGuard />;
+}
+
+function DriverScreenInner({ profile, session }: { profile: any; session: any }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
@@ -27,15 +46,6 @@ export default function DriverScreen() {
   const [trackingEnabled, setTrackingEnabled] = useState(false);
 
   const fetchSeqRef = useRef(0);
-  useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
 
   const isDriver = profile?.role === 'driver';
 

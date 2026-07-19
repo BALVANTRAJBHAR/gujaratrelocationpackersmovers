@@ -24,7 +24,7 @@ type NotificationRow = {
   read_at: string | null;
 };
 
-export default function NotificationsScreen() {
+function NotificationsGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard();
   const { session } = useSession();
@@ -43,6 +43,21 @@ export default function NotificationsScreen() {
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
   if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  return <NotificationsScreenInner session={session} />;
+}
+
+export default function NotificationsScreen() {
+  return <NotificationsGuard />;
+}
+
+function NotificationsScreenInner({ session }: { session: any }) {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const [items, setItems] = useState<NotificationRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const userId = session?.user?.id ?? '';
 

@@ -20,10 +20,29 @@ type Payment = {
   created_at: string;
 };
 
-export default function ModalScreen() {
+function ModalGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard();
   const params = useLocalSearchParams<{ bookingId?: string }>();
+
+  useEffect(() => {
+    if (authGuard.isLoading) return;
+    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
+      router.replace('/auth/login' as any);
+    } else if (authGuard.error === 'forbidden') {
+      router.replace('/unauthorized' as any);
+    }
+  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  return <ModalScreenInner bookingId={params.bookingId} />;
+}
+
+export default function ModalScreen() {
+  return <ModalGuard />;
+}
+
+function ModalScreenInner({ bookingId }: { bookingId?: string }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -42,15 +61,6 @@ export default function ModalScreen() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'failed'>('all');
 
   const paidStatuses = useMemo(() => new Set(['captured', 'paid']), []);
-  useEffect(() => {
-    if (authGuard.isLoading) return;
-    if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
-      router.replace('/auth/login' as any);
-    } else if (authGuard.error === 'forbidden') {
-      router.replace('/unauthorized' as any);
-    }
-  }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
   const filteredPayments = useMemo(() => {
     if (statusFilter === 'all') return payments;
     if (statusFilter === 'paid') {
@@ -91,7 +101,7 @@ export default function ModalScreen() {
   };
 
   useEffect(() => {
-    const bookingId = params.bookingId;
+    if (!bookingId) return;
     if (!bookingId) return;
 
     const fetchPayments = async () => {

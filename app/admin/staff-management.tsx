@@ -15,12 +15,9 @@ try {
   console.warn('Text recognition unavailable on this device, OCR features will be disabled.', error);
 }
 
-export default function StaffManagementScreen() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+function StaffManagementGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard(['admin', 'staff']);
-  const styles = useMemo(() => useStyles(theme), [theme]);
   useEffect(() => {
     if (!authGuard.isLoading && (authGuard.error === 'not_authenticated' || !authGuard.isAuthenticated)) {
       router.replace('/auth/login' as any);
@@ -29,6 +26,18 @@ export default function StaffManagementScreen() {
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
   if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  return <StaffManagementInner />;
+}
+
+export default function StaffManagementScreen() {
+  return <StaffManagementGuard />;
+}
+
+function StaffManagementInner() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const styles = useMemo(() => useStyles(theme), [theme]);
   const [searchEmail, setSearchEmail] = useState('');
   const [formData, setFormData] = useState({
     role: 'staff',

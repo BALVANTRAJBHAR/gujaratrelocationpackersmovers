@@ -46,19 +46,11 @@ const labelForService = (key: string) => {
   return key;
 };
 
-export default function AvailableRequestsScreen() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+function AvailableRequestsGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard();
   const { session } = useSession();
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<AvailableRequest[]>([]);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'accepted'>('pending');
   useEffect(() => {
     if (authGuard.isLoading) return;
     if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
@@ -69,7 +61,24 @@ export default function AvailableRequestsScreen() {
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
   if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
 
-  const profile = session?.user?.user_metadata as Record<string, any> | null;
+  return <AvailableRequestsInner session={session} />;
+}
+
+export default function AvailableRequestsScreen() {
+  return <AvailableRequestsGuard />;
+}
+
+function AvailableRequestsInner({ session }: { session: any }) {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [items, setItems] = useState<AvailableRequest[]>([]);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'accepted'>('pending');
+
   const providerId = session?.user?.id ?? '';
 
   const fetchRequests = useCallback(async () => {
