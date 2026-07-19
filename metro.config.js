@@ -5,7 +5,7 @@ const config = getDefaultConfig(__dirname);
 // Optimize the Metro bundler for production:
 config.transformer.minifierConfig = {
   compress: {
-    drop_console: true,
+    drop_console: false,
     drop_debugger: true,
     reduce_funcs: true,
     reduce_vars: true,

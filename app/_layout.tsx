@@ -148,26 +148,34 @@ function AppLayout() {
     </SessionProvider>
   );
 }
-class RootErrorBoundary extends React.Component<any, { hasError: boolean }> {
-  state = { hasError: false };
+class RootErrorBoundary extends React.Component<any, { hasError: boolean; errorMsg: string }> {
+  state: { hasError: boolean; errorMsg: string } = { hasError: false, errorMsg: '' };
 
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
   componentDidCatch(error: Error, _info: React.ErrorInfo) {
-    if (typeof console !== 'undefined') {
-      console.error('Root error:', error.message);
-    }
+    const msg = error?.message || error?.toString() || 'Unknown error';
+    this.setState({ errorMsg: msg });
+    try { (typeof console !== 'undefined') && console.error('Root error:', msg); } catch {}
   }
 
   render() {
     if (this.state.hasError) {
+      const err = this.state.errorMsg;
       return (
         <View style={{ flex: 1, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <View style={{ alignItems: 'center', gap: 12 }}>
+          <View style={{ alignItems: 'center', gap: 8 }}>
             <RNText style={{ fontSize: 20, fontWeight: '900', color: '#0B1F3A' }}>Something went wrong</RNText>
-            <RNText style={{ fontSize: 14, color: '#475569' }}>We encountered a temporary issue. Reload to continue.</RNText>
+            {err ? (
+              <RNText style={{ fontSize: 12, color: '#DC2626', textAlign: 'center', maxWidth: 360 }}>
+                {err}
+              </RNText>
+            ) : null}
+            <RNText style={{ fontSize: 14, color: '#475569', marginTop: 4 }}>
+              We encountered a temporary issue. Reload to continue.
+            </RNText>
             <TouchableOpacity
               onPress={() => { if (typeof window !== 'undefined') window.location.reload(); }}
               style={{
