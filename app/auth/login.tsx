@@ -12,9 +12,45 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 import { lookupReferralCode } from '@/lib/wallet';
+import { useSession } from '@/providers/session-provider';
 
 let _pendingRedirectTo: string | null = null;
 let _processingOAuth = false;
+
+const ALLOWED_REDIRECT_PREFIXES = [
+  '/', 
+  'http://localhost', 
+  'https://localhost', 
+  'http://127.0.0.1', 
+  'https://127.0.0.1',
+  'https://gujaratrelocationpackers.com',
+  'https://www.gujaratrelocationpackers.com'
+];
+
+const isValidRedirect = (redirect: string): boolean => {
+  try {
+    const trimmed = redirect.trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith('/')) return true;
+    const url = new URL(trimmed);
+    return ALLOWED_REDIRECT_PREFIXES.some((p) => trimmed.startsWith(p));
+  } catch {
+    return false;
+  }
+};
+
+const stripUrlTokens = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    const clean = `${url.origin}${url.pathname}${url.search}`;
+    if (clean !== window.location.href) {
+      window.history.replaceState({}, '', clean);
+    }
+  } catch {
+    // ignore
+  }
+};
 
 const extractUrlParams = (incomingUrl: string): { code?: string; access_token?: string; refresh_token?: string } => {
   const fragmentStart = incomingUrl.indexOf('#');
@@ -36,6 +72,7 @@ const extractUrlParams = (incomingUrl: string): { code?: string; access_token?: 
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { session } = useSession();
   const params = useLocalSearchParams<{ redirectTo?: string } & Record<string, string>>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -199,7 +236,7 @@ export default function LoginScreen() {
     const pending = _pendingRedirectTo;
     _pendingRedirectTo = null;
     const redirect = pending || String(params.redirectTo ?? '').trim();
-    if (redirect) {
+    if (redirect && isValidRedirect(redirect)) {
       router.replace(redirect as any);
       return;
     }
@@ -227,16 +264,22 @@ export default function LoginScreen() {
 
     const openRecoveryIfPresent = async () => {
       try {
-        const url = new URL(window.location.href);
-
-        const hashParams = new URLSearchParams((url.hash ?? '').replace(/^#/, ''));
-        const searchParams = url.searchParams;
+        const rawUrl = new URL(window.location.href);
+        const hashParams = new URLSearchParams((rawUrl.hash ?? '').replace(/^#/, ''));
+        const searchParams = rawUrl.searchParams;
 
         const type = (hashParams.get('type') || searchParams.get('type') || '').trim();
         const isRecovery = type === 'recovery';
         const access_token = (hashParams.get('access_token') ?? '').trim();
         const refresh_token = (hashParams.get('refresh_token') ?? '').trim();
         const code = (searchParams.get('code') ?? '').trim();
+
+        const hasOAuthParams = Boolean(access_token || refresh_token || code);
+
+        // Immediately strip tokens from URL before any processing
+        if (hasOAuthParams || isRecovery) {
+          stripUrlTokens();
+        }
 
         if (isRecovery) {
           setMode('forgot');
@@ -245,46 +288,50 @@ export default function LoginScreen() {
           setError(null);
         }
 
-        const hasOAuthParams = Boolean(access_token || refresh_token || code);
-        if (hasOAuthParams) setInitialProcessing(true);
+        if (hasOAuthParams) {
+          setInitialProcessing(true);
 
-        if (access_token && refresh_token) {
-          await setSupabaseSessionSafe({ access_token, refresh_token });
-        } else if (code) {
-          await runSupabaseAuth(() => supabase.auth.exchangeCodeForSession(code));
-        }
-
-        const { data } = await getSupabaseSessionSafe();
-        if (data.session?.user?.id) {
-          if (isRecovery) {
-            setMode('forgot');
-            setForgotStep('set_password');
-            setInfo('Set a new password for your account.');
-            setError(null);
-            return;
+          if (access_token) {
+            await setSupabaseSessionSafe({ access_token, refresh_token: refresh_token || '' });
+          } else if (code) {
+            await runSupabaseAuth(() => supabase.auth.exchangeCodeForSession(code));
           }
 
-          const didStartCompletion = await maybeStartOAuthProfileCompletion();
-          if (didStartCompletion) {
-            if (typeof window !== 'undefined') {
-              window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
+          const { data } = await getSupabaseSessionSafe();
+          if (data.session?.user?.id) {
+            if (isRecovery) {
+              setMode('forgot');
+              setForgotStep('set_password');
+              setInfo('Set a new password for your account.');
+              setError(null);
+              return;
             }
+
+            const didStartCompletion = await maybeStartOAuthProfileCompletion();
+            if (didStartCompletion) {
+              return;
+            }
+
+            await redirectAfterAuth();
             return;
           }
-
-          await redirectAfterAuth();
-          if (typeof window !== 'undefined') {
-            window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
-          }
-          return;
         }
       } catch {
         // ignore
+      } finally {
+        setInitialProcessing(false);
       }
     };
 
     void openRecoveryIfPresent();
   }, []);
+
+  // Listen to session changes to automatically redirect user after successful login
+  useEffect(() => {
+    if (session && !pendingOAuthUser && !initialProcessing) {
+      void redirectAfterAuth();
+    }
+  }, [session, pendingOAuthUser, initialProcessing]);
 
   useEffect(() => {
     const handleOAuthUrl = async (incomingUrl: string) => {
@@ -389,7 +436,7 @@ export default function LoginScreen() {
       return;
     }
 
-    _pendingRedirectTo = params.redirectTo ?? null;
+    _pendingRedirectTo = params.redirectTo && isValidRedirect(params.redirectTo) ? params.redirectTo : null;
     _processingOAuth = true;
     setOauthLoading(provider);
 
@@ -409,7 +456,7 @@ export default function LoginScreen() {
       });
 
       if (oauthError) {
-        setError(oauthError.message);
+        setError(sanitizeAuthError(oauthError));
         return;
       }
 
@@ -427,15 +474,15 @@ export default function LoginScreen() {
       const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
       if (result.type !== 'success' || !result.url) return;
 
-      const { code, access_token, refresh_token } = extractUrlParams(result.url);
+      const { code, access_token: rawToken, refresh_token: rawRefresh } = extractUrlParams(result.url);
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
-          setError(exchangeError.message);
+          setError(sanitizeAuthError(exchangeError));
           return;
         }
-      } else if (access_token) {
-        await setSupabaseSessionSafe({ access_token, refresh_token: refresh_token ?? '' });
+      } else if (rawToken) {
+        await setSupabaseSessionSafe({ access_token: rawToken, refresh_token: rawRefresh ?? '' });
       } else {
         setError('Sign-in did not return a code. Please try again.');
         return;
@@ -446,18 +493,29 @@ export default function LoginScreen() {
 
       const savedRedirect = _pendingRedirectTo;
       _pendingRedirectTo = null;
-      if (savedRedirect) {
+      if (savedRedirect && isValidRedirect(savedRedirect)) {
         router.replace(savedRedirect as any);
       } else {
         const didRedirect = await maybeRedirectToRegistration();
         if (!didRedirect) router.replace('/home');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'OAuth sign-in failed');
+      setError('OAuth sign-in failed. Please try again.');
     } finally {
       setOauthLoading(null);
       _processingOAuth = false;
     }
+  };
+
+  const sanitizeAuthError = (err: unknown): string => {
+    if (!err) return 'An unexpected error occurred.';
+    const msg = String((err as any)?.message ?? err ?? '').toLowerCase();
+    if (msg.includes('invalid login credentials')) return 'Invalid email or password.';
+    if (msg.includes('email not confirmed')) return 'Please confirm your email address before signing in.';
+    if (msg.includes('user already registered')) return 'An account with this email already exists.';
+    if (msg.includes('password should be at least 6 characters')) return 'Password must be at least 6 characters.';
+    if (msg.includes('rate limit')) return 'Too many attempts. Please try again later.';
+    return 'Authentication failed. Please try again.';
   };
 
   const handleSubmit = async () => {
@@ -495,12 +553,12 @@ export default function LoginScreen() {
         });
 
         if (signInError) {
-          setError(signInError.message);
+          setError(sanitizeAuthError(signInError));
           return;
         }
 
         const redirectTo = String(params.redirectTo ?? '').trim();
-        if (redirectTo) {
+        if (redirectTo && isValidRedirect(redirectTo)) {
           router.replace(redirectTo as any);
         } else {
           const didRedirect = await maybeRedirectToRegistration();
@@ -570,7 +628,7 @@ export default function LoginScreen() {
         });
 
         if (signUpError) {
-          setError(signUpError.message);
+          setError(sanitizeAuthError(signUpError));
           return;
         }
 
@@ -625,10 +683,7 @@ export default function LoginScreen() {
         });
 
         if (resetError) {
-          const anyErr = resetError as any;
-          const status = typeof anyErr?.status === 'number' ? ` (status ${anyErr.status})` : '';
-          const name = typeof anyErr?.name === 'string' ? ` [${anyErr.name}]` : '';
-          setError(`${resetError.message}${status}${name}`);
+          setError(sanitizeAuthError(resetError));
           return;
         }
 
@@ -647,7 +702,7 @@ export default function LoginScreen() {
       });
 
       if (updateError) {
-        setError(updateError.message);
+        setError(sanitizeAuthError(updateError));
         return;
       }
 
@@ -659,7 +714,7 @@ export default function LoginScreen() {
       await supabase.auth.signOut();
       return;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed');
+      setError('Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }

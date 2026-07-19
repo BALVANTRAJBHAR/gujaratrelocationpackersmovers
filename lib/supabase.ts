@@ -18,24 +18,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-if (Platform.OS !== 'web') {
-  const u = String(supabaseUrl ?? '');
-  if (u) {
-    console.log('[Supabase] URL:', u);
-    if (u.includes('localhost') || u.includes('127.0.0.1')) {
-      console.warn('[Supabase] URL points to localhost. On a real Android device this will fail. Use https://<project>.supabase.co');
-    }
-    if (u.startsWith('http://')) {
-      console.warn('[Supabase] URL is http:// (not https). Android may block cleartext unless usesCleartextTraffic is enabled.');
-    }
-  }
-}
-
 const webStorage = {
   getItem: (key: string) => {
     if (typeof window === 'undefined') return null;
     try {
-      return window.localStorage.getItem(key);
+      return window.sessionStorage.getItem(key);
     } catch {
       return null;
     }
@@ -43,7 +30,7 @@ const webStorage = {
   setItem: (key: string, value: string) => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(key, value);
+      window.sessionStorage.setItem(key, value);
     } catch {
       // ignore
     }
@@ -51,7 +38,7 @@ const webStorage = {
   removeItem: (key: string) => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
     } catch {
       // ignore
     }
@@ -114,7 +101,7 @@ const createSupabaseClient = () =>
       storage: (Platform.OS === 'web' ? webStorage : nativeStorage) as any,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: Platform.OS === 'web',
     },
     realtime: { transport: resolveTransport() },
   });

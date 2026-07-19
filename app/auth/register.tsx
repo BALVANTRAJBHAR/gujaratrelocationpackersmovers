@@ -376,9 +376,10 @@ export default function RegisterDetailsScreen() {
             const searchParams = url.searchParams;
             const access_token = (hashParams.get('access_token') ?? searchParams.get('access_token') ?? '').trim();
             const refresh_token = (hashParams.get('refresh_token') ?? searchParams.get('refresh_token') ?? '').trim();
+            // Strip tokens from URL immediately before any processing
+            window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
             if (access_token && refresh_token) {
               await setSupabaseSessionSafe({ access_token, refresh_token });
-              window.history.replaceState({}, '', `${url.origin}${url.pathname}`);
             }
           } catch {
             // ignore
