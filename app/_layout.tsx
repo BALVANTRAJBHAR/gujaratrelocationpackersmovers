@@ -3,10 +3,10 @@ import '@/lib/supabase-auth-guard-init';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
-import { useFonts } from 'expo-font';
+import * as Font from 'expo-font';
 import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, Text as RNText, TextInput as RNTextInput, useWindowDimensions } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
@@ -95,12 +95,27 @@ function AppLayoutInner() {
   );
 }
 
+const FONT_LOAD_TIMEOUT = 5000;
+
 function AppLayout() {
   const colorScheme = useColorScheme();
-  const [fontsLoaded] = useFonts({
-    'Times New Roman': require('../assets/fonts/times.ttf'),
-    'Times New Roman Bold': require('../assets/fonts/timesbd.ttf'),
-  });
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled) setFontsLoaded(true);
+    }, FONT_LOAD_TIMEOUT);
+
+    Font.loadAsync({
+      'Times New Roman': require('../assets/fonts/times.ttf'),
+      'Times New Roman Bold': require('../assets/fonts/timesbd.ttf'),
+    })
+      .then(() => { if (!cancelled) { clearTimeout(timer); setFontsLoaded(true); } })
+      .catch(() => { if (!cancelled) { clearTimeout(timer); setFontsLoaded(true); } });
+
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, []);
 
   useEffect(() => {
     const cleanupAuth = installSupabaseAuthAbortGuard();
