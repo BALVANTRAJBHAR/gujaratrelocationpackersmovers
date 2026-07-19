@@ -287,7 +287,7 @@ export default function ServiceDetailScreen() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.replace('/home');
+    router.replace('/auth/login' as any);
   };
 
   const submitQuoteRequest = async () => {

@@ -121,7 +121,7 @@ export default function StickyHeader({
       onLogout();
     } else {
       await signOutSupabaseSafe();
-      router.replace('/home');
+      router.replace('/auth/login' as any);
     }
   };
   const isSmallScreen = _isSmallScreen ?? screenWidth <= 768;
@@ -351,7 +351,7 @@ export default function StickyHeader({
                   <MenuBtn id="logout" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogoutClick} theme={theme}>
                     <FontAwesome name="sign-out" size={14} color={menuTextColor} />
                     <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                      Logout
+                      Sign Out
                     </Text>
                   </MenuBtn>
                 )}
@@ -456,15 +456,18 @@ export default function StickyHeader({
                         fontSize={t(13)}
                         fontWeight="800"
                         style={{ fontFamily: APP_SERIF_FONT }}>
-                        Log In
+                        Sign In
                       </Text>
                     </XStack>
                   </YStack>
                 </Pressable>
               ) : null}
 
-              {session && onLogout ? (
-                <Pressable onPress={handleLogoutClick}>
+              {session ? (
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mlogout') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                  onPress={handleLogoutClick}>
                   <YStack
                     paddingHorizontal={12}
                     paddingVertical={8}
@@ -480,16 +483,12 @@ export default function StickyHeader({
                     alignItems="center"
                     justifyContent="center"
                     style={headerHovered === 'mlogout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    {MaterialIcons ? (
-                      <MaterialIcons name="logout" size={18} color={theme.menuText} />
-                    ) : (
-                      <XStack alignItems="center" gap={4}>
-                        <FontAwesome name="sign-out" size={14} color={theme.menuText} />
-                        <Text color={theme.menuText} fontSize={t(12)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
-                          Out
-                        </Text>
-                      </XStack>
-                    )}
+                    <XStack alignItems="center" gap={4}>
+                      <FontAwesome name="sign-out" size={14} color={theme.menuText} />
+                      <Text color={theme.menuText} fontSize={t(12)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
+                        Sign Out
+                      </Text>
+                    </XStack>
                   </YStack>
                 </Pressable>
               ) : null}

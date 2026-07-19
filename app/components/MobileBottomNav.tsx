@@ -107,7 +107,13 @@ export default function MobileBottomNav({
       onContactPress ? onContactPress() : router.push('/support');
     } else if (action === 'logout') {
       setActiveTab('home');
-      if (onLogout) { onLogout(); } else { signOutSupabaseSafe(); }
+      if (onLogout) {
+        onLogout();
+      } else {
+        signOutSupabaseSafe().then(() => {
+          router.replace('/auth/login' as any);
+        });
+      }
     } else if (action === 'login') {
       onLoginPress ? onLoginPress() : router.push('/auth/login');
     }
@@ -225,7 +231,7 @@ export default function MobileBottomNav({
                 <YStack paddingVertical={14}>
                   <XStack gap={12} alignItems="center">
                     <FontAwesome name="sign-out" size={22} color={theme.danger || '#DC2626'} />
-                    <Text color={theme.danger || '#DC2626'} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Logout</Text>
+                    <Text color={theme.danger || '#DC2626'} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Sign Out</Text>
                   </XStack>
                 </YStack>
               </Pressable>
@@ -239,7 +245,7 @@ export default function MobileBottomNav({
                 <YStack paddingVertical={14} borderBottomWidth={1} borderBottomColor={theme.border}>
                   <XStack gap={12} alignItems="center">
                     <FontAwesome name="sign-in" size={22} color={theme.primary} />
-                    <Text color={theme.primary} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Login</Text>
+                    <Text color={theme.primary} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Sign In</Text>
                   </XStack>
                 </YStack>
               </Pressable>

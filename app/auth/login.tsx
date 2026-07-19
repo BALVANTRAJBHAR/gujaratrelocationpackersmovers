@@ -97,6 +97,8 @@ export default function LoginScreen() {
   const [showEmailSignup, setShowEmailSignup] = useState(false);
   const [initialProcessing, setInitialProcessing] = useState(false);
   const [referredById, setReferredById] = useState<string | null>(null);
+  // Guard to prevent double-redirect when handleSubmit already handles navigation
+  const manualRedirectingRef = useRef(false);
 
   // Resolve referral code from URL param
   useEffect(() => {
@@ -200,7 +202,7 @@ export default function LoginScreen() {
     try {
       const { data } = await supabase.auth.getUser();
       const userId = data.user?.id;
-      if (!userId) return;
+      if (!userId) return false;
 
       const roleIntent = String((data.user?.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
 
@@ -215,7 +217,7 @@ export default function LoginScreen() {
         .eq('id', userId)
         .maybeSingle();
 
-      if (rowError) return;
+      if (rowError) return false;
 
       const dbRole = String((row as any)?.role ?? '').trim().toLowerCase();
       const providerServices = Array.isArray((row as any)?.provider_services) ? (row as any)?.provider_services : [];
@@ -224,6 +226,24 @@ export default function LoginScreen() {
 
       if (providerIncomplete) {
         router.replace('/auth/register' as any);
+        return true;
+      }
+
+      // Route all roles to their correct dashboard
+      if (dbRole === 'admin' || dbRole === 'staff') {
+        router.replace('/(tabs)/admin' as any);
+        return true;
+      }
+      if (dbRole === 'driver') {
+        router.replace('/(tabs)/driver' as any);
+        return true;
+      }
+      if (dbRole === 'provider') {
+        router.replace('/(tabs)' as any);
+        return true;
+      }
+      if (dbRole === 'customer') {
+        router.replace('/home' as any);
         return true;
       }
     } catch {
@@ -326,9 +346,10 @@ export default function LoginScreen() {
     void openRecoveryIfPresent();
   }, []);
 
-  // Listen to session changes to automatically redirect user after successful login
+  // Listen to session changes to automatically redirect user after successful OAuth login
+  // Note: for email/password login, handleSubmit handles redirect directly (manualRedirectingRef prevents double-nav)
   useEffect(() => {
-    if (session && !pendingOAuthUser && !initialProcessing) {
+    if (session && !pendingOAuthUser && !initialProcessing && !manualRedirectingRef.current) {
       void redirectAfterAuth();
     }
   }, [session, pendingOAuthUser, initialProcessing]);
@@ -557,6 +578,8 @@ export default function LoginScreen() {
           return;
         }
 
+        // Mark that we are handling redirect manually so the session useEffect doesn't double-navigate
+        manualRedirectingRef.current = true;
         const redirectTo = String(params.redirectTo ?? '').trim();
         if (redirectTo && isValidRedirect(redirectTo)) {
           router.replace(redirectTo as any);
@@ -812,9 +835,15 @@ export default function LoginScreen() {
               hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
               pressStyle={{ backgroundColor: theme.border }}
               onPress={() => handleOAuth('google')}
-              disabled={loading || oauthLoading !== null}
-              icon={oauthLoading === 'google' ? () => <ActivityIndicator size="small" color={theme.text} /> : undefined}>
-              {oauthLoading === 'google' ? 'Connecting…' : 'Continue with Google'}
+              disabled={loading || oauthLoading !== null}>
+              <XStack alignItems="center" gap={8} justifyContent="center">
+                {oauthLoading === 'google' ? (
+                  <ActivityIndicator size="small" color={theme.text} />
+                ) : null}
+                <Text color={theme.text} fontFamily="Times New Roman" fontSize={16}>
+                  Continue with Google
+                </Text>
+              </XStack>
             </Button>
 
             {mode === 'signup' && !showEmailSignup ? (
