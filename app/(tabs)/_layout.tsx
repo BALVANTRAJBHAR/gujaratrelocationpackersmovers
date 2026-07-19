@@ -51,7 +51,7 @@ export default function TabLayout() {
         key="tab-bookings"
         name="bookings"
         options={{
-          href: Platform.OS === 'web' ? undefined : (canSeeBookings ? undefined : null),
+          tabBarButton: (Platform.OS !== 'web' && !canSeeBookings) ? () => null : undefined,
           title: 'Bookings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
         }}
@@ -69,7 +69,7 @@ export default function TabLayout() {
         key="tab-properties"
         name="properties"
         options={{
-          href: Platform.OS === 'web' ? undefined : (canSeeProperties ? undefined : null),
+          tabBarButton: (Platform.OS !== 'web' && !canSeeProperties) ? () => null : undefined,
           title: 'Properties',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="building.2.fill" color={color} />,
         }}
@@ -79,7 +79,7 @@ export default function TabLayout() {
         key="tab-home-service"
         name="home-service"
         options={{
-          href: Platform.OS === 'web' ? undefined : (canSeeHomeService ? undefined : null),
+          tabBarButton: (Platform.OS !== 'web' && !canSeeHomeService) ? () => null : undefined,
           title: 'Home Service',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.and.screwdriver.fill" color={color} />,
         }}
@@ -104,7 +104,7 @@ export default function TabLayout() {
         key="tab-driver"
         name="driver"
         options={{
-          href: Platform.OS === 'web' ? undefined : (canSeeDriver ? undefined : null),
+          tabBarButton: (Platform.OS !== 'web' && !canSeeDriver) ? () => null : undefined,
           title: 'Driver',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="steeringwheel" color={color} />,
         }}
@@ -114,7 +114,7 @@ export default function TabLayout() {
         key="tab-admin"
         name="admin"
         options={{
-          href: Platform.OS === 'web' ? undefined : (canSeeAdmin ? undefined : null),
+          tabBarButton: (Platform.OS !== 'web' && !canSeeAdmin) ? () => null : undefined,
           title: 'Admin',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}

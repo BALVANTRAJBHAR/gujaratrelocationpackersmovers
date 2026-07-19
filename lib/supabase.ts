@@ -9,8 +9,8 @@ import { installSupabaseAuthAbortGuardIfWeb, isSupabaseAuthAbortError } from '@/
 installSupabaseAuthAbortGuardIfWeb();
 
 const extra = (Constants as any)?.expoConfig?.extra ?? (Constants as any)?.manifest?.extra ?? {};
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra?.supabaseAnonKey ?? '';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra?.supabaseUrl ?? 'https://cojbunmxhfackvqzawzc.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra?.supabaseAnonKey ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvamJ1bm14aGZhY2t2cXphd3pjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxOTAyNTUsImV4cCI6MjA4NDc2NjI1NX0.5JauwG3u8qWUgipLBK7JhE4mXINHRAva3O5OR_sp75Y';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
@@ -150,8 +150,8 @@ if (!globalForSupabase.__supabase) {
   globalForSupabase.__supabase = createSupabaseClient();
 }
 
-const supabaseClient = globalForSupabase.__supabase as ReturnType<typeof createClient>;
-export { supabaseClient as supabase };
+const supabase = globalForSupabase.__supabase as ReturnType<typeof createClient>;
+export { supabase };
 
 let authChain: Promise<unknown> = Promise.resolve();
 

@@ -1,26 +1,24 @@
-import '@/lib/supabase-auth-guard-init';
 import '@/lib/font-web-guard-init';
+import '@/lib/supabase-auth-guard-init';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
 import { useFonts } from 'expo-font';
 import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Platform, Text as RNText, TextInput as RNTextInput, useWindowDimensions } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
 import MobileBottomNav from '@/app/components/MobileBottomNav';
+import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import '@/lib/driver-location-task';
-import { themes } from '@/constants/theme';
 import { installFontTimeoutGuard, preloadWebIconFonts } from '@/lib/font-web-guard';
 import { installSupabaseAuthAbortGuard } from '@/lib/supabase-auth-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
-import { SessionProvider } from '@/providers/session-provider';
-import { useSession } from '@/providers/session-provider';
+import { SessionProvider, useSession } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
 
 const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
@@ -85,6 +83,11 @@ function AppLayoutInner() {
         <Stack.Screen name="auth/login" options={{ title: 'Sign In' }} />
         <Stack.Screen name="auth/register" options={{ title: 'Sign Up' }} />
         <Stack.Screen name="auth/profile" options={{ title: 'My Profile' }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="driver" options={{ headerShown: false }} />
+        <Stack.Screen name="properties" options={{ headerShown: false }} />
+        <Stack.Screen name="home-services" options={{ headerShown: false }} />
+        <Stack.Screen name="bookings" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
         <Stack.Screen name="admin/locations" options={{ headerShown: false }} />

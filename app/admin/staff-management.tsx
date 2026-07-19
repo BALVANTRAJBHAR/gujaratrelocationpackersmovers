@@ -1,14 +1,19 @@
-import * as ImagePicker from 'expo-image-picker';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import TextRecognition from 'react-native-text-recognition';
-import { Button, H1, Paragraph, YStack } from 'tamagui';
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { supabase } from '@/lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { t } from '@/constants/typography';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, H1, Paragraph, YStack } from 'tamagui';
+let TextRecognition: any = null;
+try {
+  TextRecognition = require('react-native-text-recognition').default;
+} catch (error) {
+  console.warn('Text recognition unavailable on this device, OCR features will be disabled.', error);
+}
 
 export default function StaffManagementScreen() {
   const colorScheme = useColorScheme();
@@ -189,6 +194,7 @@ export default function StaffManagementScreen() {
   };
 
   const runOcr = async (uri: string) => {
+    if (!TextRecognition?.recognize) return '';
     const result = await TextRecognition.recognize(uri);
     if (Array.isArray(result)) {
       return result.join(' ');

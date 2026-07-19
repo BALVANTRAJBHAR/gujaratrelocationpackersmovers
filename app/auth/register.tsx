@@ -5,10 +5,11 @@ import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getDashboardRoute } from '@/lib/role-routing';
 import { getSupabaseUserSafe, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 import { findExistingUserByAadhaar, findExistingUserByPhone } from '@/lib/user-duplicate-check';
-import { t } from '@/constants/typography';
 
 export default function RegisterDetailsScreen() {
   const router = useRouter();
@@ -399,7 +400,7 @@ export default function RegisterDetailsScreen() {
         if (isMounted) setUserId(user.id);
 
         const [{ data: row, error: rowError }, { data: docs }] = await Promise.all([
-          supabase.from('users').select('id, name, phone, role').eq('id', user.id).maybeSingle(),
+          supabase.from('users').select('id, name, phone, role, provider_type').eq('id', user.id).maybeSingle(),
           supabase
             .from('user_documents')
             .select('id, document_type, document_number, image_url, created_at')
@@ -419,7 +420,12 @@ export default function RegisterDetailsScreen() {
             const roleIntent = String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
             const isProvider = dbRole === 'provider' || roleIntent === 'provider';
             if (!isProvider) {
-              router.replace('/home');
+              const route = getDashboardRoute(dbRole, (row as any)?.provider_type ?? null, Platform.OS === 'web' ? 'web' : 'native');
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.location.assign(route);
+              } else {
+                router.replace(route as any);
+              }
               return;
             }
           }
@@ -430,7 +436,12 @@ export default function RegisterDetailsScreen() {
 
             const roleIntent = String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase();
             if (roleIntent !== 'provider') {
-              router.replace('/home');
+              const route = getDashboardRoute('customer', null, Platform.OS === 'web' ? 'web' : 'native');
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.location.assign(route);
+              } else {
+                router.replace(route as any);
+              }
               return;
             }
           }
@@ -446,8 +457,12 @@ export default function RegisterDetailsScreen() {
           (String((user.user_metadata as any)?.role_intent ?? '').trim().toLowerCase() === 'provider');
         
         if (isProvider && phoneVerified && hasAadhaar && isMounted) {
-          // Provider already verified - skip form and go to home
-          router.replace('/home');
+          const route = getDashboardRoute('provider', (row as any)?.provider_type ?? null, Platform.OS === 'web' ? 'web' : 'native');
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.location.assign(route);
+          } else {
+            router.replace(route as any);
+          }
           return;
         }
         

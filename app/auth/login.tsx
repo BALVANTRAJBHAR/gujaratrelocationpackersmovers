@@ -10,6 +10,7 @@ import type { AuthChangeEvent } from '@supabase/supabase-js';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getDashboardRoute } from '@/lib/role-routing';
 import { getSupabaseSessionSafe, runSupabaseAuth, setSupabaseSessionSafe, supabase } from '@/lib/supabase';
 import { lookupReferralCode } from '@/lib/wallet';
 import { useSession } from '@/providers/session-provider';
@@ -213,7 +214,7 @@ export default function LoginScreen() {
 
       const { data: row, error: rowError } = await supabase
         .from('users')
-        .select('id, phone, role, provider_services')
+        .select('id, phone, role, provider_services, provider_type')
         .eq('id', userId)
         .maybeSingle();
 
@@ -229,32 +230,13 @@ export default function LoginScreen() {
         return true;
       }
 
-      // Route all roles to their correct dashboard
-      if (dbRole === 'admin' || dbRole === 'staff') {
-        // On web this renders as /admin; on native as /(tabs)/admin
-        if (typeof window !== 'undefined') {
-          window.location.href = '/admin';
-        } else {
-          router.replace('/(tabs)/admin' as any);
-        }
+      const dashboardRoute = getDashboardRoute(dbRole, row?.provider_type ?? null, typeof window !== 'undefined' ? 'web' : 'native');
+      if (typeof window !== 'undefined' && dashboardRoute.startsWith('/')) {
+        window.location.assign(dashboardRoute);
         return true;
       }
-      if (dbRole === 'driver') {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/driver';
-        } else {
-          router.replace('/(tabs)/driver' as any);
-        }
-        return true;
-      }
-      if (dbRole === 'provider') {
-        router.replace('/(tabs)' as any);
-        return true;
-      }
-      if (dbRole === 'customer') {
-        router.replace('/home' as any);
-        return true;
-      }
+      router.replace(dashboardRoute as any);
+      return true;
     } catch {
       // ignore
     }

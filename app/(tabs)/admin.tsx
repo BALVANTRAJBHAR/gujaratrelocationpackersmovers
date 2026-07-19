@@ -1,21 +1,26 @@
+import { useAuthGuard } from '@/lib/auth-guard';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuthGuard } from '@/lib/auth-guard';
-import { Alert, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, View } from 'react-native';
-import TextRecognition from 'react-native-text-recognition';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+let TextRecognition: any = null;
+try {
+  TextRecognition = require('react-native-text-recognition').default;
+} catch (error) {
+  console.warn('Text recognition unavailable on this device, OCR features will be disabled.', error);
+}
 
+import MobileDatePicker from '@/components/MobileDatePicker';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
-import MobileDatePicker from '@/components/MobileDatePicker';
 import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
-import { t } from '@/constants/typography';
 
 type DriverProfile = {
   id: string;
@@ -926,7 +931,11 @@ export default function AdminScreen() {
 
     try {
       const lines =
-        Platform.OS === 'web' ? await recognizeTextFromWebImage(uri) : await TextRecognition.recognize(uri);
+        Platform.OS === 'web'
+          ? await recognizeTextFromWebImage(uri)
+          : TextRecognition?.recognize
+            ? await TextRecognition.recognize(uri)
+            : [];
       const extracted = extractDocumentNumber(documentFormType, lines);
       if (extracted) {
         setDocumentFormNumber(extracted);
