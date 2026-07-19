@@ -107,22 +107,50 @@ const resolveTransport = () => {
   return NoopWebSocket as any;
 };
 
-const createSupabaseClient = () =>
-  createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      storage: (Platform.OS === 'web' ? webStorage : nativeStorage) as any,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: Platform.OS === 'web',
-    },
-    realtime: { transport: resolveTransport() },
-  });
+const createSupabaseClient = () => {
+  try {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('Supabase URL or Anon Key is missing. Returning fallback object.');
+      return {
+        auth: {
+          getSession: async () => ({ data: { session: null }, error: null }),
+          getUser: async () => ({ data: { user: null }, error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+          signInWithOAuth: async () => { throw new Error('Supabase configuration is missing (URL/Key)'); },
+          signInWithPassword: async () => { throw new Error('Supabase configuration is missing (URL/Key)'); },
+          signOut: async () => {},
+        },
+      } as any;
+    }
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: (Platform.OS === 'web' ? webStorage : nativeStorage) as any,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: Platform.OS === 'web',
+      },
+      realtime: { transport: resolveTransport() },
+    });
+  } catch (e) {
+    console.error('Failed to create Supabase client:', e);
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        getUser: async () => ({ data: { user: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithOAuth: async () => { throw new Error('Supabase configuration failed to initialize'); },
+        signInWithPassword: async () => { throw new Error('Supabase configuration failed to initialize'); },
+        signOut: async () => {},
+      },
+    } as any;
+  }
+};
 
 if (!globalForSupabase.__supabase) {
   globalForSupabase.__supabase = createSupabaseClient();
 }
 
-const supabaseClient = globalForSupabase.__supabase as ReturnType<typeof createSupabaseClient>;
+const supabaseClient = globalForSupabase.__supabase as ReturnType<typeof createClient>;
 export { supabaseClient as supabase };
 
 let authChain: Promise<unknown> = Promise.resolve();

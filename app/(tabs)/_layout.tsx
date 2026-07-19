@@ -37,7 +37,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: isMobile ? { display: 'none' } : undefined,
+        tabBarStyle: (Platform.OS === 'web' || isMobile) ? { display: 'none' } : undefined,
       }}>
       <Tabs.Screen
         key="tab-index"
@@ -51,7 +51,7 @@ export default function TabLayout() {
         key="tab-bookings"
         name="bookings"
         options={{
-          href: canSeeBookings ? undefined : null,
+          href: Platform.OS === 'web' ? undefined : (canSeeBookings ? undefined : null),
           title: 'Bookings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
         }}
@@ -69,7 +69,7 @@ export default function TabLayout() {
         key="tab-properties"
         name="properties"
         options={{
-          href: canSeeProperties ? undefined : null,
+          href: Platform.OS === 'web' ? undefined : (canSeeProperties ? undefined : null),
           title: 'Properties',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="building.2.fill" color={color} />,
         }}
@@ -79,7 +79,7 @@ export default function TabLayout() {
         key="tab-home-service"
         name="home-service"
         options={{
-          href: canSeeHomeService ? undefined : null,
+          href: Platform.OS === 'web' ? undefined : (canSeeHomeService ? undefined : null),
           title: 'Home Service',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.and.screwdriver.fill" color={color} />,
         }}
@@ -104,7 +104,7 @@ export default function TabLayout() {
         key="tab-driver"
         name="driver"
         options={{
-          href: canSeeDriver ? undefined : null,
+          href: Platform.OS === 'web' ? undefined : (canSeeDriver ? undefined : null),
           title: 'Driver',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="steeringwheel" color={color} />,
         }}
@@ -114,7 +114,7 @@ export default function TabLayout() {
         key="tab-admin"
         name="admin"
         options={{
-          href: canSeeAdmin ? undefined : null,
+          href: Platform.OS === 'web' ? undefined : (canSeeAdmin ? undefined : null),
           title: 'Admin',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
