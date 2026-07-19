@@ -14,28 +14,35 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra?.supa
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    'Supabase env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or expo.extra.supabaseUrl/supabaseAnonKey).'
+    'Supabase env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
   );
 }
 
 /**
- * Web storage using localStorage so the session persists across:
- * - Page refreshes ✓
- * - New browser tabs ✓
- * - Browser restarts ✓
+ * Web storage: uses localStorage for session persistence across refreshes, new tabs, browser restarts.
+ * Also migrates any old sessions previously stored in sessionStorage.
  * Falls back to sessionStorage if localStorage is blocked (strict private mode).
  */
 const webStorage = {
   getItem: (key: string): string | null => {
     if (typeof window === 'undefined') return null;
     try {
-      return window.localStorage.getItem(key);
-    } catch {
+      // Try localStorage first (new approach)
+      const lsVal = window.localStorage.getItem(key);
+      if (lsVal !== null) return lsVal;
+      // Migrate old sessions from sessionStorage → localStorage
       try {
-        return window.sessionStorage.getItem(key);
-      } catch {
-        return null;
-      }
+        const ssVal = window.sessionStorage.getItem(key);
+        if (ssVal !== null) {
+          // Migrate to localStorage for future use
+          try { window.localStorage.setItem(key, ssVal); } catch { /* ignore */ }
+          return ssVal;
+        }
+      } catch { /* ignore */ }
+      return null;
+    } catch {
+      // localStorage blocked (e.g. strict private mode) – fall back to sessionStorage
+      try { return window.sessionStorage.getItem(key); } catch { return null; }
     }
   },
   setItem: (key: string, value: string): void => {
@@ -43,25 +50,14 @@ const webStorage = {
     try {
       window.localStorage.setItem(key, value);
     } catch {
-      try {
-        window.sessionStorage.setItem(key, value);
-      } catch {
-        // ignore – both storages blocked
-      }
+      try { window.sessionStorage.setItem(key, value); } catch { /* ignore */ }
     }
   },
   removeItem: (key: string): void => {
     if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
-    try {
-      window.sessionStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
+    // Remove from both storages to ensure complete sign-out
+    try { window.localStorage.removeItem(key); } catch { /* ignore */ }
+    try { window.sessionStorage.removeItem(key); } catch { /* ignore */ }
   },
 };
 
@@ -69,12 +65,8 @@ const memoryStorage = (() => {
   const store = new Map<string, string>();
   return {
     getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-    removeItem: (key: string) => {
-      store.delete(key);
-    },
+    setItem: (key: string, value: string) => { store.set(key, value); },
+    removeItem: (key: string) => { store.delete(key); },
   };
 })();
 
@@ -183,12 +175,26 @@ export async function getSupabaseUserSafe() {
   });
 }
 
-export async function signOutSupabaseSafe() {
+/**
+ * Signs out the user.
+ * On web: uses a full page reload after sign-out so that React state is
+ * completely reset and the user visibly ends up on the home page as a guest.
+ * On native: standard sign-out with local scope.
+ */
+export async function signOutSupabaseSafe(redirectToOnWeb = '/home') {
   return runSupabaseAuth(async () => {
     try {
       await supabase.auth.signOut({ scope: 'local' });
     } catch (e) {
-      if (!isSupabaseAuthAbortError(e)) throw e;
+      if (!isSupabaseAuthAbortError(e)) {
+        console.warn('signOut error (non-abort):', e);
+      }
+    }
+    // On web, do a hard reload so localStorage is cleared and React state starts fresh.
+    // This avoids the race condition where the login page's session useEffect still
+    // sees the old (not-yet-cleared) session and auto-redirects the user back in.
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = redirectToOnWeb;
     }
   });
 }

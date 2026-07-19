@@ -945,8 +945,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   };
 
   const handleLogout = async () => {
-    await signOutSupabaseSafe();
-    router.replace('/home' as any);
+    if (typeof window !== 'undefined') {
+      await signOutSupabaseSafe('/home');
+    } else {
+      await signOutSupabaseSafe();
+      router.replace('/home' as any);
+    }
   };
 
   const scrollToServiceMenu = () => {

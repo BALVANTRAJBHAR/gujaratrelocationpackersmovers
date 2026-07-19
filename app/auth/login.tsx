@@ -231,11 +231,20 @@ export default function LoginScreen() {
 
       // Route all roles to their correct dashboard
       if (dbRole === 'admin' || dbRole === 'staff') {
-        router.replace('/(tabs)/admin' as any);
+        // On web this renders as /admin; on native as /(tabs)/admin
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin';
+        } else {
+          router.replace('/(tabs)/admin' as any);
+        }
         return true;
       }
       if (dbRole === 'driver') {
-        router.replace('/(tabs)/driver' as any);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/driver';
+        } else {
+          router.replace('/(tabs)/driver' as any);
+        }
         return true;
       }
       if (dbRole === 'provider') {
@@ -520,8 +529,10 @@ export default function LoginScreen() {
         const didRedirect = await maybeRedirectToRegistration();
         if (!didRedirect) router.replace('/home');
       }
-    } catch (e) {
-      setError('OAuth sign-in failed. Please try again.');
+    } catch (e: any) {
+      const errMsg = e?.message ?? String(e) ?? 'Unknown error';
+      console.error('[OAuth] Sign-in failed:', errMsg, e);
+      setError(`OAuth sign-in failed: ${errMsg}`);
     } finally {
       setOauthLoading(null);
       _processingOAuth = false;

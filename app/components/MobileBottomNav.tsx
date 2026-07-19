@@ -110,9 +110,7 @@ export default function MobileBottomNav({
       if (onLogout) {
         onLogout();
       } else {
-        signOutSupabaseSafe().then(() => {
-          router.replace('/home' as any);
-        });
+        if (typeof window !== 'undefined') { signOutSupabaseSafe('/home'); } else { signOutSupabaseSafe().then(() => { router.replace('/home' as any); }); }
       }
     } else if (action === 'login') {
       onLoginPress ? onLoginPress() : router.push('/auth/login');

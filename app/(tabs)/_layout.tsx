@@ -11,7 +11,7 @@ import { useSession } from '@/providers/session-provider';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { session, profile, refreshProfile } = useSession();
-  const role = (profile?.role ?? 'customer').toString().trim().toLowerCase();
+  const role = (profile?.role ?? (session?.user?.user_metadata as any)?.role ?? 'customer').toString().trim().toLowerCase();
   const providerSubtype = String((session?.user?.user_metadata as any)?.provider_subtype ?? '')
     .trim()
     .toLowerCase();

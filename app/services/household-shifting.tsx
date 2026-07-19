@@ -60,8 +60,13 @@ export default function HouseholdShiftingScreen() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace('/home' as any);
+    if (typeof window !== 'undefined') {
+      await supabase.auth.signOut({ scope: 'local' });
+      window.location.href = '/home';
+    } else {
+      await supabase.auth.signOut({ scope: 'local' });
+      router.replace('/home' as any);
+    }
   };
 
   const submitQuoteRequest = async () => {
