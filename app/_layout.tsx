@@ -133,11 +133,39 @@ function AppLayout() {
     </SessionProvider>
   );
 }
+class RootErrorBoundary extends React.Component<any, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Unhandled error at root:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <YStack flex={1} backgroundColor="#F8FAFC" alignItems="center" justifyContent="center" padding={24}>
+          <YStack gap="$3" alignItems="center">
+            <Text fontSize={20} fontWeight="900">Something went wrong</Text>
+            <Text fontSize={14} color="#475569">We encountered a temporary issue. Reload to continue.</Text>
+            <Button onPress={() => (typeof window !== 'undefined' ? window.location.reload() : null)}>Reload</Button>
+          </YStack>
+        </YStack>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function RootLayout() {
   return (
     <ColorSchemeProvider>
-      <AppLayout />
+      <RootErrorBoundary>
+        <AppLayout />
+      </RootErrorBoundary>
     </ColorSchemeProvider>
   );
 }
