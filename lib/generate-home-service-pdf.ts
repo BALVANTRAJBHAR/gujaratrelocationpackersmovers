@@ -1,6 +1,5 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { Platform, Share, Alert } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
 
@@ -81,29 +80,27 @@ function escapeHtml(s: string): string {
     .replaceAll("'", '&#039;');
 }
 
-export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase64?: string | null): Promise<string | null> {
-  try {
-    const bookingLabel = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
-    const reportId = bookingLabel;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
-    const logo = logoBase64 || await getLogoBase64();
-    const now = new Date();
-    const serviceLabel = labelForService(data.service_key);
+export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<string> {
+  const bookingLabel = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
+  const reportId = bookingLabel;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
+  const logo = await getLogoBase64();
+  const now = new Date();
+  const serviceLabel = labelForService(data.service_key);
 
-    const isCompleted = data.status === 'completed';
-    const paymentDone = (data.payment_option === 'online_now' && data.payment_status === 'paid') || data.payment_option === 'after_service';
+  const paymentDone = (data.payment_option === 'online_now' && data.payment_status === 'paid') || data.payment_option === 'after_service';
 
-    function paymentLabel(): string {
-      if (data.payment_option === 'online_now' && data.payment_status === 'paid') {
-        return 'Advance Paid';
-      }
-      if (data.payment_option === 'after_service') {
-        return 'After Service';
-      }
-      return String(data.payment_status ?? 'pending').replace('_', ' ');
+  function paymentLabel(): string {
+    if (data.payment_option === 'online_now' && data.payment_status === 'paid') {
+      return 'Advance Paid';
     }
+    if (data.payment_option === 'after_service') {
+      return 'After Service';
+    }
+    return String(data.payment_status ?? 'pending').replace('_', ' ');
+  }
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -153,7 +150,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
 <body>
   <div class="header">
     <div class="header-left">
-      ${logo ? `<img src="${escapeHtml(logo)}" alt="Logo"/>` : ''}
+      <img src="${escapeHtml(logo)}" alt="Logo"/>
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -296,12 +293,8 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
 </body>
 </html>`;
 
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
-  } catch (e) {
-    console.error('Home Service PDF generation failed:', e);
-    return null;
-  }
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  return uri;
 }
 
 export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {
@@ -337,7 +330,6 @@ export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boo
 export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {
   try {
     const uri = await generateHomeServicePdf(data);
-    if (!uri) return false;
 
     const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
     const fileName = `Home_Service_Report_${label}.pdf`;
@@ -360,7 +352,7 @@ export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<
     if (Platform.OS === 'android') {
       const saveToDownloads = async (): Promise<boolean> => {
         try {
-          const { PermissionsAndroid, ToastAndroid } = await import('react-native');
+          const { PermissionsAndroid } = await import('react-native');
           const granted = await PermissionsAndroid.request(
             'android.permission.WRITE_EXTERNAL_STORAGE',
             { title: 'Storage Permission', message: 'App needs storage access to download the PDF.', buttonPositive: 'Grant' }
@@ -389,23 +381,14 @@ export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<
         ToastAndroid.show('PDF saved to Downloads', ToastAndroid.LONG);
         return true;
       }
-      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-      const cachePath = `${cacheDir}${fileName}`;
-      await FileSystem.copyAsync({ from: uri, to: cachePath });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(cachePath, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
-      }
-      const { ToastAndroid } = await import('react-native');
-      ToastAndroid.show(`PDF saved to app storage`, ToastAndroid.LONG);
-      return true;
+      Alert.alert('Download failed', 'Could not save PDF to Downloads folder. Please try using the Share option instead.');
+      return false;
     }
 
-    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
     const targetUri = `${baseDir}${fileName}`;
     await FileSystem.copyAsync({ from: uri, to: targetUri });
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(targetUri, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
-    }
+    Alert.alert('Download complete', `PDF saved to app storage.\n\nPath: ${targetUri}`);
     return true;
   } catch (e) {
     console.error('Download Home Service PDF failed:', e);

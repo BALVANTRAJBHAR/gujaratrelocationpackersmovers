@@ -5,7 +5,7 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
+import { getOrCreateTermsPdfUri, downloadLegalPdf, openLegalPdf } from '@/lib/legal-docs';
 import { t } from '@/constants/typography';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import { getWalletBalance, debitWallet, creditWallet, rewardReferralOnBooking } from '@/lib/wallet';
@@ -55,6 +56,7 @@ type BookingFormState = {
   shiftingDate: string;
   preferredTime: string;
 
+  boxCount: number;
   itemDescription: string;
   photos: string[];
   videos: string[];
@@ -348,6 +350,7 @@ export default function BookingWizardScreen() {
     shiftingDate: '',
     preferredTime: '',
 
+    boxCount: 0,
     itemDescription: '',
     photos: [],
     videos: [],
@@ -362,6 +365,8 @@ export default function BookingWizardScreen() {
   const [loadingPlaces, setLoadingPlaces] = useState<boolean>(false);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsPdfUrl, setTermsPdfUrl] = useState<string | null>(null);
 
   const [mapboxToken, setMapboxToken] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
@@ -374,6 +379,7 @@ export default function BookingWizardScreen() {
 
   const [laborPickerOpen, setLaborPickerOpen] = useState(false);
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
+  const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [mediaViewerList, setMediaViewerList] = useState<{ uri: string; type: 'photo' | 'video' }[]>([]);
@@ -906,6 +912,10 @@ export default function BookingWizardScreen() {
     return roundMoney(vehiclePricing.baseFare + km * vehiclePricing.perKm + laborFee + floorFee);
   }, [distanceKm, dropFloorCharge, form.laborers, pickupFloorCharge, vehiclePricing]);
 
+  const boxCharge = useMemo(() => {
+    return roundMoney(Math.max(form.boxCount - 10, 0) * 55);
+  }, [form.boxCount]);
+
   const discountAmount = useMemo(() => {
     const d = roundMoney(Math.max(couponDiscount, 0));
     return Math.min(d, subtotal);
@@ -913,7 +923,7 @@ export default function BookingWizardScreen() {
 
   const discountedSubtotal = useMemo(() => roundMoney(Math.max(subtotal - discountAmount, 0)), [subtotal, discountAmount]);
   const gst = useMemo(() => roundMoney(discountedSubtotal * 0.18), [discountedSubtotal]);
-  const total = useMemo(() => roundMoney(discountedSubtotal + gst), [discountedSubtotal, gst]);
+  const total = useMemo(() => roundMoney(discountedSubtotal + gst + boxCharge), [discountedSubtotal, gst, boxCharge]);
 
   useEffect(() => {
     if (paymentMode !== 'full') return;
@@ -1024,9 +1034,9 @@ export default function BookingWizardScreen() {
     if (step === 'location') return form.pickupCoords && form.dropCoords;
     if (step === 'vehicle') return form.vehicleId && form.shiftingDate && form.preferredTime;
     if (step === 'items') return true;
-    if (step === 'payment') return paymentMode === 'full' ? true : form.advanceAmount > 0;
+    if (step === 'payment') return (paymentMode === 'full' ? true : form.advanceAmount > 0) && acceptedTerms;
     return false;
-  }, [form, isEmailValid, isMobileValid, isNameValid, step]);
+  }, [form, isEmailValid, isMobileValid, isNameValid, step, acceptedTerms]);
 
   const gotoStepIndex = (idx: number) => {
     const next = stepOrder[Math.max(0, Math.min(idx, stepOrder.length - 1))];
@@ -1208,6 +1218,8 @@ export default function BookingWizardScreen() {
             pickup_floor_charge: pickupFloorCharge,
             drop_floor_charge: dropFloorCharge,
             floor_fee: pickupFloorCharge + dropFloorCharge,
+            box_count: form.boxCount,
+            box_charge: boxCharge,
             subtotal,
             gst,
             total,
@@ -1288,6 +1300,8 @@ export default function BookingWizardScreen() {
           pickup_floor_charge: pickupFloorCharge,
           drop_floor_charge: dropFloorCharge,
           floor_fee: pickupFloorCharge + dropFloorCharge,
+          box_count: form.boxCount,
+          box_charge: boxCharge,
           subtotal,
           gst,
           total,
@@ -1437,6 +1451,8 @@ export default function BookingWizardScreen() {
             pickup_floor_charge: pickupFloorCharge,
             drop_floor_charge: dropFloorCharge,
             floor_fee: pickupFloorCharge + dropFloorCharge,
+            box_count: form.boxCount,
+            box_charge: boxCharge,
             subtotal,
             gst,
             total,
@@ -1568,6 +1584,8 @@ export default function BookingWizardScreen() {
           pickup_floor_charge: pickupFloorCharge,
           drop_floor_charge: dropFloorCharge,
           floor_fee: pickupFloorCharge + dropFloorCharge,
+          box_count: form.boxCount,
+          box_charge: boxCharge,
           subtotal,
           gst,
           total,
@@ -1897,7 +1915,7 @@ export default function BookingWizardScreen() {
             const bg = done ? theme.success : active ? accentColor : theme.border;
             const color = done ? '#FFFFFF' : active ? (colorScheme === 'dark' ? '#0F172A' : '#FFFFFF') : theme.textMuted;
             return (
-              <XStack key={k} flex={1.6} alignItems="center">
+              <XStack key={k} flex={2} alignItems="center">
                 <YStack alignItems="center" flex={1} gap="$1">
                   <YStack
                     width={32}
@@ -1914,14 +1932,12 @@ export default function BookingWizardScreen() {
                     fontSize={t(13)}
                     color={active ? theme.text : theme.textMuted}
                     textAlign="center"
-                    numberOfLines={2}
-                    height={28}
-                    lineHeight={14}>
+                    numberOfLines={1}>
                     {stepMeta[k].label}
                   </Text>
                 </YStack>
                 {idx < stepOrder.length - 1 ? (
-                  <YStack height={2} flex={0.6} backgroundColor={done ? theme.success : theme.border} />
+                  <YStack height={2} flex={0.1} backgroundColor={done ? theme.success : theme.border} />
                 ) : null}
               </XStack>
             );
@@ -2539,6 +2555,56 @@ export default function BookingWizardScreen() {
             </Dialog.Portal>
           </Dialog>
 
+          <Dialog open={boxPickerOpen} onOpenChange={setBoxPickerOpen}>
+            <Dialog.Portal>
+              <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
+              <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width={isWide ? 520 : '92%'} maxHeight="80%">
+                <YStack gap="$3">
+                  <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
+                    Select Number of Boxes
+                  </Text>
+                  <Text fontSize={t(13)} color={theme.textMuted}>
+                    First 10 boxes free · ₹55 per additional box
+                  </Text>
+                  <ScrollView style={{ maxHeight: 400 }}>
+                    <YStack gap="$1">
+                      {Array.from({ length: 100 }, (_, idx) => idx + 1).map((n) => {
+                        const selected = form.boxCount === n;
+                        const extra = Math.max(n - 10, 0);
+                        const charge = extra * 55;
+                        return (
+                          <Button
+                            key={n}
+                            backgroundColor={selected ? accentColor : theme.bgSecondary}
+                            color={selected ? '#FFFFFF' : theme.text}
+                            borderWidth={1}
+                            borderColor={theme.border}
+                            borderRadius={12}
+                            justifyContent="space-between"
+                            paddingHorizontal={14}
+                            onPress={() => {
+                              setForm((p) => ({ ...p, boxCount: n }));
+                              setBoxPickerOpen(false);
+                            }}>
+                            <Text color={selected ? '#FFFFFF' : theme.text} fontWeight="800">
+                              {n} {n === 1 ? 'Box' : 'Boxes'}
+                            </Text>
+                            <Text color={selected ? '#CFE3F4' : theme.textMuted} fontSize={t(12)}>
+                              {charge > 0 ? `+₹${charge.toLocaleString('en-IN')}` : 'Free'}
+                            </Text>
+                          </Button>
+                        );
+                      })}
+                    </YStack>
+                  </ScrollView>
+                  <Button backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => setBoxPickerOpen(false)}>
+                    Close
+                  </Button>
+                </YStack>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog>
+
           <Dialog open={timePickerOpen} onOpenChange={setTimePickerOpen}>
             <Dialog.Portal>
               <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
@@ -2682,6 +2748,31 @@ export default function BookingWizardScreen() {
                       ))}
                     </YStack>
                   ) : null}
+                </YStack>
+
+                <YStack borderWidth={1} borderColor={theme.border} borderRadius={12} padding={14} gap="$2">
+                  <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
+                    Number of Boxes
+                  </Text>
+                  <Text fontSize={t(12)} color={theme.textMuted}>
+                    First 10 boxes free · ₹55 per additional box
+                  </Text>
+                  <Button
+                    backgroundColor={theme.bgSecondary}
+                    color={theme.text}
+                    borderWidth={1}
+                    borderColor={theme.border}
+                    borderRadius={12}
+                    justifyContent="space-between"
+                    paddingHorizontal={14}
+                    onPress={() => setBoxPickerOpen(true)}>
+                    <Text color={theme.text} fontWeight="800">
+                      {form.boxCount > 0 ? `${form.boxCount} Box${form.boxCount > 1 ? 'es' : ''}` : 'Select boxes'}
+                    </Text>
+                    <Text color={theme.textMuted} fontSize={t(12)}>
+                      {boxCharge > 0 ? `+₹${boxCharge.toLocaleString('en-IN')}` : form.boxCount > 0 ? 'Free' : ''}
+                    </Text>
+                  </Button>
                 </YStack>
 
                 <YStack gap="$2">
@@ -2923,6 +3014,12 @@ export default function BookingWizardScreen() {
                     <Text fontSize={t(14)} color={theme.textMuted}>Labor ({form.laborers} Worker)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(form.laborers * (vehiclePricing?.laborUnit ?? 0))}</Text>
                   </XStack>
+                  {boxCharge > 0 ? (
+                    <XStack justifyContent="space-between">
+                      <Text fontSize={t(14)} color={theme.textMuted}>Boxes ({form.boxCount})</Text>
+                      <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(boxCharge)}</Text>
+                    </XStack>
+                  ) : null}
                   <XStack justifyContent="space-between">
                     <Text fontSize={t(14)} color={theme.textMuted}>GST (18%)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(gst)}</Text>
@@ -2951,6 +3048,57 @@ export default function BookingWizardScreen() {
                     <Text fontSize={t(20)} fontWeight="900">{currency(Math.max(total - form.advanceAmount, 0))}</Text>
                   </XStack>
                 </YStack>
+              </YStack>
+
+              <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
+                <XStack gap="$2.5" alignItems="flex-start">
+                  <Pressable
+                    onPress={() => setAcceptedTerms(!acceptedTerms)}
+                    style={{ width: 22, height: 22, marginTop: 2, borderRadius: 4, borderWidth: 2, borderColor: acceptedTerms ? '#D97706' : theme.border, backgroundColor: acceptedTerms ? '#D97706' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                    {acceptedTerms ? <Text color="#FFFFFF" fontSize={t(12)} fontWeight="900">✓</Text> : null}
+                  </Pressable>
+                  <YStack flex={1} minWidth={0}>
+                    <Text fontSize={t(14)} color={theme.text} lineHeight={20}>
+                      I have read and agree to the{' '}
+                      <Text
+                        color="#D97706"
+                        fontWeight="800"
+                        textDecorationLine="underline"
+                        onPress={async () => {
+                          try {
+                            const uri = await getOrCreateTermsPdfUri();
+                            setTermsPdfUrl(uri);
+                            if (uri) await openLegalPdf(uri);
+                          } catch (e) {
+                            console.error('[Booking] T&C link error:', e);
+                            Alert.alert('Error', `Could not open PDF.\n${String(e)}`);
+                          }
+                        }}>
+                        Terms & Conditions
+                      </Text>
+                    </Text>
+                  </YStack>
+                </XStack>
+                {!acceptedTerms ? (
+                  <Text color="#EF4444" fontSize={t(12)} fontWeight="600">
+                    You must accept the Terms & Conditions to proceed.
+                  </Text>
+                ) : null}
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      const uri = await getOrCreateTermsPdfUri();
+                      setTermsPdfUrl(uri);
+                      if (uri) await downloadLegalPdf(uri, 'Gujarat_Relocation_Terms_and_Conditions.pdf');
+                    } catch (e) {
+                      console.error('[Booking] Download PDF error:', e);
+                      Alert.alert('Error', `Could not download PDF.\n${String(e)}`);
+                    }
+                  }}>
+                  <Text color={theme.textMuted} fontSize={t(13)} fontWeight="700" textDecorationLine="underline">
+                    Download PDF
+                  </Text>
+                </Pressable>
               </YStack>
 
               {paymentMode === 'advance' ? (

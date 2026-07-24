@@ -1,6 +1,5 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { Platform, Share, Alert, ToastAndroid, PermissionsAndroid } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
 
@@ -78,6 +77,8 @@ function buildFareTable(breakdown: Record<string, any> | null, estimated: number
     labor_count: 'Labor Count',
     labor_unit: 'Labor Unit Rate',
     floor_fee: 'Floor Charge',
+    box_charge: 'Box Charges',
+    box_count: 'Boxes',
     pickup_floor_charge: 'Pickup Floor Charge',
     drop_floor_charge: 'Drop Floor Charge',
     pickup_floor_label: 'Pickup Floor',
@@ -125,15 +126,14 @@ function paymentLabel(data: BookingPdfData): string {
   return String(data.payment_status ?? 'pending').replace('_', ' ');
 }
 
-export async function generateBookingPdf(data: BookingPdfData, logoBase64?: string | null): Promise<string | null> {
-  try {
-    const bookingLabel = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
-    const reportId = bookingLabel;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
-    const logo = logoBase64 || await getLogoBase64();
-    const now = new Date();
+export async function generateBookingPdf(data: BookingPdfData): Promise<string> {
+  const bookingLabel = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
+  const reportId = bookingLabel;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
+  const logo = await getLogoBase64();
+  const now = new Date();
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -187,7 +187,7 @@ export async function generateBookingPdf(data: BookingPdfData, logoBase64?: stri
 <body>
   <div class="header">
     <div class="header-left">
-      ${logo ? `<img src="${escapeHtml(logo)}" alt="Logo"/>` : ''}
+      <img src="${escapeHtml(logo)}" alt="Logo"/>
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -315,12 +315,8 @@ export async function generateBookingPdf(data: BookingPdfData, logoBase64?: stri
 </body>
 </html>`;
 
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
-  } catch (e) {
-    console.error('PDF generation failed:', e);
-    return null;
-  }
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  return uri;
 }
 
 async function generateFileName(data: BookingPdfData): Promise<string> {
@@ -331,8 +327,6 @@ async function generateFileName(data: BookingPdfData): Promise<string> {
 export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean> {
   try {
     const uri = await generateBookingPdf(data);
-    if (!uri) return false;
-
     const fileName = await generateFileName(data);
 
     if (Platform.OS === 'web') {
@@ -352,7 +346,6 @@ export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean>
 
     if (Platform.OS === 'android') {
       const saveToDownloads = async (): Promise<boolean> => {
-        // 1) direct path (Android 4.4-10)
         try {
           const granted = await PermissionsAndroid.request(
             'android.permission.WRITE_EXTERNAL_STORAGE',
@@ -367,7 +360,6 @@ export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean>
             }
           }
         } catch {}
-        // 2) SAF without picker (Android 10+)
         try {
           const downloadUri = FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
           const content = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -379,24 +371,14 @@ export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean>
       };
       const ok = await saveToDownloads();
       if (ok) { ToastAndroid.show('PDF saved to Downloads', ToastAndroid.LONG); return true; }
-      // fallback: share so user can save
-      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-      const cachePath = `${cacheDir}${fileName}`;
-      await FileSystem.copyAsync({ from: uri, to: cachePath });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(cachePath, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
-      }
-      ToastAndroid.show(`PDF saved to app storage`, ToastAndroid.LONG);
-      return true;
+      Alert.alert('Download failed', 'Could not save PDF to Downloads folder. Please try using the Share option instead.');
+      return false;
     }
 
-    // iOS / other: share sheet to save
-    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
     const targetUri = `${baseDir}${fileName}`;
     await FileSystem.copyAsync({ from: uri, to: targetUri });
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(targetUri, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
-    }
+    Alert.alert('Download complete', `PDF saved to app storage.\n\nPath: ${targetUri}`);
     return true;
   } catch (e) {
     console.error('Download PDF failed:', e);

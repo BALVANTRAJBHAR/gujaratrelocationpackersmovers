@@ -13,18 +13,18 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to share live driver updates.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We use your location in the background to share live driver updates during an active trip.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
-    
     "android": {
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "WRITE_EXTERNAL_STORAGE"
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -67,7 +67,8 @@
       "./plugins/with-text-recognition-sdk",
       "./plugins/with-android-build-optimizations",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
