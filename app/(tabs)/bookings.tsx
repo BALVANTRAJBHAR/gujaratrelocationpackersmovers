@@ -38,7 +38,7 @@ const STATUS_STEPS: { key: string; label: string }[] = [
 const normalizeStepperStatus = (status: string | null) => {
   const s = String(status ?? '').trim();
   if (!s) return null;
-  if (s === 'pending' || s === 'assigned') return 'not_started';
+  if (s === 'pending' || s === 'assigned' || s === 'confirmed') return 'not_started';
   return s;
 };
 
@@ -180,11 +180,21 @@ export default function BookingsScreen() {
 function BookingsContent() {
   const router = useRouter();
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
-  const sharePdf = async (data: any) => {
+  const downloadPdf = async (data: any): Promise<boolean> => {
+    try {
+      const { downloadBookingPdf } = await import('@/lib/generate-booking-pdf');
+      return await downloadBookingPdf(data);
+    } catch {
+      return false;
+    }
+  };
+  const sharePdf = async (data: any): Promise<boolean> => {
     try {
       const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
-      await shareBookingPdf(data);
-    } catch {}
+      return await shareBookingPdf(data);
+    } catch {
+      return false;
+    }
   };
   const { session, profile } = useSession();
   const colorScheme = useColorScheme();
@@ -301,7 +311,7 @@ function BookingsContent() {
       await supabase
         .from('bookings')
         .select(
-          'id, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description'
+          'id, booking_number, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description'
         )
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -855,36 +865,75 @@ function BookingsContent() {
                 onPress={() => router.push({ pathname: '/(tabs)/tracking', params: { bookingId: item.id } } as any)}>Track</Button>
               <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
                 onPress={async () => {
-                  try { await Share.share({ message: `Tracking ID: ${String(item.id)}\n\nOpen the app and go to Track, then paste this ID to see live status and driver location.` }); }
-                  catch { if (Platform.OS === 'android') ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT); }
-                }}>Share ID</Button>
-              <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                onPress={async () => {
                   try {
-                    const ok = await sharePdf({
-                      id: item.id,
-                      pickup_address: item.pickup_address,
-                      drop_address: item.drop_address,
-                      distance_km: item.distance_km,
-                      estimated_price: item.estimated_price,
-                      advance_amount: item.advance_amount,
-                      remaining_amount: item.remaining_amount,
-                      status: item.status,
-                      payment_status: item.payment_status,
-                      scheduled_date: item.scheduled_date ?? null,
-                      scheduled_time: item.scheduled_time ?? null,
-                      labor_count: item.labor_count ?? null,
-                      pickup_floor: item.pickup_floor ?? null,
-                      drop_floor: item.drop_floor ?? null,
-                      pickup_lift_available: item.pickup_lift_available ?? null,
-                      drop_lift_available: item.drop_lift_available ?? null,
-                      items_description: item.items_description ?? null,
-                      fare_breakdown: item.fare_breakdown ?? null,
-                      created_at: item.created_at,
+                    const trackUrl = Platform.OS === 'web'
+                      ? `${window.location.origin}/(tabs)/tracking?bookingId=${item.id}`
+                      : `https://gujaratrelocationpackers.com/(tabs)/tracking?bookingId=${item.id}`;
+                    await Share.share({
+                      message: `Track your shifting booking: ${trackUrl}\n\nTracking ID: ${item.id}\n\nOpen the link or paste the ID in the app's Track page to see live status and driver location.`,
+                      url: trackUrl,
                     });
-                    if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
-                  } catch { Alert.alert('Error', 'Failed to generate report.'); }
-                }}>Download Report</Button>
+                  } catch { if (Platform.OS === 'android') ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT); }
+                }}>Share ID</Button>
+              <XStack gap="$2">
+                <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                  onPress={async () => {
+                    try {
+                      const ok = await downloadPdf({
+                        id: item.id,
+                        booking_number: item.booking_number,
+                        pickup_address: item.pickup_address,
+                        drop_address: item.drop_address,
+                        distance_km: item.distance_km,
+                        estimated_price: item.estimated_price,
+                        advance_amount: item.advance_amount,
+                        remaining_amount: item.remaining_amount,
+                        status: item.status,
+                        payment_status: item.payment_status,
+                        scheduled_date: item.scheduled_date ?? null,
+                        scheduled_time: item.scheduled_time ?? null,
+                        labor_count: item.labor_count ?? null,
+                        pickup_floor: item.pickup_floor ?? null,
+                        drop_floor: item.drop_floor ?? null,
+                        pickup_lift_available: item.pickup_lift_available ?? null,
+                        drop_lift_available: item.drop_lift_available ?? null,
+                        items_description: item.items_description ?? null,
+                        fare_breakdown: item.fare_breakdown ?? null,
+                        created_at: item.created_at,
+                      });
+                      if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+                    } catch { Alert.alert('Error', 'Failed to generate report.'); }
+                  }}>Download Report</Button>
+                <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
+                  color={theme.text} borderRadius={10}
+                  onPress={async () => {
+                    try {
+                      const ok = await sharePdf({
+                        id: item.id,
+                        booking_number: item.booking_number,
+                        pickup_address: item.pickup_address,
+                        drop_address: item.drop_address,
+                        distance_km: item.distance_km,
+                        estimated_price: item.estimated_price,
+                        advance_amount: item.advance_amount,
+                        remaining_amount: item.remaining_amount,
+                        status: item.status,
+                        payment_status: item.payment_status,
+                        scheduled_date: item.scheduled_date ?? null,
+                        scheduled_time: item.scheduled_time ?? null,
+                        labor_count: item.labor_count ?? null,
+                        pickup_floor: item.pickup_floor ?? null,
+                        drop_floor: item.drop_floor ?? null,
+                        pickup_lift_available: item.pickup_lift_available ?? null,
+                        drop_lift_available: item.drop_lift_available ?? null,
+                        items_description: item.items_description ?? null,
+                        fare_breakdown: item.fare_breakdown ?? null,
+                        created_at: item.created_at,
+                      });
+                      if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
+                    } catch { Alert.alert('Error', 'Failed to share report.'); }
+                  }}>Share Report</Button>
+              </XStack>
               {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                 <>
                   <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
@@ -894,14 +943,27 @@ function BookingsContent() {
                 </>
               ) : null}
             </XStack>
-            {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
-              <>
-                <Button size="$2" backgroundColor={theme.accent} color={'#FFFFFF'} borderRadius={10}
-                  onPress={() => handleCreateOrder(item.id, Number(item.advance_amount ?? 500))}>Pay Advance</Button>
-                <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
-                  onPress={() => handleCreateOrder(item.id, Number(item.estimated_price ?? item.remaining_amount ?? 500))}>Pay Full</Button>
-              </>
-            ) : null}
+            {(() => {
+              const paid = (paymentHistory[item.id] ?? [])
+                .filter((p) => p.status === 'captured' || p.status === 'paid')
+                .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+              const targetAdvance = Number(item.advance_amount ?? 500);
+              const targetFull = Number(item.estimated_price ?? item.remaining_amount ?? 500);
+              const advanceEnabled = paid < targetFull;
+              const fullEnabled = paid < targetFull;
+              return item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
+                <>
+                  <Button size="$2" backgroundColor={advanceEnabled ? theme.accent : theme.bgCardSecondary}
+                    color={advanceEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
+                    disabled={!advanceEnabled}
+                    onPress={() => advanceEnabled && handleCreateOrder(item.id, targetAdvance)}>Pay Advance</Button>
+                  <Button size="$2" backgroundColor={fullEnabled ? theme.accent : theme.bgCardSecondary}
+                    color={fullEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
+                    disabled={!fullEnabled}
+                    onPress={() => fullEnabled && handleCreateOrder(item.id, targetFull)}>Pay Full</Button>
+                </>
+              ) : null;
+            })()}
             {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={t(13)}>{paymentInfo[item.id]}</Text> : null}
             {paymentHistory[item.id]?.length ? (
               <YStack gap="$1">
@@ -994,6 +1056,16 @@ function BookingsContent() {
       setPbBusyId(bookingId);
       try {
         await supabase.from('property_bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+        try {
+          await supabase.functions.invoke('send-property-notification', {
+            body: {
+              event_type: 'booking_status_changed',
+              booking_id: bookingId,
+              status: 'cancelled',
+              changed_by: 'customer',
+            },
+          });
+        } catch { /* ignore notification failures */ }
         await fetchPropertyBookings();
       } catch { /* ignore */ } finally { setPbBusyId(null); }
     };
@@ -1057,6 +1129,16 @@ function BookingsContent() {
                             setPbBusyId(pb.id);
                             try {
                               await supabase.from('property_bookings').update({ status: 'confirmed' }).eq('id', pb.id);
+                              try {
+                                await supabase.functions.invoke('send-property-notification', {
+                                  body: {
+                                    event_type: 'booking_status_changed',
+                                    booking_id: pb.id,
+                                    status: 'confirmed',
+                                    changed_by: 'owner',
+                                  },
+                                });
+                              } catch { /* ignore notification failures */ }
                               await fetchPropertyBookings();
                             } catch { /* ignore */ } finally { setPbBusyId(null); }
                           }}>Confirm</Button>

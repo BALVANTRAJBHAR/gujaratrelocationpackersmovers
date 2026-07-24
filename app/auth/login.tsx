@@ -98,8 +98,10 @@ export default function LoginScreen() {
   const [showEmailSignup, setShowEmailSignup] = useState(false);
   const [initialProcessing, setInitialProcessing] = useState(false);
   const [referredById, setReferredById] = useState<string | null>(null);
-  // Guard to prevent double-redirect when handleSubmit already handles navigation
-  const manualRedirectingRef = useRef(false);
+  // Prevents redirectAfterAuth from executing more than once per component mount.
+  // This is the single navigation guard — all post-auth navigation flows through
+  // the session useEffect below, so we only need one guard.
+  const navigatedRef = useRef(false);
 
   // Resolve referral code from URL param
   useEffect(() => {
@@ -244,6 +246,10 @@ export default function LoginScreen() {
   };
 
   const redirectAfterAuth = async () => {
+    // Only allow one redirect per component mount to prevent duplicate navigation
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+
     const pending = _pendingRedirectTo;
     _pendingRedirectTo = null;
     const redirect = pending || String(params.redirectTo ?? '').trim();
@@ -252,7 +258,7 @@ export default function LoginScreen() {
       return;
     }
     const didRedirect = await maybeRedirectToRegistration();
-    if (!didRedirect) router.replace('/home');
+    if (!didRedirect) router.replace(Platform.OS === 'web' ? '/home' : '/(tabs)');
   };
 
   useEffect(() => {
@@ -323,8 +329,7 @@ export default function LoginScreen() {
               return;
             }
 
-            await redirectAfterAuth();
-            return;
+            // Navigation is handled by the session useEffect — no direct redirectAfterAuth call
           }
         }
       } catch {
@@ -337,13 +342,15 @@ export default function LoginScreen() {
     void openRecoveryIfPresent();
   }, []);
 
-  // Listen to session changes to automatically redirect user after successful OAuth login
-  // Note: for email/password login, handleSubmit handles redirect directly (manualRedirectingRef prevents double-nav)
+  // Listen to session changes and redirect authenticated users.
+  // This is the SINGLE source of truth for post-auth navigation.
+  // handleSubmit and OAuth handlers no longer navigate directly — they let this
+  // effect pick up the session change and call redirectAfterAuth.
   useEffect(() => {
-    if (session && !pendingOAuthUser && !initialProcessing && !manualRedirectingRef.current) {
+    if (session && !pendingOAuthUser && !initialProcessing && mode !== 'forgot') {
       void redirectAfterAuth();
     }
-  }, [session, pendingOAuthUser, initialProcessing]);
+  }, [session, pendingOAuthUser, initialProcessing, mode]);
 
   useEffect(() => {
     const handleOAuthUrl = async (incomingUrl: string) => {
@@ -352,6 +359,7 @@ export default function LoginScreen() {
       _processingOAuth = true;
       try {
         setOauthLoading('google');
+        setInitialProcessing(true);
         const { code, access_token, refresh_token } = extractUrlParams(incomingUrl);
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -363,12 +371,12 @@ export default function LoginScreen() {
         }
         const didStartCompletion = await maybeStartOAuthProfileCompletion();
         if (didStartCompletion) return;
-        await redirectAfterAuth();
       } catch {
         setError('OAuth sign-in failed');
       } finally {
         setOauthLoading(null);
         _processingOAuth = false;
+        setInitialProcessing(false);
       }
     };
 
@@ -503,14 +511,7 @@ export default function LoginScreen() {
       const didStartCompletion = await maybeStartOAuthProfileCompletion();
       if (didStartCompletion) return;
 
-      const savedRedirect = _pendingRedirectTo;
-      _pendingRedirectTo = null;
-      if (savedRedirect && isValidRedirect(savedRedirect)) {
-        router.replace(savedRedirect as any);
-      } else {
-        const didRedirect = await maybeRedirectToRegistration();
-        if (!didRedirect) router.replace('/home');
-      }
+      // Navigation is handled by the session useEffect — no direct router.replace needed
     } catch (e: any) {
       const errMsg = e?.message ?? String(e) ?? 'Unknown error';
       console.error('[OAuth] Sign-in failed:', errMsg, e);
@@ -571,15 +572,7 @@ export default function LoginScreen() {
           return;
         }
 
-        // Mark that we are handling redirect manually so the session useEffect doesn't double-navigate
-        manualRedirectingRef.current = true;
-        const redirectTo = String(params.redirectTo ?? '').trim();
-        if (redirectTo && isValidRedirect(redirectTo)) {
-          router.replace(redirectTo as any);
-        } else {
-          const didRedirect = await maybeRedirectToRegistration();
-          if (!didRedirect) router.replace('/home');
-        }
+        // Navigation is handled by the session useEffect above — no direct router.replace needed
         return;
       }
 
@@ -614,12 +607,7 @@ export default function LoginScreen() {
                 },
                 { onConflict: 'id' }
               );
-            // Redirect based on role
-            if (signupRole === 'provider') {
-              router.replace('/auth/register' as any);
-            } else {
-              router.replace('/home');
-            }
+            // Navigation is handled by the session useEffect — no direct router.replace needed
             return;
           }
         }
@@ -677,11 +665,7 @@ export default function LoginScreen() {
               { onConflict: 'id' }
             );
 
-          if (signupRole === 'provider') {
-            router.replace('/auth/register' as any);
-          } else {
-            router.replace('/home');
-          }
+          // Navigation is handled by the session useEffect — no direct router.replace needed
           return;
         }
 

@@ -102,7 +102,6 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
 
   useEffect(() => {
     if (!bookingId) return;
-    if (!bookingId) return;
 
     const fetchPayments = async () => {
       setLoading(true);
@@ -122,7 +121,7 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
     };
 
     fetchPayments();
-  }, [params.bookingId]);
+  }, [bookingId]);
 
   return (
     <YStack flex={1} backgroundColor={pageBg} padding={24} gap="$3">
@@ -130,7 +129,7 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
         Payment history
       </Text>
       <H2 color={titleColor}>All transactions</H2>
-      <Paragraph color={muted}>Booking: {params.bookingId ?? '—'}</Paragraph>
+      <Paragraph color={muted}>Booking: {bookingId ?? '—'}</Paragraph>
       <XStack gap="$2" flexWrap="wrap">
         {[
           { label: 'All', value: 'all' },

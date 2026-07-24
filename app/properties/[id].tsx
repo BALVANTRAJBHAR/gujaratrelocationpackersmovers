@@ -138,7 +138,7 @@ export default function PropertyDetailScreen() {
     try {
       const phone = String((session?.user?.user_metadata as any)?.phone ?? '');
       const name = String((session?.user?.user_metadata as any)?.full_name || (session?.user?.user_metadata as any)?.name || '');
-      const { error: insErr } = await supabase.from('property_bookings').insert({
+      const { data: bookingData, error: insErr } = await supabase.from('property_bookings').insert({
         property_id: item.id,
         user_id: session.user.id,
         owner_user_id: item.owner_user_id,
@@ -146,13 +146,35 @@ export default function PropertyDetailScreen() {
         message: bookMsg || null,
         contact_name: name || null,
         contact_phone: phone || null,
-      });
+      }).select('id').maybeSingle();
       if (insErr) throw new Error(insErr.message);
+      const bookingId = String((bookingData as any)?.id ?? '').trim();
+
       try {
         await rewardReferralOnBooking(session.user.id, item.id);
       } catch {
         // ignore referral reward failures
       }
+
+      if (bookingId) {
+        try {
+          await supabase.functions.invoke('send-property-notification', {
+            body: {
+              event_type: 'property_booked',
+              property_id: item.id,
+              property_title: item.title,
+              owner_user_id: item.owner_user_id,
+              user_id: session.user.id,
+              booking_id: bookingId,
+              contact_name: name,
+              contact_phone: phone,
+            },
+          });
+        } catch {
+          // ignore notification failures
+        }
+      }
+
       Alert.alert('Booking sent!', 'The property owner has been notified. You can track the status in your dashboard.');
       setBookMsg('');
       setExistingBooking('temp');
@@ -169,6 +191,18 @@ export default function PropertyDetailScreen() {
     try {
       const { error } = await supabase.from('property_bookings').update({ status: 'cancelled' }).eq('id', existingBooking);
       if (error) throw new Error(error.message);
+      try {
+        await supabase.functions.invoke('send-property-notification', {
+          body: {
+            event_type: 'booking_status_changed',
+            booking_id: existingBooking,
+            status: 'cancelled',
+            changed_by: 'customer',
+          },
+        });
+      } catch {
+        // ignore notification failures
+      }
       setExistingBooking(null);
       Alert.alert('Booking cancelled');
     } catch (e) {

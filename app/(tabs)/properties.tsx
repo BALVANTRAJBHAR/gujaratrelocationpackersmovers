@@ -65,6 +65,16 @@ export default function PropertiesTabScreen() {
     setBusyId(bookingId);
     try {
       await supabase.from('property_bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', bookingId);
+      try {
+        await supabase.functions.invoke('send-property-notification', {
+          body: {
+            event_type: 'booking_status_changed',
+            booking_id: bookingId,
+            status,
+            changed_by: 'owner',
+          },
+        });
+      } catch { /* ignore notification failures */ }
       await fetchBookings();
     } catch { /* ignore */ } finally { setBusyId(null); }
   };

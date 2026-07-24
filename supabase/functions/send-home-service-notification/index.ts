@@ -352,6 +352,50 @@ serve(async (req) => {
       }
     }
 
+    // Notify admin/staff about new request
+    try {
+      const admins = await getRest<UserRow[]>(
+        `${supabaseUrl}/rest/v1/users?select=id,expo_push_token,name,role&role=in.(admin,staff)`,
+        serviceKey
+      );
+
+      const adminTitle = `New ${serviceLabel} Request`;
+      const adminBody = `${customerName} requested ${serviceLabel.toLowerCase()} for ${preferredDate} in ${requestCity}, ${requestState}`;
+
+      for (const admin of (admins ?? [])) {
+        if (admin?.expo_push_token) {
+          try {
+            await sendExpoPush(admin.expo_push_token, adminTitle, adminBody, {
+              request_id: requestId,
+              type: 'home_service_request',
+            });
+          } catch (e) {
+            console.error('Failed to send admin push:', e);
+          }
+        }
+
+        if (admin?.id) {
+          notificationRows.push({
+            user_id: admin.id,
+            title: adminTitle,
+            body: adminBody,
+            type: 'home_service_request_available',
+            data: {
+              request_id: requestId,
+              service_key: requestServiceKey,
+              customer_name: customerName,
+              preferred_date: preferredDate,
+              preferred_time: preferredTime,
+            },
+          });
+
+          await sendWebPushForUser(supabaseUrl, serviceKey, admin.id, adminTitle, adminBody, `/home-services/${requestId}`);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to notify admins:', e);
+    }
+
     // Log to notifications inbox
     try {
       if (notificationRows.length > 0) {

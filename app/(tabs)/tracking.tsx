@@ -226,7 +226,8 @@ export default function TrackingScreen() {
             </Text>
             <XStack gap="$2" flexWrap="wrap" alignItems="center">
               {STATUS_STEPS.map((step, idx) => {
-                const statusIndex = STATUS_STEPS.findIndex((s) => s.key === bookingStatus);
+                const normalizedStatus = !bookingStatus ? null : ['pending', 'assigned', 'confirmed'].includes(bookingStatus) ? 'not_started' : bookingStatus;
+                const statusIndex = STATUS_STEPS.findIndex((s) => s.key === normalizedStatus);
                 const stepIndex = idx;
                 const isActive = statusIndex >= stepIndex && statusIndex !== -1;
                 return (

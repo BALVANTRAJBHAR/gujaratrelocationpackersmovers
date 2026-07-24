@@ -8,35 +8,47 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
-import { supabase } from '@/lib/supabase';
 import { t } from '@/constants/typography';
 import { creditWallet } from '@/lib/wallet';
 import { useSession } from '@/providers/session-provider';
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
 
-async function openRazorpay(options: any): Promise<any> {
+async function loadRazorpayScript(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  if ((window as any).Razorpay) return true;
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
+    document.body.appendChild(script);
+  });
+
+  return Boolean((window as any).Razorpay);
+}
+
+async function openRazorpayCheckout(options: any): Promise<any> {
   if (Platform.OS === 'web') {
-    if (typeof window === 'undefined') throw new Error('Not in browser');
-    if (!(window as any).Razorpay) {
-      await new Promise<void>((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        s.async = true;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('Failed to load Razorpay'));
-        document.body.appendChild(s);
-      });
-    }
+    const ok = await loadRazorpayScript();
+    if (!ok) throw new Error('Razorpay unavailable on web');
+
     return await new Promise((resolve, reject) => {
-      const rz = new (window as any).Razorpay({
+      const Razorpay = (window as any).Razorpay;
+      const rz = new Razorpay({
         ...options,
-        handler: (r: any) => resolve(r),
-        modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
+        handler: (response: any) => resolve(response),
+        modal: {
+          ondismiss: () => reject(new Error('Payment cancelled')),
+        },
       });
       rz.open();
     });
   }
+
   return await RazorpayCheckout.open(options);
 }
 
@@ -62,9 +74,15 @@ export default function AddMoneyScreen() {
         notes: { user_id: session.user.id, purpose: 'wallet_topup' },
       });
 
-      const keyId = await getRazorpayKeyId();
-      const response = await openRazorpay({
-        key: keyId,
+      const razorpayKeyId = await getRazorpayKeyId();
+
+      if (!razorpayKeyId) {
+        alert('Missing Razorpay public key. Please try again later.');
+        return;
+      }
+
+      const response = await openRazorpayCheckout({
+        key: razorpayKeyId,
         amount: order.amount,
         currency: order.currency,
         name: 'GR Packers & Movers',
@@ -73,17 +91,10 @@ export default function AddMoneyScreen() {
         theme: { color: '#1F4E79' },
       });
 
-      const razorpayOrderId = response.razorpay_order_id || response.razorpay_order_id;
-      const razorpayPaymentId = response.razorpay_payment_id || response.razorpay_payment_id;
-      const razorpaySignature = response.razorpay_signature || response.razorpay_signature;
-
       const valid = await verifyRazorpaySignature({
-        order_id: razorpayOrderId,
-        payment_id: razorpayPaymentId,
-        signature: razorpaySignature,
-        user_id: session.user.id,
-        amount: effectiveAmount,
-        purpose: 'wallet_topup',
+        order_id: order.id,
+        payment_id: response.razorpay_payment_id,
+        signature: response.razorpay_signature,
       });
 
       if (!valid) throw new Error('Payment verification failed');
@@ -92,18 +103,17 @@ export default function AddMoneyScreen() {
         userId: session.user.id,
         amount: effectiveAmount,
         referenceType: 'add_money',
-        referenceId: razorpayPaymentId,
+        referenceId: response.razorpay_payment_id,
         description: `Added ₹${effectiveAmount} to wallet`,
       });
 
       await refreshProfile();
       router.back();
     } catch (e: any) {
-      if (e?.message !== 'Payment cancelled') {
-        const msg = String(e?.message ?? '');
-        const cleaned = msg.replace(/^\(\d+\)\s*/, '');
-        alert(cleaned || 'Payment failed. Please try again.');
-      }
+      const msg = typeof e?.message === 'string' ? e.message : String(e ?? '');
+      if (msg === 'Payment cancelled') return;
+      const cleaned = msg.replace(/^\(\d+\)\s*/, '');
+      alert(cleaned || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
     }

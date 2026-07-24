@@ -528,6 +528,7 @@ export default function HomeServiceRequestScreen() {
   const [videos, setVideos] = useState<string[]>([]);
 
   const createdRequestIdRef = useRef<string | null>(null);
+  const createdBookingNumberRef = useRef<number | null>(null);
   const processedUploadsRef = useRef<any[]>([]);
 
   const [backButtonBg, backButtonText] = useMemo(() => {
@@ -708,7 +709,7 @@ export default function HomeServiceRequestScreen() {
         setStep('uploads');
         return;
       }
-      await supabase.from('home_service_requests').update({ status: 'pending' }).eq('id', requestId);
+      await supabase.from('home_service_requests').update({ status: 'confirmed' }).eq('id', requestId);
 
       // Notify providers about the new request
       try {
@@ -907,14 +908,16 @@ export default function HomeServiceRequestScreen() {
         preferred_time: preferredTime.trim() || null,
         notes: notes.trim() || null,
       })
-      .select('id')
+      .select('id, booking_number')
       .maybeSingle();
 
     if (insertError) throw new Error(insertError.message);
-    const id = String((data as any)?.id ?? '').trim();
+    const result = data as { id: string; booking_number?: number } | null;
+    const id = String(result?.id ?? '').trim();
     if (!id) throw new Error('Failed to create request.');
 
     createdRequestIdRef.current = id;
+    createdBookingNumberRef.current = result?.booking_number ?? null;
     return id;
   };
 
@@ -1132,7 +1135,7 @@ export default function HomeServiceRequestScreen() {
       }
 
       await uploadMedia(requestId);
-      await supabase.from('home_service_requests').update({ status: 'pending' }).eq('id', requestId);
+      await supabase.from('home_service_requests').update({ status: 'confirmed' }).eq('id', requestId);
 
       try {
         const resp = await supabase.functions.invoke('send-home-service-notification', {

@@ -307,6 +307,7 @@ const guessDocImageContentType = (mime: string | null | undefined, ext: string) 
 
 type BookingAdmin = {
   id: string;
+  booking_number?: number | null;
   pickup_address: string | null;
   drop_address: string | null;
   pickup_lat?: number | null;
@@ -1098,6 +1099,16 @@ function AdminScreenInner() {
         setError(updateError.message);
         return;
       }
+      try {
+        await supabase.functions.invoke('send-property-notification', {
+          body: {
+            event_type: 'booking_status_changed',
+            booking_id: bookingId,
+            status,
+            changed_by: 'admin',
+          },
+        });
+      } catch { /* ignore notification failures */ }
       await fetchPropBookings();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -1400,7 +1411,7 @@ function AdminScreenInner() {
       let query = supabase
         .from('bookings')
         .select(
-          'id, pickup_address, drop_address, pickup_lat, pickup_lng, drop_lat, drop_lng, distance_km, estimated_price, final_price, status, payment_status, payment_method, driver_id, advance_amount, remaining_amount, scheduled_date, scheduled_time, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, pickup_lat, pickup_lng, drop_lat, drop_lng, distance_km, estimated_price, final_price, status, payment_status, payment_method, driver_id, advance_amount, remaining_amount, scheduled_date, scheduled_time, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
         )
         .order('created_at', { ascending: false })
         .limit(5000);
@@ -1782,7 +1793,7 @@ function AdminScreenInner() {
   const normalizeBookingStepperStatus = (status: string | null) => {
     const s = String(status ?? '').trim();
     if (!s) return null;
-    if (s === 'pending' || s === 'assigned') return 'not_started';
+    if (s === 'pending' || s === 'assigned' || s === 'confirmed') return 'not_started';
     return s;
   };
 
@@ -2414,7 +2425,7 @@ function AdminScreenInner() {
       let query = supabase
         .from('bookings')
         .select(
-          'id, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
         )
         .order('created_at', { ascending: false });
 

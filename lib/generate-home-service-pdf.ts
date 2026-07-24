@@ -1,9 +1,12 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Platform, Share, Image } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { Platform, Share, Alert } from 'react-native';
+import { getLogoBase64 } from '@/lib/get-logo-base64';
 
 type HomeServicePdfData = {
   id: string;
+  booking_number?: number | null;
   service_key: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -45,19 +48,6 @@ function labelForService(key: string): string {
   return serviceLabels[String(key ?? '').toLowerCase()] || key;
 }
 
-async function getLogoBase64(): Promise<string | null> {
-  try {
-    const source = Image.resolveAssetSource(require('../assets/images/PackersMoversLogo.png'));
-    if (!source?.uri) return null;
-    const base64 = await FileSystem.readAsStringAsync(source.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    return `data:image/png;base64,${base64}`;
-  } catch {
-    return null;
-  }
-}
-
 function fmtCurrency(amount: number | null | undefined): string {
   const val = Number(amount ?? 0);
   if (!Number.isFinite(val) || val <= 0) return '₹0';
@@ -93,14 +83,25 @@ function escapeHtml(s: string): string {
 
 export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase64?: string | null): Promise<string | null> {
   try {
-    const reportId = `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
+    const bookingLabel = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
+    const reportId = bookingLabel;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
     const logo = logoBase64 || await getLogoBase64();
     const now = new Date();
     const serviceLabel = labelForService(data.service_key);
 
     const isCompleted = data.status === 'completed';
-    const paymentDone = data.payment_status === 'paid' || !!data.after_service_payment_method;
+    const paymentDone = (data.payment_option === 'online_now' && data.payment_status === 'paid') || data.payment_option === 'after_service';
+
+    function paymentLabel(): string {
+      if (data.payment_option === 'online_now' && data.payment_status === 'paid') {
+        return 'Advance Paid';
+      }
+      if (data.payment_option === 'after_service') {
+        return 'After Service';
+      }
+      return String(data.payment_status ?? 'pending').replace('_', ' ');
+    }
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -110,7 +111,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
 <style>
   @page { margin: 14mm 12mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', Times, serif; color: #1e293b; margin: 0; padding: 0; }
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .header-left img { width: 56px; height: 56px; object-fit: contain; }
@@ -144,6 +145,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
   .status-cancelled { background: #fee2e2; color: #991b1b; }
   .status-completed { background: #dbeafe; color: #1e40af; }
   .status-assigned { background: #e0e7ff; color: #3730a3; }
+  .status-confirmed { background: #d1fae5; color: #065f46; }
   .footer { text-align: center; margin-top: 16px; font-size: 10px; color: #94a3b8; }
   .footer .line { margin: 2px 0; }
 </style>
@@ -176,7 +178,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
 
   <div class="booking-id-box">
     <label>Home Service Request ID</label>
-    <div class="id">${escapeHtml(data.id)}</div>
+    <div class="id">${escapeHtml(bookingLabel)}</div>
   </div>
 
   <div class="section">
@@ -189,7 +191,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData, logoBase6
         </div>
         ${paymentDone ? `<div class="row">
           <span class="label">Payment Status</span>
-          <span class="value"><span class="status-badge status-paid">${escapeHtml(String(data.after_service_payment_method ?? 'paid').replace('_', ' '))}</span></span>
+          <span class="value"><span class="status-badge status-paid">${escapeHtml(paymentLabel())}</span></span>
         </div>` : ''}
       </div>
     </div>
@@ -307,8 +309,38 @@ export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boo
     const uri = await generateHomeServicePdf(data);
     if (!uri) return false;
 
-    const reportId = `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
-    const fileName = `Home_Service_Report_${reportId}.pdf`;
+    const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
+    const fileName = `Home_Service_Report_${label}.pdf`;
+
+    if (Platform.OS === 'web') {
+      if (typeof navigator !== 'undefined' && 'share' in navigator) {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        await (navigator as any).share({ files: [file], title: fileName });
+        return true;
+      }
+      return true;
+    }
+
+    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+    const targetUri = `${baseDir}${fileName}`;
+    await FileSystem.copyAsync({ from: uri, to: targetUri });
+    await Share.share({ url: Platform.OS === 'android' ? `file://${targetUri}` : targetUri, title: fileName });
+    return true;
+  } catch (e) {
+    console.error('Share Home Service PDF failed:', e);
+    return false;
+  }
+}
+
+export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {
+  try {
+    const uri = await generateHomeServicePdf(data);
+    if (!uri) return false;
+
+    const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
+    const fileName = `Home_Service_Report_${label}.pdf`;
 
     if (Platform.OS === 'web') {
       const response = await fetch(uri);
@@ -321,16 +353,62 @@ export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boo
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      Alert.alert('Download complete', `${fileName} saved to Downloads.`);
+      return true;
+    }
+
+    if (Platform.OS === 'android') {
+      const saveToDownloads = async (): Promise<boolean> => {
+        try {
+          const { PermissionsAndroid, ToastAndroid } = await import('react-native');
+          const granted = await PermissionsAndroid.request(
+            'android.permission.WRITE_EXTERNAL_STORAGE',
+            { title: 'Storage Permission', message: 'App needs storage access to download the PDF.', buttonPositive: 'Grant' }
+          );
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            const path = `/storage/emulated/0/Download/`;
+            if ((await FileSystem.getInfoAsync(path)).exists) {
+              const target = `${path}${fileName}`;
+              await FileSystem.copyAsync({ from: uri, to: target });
+              return true;
+            }
+          }
+        } catch {}
+        try {
+          const downloadUri = FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
+          const content = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          const newUri = await FileSystem.StorageAccessFramework.createFileAsync(downloadUri, fileName, 'application/pdf');
+          await FileSystem.StorageAccessFramework.writeAsStringAsync(newUri, content, { encoding: FileSystem.EncodingType.Base64 });
+          return true;
+        } catch {}
+        return false;
+      };
+      const ok = await saveToDownloads();
+      if (ok) {
+        const { ToastAndroid } = await import('react-native');
+        ToastAndroid.show('PDF saved to Downloads', ToastAndroid.LONG);
+        return true;
+      }
+      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+      const cachePath = `${cacheDir}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: cachePath });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(cachePath, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
+      }
+      const { ToastAndroid } = await import('react-native');
+      ToastAndroid.show(`PDF saved to app storage`, ToastAndroid.LONG);
       return true;
     }
 
     const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
     const targetUri = `${baseDir}${fileName}`;
     await FileSystem.copyAsync({ from: uri, to: targetUri });
-    await Share.share({ url: Platform.OS === 'android' ? `file://${targetUri}` : targetUri, title: fileName });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(targetUri, { mimeType: 'application/pdf', dialogTitle: `Save ${fileName}` });
+    }
     return true;
   } catch (e) {
-    console.error('Share Home Service PDF failed:', e);
+    console.error('Download Home Service PDF failed:', e);
     return false;
   }
 }

@@ -16,6 +16,7 @@ import { t } from '@/constants/typography';
 
 type HomeServiceRequestRow = {
   id: string;
+  booking_number?: number | null;
   service_key: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -63,13 +64,13 @@ const labelForService = (key: string) => {
 };
 
 const homeServiceRequestSelect =
-  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name';
 
 const homeServiceRequestBaseSelect =
-  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name';
 
 const homeServiceRequestMinimalSelect =
-  'id, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at';
 
 const isMissingColumnError = (error: unknown, column: string) => {
   const message = String((error as any)?.message ?? error ?? '').toLowerCase();
@@ -99,6 +100,14 @@ export default function MyHomeServiceRequestsScreen() {
       const { shareHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
       await shareHomeServicePdf(data);
     } catch {}
+  };
+  const downloadHomePdf = async (data: any) => {
+    try {
+      const { downloadHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
+      return await downloadHomeServicePdf(data);
+    } catch {
+      return false;
+    }
   };
 
   const [loading, setLoading] = useState(true);
@@ -616,9 +625,9 @@ export default function MyHomeServiceRequestsScreen() {
                         backgroundColor={theme.primary || '#1F4E79'}
                         color="#FFFFFF"
                         borderRadius={10}
-                        onPress={() => void shareHomePdf(r as any)}>
-                        Download Report
-                      </Button>
+                        onPress={() => void downloadHomePdf(r as any)}>
+                          Download Report
+                        </Button>
                     ) : null}
 
                     {r.status === 'pending' && r.payment_option === 'after_service' ? (

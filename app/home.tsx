@@ -28,6 +28,7 @@ import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui'
 
 import { themes } from '@/constants/theme';
 import { searchPlaces } from '@/lib/mapbox';
+import { getDashboardRoute } from '@/lib/role-routing';
 import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
@@ -733,13 +734,16 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             router.replace('/(tabs)/properties' as any);
             return;
           }
+
+          router.replace(getDashboardRoute('provider', providerSubtype, Platform.OS === 'web' ? 'web' : 'native') as any);
+          return;
         }
       } catch {
         // ignore
       }
 
       if (isDriver) {
-        router.replace('/(tabs)/driver');
+        router.replace(getDashboardRoute('driver', null, Platform.OS === 'web' ? 'web' : 'native') as any);
       }
     })();
   }, [embeddedInTabs, isProvider, router, session?.user?.id]);

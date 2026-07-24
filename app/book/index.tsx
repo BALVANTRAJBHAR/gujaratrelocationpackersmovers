@@ -5,7 +5,8 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
@@ -253,6 +254,9 @@ export default function BookingWizardScreen() {
   const mediaViewerHeight = Math.min(screenHeight * 0.65, 520);
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const accentColor = colorScheme === 'dark' ? '#60A5FA' : '#1F4E79';
+  const onAccentTextColor = colorScheme === 'dark' ? '#0F172A' : '#FFFFFF';
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     if (loading) return;
     if (!session) {
@@ -260,11 +264,21 @@ export default function BookingWizardScreen() {
     }
   }, [loading, session, router]);
   if (loading || !session) return null;
-  const sharePdf = async (data: any) => {
+  const sharePdf = async (data: any): Promise<boolean> => {
     try {
       const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
-      await shareBookingPdf(data);
-    } catch {}
+      return await shareBookingPdf(data);
+    } catch {
+      return false;
+    }
+  };
+  const downloadPdf = async (data: any): Promise<boolean> => {
+    try {
+      const { downloadBookingPdf } = await import('@/lib/generate-booking-pdf');
+      return await downloadBookingPdf(data);
+    } catch {
+      return false;
+    }
   };
 
   const inputUi = useMemo(
@@ -279,22 +293,22 @@ export default function BookingWizardScreen() {
   const otpInputUi = useMemo(
     () => ({
       backgroundColor: theme.inputBg,
-      borderColor: '#1F4E79',
+      borderColor: accentColor,
       color: theme.inputText,
       placeholderTextColor: theme.textMuted,
       hoverStyle: {
         backgroundColor: theme.inputBg,
-        borderColor: '#1F4E79',
+        borderColor: accentColor,
         color: theme.inputText,
       } as any,
       focusStyle: {
         backgroundColor: theme.inputBg,
-        borderColor: '#1F4E79',
+        borderColor: accentColor,
         color: theme.inputText,
       } as any,
       pressStyle: {
         backgroundColor: theme.inputBg,
-        borderColor: '#1F4E79',
+        borderColor: accentColor,
         color: theme.inputText,
       } as any,
       ...(Platform.OS === 'web'
@@ -430,7 +444,10 @@ export default function BookingWizardScreen() {
   const vehicleAutoOpenedRef = useRef(false);
   const locationStepMountedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
+  const [processingOpen, setProcessingOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [bookingData, setBookingData] = useState<any>(null);
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
@@ -1007,7 +1024,7 @@ export default function BookingWizardScreen() {
     if (step === 'location') return form.pickupCoords && form.dropCoords;
     if (step === 'vehicle') return form.vehicleId && form.shiftingDate && form.preferredTime;
     if (step === 'items') return true;
-    if (step === 'payment') return form.advanceAmount > 0;
+    if (step === 'payment') return paymentMode === 'full' ? true : form.advanceAmount > 0;
     return false;
   }, [form, isEmailValid, isMobileValid, isNameValid, step]);
 
@@ -1033,6 +1050,19 @@ export default function BookingWizardScreen() {
       return;
     }
 
+    if (step === 'info') {
+      const normalized = form.mobile.replace(/\D/g, '').slice(0, 10);
+      if (normalized.length === 10 && session?.user?.id) {
+        const ownedByOther = await findExistingUserByPhone(supabase, normalized, session.user.id);
+        if (ownedByOther) {
+          setError('This mobile number is already registered with another user.');
+          return;
+        }
+      }
+      gotoStepIndex(stepIndex + 1);
+      return;
+    }
+
     if (step === 'location') {
       if (distanceKm === null) {
         setError('Distance unavailable. Please reselect pickup/drop.');
@@ -1043,10 +1073,10 @@ export default function BookingWizardScreen() {
     }
 
     if (step === 'payment') {
-      if (!Number.isFinite(form.advanceAmount) || form.advanceAmount < 500) {
-        setError('Advance amount must be at least ₹500.');
-        return;
-      }
+      // if (!Number.isFinite(form.advanceAmount) || form.advanceAmount < 500) {
+      //   setError('Advance amount must be at least ₹500.');
+      //   return;
+      // }
       setOtpDigits(['', '', '', '', '', '']);
       setOtpOpen(true);
       return;
@@ -1079,10 +1109,10 @@ export default function BookingWizardScreen() {
     if (!loadingPlaces && !placeResults.length) return null;
     return (
       <YStack gap="$2" marginTop={8}>
-        {loadingPlaces ? <Text color="#64748B">Loading suggestions…</Text> : null}
+        {loadingPlaces ? <Text color={theme.textMuted}>Loading suggestions…</Text> : null}
         {placeResults.length ? (
           <>
-            <Text fontSize={t(14)} color="#64748B">
+            <Text fontSize={t(14)} color={theme.textMuted}>
               Suggestions
             </Text>
             <YStack gap="$2">
@@ -1189,7 +1219,7 @@ export default function BookingWizardScreen() {
           delivery_otp: deliveryOtp,
           otp_verified: true,
         })
-        .select('id')
+        .select('id, booking_number')
         .single();
 
       if (insertError) {
@@ -1225,6 +1255,7 @@ export default function BookingWizardScreen() {
 
       const pdfData = {
         id: data.id,
+        booking_number: data.booking_number,
         pickup_address: form.pickupAddress,
         drop_address: form.dropAddress,
         distance_km: km,
@@ -1264,33 +1295,23 @@ export default function BookingWizardScreen() {
         created_at: new Date().toISOString(),
       };
 
+      setBookingData(pdfData);
+      setBookingId(createdBookingId);
+      setProcessingOpen(false);
+      setSuccessOpen(true);
+
       if (Platform.OS === 'web') {
-        // Web: download directly
-        await sharePdf(pdfData);
-        router.replace('/(tabs)/bookings' as any);
-      } else {
-        // Native: offer download option
-        Alert.alert('Booking Confirmed', 'Your shifting booking has been created successfully.', [
-          {
-            text: 'Go to Bookings',
-            onPress: () => router.replace('/(tabs)/bookings' as any),
-          },
-          {
-            text: 'Download Report',
-            onPress: async () => {
-              await sharePdf(pdfData);
-              router.replace('/(tabs)/bookings' as any);
-            },
-          },
-        ]);
+        await downloadPdf(pdfData);
       }
     } catch {
+      setProcessingOpen(false);
       setError('Failed to create booking.');
     } finally {
       setSubmitting(false);
     }
   };
 
+    
   const createBookingAndTakePayment = async () => {
     setError(null);
     setSubmitting(true);
@@ -1353,7 +1374,7 @@ export default function BookingWizardScreen() {
             email: form.email,
             contact: form.mobile,
           },
-          theme: { color: '#1F4E79' },
+          theme: { color: accentColor },
         };
 
         if (!options.key) {
@@ -1388,7 +1409,7 @@ export default function BookingWizardScreen() {
           drop_lat: form.dropCoords[1],
           drop_lng: form.dropCoords[0],
           distance_km: km,
-          status: 'pending',
+          status: 'confirmed',
           payment_status: 'paid',
           estimated_price: total,
           final_price: null,
@@ -1427,7 +1448,7 @@ export default function BookingWizardScreen() {
           delivery_otp: deliveryOtp,
           otp_verified: true,
         })
-        .select('id')
+        .select('id, booking_number')
         .single();
 
       if (insertError || !booking?.id) {
@@ -1509,27 +1530,19 @@ export default function BookingWizardScreen() {
         // ignore referral reward failures
       }
 
-      setBookingId(createdBookingId);
-
-      try {
-        await supabase.functions.invoke('send-booking-bill', {
-          body: { booking_id: createdBookingId },
-        });
-      } catch {
-        // ignore email failures
-      }
-
+      setError(null);
       setOtpOpen(false);
 
       const pdfData = {
         id: createdBookingId,
+        booking_number: booking.booking_number,
         pickup_address: form.pickupAddress,
         drop_address: form.dropAddress,
         distance_km: km,
         estimated_price: total,
         advance_amount: form.advanceAmount,
         remaining_amount: remainingAmount,
-        status: 'pending',
+        status: 'confirmed',
         payment_status: 'paid',
         scheduled_date: scheduledDate,
         scheduled_time: form.preferredTime,
@@ -1562,25 +1575,24 @@ export default function BookingWizardScreen() {
         created_at: new Date().toISOString(),
       };
 
+      setBookingData(pdfData);
+      setBookingId(createdBookingId);
+      setProcessingOpen(false);
+      setSuccessOpen(true);
+
       if (Platform.OS === 'web') {
-        await sharePdf(pdfData);
-        router.replace({ pathname: '/(tabs)/bookings', params: { toastBookingId: createdBookingId } } as any);
-      } else {
-        Alert.alert('Booking Confirmed', 'Your shifting booking has been created successfully.', [
-          {
-            text: 'Go to Bookings',
-            onPress: () => router.replace({ pathname: '/(tabs)/bookings', params: { toastBookingId: createdBookingId } } as any),
-          },
-          {
-            text: 'Download Report',
-            onPress: async () => {
-              await sharePdf(pdfData);
-              router.replace({ pathname: '/(tabs)/bookings', params: { toastBookingId: createdBookingId } } as any);
-            },
-          },
-        ]);
+        await downloadPdf(pdfData);
+      }
+
+      try {
+        await supabase.functions.invoke('send-booking-bill', {
+          body: { booking_id: createdBookingId },
+        });
+      } catch {
+        // ignore email failures
       }
     } catch (e) {
+      setProcessingOpen(false);
       const msg = e instanceof Error ? e.message : 'Payment cancelled/failed.';
       setError(msg.toLowerCase().includes('cancel') ? 'Payment cancelled.' : msg);
     } finally {
@@ -1596,6 +1608,7 @@ export default function BookingWizardScreen() {
     }
 
     setOtpVerifying(true);
+    setProcessingOpen(true);
     try {
       const phone = form.mobile;
       const data = await invokeEdgeFunction<{ valid?: boolean; error?: string }>('verify-booking-otp', { phone, code });
@@ -1620,6 +1633,7 @@ export default function BookingWizardScreen() {
 
       await createBookingAndTakePayment();
     } catch (e: any) {
+      setProcessingOpen(false);
       setError(e?.message ? String(e.message) : 'Failed to verify OTP.');
     } finally {
       setOtpVerifying(false);
@@ -1849,7 +1863,7 @@ export default function BookingWizardScreen() {
 
   return (
     <YStack flex={1} backgroundColor={theme.bg}>
-      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={18}>
+      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={insets.top + 16}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button
             size="$3"
@@ -1880,10 +1894,10 @@ export default function BookingWizardScreen() {
           {stepOrder.map((k, idx) => {
             const done = idx < stepIndex;
             const active = idx === stepIndex;
-            const bg = done ? theme.success : active ? '#1F4E79' : theme.border;
-            const color = done || active ? '#FFFFFF' : theme.textMuted;
+            const bg = done ? theme.success : active ? accentColor : theme.border;
+            const color = done ? '#FFFFFF' : active ? (colorScheme === 'dark' ? '#0F172A' : '#FFFFFF') : theme.textMuted;
             return (
-              <XStack key={k} flex={1} alignItems="center">
+              <XStack key={k} flex={1.6} alignItems="center">
                 <YStack alignItems="center" flex={1} gap="$1">
                   <YStack
                     width={32}
@@ -1907,7 +1921,7 @@ export default function BookingWizardScreen() {
                   </Text>
                 </YStack>
                 {idx < stepOrder.length - 1 ? (
-                  <YStack height={2} flex={1} backgroundColor={done ? theme.success : theme.border} />
+                  <YStack height={2} flex={0.6} backgroundColor={done ? theme.success : theme.border} />
                 ) : null}
               </XStack>
             );
@@ -1915,18 +1929,18 @@ export default function BookingWizardScreen() {
         </XStack>
       </YStack>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120, alignItems: 'center' }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 + insets.bottom, alignItems: 'center' }}>
         <YStack width={containerWidth} gap="$4">
           {step === 'info' ? (
             <>
               <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
                 <XStack alignItems="center" gap="$2">
-                  <Text fontSize={t(18)} fontWeight="800" color="#2d56afff">
+                  <Text fontSize={t(18)} fontWeight="800" color={theme.text}>
                     Customer Information
                   </Text>
                 </XStack>
                 <YStack gap="$2">
-                  <Text fontSize={t(14)} fontWeight="700" color="#456bbeff">
+                  <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                     Full Name *
                   </Text>
                   <Input
@@ -1936,13 +1950,13 @@ export default function BookingWizardScreen() {
                     placeholder="Enter full name"
                   />
                   {!isNameValid && form.fullName.trim() ? (
-                    <Text fontSize={t(13)} color="#991B1B">
+                    <Text fontSize={t(13)} color={theme.danger}>
                       Name must be at least 3 characters.
                     </Text>
                   ) : null}
                 </YStack>
                 <YStack gap="$2">
-                  <Text fontSize={t(14)} fontWeight="700" color="#3d5faaff">
+                  <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                     Mobile Number *
                   </Text>
                   <Input
@@ -1957,7 +1971,7 @@ export default function BookingWizardScreen() {
                     placeholder="10 digit mobile"
                   />
                   {!isMobileValid && form.mobile.trim() ? (
-                    <Text fontSize={t(13)} color="#991B1B">
+                    <Text fontSize={t(13)} color={theme.danger}>
                       Enter a valid 10 digit mobile number.
                     </Text>
                   ) : null}
@@ -1966,7 +1980,7 @@ export default function BookingWizardScreen() {
                   </Text>
                 </YStack>
                 <YStack gap="$2">
-                  <Text fontSize={t(14)} fontWeight="700" color="#3d60acff">
+                  <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                     Email (Optional)
                   </Text>
                   <Input
@@ -1978,7 +1992,7 @@ export default function BookingWizardScreen() {
                     placeholder="name@example.com"
                   />
                   {!isEmailValid && form.email.trim() ? (
-                    <Text fontSize={t(13)} color="#991B1B">
+                    <Text fontSize={t(13)} color={theme.danger}>
                       Enter a valid email address.
                     </Text>
                   ) : null}
@@ -1986,24 +2000,26 @@ export default function BookingWizardScreen() {
               </YStack>
 
               <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-                <Text fontSize={t(18)} fontWeight="800" color="#3c5ea8ff">
+                <Text fontSize={t(18)} fontWeight="800" color={theme.text}>
                   Type of Shifting
                 </Text>
-                <XStack flexWrap="wrap" gap="$3" justifyContent="space-between">
+                <XStack flexWrap="wrap" gap="$3" justifyContent="center">
                   {MOVE_TYPES.map((moveType) => {
                     const selected = form.moveType === moveType.key;
                     return (
                       <Pressable
                         key={moveType.key}
                         onPress={() => setForm((p) => ({ ...p, moveType: moveType.key }))}
-                        style={{ width: isWide ? '32%' : '48%' }}>
+                        style={{ width: isWide ? '30%' : '46%' }}>
                         <YStack
-                          backgroundColor={selected ? theme.bgSecondary : theme.bgCard}
+                          backgroundColor={selected ? (colorScheme === 'dark' ? '#1E3A5F' : '#DBEAFE') : theme.bgCard}
                           borderRadius={14}
                           padding={14}
                           borderWidth={2}
-                          borderColor={selected ? '#1F4E79' : theme.border}
-                          gap="$1">
+                          borderColor={selected ? (colorScheme === 'dark' ? '#60A5FA' : accentColor) : theme.border}
+                          gap="$1"
+                          height={90}
+                          justifyContent="center">
                           <Text fontWeight="800" color={theme.text}>
                             {moveType.title}
                           </Text>
@@ -2021,12 +2037,12 @@ export default function BookingWizardScreen() {
 
           {step === 'location' ? (
             <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={t(18)} fontWeight="800" color="#355cafff">
+              <Text fontSize={t(18)} fontWeight="800" color={theme.text}>
                 Location
               </Text>
 
               <YStack gap="$3">
-                <Text fontSize={t(15)} fontWeight="800" color="#335aadff">
+                <Text fontSize={t(15)} fontWeight="800" color={theme.text}>
                   Pickup Address
                 </Text>
                 <XStack gap="$2" alignItems="center">
@@ -2058,7 +2074,7 @@ export default function BookingWizardScreen() {
 
                 <XStack gap="$3" flexWrap="wrap">
                   <YStack flex={1} minWidth={220} gap="$2">
-                    <Text fontSize={t(14)} fontWeight="700" color="#3c5facff">
+                    <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                       Floor
                     </Text>
                     <Pressable
@@ -2075,14 +2091,14 @@ export default function BookingWizardScreen() {
                       </YStack>
                     </Pressable>
                     {floorError ? (
-                      <Text fontSize={t(13)} color="#991B1B">
+                      <Text fontSize={t(13)} color={theme.danger}>
                         {floorError}
                       </Text>
                     ) : null}
                   </YStack>
                   {!isGroundFloor(form.pickupFloor) ? (
                     <YStack flex={1} minWidth={220} gap="$2">
-                      <Text fontSize={t(14)} fontWeight="700" color="#4062acff">
+                      <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                         Lift
                       </Text>
                       <Pressable onPress={() => setForm((p) => ({ ...p, pickupLift: !p.pickupLift }))}>
@@ -2096,7 +2112,7 @@ export default function BookingWizardScreen() {
                           justifyContent="center"
                           flexDirection="row"
                           alignItems="center">
-                          <Text fontWeight="700" color="#3d5ea5ff">
+                          <Text fontWeight="700" color={theme.text}>
                             Lift Available?
                           </Text>
                           <YStack
@@ -2122,7 +2138,7 @@ export default function BookingWizardScreen() {
 
                 <YStack height={1} backgroundColor={theme.bgSecondary} marginVertical={8} />
 
-                <Text fontSize={t(15)} fontWeight="800" color="#4163adff">
+                <Text fontSize={t(15)} fontWeight="800" color={theme.text}>
                   Drop Address
                 </Text>
                 <XStack gap="$2" alignItems="center">
@@ -2153,7 +2169,7 @@ export default function BookingWizardScreen() {
 
                 <XStack gap="$3" flexWrap="wrap">
                   <YStack flex={1} minWidth={220} gap="$2">
-                    <Text fontSize={t(14)} fontWeight="700" color="#4163adff">
+                    <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                       Floor
                     </Text>
                     <Pressable
@@ -2172,7 +2188,7 @@ export default function BookingWizardScreen() {
                   </YStack>
                   {!isGroundFloor(form.dropFloor) ? (
                     <YStack flex={1} minWidth={220} gap="$2">
-                      <Text fontSize={t(14)} fontWeight="700" color="#4163adff">
+                      <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                         Lift
                       </Text>
                       <Pressable onPress={() => setForm((p) => ({ ...p, dropLift: !p.dropLift }))}>
@@ -2186,7 +2202,7 @@ export default function BookingWizardScreen() {
                           justifyContent="center"
                           flexDirection="row"
                           alignItems="center">
-                          <Text fontWeight="700" color="#4163adff">
+                          <Text fontWeight="700" color={theme.text}>
                             Lift Available?
                           </Text>
                           <YStack
@@ -2211,8 +2227,8 @@ export default function BookingWizardScreen() {
                 </XStack>
 
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color="#64748B">Distance</Text>
-                  <Text fontWeight="800" color="#4163adff">
+                  <Text color={theme.textMuted}>Distance</Text>
+                  <Text fontWeight="800" color={theme.text}>
                     {distanceKm === null ? '—' : `${distanceKm.toFixed(1)} km`}
                   </Text>
                 </XStack>
@@ -2238,14 +2254,14 @@ export default function BookingWizardScreen() {
 
           <Dialog open={floorPickerOpen} onOpenChange={setFloorPickerOpen}>
             <Dialog.Portal>
-              <Dialog.Overlay opacity={0.6} backgroundColor="#6289e4ff" />
+              <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
               <Dialog.Content
                 backgroundColor={theme.bgCard}
                 borderRadius={16}
                 padding={16}
                 width={isWide ? 520 : '92%'}>
                 <YStack gap="$3">
-                  <Text fontSize={t(18)} fontWeight="900" color="#3a5fafff">
+                  <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
                     Select Floor — {floorPickerTarget === 'pickup' ? 'Pickup' : 'Drop'}
                   </Text>
                   {loadingFloors ? <Text color={theme.textMuted}>Loading floors…</Text> : null}
@@ -2265,7 +2281,7 @@ export default function BookingWizardScreen() {
                         return (
                           <Button
                             key={String(opt.id)}
-                            backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
+                            backgroundColor={selected ? accentColor : theme.bgSecondary}
                             color={selected ? '#FFFFFF' : '#4163adff'}
                             borderWidth={1}
                             borderColor={theme.border}
@@ -2278,7 +2294,7 @@ export default function BookingWizardScreen() {
                       })}
                     </YStack>
                   </ScrollView>
-                  <Button backgroundColor={theme.bgSecondary} color="#4163adff" onPress={() => setFloorPickerOpen(false)}>
+                  <Button backgroundColor={theme.bgSecondary} color={theme.text} onPress={() => setFloorPickerOpen(false)}>
                     Close
                   </Button>
                 </YStack>
@@ -2289,16 +2305,16 @@ export default function BookingWizardScreen() {
           {step === 'vehicle' ? (
             <>
               <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-                <Text fontSize={t(18)} fontWeight="800" color="#4163adff">
+                <Text fontSize={t(18)} fontWeight="800" color={theme.text}>
                   Select Vehicle
                 </Text>
 
                 <YStack gap="$3">
-                  {loadingVehicles ? <Text color="#64748B">Loading vehicles…</Text> : null}
-                  {vehicleError ? <Text color="#991B1B">{vehicleError}</Text> : null}
+                  {loadingVehicles ? <Text color={theme.textMuted}>Loading vehicles…</Text> : null}
+                  {vehicleError ? <Text color={theme.danger}>{vehicleError}</Text> : null}
 
                   <YStack gap="$2">
-                    <Text fontSize={t(14)} fontWeight="700" color="#4163adff">
+                    <Text fontSize={t(14)} fontWeight="700" color={theme.text}>
                       Selected Vehicle
                     </Text>
                     <Pressable onPress={() => setVehiclePickerOpen(true)}>
@@ -2320,7 +2336,7 @@ export default function BookingWizardScreen() {
                   <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
                   <Dialog.Content backgroundColor={theme.bgCard} borderRadius={16} padding={16} width={isWide ? 620 : '92%'}>
                     <YStack gap="$3">
-                      <Text fontSize={t(18)} fontWeight="900" color="#4163adff">
+                      <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
                         Select Vehicle
                       </Text>
                       <YStack gap="$2">
@@ -2340,7 +2356,7 @@ export default function BookingWizardScreen() {
                                 backgroundColor={theme.bgCard}
                                 borderRadius={14}
                                 borderWidth={2}
-                                borderColor={selected ? '#1F4E79' : theme.border}
+                                borderColor={selected ? accentColor : theme.border}
                                 padding={14}
                                 gap="$2">
                                 <XStack gap="$3" alignItems="center">
@@ -2356,7 +2372,7 @@ export default function BookingWizardScreen() {
                                       borderColor={theme.border}
                                       alignItems="center"
                                       justifyContent="center">
-                                      <Text color="#64748B" fontSize={t(12)} fontWeight="700">
+                                      <Text color={theme.textMuted} fontSize={t(12)} fontWeight="700">
                                         NO IMAGE
                                       </Text>
                                     </YStack>
@@ -2366,15 +2382,15 @@ export default function BookingWizardScreen() {
                                     <Text fontWeight="900" color={theme.text}>
                                       {v.name}
                                     </Text>
-                                    <Text fontSize={t(13)} color="#64748B" numberOfLines={2}>
+                                    <Text fontSize={t(13)} color={theme.textMuted} numberOfLines={2}>
                                       {v.description ?? 'Premium moving vehicle'}
                                     </Text>
-                                    <Text fontSize={t(13)} color="#64748B">
+                                    <Text fontSize={t(13)} color={theme.textMuted}>
                                       {v.capacity ?? '—'}
                                     </Text>
-                                    <Text fontWeight="900" color="#1F4E79">
+                                    <Text fontWeight="900" color={accentColor}>
                                       {currency(baseFare)}{' '}
-                                      <Text color="#64748B" fontWeight="600">
+                                      <Text color={theme.textMuted} fontWeight="600">
                                         + {currency(perKm)}/km
                                       </Text>
                                     </Text>
@@ -2385,15 +2401,15 @@ export default function BookingWizardScreen() {
                                       width={22}
                                       height={22}
                                       borderRadius={999}
-                                      backgroundColor="#1F4E79"
+                                      backgroundColor={accentColor}
                                       alignItems="center"
                                       justifyContent="center">
-                                      <Text color="#FFFFFF" fontWeight="900">
+                                      <Text color={onAccentTextColor} fontWeight="900">
                                         ✓
                                       </Text>
                                     </YStack>
                                   ) : (
-                                    <YStack width={22} height={22} borderRadius={999} borderWidth={2} borderColor="#CBD5E1" />
+                                    <YStack width={22} height={22} borderRadius={999} borderWidth={2} borderColor={theme.border} />
                                   )}
                                 </XStack>
                               </YStack>
@@ -2428,7 +2444,7 @@ export default function BookingWizardScreen() {
                         />
                       </YStack>
                     </Pressable>
-                    <Text fontSize={t(13)} color="#64748B">
+                    <Text fontSize={t(13)} color={theme.textMuted}>
                       Charges will be calculated automatically.
                     </Text>
                   </YStack>
@@ -2498,7 +2514,7 @@ export default function BookingWizardScreen() {
                       return (
                         <Button
                           key={n}
-                          backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
+                          backgroundColor={selected ? accentColor : theme.bgSecondary}
                           color={selected ? '#FFFFFF' : theme.text}
                           borderWidth={1}
                           borderColor={theme.border}
@@ -2537,10 +2553,10 @@ export default function BookingWizardScreen() {
                       return (
                         <Button
                           key={slot}
-                          backgroundColor={selected ? '#1F4E79' : theme.bgSecondary}
+                          backgroundColor={selected ? accentColor : theme.bgSecondary}
                           color={selected ? '#FFFFFF' : theme.text}
                           borderWidth={1}
-                          borderColor={selected ? '#1F4E79' : theme.border}
+                          borderColor={selected ? accentColor : theme.border}
                           borderRadius={12}
                           paddingHorizontal={16}
                           paddingVertical={10}
@@ -2568,17 +2584,17 @@ export default function BookingWizardScreen() {
                 Items
               </Text>
               <YStack gap="$3">
-                <YStack borderWidth={2} borderStyle="dashed" borderColor="#CBD5E1" borderRadius={14} padding={18} alignItems="center" gap="$2">
-                  <Text color="#64748B" fontWeight="700">
+                <YStack borderWidth={2} borderStyle="dashed" borderColor={theme.border} borderRadius={14} padding={18} alignItems="center" gap="$2">
+                  <Text color={theme.textMuted} fontWeight="700">
                     Upload Photos of Items
                   </Text>
                   <Text color={theme.textMuted} fontSize={t(13)}>
                     Max 10 photos · Compressed to ~500 KB each
                   </Text>
-                  <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={pickPhotos}>
+                  <Button backgroundColor={accentColor} color={onAccentTextColor} hoverStyle={{ backgroundColor: accentColor }} pressStyle={{ backgroundColor: accentColor }} onPress={pickPhotos}>
                     Add Photos
                   </Button>
-                  <Text color="#64748B" fontSize={t(13)}>
+                  <Text color={theme.textMuted} fontSize={t(13)}>
                     Selected: {form.photos.length}/10
                   </Text>
                   {form.photos.length ? (
@@ -2601,17 +2617,17 @@ export default function BookingWizardScreen() {
                   ) : null}
                 </YStack>
 
-                <YStack borderWidth={2} borderStyle="dashed" borderColor="#CBD5E1" borderRadius={14} padding={18} alignItems="center" gap="$2">
-                  <Text color="#64748B" fontWeight="700">
+                <YStack borderWidth={2} borderStyle="dashed" borderColor={theme.border} borderRadius={14} padding={18} alignItems="center" gap="$2">
+                  <Text color={theme.textMuted} fontWeight="700">
                     Upload Video (Optional)
                   </Text>
                   <Text color={theme.textMuted} fontSize={t(13)}>
                     Max 2 videos, {MAX_VIDEO_DURATION_SEC} sec each · Compressed to ~5 MB
                   </Text>
-                  <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={pickVideo}>
+                  <Button backgroundColor={accentColor} color={onAccentTextColor} hoverStyle={{ backgroundColor: accentColor }} pressStyle={{ backgroundColor: accentColor }} onPress={pickVideo}>
                     Add Video
                   </Button>
-                  <Text color="#64748B" fontSize={t(13)}>
+                  <Text color={theme.textMuted} fontSize={t(13)}>
                     Selected: {form.videos.length}/2
                   </Text>
                   {form.videos.length ? (
@@ -2680,8 +2696,8 @@ export default function BookingWizardScreen() {
                   />
                 </YStack>
 
-                <YStack backgroundColor="#FEF9C3" borderRadius={12} padding={12} borderWidth={1} borderColor="#F59E0B">
-                  <Text color="#92400E" fontWeight="800">
+                <YStack backgroundColor={colorScheme === 'dark' ? '#422006' : '#FEF9C3'} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.warning}>
+                  <Text color={colorScheme === 'dark' ? '#FDE68A' : '#92400E'} fontWeight="800">
                     Upload clear photos/videos of your items for accurate vehicle recommendation and price estimation.
                   </Text>
                 </YStack>
@@ -2697,38 +2713,38 @@ export default function BookingWizardScreen() {
                 </Text>
                 <YStack gap="$2">
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Pickup</Text>
+                    <Text color={theme.textMuted}>Pickup</Text>
                     <Text fontWeight="800" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                       {form.pickupAddress || '-'}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Drop</Text>
+                    <Text color={theme.textMuted}>Drop</Text>
                     <Text fontWeight="800" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                       {form.dropAddress || '-'}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Date & Time</Text>
+                    <Text color={theme.textMuted}>Date & Time</Text>
                     <Text fontWeight="800" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                       {(form.shiftingDate || '-') + (form.preferredTime ? ` at ${form.preferredTime}` : '')}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Vehicle</Text>
+                    <Text color={theme.textMuted}>Vehicle</Text>
                     <Text fontWeight="800" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                       {selectedVehicle?.name ?? '-'}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text color="#64748B">Laborers</Text>
+                    <Text color={theme.textMuted}>Laborers</Text>
                     <Text fontWeight="800" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                       {form.laborers} worker
                     </Text>
                   </XStack>
                   {form.itemDescription?.trim() ? (
                     <XStack justifyContent="space-between" alignItems="flex-start" gap="$2">
-                      <Text color="#64748B">Items note</Text>
+                      <Text color={theme.textMuted}>Items note</Text>
                       <Text fontWeight="700" color={theme.text} textAlign="right" flexShrink={1} maxWidth="70%">
                         {form.itemDescription.trim()}
                       </Text>
@@ -2738,7 +2754,7 @@ export default function BookingWizardScreen() {
 
                 {summaryMediaList.length > 0 ? (
                   <YStack gap="$2" marginTop={4}>
-                    <Text color="#64748B" fontSize={t(14)} fontWeight="700">
+                    <Text color={theme.textMuted} fontSize={t(14)} fontWeight="700">
                       Photos & Videos ({summaryMediaList.length})
                     </Text>
                     <Text color={theme.textMuted} fontSize={t(13)}>
@@ -2791,7 +2807,7 @@ export default function BookingWizardScreen() {
                 <XStack gap="$2">
                   <Button
                     flex={1}
-                    backgroundColor={paymentMode === 'advance' ? '#1F4E79' : theme.bgSecondary}
+                    backgroundColor={paymentMode === 'advance' ? accentColor : theme.bgSecondary}
                     color={paymentMode === 'advance' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={theme.border}
@@ -2801,7 +2817,7 @@ export default function BookingWizardScreen() {
                   </Button>
                   <Button
                     flex={1}
-                    backgroundColor={paymentMode === 'full' ? '#1F4E79' : theme.bgSecondary}
+                    backgroundColor={paymentMode === 'full' ? accentColor : theme.bgSecondary}
                     color={paymentMode === 'full' ? '#FFFFFF' : theme.text}
                     borderWidth={1}
                     borderColor={theme.border}
@@ -2810,7 +2826,7 @@ export default function BookingWizardScreen() {
                     Full Payment
                   </Button>
                 </XStack>
-                <Text fontSize={t(13)} color="#64748B">
+                <Text fontSize={t(13)} color={theme.textMuted}>
                   Default: Advance
                 </Text>
               </YStack>
@@ -2833,12 +2849,12 @@ export default function BookingWizardScreen() {
                 </XStack>
 
                 {couponApplied ? (
-                  <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor={theme.success}>
-                    <Text color="#166534" fontWeight="800">
+                  <YStack backgroundColor={theme.couponBg} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.success}>
+                    <Text color={theme.couponText} fontWeight="800">
                       Applied: {couponApplied.code}
                     </Text>
                     {couponApplied.title ? (
-                      <Text color="#166534" fontSize={t(14)}>
+                      <Text color={theme.couponText} fontSize={t(14)}>
                         {couponApplied.title}
                       </Text>
                     ) : null}
@@ -2852,7 +2868,7 @@ export default function BookingWizardScreen() {
                     <Text fontSize={t(16)} fontWeight="800" color={theme.text}>
                       Wallet Balance
                     </Text>
-                    <Text fontSize={t(16)} fontWeight="900" color="#16A34A">
+                    <Text fontSize={t(16)} fontWeight="900" color={theme.success}>
                       ₹{walletBalance.toLocaleString('en-IN')}
                     </Text>
                   </XStack>
@@ -2879,7 +2895,7 @@ export default function BookingWizardScreen() {
                   </XStack>
                   {walletAmount > 0 ? (
                     <XStack justifyContent="space-between">
-                      <Text fontSize={t(14)} color="#64748B">Using Wallet</Text>
+                      <Text fontSize={t(14)} color={theme.textMuted}>Using Wallet</Text>
                       <Text fontSize={t(14)} fontWeight="800" color={theme.text}>- ₹{walletAmount.toLocaleString('en-IN')}</Text>
                     </XStack>
                   ) : null}
@@ -2892,29 +2908,29 @@ export default function BookingWizardScreen() {
                 </Text>
                 <YStack gap="$2">
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(14)} color="#64748B">Base Fare</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>Base Fare</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(vehiclePricing?.baseFare ?? 0)}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(14)} color="#64748B">Distance ({distanceKm ? Math.round(distanceKm) : 0} km)</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>Distance ({distanceKm ? Math.round(distanceKm) : 0} km)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency((distanceKm ?? 0) * (vehiclePricing?.perKm ?? 0))}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(14)} color="#64748B">Floor charges</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>Floor charges</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(pickupFloorCharge + dropFloorCharge)}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(14)} color="#64748B">Labor ({form.laborers} Worker)</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>Labor ({form.laborers} Worker)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(form.laborers * (vehiclePricing?.laborUnit ?? 0))}</Text>
                   </XStack>
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(14)} color="#64748B">GST (18%)</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>GST (18%)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(gst)}</Text>
                   </XStack>
 
                   {discountAmount > 0 ? (
                     <XStack justifyContent="space-between">
-                      <Text fontSize={t(14)} color="#64748B">Discount</Text>
+                      <Text fontSize={t(14)} color={theme.textMuted}>Discount</Text>
                       <Text fontSize={t(14)} fontWeight="800" color={theme.text}>- {currency(discountAmount)}</Text>
                     </XStack>
                   ) : null}
@@ -2925,8 +2941,8 @@ export default function BookingWizardScreen() {
                   </XStack>
 
                   <XStack justifyContent="space-between" marginTop={6}>
-                    <Text fontSize={t(14)} color="#64748B">Advance Payment</Text>
-                    <Text fontSize={t(14)} fontWeight="800" color="#16A34A">
+                    <Text fontSize={t(14)} color={theme.textMuted}>Advance Payment</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.success}>
                       - {currency(form.advanceAmount)}
                     </Text>
                   </XStack>
@@ -2943,12 +2959,12 @@ export default function BookingWizardScreen() {
                     Select Advance Amount
                   </Text>
                   <XStack gap="$2" flexWrap="wrap">
-                    {[500, 1000, 2000].map((amt) => (
+                    {[100, 200, 500, 1000, 2000, 5000].filter((amt) => amt <= Math.round(total)).map((amt) => (
                       <Button
                         key={amt}
-                        backgroundColor={form.advanceAmount === amt ? '#1F4E79' : 'transparent'}
+                        backgroundColor={form.advanceAmount === amt ? accentColor : 'transparent'}
                         borderWidth={2}
-                        borderColor={form.advanceAmount === amt ? '#1F4E79' : theme.border}
+                        borderColor={form.advanceAmount === amt ? accentColor : theme.border}
                         color={form.advanceAmount === amt ? '#FFFFFF' : theme.text}
                         onPress={() => {
                           setIsCustomAdvance(false);
@@ -2958,9 +2974,9 @@ export default function BookingWizardScreen() {
                       </Button>
                     ))}
                     <Button
-                      backgroundColor={form.advanceAmount > 2000 ? '#1F4E79' : 'transparent'}
+                      backgroundColor={form.advanceAmount > 2000 ? accentColor : 'transparent'}
                       borderWidth={2}
-                      borderColor={form.advanceAmount > 2000 ? '#1F4E79' : theme.border}
+                      borderColor={form.advanceAmount > 2000 ? accentColor : theme.border}
                       color={form.advanceAmount > 2000 ? '#FFFFFF' : theme.text}
                       onPress={() => {
                         setIsCustomAdvance(true);
@@ -2987,7 +3003,7 @@ export default function BookingWizardScreen() {
                           setForm((p) => ({ ...p, advanceAmount: parsed }));
                         }}
                       />
-                      <Text fontSize={t(13)} color="#64748B">
+                      <Text fontSize={t(13)} color={theme.textMuted}>
                         Only numbers. Minimum ₹500.
                       </Text>
                     </YStack>
@@ -3033,11 +3049,11 @@ export default function BookingWizardScreen() {
                   Payment Method
                 </Text>
 
-                <YStack backgroundColor="#DCFCE7" borderRadius={14} padding={14} borderWidth={1} borderColor={theme.success}>
-                  <Text color="#166534" fontWeight="900">
+                <YStack backgroundColor={theme.couponBg} borderRadius={14} padding={14} borderWidth={1} borderColor={theme.success}>
+                  <Text color={theme.couponText} fontWeight="900">
                     100% Secure Payment
                   </Text>
-                  <Text color="#166534" fontSize={t(14)}>
+                  <Text color={theme.couponText} fontSize={t(14)}>
                     Your payment is protected with bank-grade security
                   </Text>
                 </YStack>
@@ -3046,63 +3062,132 @@ export default function BookingWizardScreen() {
           ) : null}
 
           {error ? (
-            <YStack backgroundColor="#FEE2E2" borderRadius={12} padding={12} borderWidth={1} borderColor="#FCA5A5">
-              <Text color="#991B1B" fontWeight="800">
+            <YStack backgroundColor={colorScheme === 'dark' ? '#450A0A' : '#FEE2E2'} borderRadius={12} padding={12} borderWidth={1} borderColor={colorScheme === 'dark' ? '#EF4444' : '#FCA5A5'}>
+              <Text color={theme.danger} fontWeight="800">
                 {error}
               </Text>
             </YStack>
           ) : null}
 
           {bookingId ? (
-            <YStack backgroundColor="#DCFCE7" borderRadius={12} padding={12} borderWidth={1} borderColor={theme.success}>
-              <Text color="#166534" fontWeight="900">
-                Booking created: {bookingId}
+            <YStack backgroundColor={theme.couponBg} borderRadius={14} padding={20} borderWidth={2} borderColor={theme.success} gap="$4" alignItems="center">
+              <Text fontSize={t(28)}>✅</Text>
+              <Text color={theme.couponText} fontSize={t(18)} fontWeight="900" textAlign="center">
+                Booking Confirmed!
               </Text>
+              <Text color={theme.couponText} fontSize={t(14)} textAlign="center" lineHeight={20}>
+                Your shifting booking has been created successfully.
+              </Text>
+              <YStack backgroundColor="#FFFFFF" borderRadius={10} padding={12} width="100%">
+                <Text color="#6B7280" fontSize={t(12)}>Booking ID</Text>
+                <Text color="#111827" fontSize={t(14)} fontWeight="700" selectable>{bookingId}</Text>
+              </YStack>
+              <XStack gap="$3" width="100%">
+                <Button
+                  flex={1}
+                  backgroundColor={accentColor}
+                  color={onAccentTextColor}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={async () => {
+                    if (bookingData) {
+                      const { downloadBookingPdf } = await import('@/lib/generate-booking-pdf');
+                      await downloadBookingPdf(bookingData);
+                    }
+                  }}>
+                  Download PDF
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={theme.bgCard}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  color={theme.text}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={async () => {
+                    if (bookingData) {
+                      const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
+                      await shareBookingPdf(bookingData);
+                    }
+                  }}>
+                  Share PDF
+                </Button>
+              </XStack>
+              <XStack gap="$3" width="100%">
+                <Button
+                  flex={1}
+                  backgroundColor={theme.bgCard}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  color={theme.text}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={() => router.replace('/' as any)}>
+                  Home
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={accentColor}
+                  color={onAccentTextColor}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={() => router.replace({ pathname: '/(tabs)/bookings', params: { toastBookingId: bookingId } } as any)}>
+                  View Booking
+                </Button>
+              </XStack>
             </YStack>
           ) : null}
         </YStack>
       </ScrollView>
 
-      <YStack
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        backgroundColor={theme.bgCard}
-        borderTopWidth={1}
-        borderTopColor={theme.border}
-        padding={12}>
-        <XStack gap="$3" justifyContent="space-between" alignItems="center" alignSelf="center" width={containerWidth}>
-          <Button
-            flex={1}
-            backgroundColor={theme.bgCard}
-            borderWidth={1}
-            borderColor={theme.border}
-            color={theme.text}
-            borderRadius={12}
-            onPress={handleBack}
-            disabled={false}>
-            Back
-          </Button>
-          <Button
-            flex={1.2}
-            backgroundColor={canContinue ? '#1F4E79' : theme.textMuted}
-            color="#FFFFFF"
-            borderRadius={12}
-            onPress={handleContinue}
-            disabled={!canContinue}>
-            {step === 'payment' ? 'Pay Online' : 'Continue'}
-          </Button>
-        </XStack>
-      </YStack>
+      {!bookingId ? (
+        <YStack
+          position="absolute"
+          bottom={0}
+          left={0}
+          right={0}
+          backgroundColor={theme.bgCard}
+          borderTopWidth={1}
+          borderTopColor={theme.border}
+          padding={12}
+          paddingBottom={insets.bottom + 12}>
+          <XStack gap="$3" justifyContent="space-between" alignItems="center" alignSelf="center" width={containerWidth}>
+            <Button
+              flex={1}
+              backgroundColor={theme.bgCard}
+              borderWidth={1}
+              borderColor={theme.border}
+              color={theme.text}
+              borderRadius={12}
+              onPress={handleBack}
+              disabled={false}>
+              Back
+            </Button>
+            <Button
+              flex={1.2}
+              backgroundColor={canContinue ? accentColor : theme.textMuted}
+              color={onAccentTextColor}
+              borderRadius={12}
+              onPress={handleContinue}
+              disabled={!canContinue}>
+              {step === 'payment' ? 'Pay Online' : 'Continue'}
+            </Button>
+          </XStack>
+        </YStack>
+      ) : null}
 
       <Dialog open={otpOpen} onOpenChange={setOtpOpen}>
         <Dialog.Portal>
           <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
           <Dialog.Content width={isWide ? 520 : '92%'} borderRadius={18} backgroundColor={theme.bgCard} padding={18}>
             <YStack gap="$3" alignItems="center">
-              <YStack width={72} height={72} borderRadius={999} backgroundColor="#1F4E79" alignItems="center" justifyContent="center">
-                <Text color="#FFFFFF" fontSize={t(30)} fontWeight="900">
+              <YStack width={72} height={72} borderRadius={999} backgroundColor={accentColor} alignItems="center" justifyContent="center">
+                <Text color={onAccentTextColor} fontSize={t(30)} fontWeight="900">
                   🔒
                 </Text>
               </YStack>
@@ -3126,19 +3211,20 @@ export default function BookingWizardScreen() {
                 ) : null}
               </YStack>
 
-              <XStack gap="$1.5" justifyContent="center" flexWrap="wrap">
+              <XStack gap="$1.5" justifyContent="center" alignItems="center" width="100%" flexWrap="nowrap">
                 {otpDigits.map((d, i) => (
                   <Input
                     key={i}
                     {...otpInputUi}
                     value={d}
                     keyboardType="number-pad"
-                    maxLength={6}
-                    width={42}
+                    maxLength={1}
+                    width={50}
                     height={54}
                     textAlign="center"
                     fontSize={t(18)}
                     fontWeight="900"
+                    padding={0}
                     borderWidth={2}
                     borderRadius={10}
                     ref={(r: any) => {
@@ -3190,7 +3276,8 @@ export default function BookingWizardScreen() {
 
               <Button
                 chromeless
-                color="#1F4E79"
+                color={accentColor}
+                marginTop={8}
                 onPress={sendOtp}
                 disabled={otpSending || otpVerifying || submitting}>
                 {otpSending ? 'Sending…' : 'Resend OTP'}
@@ -3235,15 +3322,135 @@ export default function BookingWizardScreen() {
                 </Button>
                 <Button
                   flex={1}
-                  backgroundColor="#1F4E79"
-                  color="#FFFFFF"
+                  backgroundColor={accentColor}
+                  color={onAccentTextColor}
                   borderRadius={12}
-                  hoverStyle={{ backgroundColor: '#1F4E79' } as any}
-                  focusStyle={{ backgroundColor: '#1F4E79' } as any}
-                  pressStyle={{ backgroundColor: '#1F4E79' } as any}
+                  hoverStyle={{ backgroundColor: accentColor } as any}
+                  focusStyle={{ backgroundColor: accentColor } as any}
+                  pressStyle={{ backgroundColor: accentColor } as any}
                   onPress={verifyOtpAndPay}
                   disabled={submitting || otpSending || otpVerifying}>
                   {otpVerifying ? 'Verifying…' : otpSending ? 'Sending…' : 'Verify & Pay'}
+                </Button>
+              </XStack>
+            </YStack>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
+
+      <Dialog open={processingOpen} onOpenChange={setProcessingOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
+          <Dialog.Content width={isWide ? 400 : '85%'} borderRadius={18} backgroundColor={theme.bgCard} padding={28}>
+            <YStack gap="$4" alignItems="center">
+              <YStack width={80} height={80} borderRadius={999} backgroundColor={accentColor} alignItems="center" justifyContent="center">
+                <ActivityIndicator size="large" color={onAccentTextColor} />
+              </YStack>
+              <Text color={theme.text} fontSize={t(18)} fontWeight="900" textAlign="center">
+                Processing Payment
+              </Text>
+              <Text color={theme.textMuted} fontSize={t(14)} textAlign="center">
+                Please wait while we process your payment and confirm your booking...
+              </Text>
+              <YStack width="100%" height={6} borderRadius={3} backgroundColor={theme.border} overflow="hidden">
+                <YStack width="100%" height={6} borderRadius={3} backgroundColor="#22C55E" animation="lazy">
+                  <YStack
+                    position="absolute"
+                    width="30%"
+                    height={6}
+                    borderRadius={3}
+                    backgroundColor={theme.success}
+                    animation={undefined}
+                  />
+                </YStack>
+              </YStack>
+            </YStack>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
+
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay opacity={0.6} backgroundColor="#0F172A" />
+          <Dialog.Content width={isWide ? 480 : '92%'} borderRadius={18} backgroundColor={theme.bgCard} padding={24}>
+            <YStack gap="$4" alignItems="center">
+              <YStack width={72} height={72} borderRadius={999} backgroundColor={theme.couponBg} alignItems="center" justifyContent="center">
+                <Text fontSize={t(36)}>✅</Text>
+              </YStack>
+              <Text color={theme.text} fontSize={t(20)} fontWeight="900" textAlign="center">
+                Booking Confirmed!
+              </Text>
+              <Text color={theme.textMuted} fontSize={t(14)} textAlign="center" lineHeight={20}>
+                Your shifting booking has been created successfully.
+              </Text>
+              <YStack backgroundColor={theme.inputBg} borderRadius={10} padding={14} width="100%">
+                <Text color={theme.textMuted} fontSize={t(12)}>Booking ID</Text>
+                <Text color={theme.text} fontSize={t(14)} fontWeight="700" selectable>
+                  {bookingId}
+                </Text>
+              </YStack>
+              <XStack gap="$3" width="100%">
+                <Button
+                  flex={1}
+                  backgroundColor={accentColor}
+                  color={onAccentTextColor}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={async () => {
+                    if (bookingData) {
+                      const { downloadBookingPdf } = await import('@/lib/generate-booking-pdf');
+                      await downloadBookingPdf(bookingData);
+                    }
+                  }}>
+                  Download PDF
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={theme.bgCard}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  color={theme.text}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={async () => {
+                    if (bookingData) {
+                      const { shareBookingPdf } = await import('@/lib/generate-booking-pdf');
+                      await shareBookingPdf(bookingData);
+                    }
+                  }}>
+                  Share PDF
+                </Button>
+              </XStack>
+              <XStack gap="$3" width="100%">
+                <Button
+                  flex={1}
+                  backgroundColor={theme.bgCard}
+                  borderWidth={1}
+                  borderColor={theme.border}
+                  color={theme.text}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={() => {
+                    setSuccessOpen(false);
+                    router.replace('/' as any);
+                  }}>
+                  Home
+                </Button>
+                <Button
+                  flex={1}
+                  backgroundColor={accentColor}
+                  color={onAccentTextColor}
+                  borderRadius={12}
+                  minHeight={48}
+                  fontWeight="700"
+                  onPress={() => {
+                    setSuccessOpen(false);
+                    router.replace({ pathname: '/(tabs)/bookings', params: { toastBookingId: bookingId } } as any);
+                  }}>
+                  View Booking
                 </Button>
               </XStack>
             </YStack>
@@ -3323,7 +3530,7 @@ export default function BookingWizardScreen() {
                 </Button>
               </XStack>
             ) : null}
-            <Text color="#CBD5E1" fontSize={t(15)} fontWeight="700" marginTop={14}>
+            <Text color={theme.border} fontSize={t(15)} fontWeight="700" marginTop={14}>
               {mediaViewerIndex + 1} / {mediaViewerList.length}
               {mediaViewerList[mediaViewerIndex]?.type === 'photo' ? ' · Photo' : ''}
               {mediaViewerList[mediaViewerIndex]?.type === 'video' ? ' · Video' : ''}

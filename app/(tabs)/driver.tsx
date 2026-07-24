@@ -60,7 +60,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
       const { data, error: fetchError } = await supabase
         .from('bookings')
         .select(
-          'id, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, user:users!user_id(name, phone)'
+          'id, booking_number, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, user:users!user_id(name, phone)'
         )
         .eq('driver_id', userId)
         .order('created_at', { ascending: false })
@@ -165,7 +165,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
 
   const canSetPickupReached = (status: string | null) => {
     const s = String(status ?? '').trim();
-    return s === 'assigned' || s === 'pending' || s === 'not_started' || s === '';
+    return s === 'assigned' || s === 'pending' || s === 'confirmed' || s === 'not_started' || s === '';
   };
 
   const canSetInTransit = (status: string | null) => {
@@ -422,7 +422,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                     <XStack justifyContent="space-between" alignItems="flex-start" gap="$2" flexWrap="wrap">
                       <YStack flex={1} gap="$1">
                         <Text color={theme.text} fontWeight="700">
-                          Booking #{String(item.id).slice(0, 8).toUpperCase()}
+                          Booking #{(item as any).booking_number ? `GRS${(item as any).booking_number}` : String(item.id).slice(0, 8).toUpperCase()}
                         </Text>
                         <Text color={theme.textMuted} fontSize={t(13)}>
                           {customerName}{customerPhone ? ` · ${customerPhone}` : ''}

@@ -2072,6 +2072,21 @@ export default function PostPropertyScreen() {
         // ignore referral reward failures
       }
 
+      try {
+        const rec = buildPropertyRecord();
+        await supabase.functions.invoke('send-property-notification', {
+          body: {
+            event_type: 'property_posted',
+            property_id: propertyId,
+            property_title: rec.title,
+            city: rec.city,
+            owner_name: (session?.user?.user_metadata as any)?.full_name || (session?.user?.user_metadata as any)?.name || 'Owner',
+          },
+        });
+      } catch {
+        // ignore notification failures
+      }
+
       Alert.alert(
         isEditMode ? 'Property published' : 'Property posted',
         'Your property is now live and visible in search.'

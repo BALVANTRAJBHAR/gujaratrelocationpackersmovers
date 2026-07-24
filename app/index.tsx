@@ -4,14 +4,18 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Platform, View } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import { t } from '@/constants/typography';
+import { getDashboardRoute } from '@/lib/role-routing';
+import { useSession } from '@/providers/session-provider';
 
 const APP_FONT = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { session } = useSession();
   const fade = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(16)).current;
   const progress = useRef(new Animated.Value(0)).current;
+  const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -36,11 +40,31 @@ export default function SplashScreen() {
     ]).start();
 
     const timer = setTimeout(() => {
-      router.replace('/home' as any);
+      if (hasNavigatedRef.current) return;
+      hasNavigatedRef.current = true;
+
+      const userId = session?.user?.id;
+      if (!userId) {
+        router.replace(Platform.OS === 'web' ? '/home' : '/(tabs)');
+        return;
+      }
+
+      const userMeta = session?.user?.user_metadata as Record<string, unknown> | undefined;
+      const roleIntent = String(userMeta?.role_intent ?? '').trim().toLowerCase();
+      const dbRole = String(userMeta?.role ?? '').trim().toLowerCase();
+      const role = dbRole || roleIntent;
+      const providerSubtype = String(userMeta?.provider_subtype ?? '').trim().toLowerCase();
+
+      if (role) {
+        const destination = getDashboardRoute(role, providerSubtype, Platform.OS === 'web' ? 'web' : 'native');
+        router.replace(destination as any);
+      } else {
+        router.replace('/home' as any);
+      }
     }, 2300);
 
     return () => clearTimeout(timer);
-  }, [fade, progress, rise, router]);
+  }, [fade, progress, rise, router, session?.user?.id, session?.user?.user_metadata]);
 
   const progressWidth = progress.interpolate({
     inputRange: [0, 1],

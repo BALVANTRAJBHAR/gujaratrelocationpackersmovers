@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 type HomeServiceRequestRow = {
   id: string;
+  user_id: string;
   status: string;
   provider_id: string | null;
   provider_accepted_at: string | null;
@@ -217,7 +218,7 @@ serve(async (req) => {
 
     // Fetch the request
     const [homeServiceRequest] = await getRest<HomeServiceRequestRow[]>(
-      `${supabaseUrl}/rest/v1/home_service_requests?id=eq.${requestId}&select=id,status,provider_id,provider_accepted_at,service_key,customer_name,customer_phone,preferred_date,preferred_time`,
+      `${supabaseUrl}/rest/v1/home_service_requests?id=eq.${requestId}&select=id,user_id,status,provider_id,provider_accepted_at,service_key,customer_name,customer_phone,preferred_date,preferred_time`,
       serviceKey
     );
 
@@ -279,7 +280,7 @@ serve(async (req) => {
 
     // Notify customer of acceptance
     const [customer] = await getRest<UserRow[]>(
-      `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.id}&select=id,expo_push_token`,
+      `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.user_id}&select=id,expo_push_token`,
       serviceKey
     );
 

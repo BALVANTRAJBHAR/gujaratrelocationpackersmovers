@@ -52,6 +52,46 @@ interface StickyHeaderProps {
   onLoginPress?: () => void;
 }
 
+/** Shared compact icon-only button for action icons (theme, notification, auth) */
+function ActionIconBtn({
+  onPress,
+  onHoverIn,
+  onHoverOut,
+  isHovered,
+  theme,
+  children,
+}: {
+  onPress: () => void;
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
+  isHovered?: boolean;
+  theme: any;
+  children: React.ReactNode;
+}) {
+  return (
+    <Pressable onPress={onPress} onHoverIn={onHoverIn} onHoverOut={onHoverOut}>
+      <YStack
+        width={36}
+        height={36}
+        borderRadius={12}
+        backgroundColor={theme.menuBg}
+        borderWidth={1}
+        borderColor={isHovered ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
+        shadowColor={theme.shadow}
+        shadowOffset={{ width: 0, height: 3 }}
+        shadowOpacity={0.12}
+        shadowRadius={6}
+        elevation={3}
+        alignItems="center"
+        justifyContent="center"
+        padding={0}
+        style={isHovered ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+        {children}
+      </YStack>
+    </Pressable>
+  );
+}
+
 /** Shared button shell for desktop menu items */
 function MenuBtn({
   id,
@@ -176,8 +216,8 @@ export default function StickyHeader({
         pointerEvents="box-none">
         <XStack
           alignItems="center"
-          gap="$3"
-          flexWrap="wrap"
+          gap="$2"
+          flexWrap="nowrap"
           justifyContent="space-between"
           paddingHorizontal={isSmallScreen ? 14 : 24}
           // ← 10% height reduction: was 10/12, now 9/11
@@ -187,7 +227,7 @@ export default function StickyHeader({
             gap={isSmallScreen ? '$2' : '$2.5'}
             flexShrink={1}
             minWidth={0}
-            maxWidth={isSmallScreen ? '58%' : 250}>
+            maxWidth={isSmallScreen ? '50%' : 250}>
             <Image
               source={require('../../assets/images/PackersMoversLogo.png')}
               // ← 10% reduction: was 46/57, now 42/52
@@ -269,49 +309,35 @@ export default function StickyHeader({
                 ))}
 
                 {session && canManage ? (
-                  <Pressable
+                  <ActionIconBtn
+                    onPress={() => router.push('/notifications' as any)}
                     onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('notif') : undefined}
                     onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                    onPress={() => router.push('/notifications' as any)}>
-                    <YStack
-                      paddingHorizontal={16}
-                      paddingVertical={12}
-                      borderRadius={14}
-                      backgroundColor={theme.menuBg}
-                      borderWidth={1}
-                      borderColor={headerHovered === 'notif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                      shadowColor={theme.shadow}
-                      shadowOffset={{ width: 0, height: 3 }}
-                      shadowOpacity={0.12}
-                      shadowRadius={6}
-                      elevation={3}
-                      alignItems="center"
-                      justifyContent="center"
-                      style={headerHovered === 'notif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                      <View style={{ position: 'relative', width: 22, height: 22 } as any}>
-                        <FontAwesome name="bell" size={18} color={theme.menuText} />
-                        {unreadCount > 0 ? (
-                          <View
-                            style={{
-                              position: 'absolute',
-                              top: -6,
-                              right: -8,
-                              minWidth: 16,
-                              height: 16,
-                              borderRadius: 99,
-                              backgroundColor: '#EF4444',
-                              paddingHorizontal: 4,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}>
-                            <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
-                              {unreadCount > 99 ? '99+' : String(unreadCount)}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    </YStack>
-                  </Pressable>
+                    isHovered={headerHovered === 'notif'}
+                    theme={theme}>
+                    <View style={{ position: 'relative', width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+                      <FontAwesome name="bell" size={18} color={theme.menuText} style={{ textAlign: 'center' }} />
+                      {unreadCount > 0 ? (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: -6,
+                            right: -8,
+                            minWidth: 16,
+                            height: 16,
+                            borderRadius: 99,
+                            backgroundColor: '#EF4444',
+                            paddingHorizontal: 4,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
+                            {unreadCount > 99 ? '99+' : String(unreadCount)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </ActionIconBtn>
                 ) : null}
 
                 {session && onDashboardPress ? (
@@ -333,164 +359,114 @@ export default function StickyHeader({
                 ) : null}
 
                 {toggleTheme ? (
-                  <MenuBtn id="theme" hovered={headerHovered} setHovered={setHeaderHovered} onPress={toggleTheme} theme={theme}>
-                    <Text fontSize={menuFontSize} style={{ textDecorationLine: 'none' }}>
+                  <ActionIconBtn
+                    onPress={toggleTheme}
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('theme') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    isHovered={headerHovered === 'theme'}
+                    theme={theme}>
+                    <Text fontSize={t(16)} lineHeight={18} textAlign="center" style={{ textDecorationLine: 'none' }}>
                       {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
                     </Text>
-                  </MenuBtn>
+                  </ActionIconBtn>
                 ) : null}
 
                 {!session ? (
-                  <MenuBtn id="signin" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogin} theme={theme}>
-                    <FontAwesome name="sign-in" size={14} color={menuTextColor} />
-                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                      Sign In
-                    </Text>
-                  </MenuBtn>
+                  <ActionIconBtn
+                    onPress={handleLogin}
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('signin') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    isHovered={headerHovered === 'signin'}
+                    theme={theme}>
+                    <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                      <FontAwesome name="sign-in" size={16} color="#22C55E" style={{ textAlign: 'center' }} />
+                    </View>
+                  </ActionIconBtn>
                 ) : (
-                  <MenuBtn id="logout" hovered={headerHovered} setHovered={setHeaderHovered} onPress={handleLogoutClick} theme={theme}>
-                    <FontAwesome name="sign-out" size={14} color={menuTextColor} />
-                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
-                      Sign Out
-                    </Text>
-                  </MenuBtn>
+                  <ActionIconBtn
+                    onPress={handleLogoutClick}
+                    onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('logout') : undefined}
+                    onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                    isHovered={headerHovered === 'logout'}
+                    theme={theme}>
+                    <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                      <FontAwesome name="sign-out" size={16} color="#EF4444" style={{ textAlign: 'center' }} />
+                    </View>
+                  </ActionIconBtn>
                 )}
               </XStack>
             </ScrollView>
           ) : (
-            <XStack gap="$2" alignItems="center">
+            <XStack gap={8} alignItems="center">
               {toggleTheme ? (
-                <Pressable
+                <ActionIconBtn
+                  onPress={toggleTheme}
                   onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mtheme') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                  onPress={toggleTheme}>
-                  <YStack
-                    paddingHorizontal={12}
-                    paddingVertical={8}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'mtheme' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    style={headerHovered === 'mtheme' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <Text fontSize={t(13)} style={{ textDecorationLine: 'none' }}>
-                      {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-                    </Text>
-                  </YStack>
-                </Pressable>
+                  isHovered={headerHovered === 'mtheme'}
+                  theme={theme}>
+                  <Text fontSize={t(16)} lineHeight={18} textAlign="center" style={{ textDecorationLine: 'none' }}>
+                    {isDarkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+                  </Text>
+                </ActionIconBtn>
               ) : null}
 
               {session && canManage ? (
-                <Pressable
+                <ActionIconBtn
+                  onPress={() => router.push('/notifications' as any)}
                   onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mnotif') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                  onPress={() => router.push('/notifications' as any)}>
-                  <YStack
-                    paddingHorizontal={12}
-                    paddingVertical={8}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'mnotif' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    style={headerHovered === 'mnotif' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <View style={{ position: 'relative', width: 22, height: 22 } as any}>
-                      <FontAwesome name="bell" size={18} color={theme.menuText} />
-                      {unreadCount > 0 ? (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: -6,
-                            right: -8,
-                            minWidth: 16,
-                            height: 16,
-                            borderRadius: 99,
-                            backgroundColor: '#EF4444',
-                            paddingHorizontal: 4,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                          <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
-                            {unreadCount > 99 ? '99+' : String(unreadCount)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </YStack>
-                </Pressable>
+                  isHovered={headerHovered === 'mnotif'}
+                  theme={theme}>
+                  <View style={{ position: 'relative', width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+                    <FontAwesome name="bell" size={18} color={theme.menuText} style={{ textAlign: 'center' }} />
+                    {unreadCount > 0 ? (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -8,
+                          minWidth: 16,
+                          height: 16,
+                          borderRadius: 99,
+                          backgroundColor: '#EF4444',
+                          paddingHorizontal: 4,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Text color="#FFFFFF" fontSize={t(10)} fontWeight="700">
+                          {unreadCount > 99 ? '99+' : String(unreadCount)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </ActionIconBtn>
               ) : null}
 
               {!session ? (
-                <Pressable onPress={handleLogin}>
-                  <YStack
-                    paddingHorizontal={12}
-                    paddingVertical={8}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'mlogin' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    style={headerHovered === 'mlogin' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <XStack gap={4} alignItems="center">
-                      <FontAwesome name="sign-in" size={14} color={theme.menuText} />
-                      <Text
-                        color={theme.menuText}
-                        fontSize={t(13)}
-                        fontWeight="800"
-                        style={{ fontFamily: APP_SERIF_FONT }}>
-                        Sign In
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Pressable>
+                <ActionIconBtn
+                  onPress={handleLogin}
+                  onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mlogin') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
+                  isHovered={headerHovered === 'mlogin'}
+                  theme={theme}>
+                  <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                    <FontAwesome name="sign-in" size={16} color="#22C55E" style={{ textAlign: 'center' }} />
+                  </View>
+                </ActionIconBtn>
               ) : null}
 
               {session ? (
-                <Pressable
+                <ActionIconBtn
+                  onPress={handleLogoutClick}
                   onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('mlogout') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
-                  onPress={handleLogoutClick}>
-                  <YStack
-                    paddingHorizontal={12}
-                    paddingVertical={8}
-                    borderRadius={12}
-                    backgroundColor={theme.menuBg}
-                    borderWidth={1}
-                    borderColor={headerHovered === 'mlogout' ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
-                    shadowColor={theme.shadow}
-                    shadowOffset={{ width: 0, height: 3 }}
-                    shadowOpacity={0.12}
-                    shadowRadius={6}
-                    elevation={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    style={headerHovered === 'mlogout' ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
-                    <XStack alignItems="center" gap={4}>
-                      <FontAwesome name="sign-out" size={14} color={theme.menuText} />
-                      <Text color={theme.menuText} fontSize={t(12)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
-                        Sign Out
-                      </Text>
-                    </XStack>
-                  </YStack>
-                </Pressable>
+                  isHovered={headerHovered === 'mlogout'}
+                  theme={theme}>
+                  <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                    <FontAwesome name="sign-out" size={16} color="#EF4444" style={{ textAlign: 'center' }} />
+                  </View>
+                </ActionIconBtn>
               ) : null}
             </XStack>
           )}
