@@ -1,7 +1,9 @@
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system/legacy';
-import { Platform, Share, Alert, ToastAndroid, PermissionsAndroid } from 'react-native';
+import { Platform } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
+import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
+import { createWebPdfUri } from '@/lib/web-pdf';
 
 type BookingPdfData = {
   id: string;
@@ -27,9 +29,8 @@ type BookingPdfData = {
   created_at: string;
 };
 
-const COMPANY_NAME = 'Gujarat Relocation Packers';
 const COMPANY_ADDRESS = 'Sethia Aashray, Mumbai 400101';
-const COMPANY_CONTACT = 'Phone: +91 9987963470 | Email: support@gujaratrelocationpackers.com';
+const COMPANY_CONTACT = `Phone: ${COMPANY_PHONE} | Email: ${COMPANY_EMAIL}`;
 
 function fmtCurrency(amount: number | null | undefined): string {
   const val = Number(amount ?? 0);
@@ -315,6 +316,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
 </body>
 </html>`;
 
+  if (Platform.OS === 'web') return createWebPdfUri(html, 'Shifting Booking Report');
   const { uri } = await Print.printToFileAsync({ html, base64: false });
   return uri;
 }
@@ -328,58 +330,7 @@ export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean>
   try {
     const uri = await generateBookingPdf(data);
     const fileName = await generateFileName(data);
-
-    if (Platform.OS === 'web') {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      Alert.alert('Download complete', `${fileName} saved to Downloads.`);
-      return true;
-    }
-
-    if (Platform.OS === 'android') {
-      const saveToDownloads = async (): Promise<boolean> => {
-        try {
-          const granted = await PermissionsAndroid.request(
-            'android.permission.WRITE_EXTERNAL_STORAGE',
-            { title: 'Storage Permission', message: 'App needs storage access to download the PDF.', buttonPositive: 'Grant' }
-          );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            const path = `/storage/emulated/0/Download/`;
-            if ((await FileSystem.getInfoAsync(path)).exists) {
-              const target = `${path}${fileName}`;
-              await FileSystem.copyAsync({ from: uri, to: target });
-              return true;
-            }
-          }
-        } catch {}
-        try {
-          const downloadUri = FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
-          const content = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-          const newUri = await FileSystem.StorageAccessFramework.createFileAsync(downloadUri, fileName, 'application/pdf');
-          await FileSystem.StorageAccessFramework.writeAsStringAsync(newUri, content, { encoding: FileSystem.EncodingType.Base64 });
-          return true;
-        } catch {}
-        return false;
-      };
-      const ok = await saveToDownloads();
-      if (ok) { ToastAndroid.show('PDF saved to Downloads', ToastAndroid.LONG); return true; }
-      Alert.alert('Download failed', 'Could not save PDF to Downloads folder. Please try using the Share option instead.');
-      return false;
-    }
-
-    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
-    const targetUri = `${baseDir}${fileName}`;
-    await FileSystem.copyAsync({ from: uri, to: targetUri });
-    Alert.alert('Download complete', `PDF saved to app storage.\n\nPath: ${targetUri}`);
-    return true;
+    return downloadPdf(uri, fileName);
   } catch (e) {
     console.error('Download PDF failed:', e);
     return false;
@@ -394,31 +345,7 @@ export async function shareBookingPdf(data: BookingPdfData): Promise<boolean> {
     const fileName = await generateFileName(data);
     const label = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
 
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'share' in navigator) {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const file = new File([blob], fileName, { type: 'application/pdf' });
-      await (navigator as any).share({ files: [file], title: fileName });
-      return true;
-    }
-
-    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-    const targetUri = `${baseDir}${fileName}`;
-    await FileSystem.copyAsync({ from: uri, to: targetUri });
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(targetUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `Shifting Booking Report - ${label}`,
-      });
-    } else {
-      // fallback: share via message only (no file attachment)
-      await Share.share({
-        message: `Shifting Booking Report - ${label}`,
-        title: fileName,
-      });
-    }
-    return true;
+    return sharePdf(uri, fileName, `Shifting Booking Report - ${label}`);
   } catch (e) {
     console.error('Share PDF failed:', e);
     return false;

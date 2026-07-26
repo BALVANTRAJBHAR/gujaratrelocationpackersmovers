@@ -1,7 +1,9 @@
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system/legacy';
-import { Platform, Share, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
+import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
+import { createWebPdfUri } from '@/lib/web-pdf';
 
 type HomeServicePdfData = {
   id: string;
@@ -28,9 +30,8 @@ type HomeServicePdfData = {
   provider_name: string | null;
 };
 
-const COMPANY_NAME = 'Gujarat Relocation Packers & Movers';
 const COMPANY_ADDRESS = 'Ahmedabad, Gujarat, India';
-const COMPANY_CONTACT = 'Phone: +91-9876543210 | Email: support@gujaratrelocationpackers.com';
+const COMPANY_CONTACT = `Phone: ${COMPANY_PHONE} | Email: ${COMPANY_EMAIL}`;
 
 const serviceLabels: Record<string, string> = {
   ac: 'AC Service & Repair',
@@ -293,6 +294,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
 </body>
 </html>`;
 
+  if (Platform.OS === 'web') return createWebPdfUri(html, 'Home Service Report');
   const { uri } = await Print.printToFileAsync({ html, base64: false });
   return uri;
 }
@@ -305,22 +307,7 @@ export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boo
     const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
     const fileName = `Home_Service_Report_${label}.pdf`;
 
-    if (Platform.OS === 'web') {
-      if (typeof navigator !== 'undefined' && 'share' in navigator) {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        const file = new File([blob], fileName, { type: 'application/pdf' });
-        await (navigator as any).share({ files: [file], title: fileName });
-        return true;
-      }
-      return true;
-    }
-
-    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-    const targetUri = `${baseDir}${fileName}`;
-    await FileSystem.copyAsync({ from: uri, to: targetUri });
-    await Share.share({ url: Platform.OS === 'android' ? `file://${targetUri}` : targetUri, title: fileName });
-    return true;
+    return sharePdf(uri, fileName, `Home Service Report - ${label}`);
   } catch (e) {
     console.error('Share Home Service PDF failed:', e);
     return false;
@@ -334,62 +321,7 @@ export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<
     const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
     const fileName = `Home_Service_Report_${label}.pdf`;
 
-    if (Platform.OS === 'web') {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      Alert.alert('Download complete', `${fileName} saved to Downloads.`);
-      return true;
-    }
-
-    if (Platform.OS === 'android') {
-      const saveToDownloads = async (): Promise<boolean> => {
-        try {
-          const { PermissionsAndroid } = await import('react-native');
-          const granted = await PermissionsAndroid.request(
-            'android.permission.WRITE_EXTERNAL_STORAGE',
-            { title: 'Storage Permission', message: 'App needs storage access to download the PDF.', buttonPositive: 'Grant' }
-          );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            const path = `/storage/emulated/0/Download/`;
-            if ((await FileSystem.getInfoAsync(path)).exists) {
-              const target = `${path}${fileName}`;
-              await FileSystem.copyAsync({ from: uri, to: target });
-              return true;
-            }
-          }
-        } catch {}
-        try {
-          const downloadUri = FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
-          const content = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-          const newUri = await FileSystem.StorageAccessFramework.createFileAsync(downloadUri, fileName, 'application/pdf');
-          await FileSystem.StorageAccessFramework.writeAsStringAsync(newUri, content, { encoding: FileSystem.EncodingType.Base64 });
-          return true;
-        } catch {}
-        return false;
-      };
-      const ok = await saveToDownloads();
-      if (ok) {
-        const { ToastAndroid } = await import('react-native');
-        ToastAndroid.show('PDF saved to Downloads', ToastAndroid.LONG);
-        return true;
-      }
-      Alert.alert('Download failed', 'Could not save PDF to Downloads folder. Please try using the Share option instead.');
-      return false;
-    }
-
-    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
-    const targetUri = `${baseDir}${fileName}`;
-    await FileSystem.copyAsync({ from: uri, to: targetUri });
-    Alert.alert('Download complete', `PDF saved to app storage.\n\nPath: ${targetUri}`);
-    return true;
+    return downloadPdf(uri, fileName);
   } catch (e) {
     console.error('Download Home Service PDF failed:', e);
     return false;

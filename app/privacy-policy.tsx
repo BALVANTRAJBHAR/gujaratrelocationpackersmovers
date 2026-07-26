@@ -7,6 +7,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getOrCreatePrivacyPdfUri, downloadLegalPdf, openLegalPdf } from '@/lib/legal-docs';
 import { t } from '@/constants/typography';
+import { COMPANY_EMAIL } from '@/constants/company';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
@@ -122,7 +123,7 @@ export default function PrivacyPolicyScreen() {
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
               We retain your data while your account is active. You have the right to access, correct, or delete your
-              data. Contact support@gujaratrelocationpackers.com to exercise your rights.
+              data. Contact {COMPANY_EMAIL} to exercise your rights.
             </Text>
           </YStack>
 
@@ -140,7 +141,7 @@ export default function PrivacyPolicyScreen() {
               7. Contact
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
-              For questions about this Privacy Policy, contact support@gujaratrelocationpackers.com or call +91 9987963470.
+              For questions about this Privacy Policy, contact {COMPANY_EMAIL} or call +91 9987963470.
             </Text>
           </YStack>
         </YStack>

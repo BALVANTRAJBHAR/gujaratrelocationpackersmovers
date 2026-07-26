@@ -40,9 +40,9 @@ export async function getTermsConditionsHtml(): Promise<string> {
     <div class="header-left">
       <img src="${logo}" alt="Logo"/>
       <div class="company-details">
-        <p class="company-name">Gujarat Relocation Packers & Movers</p>
+        <p class="company-name">Gujarat Relocation Packers</p>
         <p class="company-address">Sethia Aashray, Mumbai 400101</p>
-        <p class="company-contact">Phone: +91 9987963470 | Email: support@gujaratrelocationpackers.com</p>
+        <p class="company-contact">Phone: +91 9987963470 | Email: Gujaratrelocation.owner@gmail.com</p>
       </div>
     </div>
   </div>
@@ -55,7 +55,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
   <div class="section">
     <p class="section-title">1. Transfer of Valuables &amp; Important Documents</p>
     <div class="section-body">
-      <p>Customers must retain personal valuables such as cash, jewellery, educational certificates, property papers, vehicle documents, medical records, share certificates, and similar important documents. <strong>Gujarat Relocation Packers & Movers shall not be liable for any loss, theft, or damage to such items if transported through our service.</strong></p>
+      <p>Customers must retain personal valuables such as cash, jewellery, educational certificates, property papers, vehicle documents, medical records, share certificates, and similar important documents. <strong>Gujarat Relocation Packers shall not be liable for any loss, theft, or damage to such items if transported through our service.</strong></p>
     </div>
   </div>
 
@@ -69,7 +69,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
   <div class="section">
     <p class="section-title">3. Packaging Materials &amp; Labour Charges</p>
     <div class="section-body">
-      <p>Packaging materials remain the property of Gujarat Relocation Packers & Movers and must be returned after delivery.</p>
+      <p>Packaging materials remain the property of Gujarat Relocation Packers and must be returned after delivery.</p>
       <p><strong>Retention Charges:</strong></p>
       <ul>
         <li>Corrugated Box: ₹60 per box</li>
@@ -125,7 +125,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
   <div class="section">
     <p class="section-title">6. Documentation</p>
     <div class="section-body">
-      <p>Only communication through the <strong>Gujarat Relocation Packers & Movers App</strong>, Email, or Official Support is considered valid.</p>
+      <p>Only communication through the <strong>Gujarat Relocation Packers App</strong>, Email, or Official Support is considered valid.</p>
       <p>Customers <strong>must verify all items</strong> before signing POD (Proof of Delivery).</p>
       <p><strong>Claims after POD signature without remarks will not be accepted.</strong></p>
     </div>
@@ -161,7 +161,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
     <div class="section-body">
       <p>Customers must ensure vehicle access at pickup and drop locations.</p>
       <p>Transportation is at <strong>customer's risk</strong> unless protection/insurance is selected.</p>
-      <p>Payment terms are decided by Gujarat Relocation Packers & Movers.</p>
+      <p>Payment terms are decided by Gujarat Relocation Packers.</p>
       <p>If the company cancels the booking due to unavoidable circumstances, only the booking/token amount will be refunded.</p>
     </div>
   </div>
@@ -186,8 +186,8 @@ export async function getTermsConditionsHtml(): Promise<string> {
   </div>
 
   <div class="footer">
-    <div class="line">&copy; Gujarat Relocation Packers & Movers. All Rights Reserved.</div>
-    <div class="line">Sethia Aashray, Mumbai 400101 | +91 9987963470 | support@gujaratrelocationpackers.com</div>
+    <div class="line">&copy; Gujarat Relocation Packers. All Rights Reserved.</div>
+    <div class="line">Sethia Aashray, Mumbai 400101 | +91 9987963470 | Gujaratrelocation.owner@gmail.com</div>
     <div class="line">www.gujaratrelocationpackers.com</div>
   </div>
 

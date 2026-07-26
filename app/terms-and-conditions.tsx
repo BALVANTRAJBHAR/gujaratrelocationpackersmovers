@@ -7,6 +7,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getOrCreateTermsPdfUri, downloadLegalPdf, openLegalPdf } from '@/lib/legal-docs';
 import { t } from '@/constants/typography';
+import { COMPANY_NAME } from '@/constants/company';
 
 export default function TermsAndConditionsScreen() {
   const router = useRouter();
@@ -81,7 +82,7 @@ export default function TermsAndConditionsScreen() {
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
               Customers must retain personal valuables such as cash, jewellery, educational certificates, property papers,
               vehicle documents, medical records, share certificates, and similar important documents. Gujarat Relocation
-              Packers & Movers shall not be liable for any loss, theft, or damage to such items if transported through our service.
+              Packers shall not be liable for any loss, theft, or damage to such items if transported through our service.
             </Text>
           </YStack>
 
@@ -100,7 +101,7 @@ export default function TermsAndConditionsScreen() {
               3. Packaging Materials & Labour Charges
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
-              Packaging materials remain the property of Gujarat Relocation Packers & Movers and must be returned after
+              Packaging materials remain the property of {COMPANY_NAME} and must be returned after
               delivery. Retention charges apply: Corrugated Box ₹60/box, GR Branded Red Box ₹500/box. Rope lifting/lowering
               is performed only at the customer's request and risk. Mathadi/Union labour charges are not included in the
               quotation. Unpacking services are not available in Kerala.

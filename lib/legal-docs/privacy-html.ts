@@ -38,9 +38,9 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
     <div class="header-left">
       <img src="${logo}" alt="Logo"/>
       <div class="company-details">
-        <p class="company-name">Gujarat Relocation Packers & Movers</p>
+        <p class="company-name">Gujarat Relocation Packers</p>
         <p class="company-address">Sethia Aashray, Mumbai 400101</p>
-        <p class="company-contact">Phone: +91 9987963470 | Email: support@gujaratrelocationpackers.com</p>
+        <p class="company-contact">Phone: +91 9987963470 | Email: Gujaratrelocation.owner@gmail.com</p>
       </div>
     </div>
   </div>
@@ -121,7 +121,7 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
         <li><strong>Delete</strong> your account and associated data (subject to legal obligations).</li>
         <li><strong>Withdraw consent</strong> for marketing communications at any time.</li>
       </ul>
-      <p>To exercise these rights, contact us at support@gujaratrelocationpackers.com.</p>
+      <p>To exercise these rights, contact us at Gujaratrelocation.owner@gmail.com.</p>
     </div>
   </div>
 
@@ -157,15 +157,15 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
     <p class="section-title">10. Contact Us</p>
     <div class="section-body">
       <p>For questions or concerns regarding this Privacy Policy, please contact:</p>
-      <p><strong>Email:</strong> support@gujaratrelocationpackers.com</p>
+      <p><strong>Email:</strong> Gujaratrelocation.owner@gmail.com</p>
       <p><strong>Phone:</strong> +91 9987963470</p>
       <p><strong>Address:</strong> Sethia Aashray, Mumbai 400101</p>
     </div>
   </div>
 
   <div class="footer">
-    <div class="line">&copy; Gujarat Relocation Packers & Movers. All Rights Reserved.</div>
-    <div class="line">Sethia Aashray, Mumbai 400101 | +91 9987963470 | support@gujaratrelocationpackers.com</div>
+    <div class="line">&copy; Gujarat Relocation Packers. All Rights Reserved.</div>
+    <div class="line">Sethia Aashray, Mumbai 400101 | +91 9987963470 | Gujaratrelocation.owner@gmail.com</div>
     <div class="line">www.gujaratrelocationpackers.com</div>
   </div>
 

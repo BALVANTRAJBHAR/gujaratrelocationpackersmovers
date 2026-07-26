@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+import { COMPANY_EMAIL, COMPANY_NAME } from '@/constants/company';
 
 export default function SupportScreen() {
   const params = useLocalSearchParams<{ bookingId?: string }>();
@@ -21,7 +22,7 @@ export default function SupportScreen() {
 
   const defaultMessage = useMemo(() => {
     const name = profile?.name ?? session?.user?.email ?? 'Customer';
-    const base = `Hi Gujarat Relocation Packers & Movers, I need help.`;
+    const base = `Hi ${COMPANY_NAME}, I need help.`;
     const parts: string[] = [base, `Name: ${name}`];
     if (bookingId) parts.push(`Booking ID: ${bookingId}`);
     return parts.join('\n');
@@ -60,7 +61,7 @@ export default function SupportScreen() {
   const onEmail = async () => {
     const subject = bookingId ? `Support request (Booking ${bookingId})` : 'Support request';
     const body = (message.trim() || defaultMessage).trim();
-    await openUrl(`mailto:gujaratrelocationpackersmovers@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    await openUrl(`mailto:${COMPANY_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   return (
