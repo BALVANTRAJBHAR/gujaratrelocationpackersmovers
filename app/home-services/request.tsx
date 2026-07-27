@@ -1272,18 +1272,20 @@ export default function HomeServiceRequestScreen() {
               <Text fontSize={t(18)} fontWeight="800" color="#1F4E79">
                 Select Service
               </Text>
-              <XStack flexWrap="wrap" gap="$3" justifyContent="space-between">
+              <XStack flexWrap="wrap" gap="$3" justifyContent="center" width="100%">
                 {serviceOptions.map((s) => {
                   const selected = serviceKey === s.key;
                   return (
-                    <Pressable key={s.key} onPress={() => setServiceKey(s.key)} style={{ width: screenWidth > 820 ? '32%' : '48%' } as any}>
+                    <Pressable key={s.key} onPress={() => setServiceKey(s.key)} style={{ width: '48%', minHeight: 96 } as any}>
                       <YStack
                         backgroundColor={selected ? theme.info : theme.bgCard}
                         borderRadius={14}
                         padding={14}
                         borderWidth={2}
                         borderColor={selected ? '#1F4E79' : theme.border}
-                        gap="$1">
+                        gap="$1"
+                        minHeight={96}
+                        justifyContent="center">
                         <Text fontWeight="800" color={theme.text}>
                           {s.label}
                         </Text>

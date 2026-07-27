@@ -23,9 +23,15 @@ export async function openPdf(uri: string): Promise<void> {
     return;
   }
 
+  const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+  if (!baseDir) throw new Error('No readable document directory is available.');
+  const viewerUri = `${baseDir}viewer-${Date.now()}.pdf`;
+  await FileSystem.copyAsync({ from: uri, to: viewerUri });
+  const info = await FileSystem.getInfoAsync(viewerUri);
+  if (!info.exists || !info.size) throw new Error('Generated PDF is empty.');
   const openUri = Platform.OS === 'android'
-    ? await FileSystem.getContentUriAsync(uri)
-    : uri;
+    ? await FileSystem.getContentUriAsync(viewerUri)
+    : viewerUri;
   await Linking.openURL(openUri);
 }
 

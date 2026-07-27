@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable } from 'react-native';
 import { Button, H2, Text, XStack, YStack } from 'tamagui';
 
@@ -34,7 +34,10 @@ export default function WalletScreen() {
     }
   };
 
-  useEffect(() => { load(); }, [session?.user?.id]);
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    void load();
+  }, [session?.user?.id]));
 
   const typeLabel = (ref: string) => {
     const labels: Record<string, string> = {

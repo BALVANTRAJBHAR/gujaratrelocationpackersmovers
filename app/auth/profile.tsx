@@ -643,44 +643,6 @@ export default function ProfileSetupScreen() {
         </YStack>
       </YStack>
 
-      {/* Wallet Section */}
-      <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3">
-        <XStack justifyContent="space-between" alignItems="center">
-          <Text fontSize={t(18)} fontWeight="900" color={theme.text}>
-            Wallet
-          </Text>
-          <YStack backgroundColor={theme.primary} borderRadius={999} paddingHorizontal={14} paddingVertical={6}>
-            <Text color="#FFFFFF" fontWeight="900" fontSize={t(16)}>
-              ₹{profile?.wallet_balance?.toLocaleString('en-IN') ?? '0'}
-            </Text>
-          </YStack>
-        </XStack>
-        <Text color={theme.textMuted} fontSize={t(13)}>
-          Use wallet balance for bookings or add money
-        </Text>
-        <XStack gap="$2">
-          <Button
-            flex={1}
-            backgroundColor={theme.bgSecondary}
-            color={theme.text}
-            borderRadius={12}
-            borderWidth={1}
-            borderColor={theme.border}
-            onPress={() => router.push('/wallet')}>
-            View Transactions
-          </Button>
-          <Button
-            flex={1}
-            backgroundColor={activeBtnBg}
-            color={activeBtnText}
-            borderRadius={12}
-            fontWeight="800"
-            onPress={() => router.push('/wallet/add')}>
-            Add Money
-          </Button>
-        </XStack>
-      </YStack>
-
       {/* Refer & Earn Section */}
       <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3">
         <Text fontSize={t(18)} fontWeight="900" color={theme.text}>

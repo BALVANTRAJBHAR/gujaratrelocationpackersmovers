@@ -71,8 +71,8 @@ function ActionIconBtn({
   return (
     <Pressable onPress={onPress} onHoverIn={onHoverIn} onHoverOut={onHoverOut}>
       <YStack
-        width={36}
-        paddingVertical={10}
+        width={44}
+        height={44}
         borderRadius={12}
         backgroundColor={theme.menuBg}
         borderWidth={1}
@@ -116,6 +116,7 @@ function MenuBtn({
       <YStack
         paddingHorizontal={18}
         paddingVertical={12}
+        minHeight={44}
         borderRadius={14}
         backgroundColor={theme.menuBg}
         borderWidth={1}

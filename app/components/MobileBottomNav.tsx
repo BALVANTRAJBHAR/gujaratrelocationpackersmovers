@@ -103,6 +103,8 @@ export default function MobileBottomNav({
       onTrackPress ? onTrackPress() : router.push('/(tabs)/tracking');
     } else if (action === 'refer') {
       router.push('/refer-and-earn');
+    } else if (action === 'wallet') {
+      router.push('/wallet');
     } else if (action === 'contact') {
       onContactPress ? onContactPress() : router.push('/support');
     } else if (action === 'logout') {
@@ -214,6 +216,14 @@ export default function MobileBottomNav({
                   <XStack gap={12} alignItems="center">
                     <FontAwesome name="gift" size={22} color="#F59E0B" />
                     <Text color="#F59E0B" fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Refer & Earn</Text>
+                  </XStack>
+                </YStack>
+              </Pressable>
+              <Pressable onPress={() => handleProfileAction('wallet')}>
+                <YStack paddingVertical={14} borderBottomWidth={1} borderBottomColor={theme.border}>
+                  <XStack gap={12} alignItems="center">
+                    <FontAwesome name="credit-card" size={22} color={theme.text} />
+                    <Text color={theme.text} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Wallet</Text>
                   </XStack>
                 </YStack>
               </Pressable>

@@ -2,7 +2,10 @@ import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
+let cachedLogo = '';
+
 export async function getLogoBase64(): Promise<string> {
+  if (cachedLogo) return cachedLogo;
   if (Platform.OS === 'web') {
     try {
       const imageUrl: string = require('../assets/images/PackersMoversLogo.png');
@@ -15,8 +18,8 @@ export async function getLogoBase64(): Promise<string> {
         reader.onerror = () => reject(new Error('FileReader failed'));
         reader.readAsDataURL(blob);
       });
-      console.log('[getLogoBase64] Web logo encoded, length:', result.length);
-      return result;
+      cachedLogo = result;
+      return cachedLogo;
     } catch (e) {
       console.warn('[getLogoBase64] Web fallback — logo not available:', e);
       return '';
@@ -25,19 +28,15 @@ export async function getLogoBase64(): Promise<string> {
 
   try {
     const assetId = require('../assets/images/PackersMoversLogo.png');
-    console.log('[getLogoBase64] Asset ID:', assetId);
-
     const [asset] = await Asset.loadAsync(assetId);
-    console.log('[getLogoBase64] Asset loaded:', asset ? `localUri=${asset.localUri}` : 'null');
 
     if (!asset?.localUri) throw new Error('Asset has no localUri after loadAsync');
 
     const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    const result = `data:image/png;base64,${base64}`;
-    console.log('[getLogoBase64] Success, length:', base64.length);
-    return result;
+    cachedLogo = `data:image/png;base64,${base64}`;
+    return cachedLogo;
   } catch (e) {
     console.warn('[getLogoBase64] Fallback — logo not available:', e);
     return '';

@@ -1,56 +1,18 @@
-import RazorpayCheckout from 'react-native-razorpay';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable } from 'react-native';
+import { ActivityIndicator, Pressable } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
+import { openRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { t } from '@/constants/typography';
 import { creditWallet } from '@/lib/wallet';
 import { useSession } from '@/providers/session-provider';
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
-
-async function loadRazorpayScript(): Promise<boolean> {
-  if (Platform.OS !== 'web') return false;
-  if (typeof window === 'undefined') return false;
-  if ((window as any).Razorpay) return true;
-
-  await new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Razorpay'));
-    document.body.appendChild(script);
-  });
-
-  return Boolean((window as any).Razorpay);
-}
-
-async function openRazorpayCheckout(options: any): Promise<any> {
-  if (Platform.OS === 'web') {
-    const ok = await loadRazorpayScript();
-    if (!ok) throw new Error('Razorpay unavailable on web');
-
-    return await new Promise((resolve, reject) => {
-      const Razorpay = (window as any).Razorpay;
-      const rz = new Razorpay({
-        ...options,
-        handler: (response: any) => resolve(response),
-        modal: {
-          ondismiss: () => reject(new Error('Payment cancelled')),
-        },
-      });
-      rz.open();
-    });
-  }
-
-  return await RazorpayCheckout.open(options);
-}
 
 export default function AddMoneyScreen() {
   const router = useRouter();

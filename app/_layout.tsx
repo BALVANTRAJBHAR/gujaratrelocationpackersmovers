@@ -54,7 +54,8 @@ function AppLayoutInner() {
     (segments[0] === 'book') ||
     (segments[0] === 'home-services' && segments[1] === 'request') ||
     (segments[0] === 'properties' && segments[1] === 'post') ||
-    (segments[0] === 'properties' && segments[1] === 'my-properties');
+    (segments[0] === 'properties' && segments[1] === 'my-properties') ||
+    segments[0] === 'wallet';
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
@@ -83,6 +84,8 @@ function AppLayoutInner() {
         <Stack.Screen name="auth/login" options={{ title: 'Sign In' }} />
         <Stack.Screen name="auth/register" options={{ title: 'Sign Up' }} />
         <Stack.Screen name="auth/profile" options={{ title: 'My Profile' }} />
+        <Stack.Screen name="wallet/index" options={{ headerShown: false }} />
+        <Stack.Screen name="wallet/add" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
         <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
