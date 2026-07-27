@@ -2,7 +2,8 @@ import StickyHeader from '@/app/components/sticky-header';
 import { MapView as NativeMapView, Marker as NativeMapMarker } from '@/components/NativeMap';
 import { WebView as NativeWebView } from '@/components/NativeWebView';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
-import { Head, useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {

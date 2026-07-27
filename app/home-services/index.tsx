@@ -1,4 +1,4 @@
-import { Head } from 'expo-router';
+import Head from 'expo-router/head';
 import React from 'react';
 
 import { HOME_SERVICES_SEO } from '@/constants/seo';

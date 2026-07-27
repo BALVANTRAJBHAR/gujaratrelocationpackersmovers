@@ -1,4 +1,5 @@
-import { Head, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Linking, Platform, Pressable, ScrollView } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';

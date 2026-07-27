@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
-import { Head } from 'expo-router';
+import Head from 'expo-router/head';
 
 import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';

@@ -1,5 +1,6 @@
 import StickyHeader from '@/app/components/sticky-header';
-import { Head, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Dimensions, ImageBackground, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';

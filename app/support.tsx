@@ -1,4 +1,5 @@
-import { Head, useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
