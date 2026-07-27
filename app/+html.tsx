@@ -16,9 +16,11 @@ export default function RootHtml({ children }: PropsWithChildren) {
         <meta name="author" content={SITE_NAME} />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="theme-color" content="#0B1F3A" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="16x16" />
         <link rel="apple-touch-icon" href="/favicon.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        <link rel="canonical" href={SITE_URL} />
         <link rel="preload" href="/fonts/times.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/timesbd.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         <meta property="og:title" content={`${SITE_NAME} | Packers, Movers, Home Services & Property Management`} />
@@ -27,10 +29,12 @@ export default function RootHtml({ children }: PropsWithChildren) {
         <meta property="og:url" content={SITE_URL} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content={SITE_NAME} />
+        <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${SITE_NAME} | Packers, Movers, Home Services & Property Management`} />
         <meta name="twitter:description" content={SITE_DESCRIPTION} />
         <meta name="twitter:image" content={`${SITE_URL}/og-image.png`} />
+        <meta name="twitter:domain" content="gujaratrelocationpackers.com" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(LOCAL_BUSINESS_SCHEMA) }} />
         <style id="expo-reset">{'#root,body,html{height:100%}body{overflow:hidden}#root{display:flex}'}</style>
       </head>

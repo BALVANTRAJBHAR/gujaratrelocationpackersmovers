@@ -4,6 +4,7 @@ import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
 import { createWebPdfUri } from '@/lib/web-pdf';
+import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 
 type HomeServicePdfData = {
   id: string;
@@ -32,6 +33,7 @@ type HomeServicePdfData = {
 
 const COMPANY_ADDRESS = 'Ahmedabad, Gujarat, India';
 const COMPANY_CONTACT = `Phone: ${COMPANY_PHONE} | Email: ${COMPANY_EMAIL}`;
+const HOME_SERVICE_PAYMENT = calculateConvenienceFee(150);
 
 const serviceLabels: Record<string, string> = {
   ac: 'AC Service & Repair',
@@ -51,7 +53,7 @@ function labelForService(key: string): string {
 function fmtCurrency(amount: number | null | undefined): string {
   const val = Number(amount ?? 0);
   if (!Number.isFinite(val) || val <= 0) return '₹0';
-  return `₹${Math.round(val).toLocaleString('en-IN')}`;
+  return `₹${(Number.isInteger(val) ? val : Number(val.toFixed(2))).toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(val) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -266,6 +268,18 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
     <p class="section-title">Payment Summary</p>
     <div class="section-body">
       <div class="info-grid">
+        ${data.advance_payment && data.advance_payment > 0 ? `<div class="row">
+          <span class="label">Booking Total</span>
+          <span class="value">${escapeHtml(fmtCurrency(HOME_SERVICE_PAYMENT.bookingTotal))}</span>
+        </div>
+        <div class="row">
+          <span class="label">Convenience Fee</span>
+          <span class="value">${escapeHtml(fmtCurrency(HOME_SERVICE_PAYMENT.convenienceFee))}</span>
+        </div>
+        <div class="row">
+          <span class="label">Final Payable</span>
+          <span class="value">${escapeHtml(fmtCurrency(HOME_SERVICE_PAYMENT.finalPayable))}</span>
+        </div>` : ''}
         ${data.advance_payment && data.advance_payment > 0 ? `<div class="row">
           <span class="label">Advance Payment</span>
           <span class="value">${escapeHtml(fmtCurrency(data.advance_payment))}</span>

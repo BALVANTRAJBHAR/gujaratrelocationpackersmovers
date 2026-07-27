@@ -35,7 +35,7 @@ const COMPANY_CONTACT = `Phone: ${COMPANY_PHONE} | Email: ${COMPANY_EMAIL}`;
 function fmtCurrency(amount: number | null | undefined): string {
   const val = Number(amount ?? 0);
   if (!Number.isFinite(val) || val <= 0) return '₹0';
-  return `₹${Math.round(val).toLocaleString('en-IN')}`;
+  return `₹${(Number.isInteger(val) ? val : Number(val.toFixed(2))).toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(val) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -88,7 +88,9 @@ function buildFareTable(breakdown: Record<string, any> | null, estimated: number
     drop_lift_available: 'Drop Lift',
     subtotal: 'Subtotal',
     gst: 'GST (5%)',
-    total: 'Total',
+    total: 'Booking Total',
+    convenience_fee: 'Convenience Fee',
+    final_payable: 'Final Payable',
     vehicle_type_id: 'Vehicle Type',
   };
   for (const [key, val] of Object.entries(breakdown)) {
@@ -105,7 +107,7 @@ function buildFareTable(breakdown: Record<string, any> | null, estimated: number
     } else {
       display = String(val ?? '—');
     }
-    if (key === 'total') {
+    if (key === 'total' || key === 'final_payable') {
       rows.push(`<tr style="border-top:2px solid #e2e8f0;"><td style="padding:10px 0 4px 0;font-weight:800;color:#0f172a;font-size:15px;">${label}</td><td style="padding:10px 0 4px 0;text-align:right;font-weight:800;color:#0f172a;font-size:17px;">${display}</td></tr>`);
     } else if (key === 'subtotal' || key === 'gst') {
       rows.push(`<tr><td style="padding:4px 0;color:#475569;font-size:14px;">${label}</td><td style="padding:4px 0;text-align:right;color:#475569;font-size:14px;">${display}</td></tr>`);

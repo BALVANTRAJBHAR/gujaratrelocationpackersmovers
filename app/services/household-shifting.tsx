@@ -1,5 +1,5 @@
 import StickyHeader from '@/app/components/sticky-header';
-import { useRouter } from 'expo-router';
+import { Head, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Dimensions, ImageBackground, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+import { SERVICES_SEO } from '@/constants/seo';
 
 const FAQS = [
   { q: 'How much does house shifting cost?', a: 'Pricing depends on distance, items volume, and floor/lift availability. Request a callback for an exact quote.' },
@@ -135,7 +136,15 @@ export default function HouseholdShiftingScreen() {
   const heroMeta = useMemo(() => ({ rating: '4.8', exp: '18+ Years Experience' }), []);
 
   return (
-    <View style={[styles.page, { backgroundColor: theme.bg }]}>
+    <>
+      <Head>
+        <title>{SERVICES_SEO.title}</title>
+        <meta name="description" content={SERVICES_SEO.description} />
+        {SERVICES_SEO.canonical ? <link rel="canonical" href={SERVICES_SEO.canonical} /> : null}
+        <meta property="og:title" content={SERVICES_SEO.title} />
+        <meta property="og:description" content={SERVICES_SEO.description} />
+      </Head>
+      <View style={[styles.page, { backgroundColor: theme.bg }]}>
       <StickyHeader
         theme={theme}
         isSmallScreen={isSmallScreen}
@@ -353,6 +362,7 @@ export default function HouseholdShiftingScreen() {
         </View>
       </Modal>
     </View>
+    </>
   );
 }
 

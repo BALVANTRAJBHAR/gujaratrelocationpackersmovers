@@ -1,9 +1,10 @@
-import { useRouter } from 'expo-router';
+import { Head, useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
+import { TERMS_SEO, SITE_URL } from '@/constants/seo';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getOrCreateTermsPdfUri, downloadLegalPdf, openLegalPdf } from '@/lib/legal-docs';
 import { t } from '@/constants/typography';
@@ -46,7 +47,15 @@ export default function TermsAndConditionsScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 24, backgroundColor: theme.bg }}>
+    <>
+      <Head>
+        <title>{TERMS_SEO.title}</title>
+        <meta name="description" content={TERMS_SEO.description} />
+        <link rel="canonical" href={`${SITE_URL}/terms-and-conditions`} />
+        <meta property="og:title" content={TERMS_SEO.title} />
+        <meta property="og:description" content={TERMS_SEO.description} />
+      </Head>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 24, backgroundColor: theme.bg }}>
       <YStack gap="$4">
         <Pressable onPress={() => router.back()} style={{ alignSelf: 'flex-start' }}>
           <Text fontSize={t(14)} fontWeight="800" color={theme.primary} style={{ fontFamily: 'Times New Roman' }}>
@@ -197,5 +206,6 @@ export default function TermsAndConditionsScreen() {
         <View style={{ height: 10 }} />
       </YStack>
     </ScrollView>
+    </>
   );
 }

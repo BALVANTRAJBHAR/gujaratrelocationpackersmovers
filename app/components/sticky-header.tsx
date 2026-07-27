@@ -72,7 +72,7 @@ function ActionIconBtn({
     <Pressable onPress={onPress} onHoverIn={onHoverIn} onHoverOut={onHoverOut}>
       <YStack
         width={36}
-        height={36}
+        paddingVertical={10}
         borderRadius={12}
         backgroundColor={theme.menuBg}
         borderWidth={1}
@@ -84,7 +84,7 @@ function ActionIconBtn({
         elevation={3}
         alignItems="center"
         justifyContent="center"
-        padding={0}
+        paddingHorizontal={0}
         style={isHovered ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
         {children}
       </YStack>

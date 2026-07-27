@@ -16,6 +16,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/mapbox';
 import { getMapboxToken, getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
+import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { supabase } from '@/lib/supabase';
 
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
@@ -924,6 +925,12 @@ export default function BookingWizardScreen() {
   const discountedSubtotal = useMemo(() => roundMoney(Math.max(subtotal - discountAmount, 0)), [subtotal, discountAmount]);
   const gst = useMemo(() => roundMoney(discountedSubtotal * 0.18), [discountedSubtotal]);
   const total = useMemo(() => roundMoney(discountedSubtotal + gst + boxCharge), [discountedSubtotal, gst, boxCharge]);
+  const { convenienceFee, finalPayable } = useMemo(() => calculateConvenienceFee(total), [total]);
+  const amountDueNow = useMemo(() => {
+    return paymentMode === 'full'
+      ? finalPayable
+      : Math.round(((form.advanceAmount ?? 0) + convenienceFee) * 100) / 100;
+  }, [convenienceFee, finalPayable, form.advanceAmount, paymentMode]);
 
   useEffect(() => {
     if (paymentMode !== 'full') return;
@@ -1172,7 +1179,7 @@ export default function BookingWizardScreen() {
       }
 
       const km = distanceKm ?? 0;
-      const remainingAmount = Math.max(total - (form.advanceAmount ?? 0), 0);
+      const remainingAmount = Math.max(finalPayable - amountDueNow, 0);
       const scheduledDate = form.shiftingDate ? normalizeToIsoDate(form.shiftingDate) : null;
 
       const generateOtp = () => String(Math.floor(1000 + Math.random() * 9000));
@@ -1192,7 +1199,7 @@ export default function BookingWizardScreen() {
           distance_km: km,
           status: 'pending',
           payment_status: 'pending',
-          estimated_price: total,
+          estimated_price: finalPayable,
           final_price: null,
           vehicle_type_id: selectedVehicle.id,
           pickup_floor: pickupFloorSort,
@@ -1223,8 +1230,10 @@ export default function BookingWizardScreen() {
             subtotal,
             gst,
             total,
+            convenience_fee: convenienceFee,
+            final_payable: finalPayable,
           },
-          advance_amount: form.advanceAmount,
+          advance_amount: amountDueNow,
           remaining_amount: remainingAmount,
           payment_method: form.paymentMethod,
           pickup_otp: pickupOtp,
@@ -1271,8 +1280,8 @@ export default function BookingWizardScreen() {
         pickup_address: form.pickupAddress,
         drop_address: form.dropAddress,
         distance_km: km,
-        estimated_price: total,
-        advance_amount: form.advanceAmount,
+        estimated_price: finalPayable,
+        advance_amount: amountDueNow,
         remaining_amount: remainingAmount,
         status: 'pending',
         payment_status: 'pending',
@@ -1345,15 +1354,15 @@ export default function BookingWizardScreen() {
       }
 
       const km = distanceKm ?? 0;
-      const remainingAmount = Math.max(total - (form.advanceAmount ?? 0), 0);
+      const remainingAmount = Math.max(finalPayable - amountDueNow, 0);
       const scheduledDate = form.shiftingDate ? normalizeToIsoDate(form.shiftingDate) : null;
 
       const generateOtp = () => String(Math.floor(1000 + Math.random() * 9000));
       const pickupOtp = generateOtp();
       const deliveryOtp = generateOtp();
 
-      const walletUsed = Math.min(walletAmount, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0));
-      const payAmountRupees = (paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0)) - walletUsed;
+      const walletUsed = Math.min(walletAmount, amountDueNow);
+      const payAmountRupees = Math.max(amountDueNow - walletUsed, 0);
 
       if (walletUsed > 0) {
         await debitWallet({
@@ -1425,7 +1434,7 @@ export default function BookingWizardScreen() {
           distance_km: km,
           status: 'confirmed',
           payment_status: 'paid',
-          estimated_price: total,
+          estimated_price: finalPayable,
           final_price: null,
           vehicle_type_id: selectedVehicle.id,
           pickup_floor: pickupFloorSort,
@@ -1456,8 +1465,10 @@ export default function BookingWizardScreen() {
             subtotal,
             gst,
             total,
+            convenience_fee: convenienceFee,
+            final_payable: finalPayable,
           },
-          advance_amount: form.advanceAmount,
+          advance_amount: amountDueNow,
           remaining_amount: remainingAmount,
           payment_method: form.paymentMethod,
           pickup_otp: pickupOtp,
@@ -1524,7 +1535,7 @@ export default function BookingWizardScreen() {
 
       // Credit excess payment to wallet
       const totalPaid = walletUsed + (order ? (order.amount ?? 0) / 100 : 0);
-      const requiredAmount = paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount ?? 0);
+      const requiredAmount = amountDueNow;
       const excessAmount = totalPaid - requiredAmount;
       if (excessAmount > 0) {
         try {
@@ -1555,8 +1566,8 @@ export default function BookingWizardScreen() {
         pickup_address: form.pickupAddress,
         drop_address: form.dropAddress,
         distance_km: km,
-        estimated_price: total,
-        advance_amount: form.advanceAmount,
+        estimated_price: finalPayable,
+        advance_amount: amountDueNow,
         remaining_amount: remainingAmount,
         status: 'confirmed',
         payment_status: 'paid',
@@ -1589,6 +1600,8 @@ export default function BookingWizardScreen() {
           subtotal,
           gst,
           total,
+          convenience_fee: convenienceFee,
+          final_payable: finalPayable,
         },
         created_at: new Date().toISOString(),
       };
@@ -2968,7 +2981,7 @@ export default function BookingWizardScreen() {
                       flex={1}
                       placeholder="Enter amount"
                       value={walletAmount > 0 ? String(walletAmount) : ''}
-                      onChangeText={(v) => setWalletAmount(Math.min(parseInt(v || '0', 10) || 0, walletBalance, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount)))}
+                      onChangeText={(v) => setWalletAmount(Math.min(parseInt(v || '0', 10) || 0, walletBalance, amountDueNow))}
                       keyboardType="number-pad"
                       backgroundColor={theme.inputBg}
                       borderColor={theme.inputBorder}
@@ -2979,7 +2992,7 @@ export default function BookingWizardScreen() {
                       backgroundColor={theme.bgSecondary}
                       color={theme.text}
                       borderRadius={10}
-                      onPress={() => setWalletAmount(Math.min(walletBalance, paymentMode === 'full' ? Math.round(total) : Math.round(form.advanceAmount)))}
+                      onPress={() => setWalletAmount(Math.min(walletBalance, amountDueNow))}
                       fontWeight="700">
                       Max
                     </Button>
@@ -3031,21 +3044,29 @@ export default function BookingWizardScreen() {
                       <Text fontSize={t(14)} fontWeight="800" color={theme.text}>- {currency(discountAmount)}</Text>
                     </XStack>
                   ) : null}
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={t(14)} color={theme.textMuted}>Booking Total</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(total)}</Text>
+                  </XStack>
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={t(14)} color={theme.textMuted}>Convenience Fee</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(convenienceFee)}</Text>
+                  </XStack>
                   <YStack height={1} backgroundColor={theme.bgSecondary} marginVertical={8} />
                   <XStack justifyContent="space-between">
-                    <Text fontSize={t(20)} fontWeight="900">Total</Text>
-                    <Text fontSize={t(20)} fontWeight="900">{currency(total)}</Text>
+                    <Text fontSize={t(20)} fontWeight="900">Final Payable</Text>
+                    <Text fontSize={t(20)} fontWeight="900">{currency(finalPayable)}</Text>
                   </XStack>
 
                   <XStack justifyContent="space-between" marginTop={6}>
                     <Text fontSize={t(14)} color={theme.textMuted}>Advance Payment</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.success}>
-                      - {currency(form.advanceAmount)}
+                      - {currency(amountDueNow)}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
                     <Text fontSize={t(20)} fontWeight="900">Remaining</Text>
-                    <Text fontSize={t(20)} fontWeight="900">{currency(Math.max(total - form.advanceAmount, 0))}</Text>
+                    <Text fontSize={t(20)} fontWeight="900">{currency(Math.max(finalPayable - amountDueNow, 0))}</Text>
                   </XStack>
                 </YStack>
               </YStack>
@@ -3173,7 +3194,7 @@ export default function BookingWizardScreen() {
                         Pay now to confirm booking
                       </Text>
                       <Text color="#B45309" fontSize={t(13)} flexShrink={1}>
-                        Remaining {currency(Math.max(total - form.advanceAmount, 0))} will be collected after delivery
+                        Remaining {currency(Math.max(finalPayable - amountDueNow, 0))} will be collected after delivery
                       </Text>
                     </YStack>
                     <Text

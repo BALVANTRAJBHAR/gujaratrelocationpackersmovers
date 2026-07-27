@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
+import { Head } from 'expo-router';
 
 import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
@@ -22,6 +23,7 @@ import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { t } from '@/constants/typography';
+import { PROPERTIES_SEO, SITE_URL } from '@/constants/seo';
 
 type PropertyRow = {
   id: string;
@@ -1227,7 +1229,18 @@ export default function PropertiesIndexScreen() {
     }
   };
   return (
-    <View style={{ flex: 1, backgroundColor: pageBg }}>
+    <>
+      <Head>
+        <title>{PROPERTIES_SEO.title}</title>
+        <meta name="description" content={PROPERTIES_SEO.description} />
+        <link rel="canonical" href={`${SITE_URL}/properties`} />
+        <meta property="og:title" content={PROPERTIES_SEO.title} />
+        <meta property="og:description" content={PROPERTIES_SEO.description} />
+        <meta property="og:url" content={`${SITE_URL}/properties`} />
+        <meta name="twitter:title" content={PROPERTIES_SEO.title} />
+        <meta name="twitter:description" content={PROPERTIES_SEO.description} />
+      </Head>
+      <View style={{ flex: 1, backgroundColor: pageBg }}>
       <YStack backgroundColor={theme.bgSecondary} padding={16} paddingTop={18}>
         <XStack alignItems="center" justifyContent="center" position="relative">
           <Button
@@ -1775,5 +1788,6 @@ export default function PropertiesIndexScreen() {
         </Pressable>
       </Modal>
     </View>
+    </>
   );
 }

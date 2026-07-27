@@ -2,7 +2,7 @@ import StickyHeader from '@/app/components/sticky-header';
 import { MapView as NativeMapView, Marker as NativeMapMarker } from '@/components/NativeMap';
 import { WebView as NativeWebView } from '@/components/NativeWebView';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Head, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,6 +33,7 @@ import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+import { HOME_SEO, SITE_URL } from '@/constants/seo';
 
 if (typeof window !== 'undefined' && !Linking.openURL) {
   Linking.openURL = (url: string) => {
@@ -226,6 +227,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
               source={require('../assets/images/PackersMoversLogo.png')}
               resizeMode="contain"
               style={{ width: isCardNarrow ? 52 : 70, height: isCardNarrow ? 52 : 70 }}
+              accessibilityLabel="Gujarat Relocation Packers & Movers logo"
             />
             <YStack style={{ flexShrink: 1, minWidth: 0, flex: 1 }}>
               <Text
@@ -1798,7 +1800,19 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+    <>
+      <Head>
+        <title>{HOME_SEO.title}</title>
+        <meta name="description" content={HOME_SEO.description} />
+        <meta name="keywords" content={HOME_SEO.keywords!} />
+        <link rel="canonical" href={SITE_URL} />
+        <meta property="og:title" content={HOME_SEO.title} />
+        <meta property="og:description" content={HOME_SEO.description} />
+        <meta property="og:url" content={SITE_URL} />
+        <meta name="twitter:title" content={HOME_SEO.title} />
+        <meta name="twitter:description" content={HOME_SEO.description} />
+      </Head>
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <StickyHeader
         theme={theme}
         isSmallScreen={isSmallScreen}
@@ -1842,6 +1856,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 source={heroSlides[heroIndex]?.image}
                 style={[styles.heroBg, isSmallScreen && styles.heroBgMobile]}
                 imageStyle={styles.heroBgImage}
+                accessibilityLabel={heroSlides[heroIndex]?.title?.replace('\n', ' ') || 'Hero banner'}
                 {...heroPanResponder.panHandlers}>
                 <YStack
                   style={[styles.heroOverlay, isSmallScreen && styles.heroOverlayMobile]}
@@ -4342,8 +4357,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         </YStack>
       </ScrollView>
     </View>
+    </>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {

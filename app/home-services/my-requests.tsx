@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
+import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { t } from '@/constants/typography';
 
@@ -39,6 +40,8 @@ type HomeServiceRequestRow = {
   provider_id: string | null;
   provider_name: string | null;
 };
+
+const HOME_SERVICE_PAYMENT = calculateConvenienceFee(150);
 
 type HomeServiceUploadRow = {
   id: string;
@@ -236,7 +239,7 @@ export default function MyHomeServiceRequestsScreen() {
   const handlePayOnline = async (r: HomeServiceRequestRow) => {
     try {
       const order = await createRazorpayOrder({
-        amount: 15000,
+        amount: Math.round(HOME_SERVICE_PAYMENT.finalPayable * 100),
         currency: 'INR',
         receipt: `hs_pst_${Date.now()}`,
         notes: { request_id: r.id, purpose: 'home_service_after_payment' },
@@ -301,16 +304,27 @@ export default function MyHomeServiceRequestsScreen() {
       await supabase.from('payments').insert({
         booking_id: null,
         user_id: session?.user?.id,
-        amount: 150,
+        amount: HOME_SERVICE_PAYMENT.finalPayable,
         status: 'paid',
         razorpay_order_id: order.id,
         razorpay_payment_id: paymentData.razorpay_payment_id,
-        metadata: { request_id: r.id, purpose: 'home_service_after_payment', razorpay_signature: paymentData.razorpay_signature },
+        metadata: {
+          request_id: r.id,
+          purpose: 'home_service_after_payment',
+          razorpay_signature: paymentData.razorpay_signature,
+          booking_total: HOME_SERVICE_PAYMENT.bookingTotal,
+          convenience_fee: HOME_SERVICE_PAYMENT.convenienceFee,
+          final_payable: HOME_SERVICE_PAYMENT.finalPayable,
+        },
       });
 
       await supabase
         .from('home_service_requests')
-        .update({ payment_status: 'paid', after_service_payment_method: 'online' })
+        .update({
+          payment_status: 'paid',
+          after_service_payment_method: 'online',
+          advance_payment: HOME_SERVICE_PAYMENT.finalPayable,
+        })
         .eq('id', r.id);
 
       Alert.alert('Paid', 'Payment successful!');
@@ -635,6 +649,14 @@ export default function MyHomeServiceRequestsScreen() {
                         <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                           Payment
                         </Text>
+                        <XStack justifyContent="space-between" gap="$2">
+                          <Text color={muted} fontSize={t(12)}>Convenience Fee</Text>
+                          <Text color={titleColor} fontSize={t(12)}>₹{HOME_SERVICE_PAYMENT.convenienceFee.toFixed(2)}</Text>
+                        </XStack>
+                        <XStack justifyContent="space-between" gap="$2">
+                          <Text color={titleColor} fontWeight="800" fontSize={t(12)}>Final Payable</Text>
+                          <Text color={titleColor} fontWeight="800" fontSize={t(12)}>₹{HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)}</Text>
+                        </XStack>
                         <XStack gap="$2" flexWrap="wrap">
                           <Button
                             size="$2"

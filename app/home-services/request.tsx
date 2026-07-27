@@ -55,6 +55,7 @@ import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPl
 import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validation';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
+import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { supabase } from '@/lib/supabase';
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
 import { useSession } from '@/providers/session-provider';
@@ -64,6 +65,8 @@ const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
 const TEMP_BYPASS_OTP = false; // OTP verification enabled on submit
+const HOME_SERVICE_BOOKING_TOTAL = 150;
+const HOME_SERVICE_PAYMENT = calculateConvenienceFee(HOME_SERVICE_BOOKING_TOTAL);
 
 class UploadError extends Error {}
 
@@ -1000,7 +1003,7 @@ export default function HomeServiceRequestScreen() {
       if (paymentOpt === 'online_now') {
         setPaying(true);
         try {
-          const advanceAmount = 150;
+          const advanceAmount = HOME_SERVICE_PAYMENT.finalPayable;
           const walletUsed = useWallet ? Math.min(walletBalance, advanceAmount) : 0;
           const payViaRazorpay = advanceAmount - walletUsed;
 
@@ -1017,10 +1020,16 @@ export default function HomeServiceRequestScreen() {
 
           if (payViaRazorpay > 0) {
             const order = await createRazorpayOrder({
-              amount: payViaRazorpay * 100,
+              amount: Math.round(payViaRazorpay * 100),
               currency: 'INR',
               receipt: `hs_${Date.now()}`,
-              notes: { request_id: requestId, purpose: 'home_service_advance' },
+              notes: {
+                request_id: requestId,
+                purpose: 'home_service_advance',
+                booking_total: HOME_SERVICE_PAYMENT.bookingTotal,
+                convenience_fee: HOME_SERVICE_PAYMENT.convenienceFee,
+                final_payable: HOME_SERVICE_PAYMENT.finalPayable,
+              },
             });
 
             const razorpayKeyId = await getRazorpayKeyId();
@@ -1063,6 +1072,9 @@ export default function HomeServiceRequestScreen() {
               metadata: {
                 request_id: requestId,
                 purpose: 'home_service_advance',
+                booking_total: HOME_SERVICE_PAYMENT.bookingTotal,
+                convenience_fee: HOME_SERVICE_PAYMENT.convenienceFee,
+                final_payable: HOME_SERVICE_PAYMENT.finalPayable,
               },
             });
 
@@ -1109,11 +1121,11 @@ export default function HomeServiceRequestScreen() {
 
       // Credit excess payment to wallet (if user paid more than ₹150)
       if (paymentOpt === 'online_now') {
-        const walletUsed = useWallet ? Math.min(walletBalance, 150) : 0;
-        const paidViaRazorpay = Math.max(150 - walletUsed, 0);
+        const walletUsed = useWallet ? Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable) : 0;
+        const paidViaRazorpay = Math.max(HOME_SERVICE_PAYMENT.finalPayable - walletUsed, 0);
         const totalPaid = walletUsed + paidViaRazorpay;
-        if (totalPaid > 150) {
-          const excess = totalPaid - 150;
+        if (totalPaid > HOME_SERVICE_PAYMENT.finalPayable) {
+          const excess = totalPaid - HOME_SERVICE_PAYMENT.finalPayable;
           try {
             await creditWallet({
               userId: session!.user.id,
@@ -1923,6 +1935,12 @@ export default function HomeServiceRequestScreen() {
                 Choose how you would like to pay for this service.
               </Paragraph>
 
+              <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={10} padding={12}>
+                <XStack justifyContent="space-between"><Text color={theme.textMuted}>Booking Total</Text><Text color={theme.text}>₹{HOME_SERVICE_PAYMENT.bookingTotal.toFixed(2)}</Text></XStack>
+                <XStack justifyContent="space-between"><Text color={theme.textMuted}>Convenience Fee</Text><Text color={theme.text}>₹{HOME_SERVICE_PAYMENT.convenienceFee.toFixed(2)}</Text></XStack>
+                <XStack justifyContent="space-between"><Text color={theme.text} fontWeight="900">Final Payable</Text><Text color={theme.text} fontWeight="900">₹{HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)}</Text></XStack>
+              </YStack>
+
               <Pressable
                 onPress={() => setPaymentOption('online_now')}
                 style={({ pressed }: any) => [{
@@ -1938,7 +1956,7 @@ export default function HomeServiceRequestScreen() {
                     Pay Online Now
                   </Text>
                   <Text color={paymentOption === 'online_now' ? '#86EFAC' : theme.textMuted} fontSize={t(14)}>
-                    Pay ₹150 advance now via card/UPI/net banking. Review summary then pay.
+                    Pay ₹{HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)} now via card/UPI/net banking. Review summary then pay.
                   </Text>
                 </YStack>
               </Pressable>
@@ -1979,8 +1997,8 @@ export default function HomeServiceRequestScreen() {
                         Use Wallet Balance
                       </Text>
                       <Text color={useWallet ? '#86EFAC' : theme.textMuted} fontSize={t(13)}>
-                        Pay ₹{Math.min(walletBalance, 150)} from wallet
-                        {walletBalance >= 150 ? ' (covers full advance)' : `, then pay ₹${150 - walletBalance} via card/UPI`}
+                        Pay ₹{Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable)} from wallet
+                        {walletBalance >= HOME_SERVICE_PAYMENT.finalPayable ? ' (covers full payable)' : `, then pay ₹${(HOME_SERVICE_PAYMENT.finalPayable - walletBalance).toFixed(2)} via card/UPI`}
                       </Text>
                     </YStack>
                     <Text color="#22C55E" fontWeight="900" fontSize={t(15)}>
@@ -2059,7 +2077,7 @@ export default function HomeServiceRequestScreen() {
                   Payment
                 </Text>
                 <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
-                  {paymentOption === 'after_service' ? 'Pay After Service' : useWallet ? `Pay ₹${Math.min(walletBalance, 150)} from wallet${walletBalance >= 150 ? '' : ` + ₹${150 - walletBalance} via card/UPI`}` : 'Pay Online Now (₹150 advance)'}
+                  {paymentOption === 'after_service' ? 'Pay After Service' : useWallet ? `Pay ₹${Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable)} from wallet${walletBalance >= HOME_SERVICE_PAYMENT.finalPayable ? '' : ` + ₹${(HOME_SERVICE_PAYMENT.finalPayable - walletBalance).toFixed(2)} via card/UPI`}` : `Pay Online Now (₹${HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)})`}
                 </Text>
               </YStack>
 

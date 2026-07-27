@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Head, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+import { SUPPORT_SEO } from '@/constants/seo';
 import { COMPANY_EMAIL, COMPANY_NAME } from '@/constants/company';
 
 export default function SupportScreen() {
@@ -65,7 +66,14 @@ export default function SupportScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={theme.bg}>
+    <>
+      <Head>
+        <title>{SUPPORT_SEO.title}</title>
+        <meta name="description" content={SUPPORT_SEO.description} />
+        <meta property="og:title" content={SUPPORT_SEO.title} />
+        <meta property="og:description" content={SUPPORT_SEO.description} />
+      </Head>
+      <YStack flex={1} backgroundColor={theme.bg}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={900} alignSelf="center">
           <YStack gap="$1">
@@ -142,5 +150,6 @@ export default function SupportScreen() {
         </YStack>
       </ScrollView>
     </YStack>
+    </>
   );
 }

@@ -1,10 +1,11 @@
-import { useRouter } from 'expo-router';
+import { Head, useRouter } from 'expo-router';
 import React from 'react';
 import { Linking, Platform, Pressable, ScrollView } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
+import { REFER_SEO } from '@/constants/seo';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 
@@ -19,7 +20,14 @@ export default function ReferAndEarnScreen() {
   const shareMsg = `Get ₹500 cashback on GR Packers! Sign up using this link: ${referralLink}`;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
+    <>
+      <Head>
+        <title>{REFER_SEO.title}</title>
+        <meta name="description" content={REFER_SEO.description} />
+        <meta property="og:title" content={REFER_SEO.title} />
+        <meta property="og:description" content={REFER_SEO.description} />
+      </Head>
+      <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
       <YStack padding={24} gap="$4" minHeight="100%">
         <XStack alignItems="center" justifyContent="space-between">
           <Text fontSize={t(22)} fontWeight="900" color={theme.text}>Refer & Earn</Text>
@@ -120,5 +128,6 @@ export default function ReferAndEarnScreen() {
         </Text>
       </YStack>
     </ScrollView>
+    </>
   );
 }
