@@ -28,11 +28,12 @@ export async function getLogoBase64(): Promise<string> {
 
   try {
     const assetId = require('../assets/images/PackersMoversLogo.png');
-    const [asset] = await Asset.loadAsync(assetId);
+    const asset = Asset.fromModule(assetId);
+    await asset.downloadAsync();
+    const assetUri = asset.localUri || asset.uri;
+    if (!assetUri) throw new Error('Logo asset URI is unavailable');
 
-    if (!asset?.localUri) throw new Error('Asset has no localUri after loadAsync');
-
-    const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+    const base64 = await FileSystem.readAsStringAsync(assetUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
     cachedLogo = `data:image/png;base64,${base64}`;

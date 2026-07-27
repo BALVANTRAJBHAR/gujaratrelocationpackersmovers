@@ -2,6 +2,7 @@ import { getLogoBase64 } from '@/lib/get-logo-base64';
 
 export async function getTermsConditionsHtml(): Promise<string> {
   const logo = await getLogoBase64();
+  const websiteQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fgujaratrelocationpackers.com';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +15,9 @@ export async function getTermsConditionsHtml(): Promise<string> {
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 3px solid #d7b56d; }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .header-left img { width: 56px; height: 56px; object-fit: contain; }
+  .qr-section { text-align: right; }
+  .qr-section img { width: 64px; height: 64px; }
+  .qr-label { font-size: 9px; color: #64748b; margin-top: 2px; }
   .company-details { flex: 1; }
   .company-name { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; }
   .company-address { font-size: 11px; color: #64748b; margin: 0 0 1px 0; }
@@ -38,12 +42,16 @@ export async function getTermsConditionsHtml(): Promise<string> {
 <body>
   <div class="header">
     <div class="header-left">
-      <img src="${logo}" alt="Logo"/>
+      <img src="${logo}" alt=""/>
       <div class="company-details">
         <p class="company-name">Gujarat Relocation Packers</p>
         <p class="company-address">Sethia Aashray, Mumbai 400101</p>
         <p class="company-contact">Phone: +91 9987963470 | Email: Gujaratrelocation.owner@gmail.com</p>
       </div>
+    </div>
+    <div class="qr-section">
+      <img src="${websiteQrUrl}" alt=""/>
+      <div class="qr-label">Scan to visit our website</div>
     </div>
   </div>
 

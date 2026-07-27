@@ -190,7 +190,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
 <body>
   <div class="header">
     <div class="header-left">
-      <img src="${escapeHtml(logo)}" alt="Logo"/>
+      <img src="${escapeHtml(logo)}" alt=""/>
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
