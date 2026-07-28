@@ -185,7 +185,9 @@ export default function BookingMapPicker(props: {
     setSearching(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const results = await searchPlaces(searchQuery.trim());
+        const results = await searchPlaces(searchQuery.trim(), {
+          proximity: props.coord ? [props.coord.lng, props.coord.lat] : undefined,
+        });
         setSearchResults(results as PlaceCandidate[]);
       } catch {
         setSearchResults([]);

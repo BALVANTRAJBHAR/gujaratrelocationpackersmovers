@@ -28,7 +28,7 @@ import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
-import { searchPlaces } from '@/lib/mapbox';
+import { searchPlaces, getCityCenter } from '@/lib/mapbox';
 import { getDashboardRoute } from '@/lib/role-routing';
 import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
@@ -442,6 +442,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const quotePhoneReadOnly = Boolean(String(profile?.phone ?? '').trim());
   const quoteEmailReadOnly = Boolean(String(profile?.email ?? session?.user?.email ?? '').trim());
   const scrollRef = useRef<ScrollView | null>(null);
+  const [homeScrollY, setHomeScrollY] = useState(0);
   const sectionOffsetsRef = useRef<{ services?: number; serviceMenu?: number; contact?: number }>({});
   const propertyCityCentersRef = useRef<Record<string, [number, number]>>({});
   const buttonAnim = useRef(new Animated.Value(1)).current;
@@ -1156,28 +1157,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           let proximity: [number, number] | undefined;
           let bbox: [number, number, number, number] | undefined;
           if (cityLower && stateLower) {
-            const key = `${cityLower}|${stateLower}`;
-            const cached = propertyCityCentersRef.current[key];
-            if (cached) {
-              proximity = cached;
-            } else {
-              try {
-                const cityLookup = await searchPlaces(`${propertyCity}, ${propertyState}`.trim(), {
-                  limit: 1,
-                  types: ['place'],
-                });
-                const center = (cityLookup?.[0]?.center ?? null) as any;
-                const lookedBbox = (cityLookup?.[0] as any)?.bbox ?? null;
-                if (Array.isArray(center) && center.length === 2) {
-                  proximity = [Number(center[0]), Number(center[1])];
-                  propertyCityCentersRef.current[key] = proximity;
-                }
-                if (Array.isArray(lookedBbox) && lookedBbox.length === 4) {
-                  bbox = [Number(lookedBbox[0]), Number(lookedBbox[1]), Number(lookedBbox[2]), Number(lookedBbox[3])];
-                }
-              } catch {
-              }
-            }
+            const { center, bbox: lookedBbox } = await getCityCenter(propertyCity, propertyState);
+            if (center) proximity = center;
+            if (lookedBbox) bbox = lookedBbox;
           }
 
           const results = await searchPlaces(`${q}, ${propertyCity || ''} ${propertyState || ''}`.trim(), {
@@ -1848,7 +1830,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         bounces={false}
         overScrollMode="never"
         scrollEventThrottle={16}
-        onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}>
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          scrollOffsetRef.current = y;
+          setHomeScrollY(y);
+        }}>
         <YStack>
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 14 : 0) : 2}>
@@ -4357,6 +4343,30 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           </YStack>
         </YStack>
       </ScrollView>
+      {isSmallScreen ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={homeScrollY > 120 ? 'Scroll to top' : 'Scroll to bottom'}
+          onPress={() => scrollRef.current?.scrollTo({ y: homeScrollY > 120 ? 0 : 100000, animated: true })}
+          style={{
+            position: 'absolute',
+            right: 18,
+            bottom: 76,
+            width: 42,
+            height: 42,
+            borderRadius: 21,
+            backgroundColor: '#D97706',
+            alignItems: 'center',
+            justifyContent: 'center',
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOpacity: 0.25,
+            shadowRadius: 6,
+            shadowOffset: { width: 0, height: 3 },
+          }}>
+          <FontAwesome name={homeScrollY > 120 ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
     </View>
     </>
   );

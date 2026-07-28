@@ -15,10 +15,10 @@ export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
-  const [pdfBusy, setPdfBusy] = React.useState(false);
+  const [pdfAction, setPdfAction] = React.useState<'view' | 'download' | null>(null);
 
   const openPdf = async () => {
-    setPdfBusy(true);
+    setPdfAction('view');
     try {
       const uri = await getOrCreatePrivacyPdfUri();
       console.log('[PrivacyScreen] PDF URI:', uri);
@@ -28,12 +28,12 @@ export default function PrivacyPolicyScreen() {
       console.error('[PrivacyScreen] openPdf error:', e);
       Alert.alert('Error', `Could not open PDF.\n${String(e)}`);
     } finally {
-      setPdfBusy(false);
+      setPdfAction(null);
     }
   };
 
   const downloadPdf = async () => {
-    setPdfBusy(true);
+    setPdfAction('download');
     try {
       const uri = await getOrCreatePrivacyPdfUri();
       console.log('[PrivacyScreen] Download URI:', uri);
@@ -43,7 +43,7 @@ export default function PrivacyPolicyScreen() {
       console.error('[PrivacyScreen] downloadPdf error:', e);
       Alert.alert('Error', `Could not download PDF.\n${String(e)}`);
     } finally {
-      setPdfBusy(false);
+      setPdfAction(null);
     }
   };
 
@@ -74,11 +74,11 @@ export default function PrivacyPolicyScreen() {
         </YStack>
 
         <XStack gap="$2">
-          <Button flex={1} backgroundColor="#D97706" color="#FFFFFF" borderRadius={12} onPress={openPdf} disabled={pdfBusy} opacity={pdfBusy ? 0.6 : 1}>
-            {pdfBusy ? 'Opening…' : 'View PDF'}
+          <Button flex={1} backgroundColor="#D97706" color="#FFFFFF" borderRadius={12} onPress={openPdf} disabled={!!pdfAction} opacity={pdfAction ? 0.6 : 1}>
+            {pdfAction === 'view' ? 'Opening…' : 'View PDF'}
           </Button>
-          <Button flex={1} backgroundColor={theme.bgSecondary} color={theme.text} borderRadius={12} borderWidth={1} borderColor={theme.border} onPress={downloadPdf} disabled={pdfBusy} opacity={pdfBusy ? 0.6 : 1}>
-            {pdfBusy ? 'Opening…' : 'Download PDF'}
+          <Button flex={1} backgroundColor={theme.bgSecondary} color={theme.text} borderRadius={12} borderWidth={1} borderColor={theme.border} onPress={downloadPdf} disabled={!!pdfAction} opacity={pdfAction ? 0.6 : 1}>
+            {pdfAction === 'download' ? 'Downloading…' : 'Download PDF'}
           </Button>
         </XStack>
 

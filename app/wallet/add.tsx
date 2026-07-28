@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable } from 'react-native';
+import { ActivityIndicator, Alert, Pressable } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
@@ -16,7 +16,7 @@ const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
 
 export default function AddMoneyScreen() {
   const router = useRouter();
-  const { session, refreshProfile } = useSession();
+  const { session, profile, refreshProfile } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const [amount, setAmount] = useState(500);
@@ -25,31 +25,42 @@ export default function AddMoneyScreen() {
 
   const effectiveAmount = custom ? parseInt(custom, 10) : amount;
 
+  const paymentErrorMessage = (error: unknown) => {
+    if (error && typeof error === 'object') {
+      const value = error as Record<string, unknown>;
+      return String(value.description || value.message || value.error || value.reason || 'Payment could not be completed.');
+    }
+    return String(error || 'Payment could not be completed.');
+  };
+
   const handleAddMoney = async () => {
     if (!session?.user?.id || !effectiveAmount || effectiveAmount < 1) return;
     setProcessing(true);
     try {
+      const razorpayKeyId = await getRazorpayKeyId();
+      if (!razorpayKeyId) throw new Error('Missing Razorpay public key. Please try again later.');
+
+      // This is deliberately the same order + checkout + verification sequence
+      // used by the working shifting-booking payment flow.
       const order = await createRazorpayOrder({
         amount: effectiveAmount * 100,
         currency: 'INR',
         receipt: `wallet_${session.user.id}_${Date.now()}`,
-        notes: { user_id: session.user.id, purpose: 'wallet_topup' },
+        notes: { user_id: session.user.id },
       });
-
-      const razorpayKeyId = await getRazorpayKeyId();
-
-      if (!razorpayKeyId) {
-        alert('Missing Razorpay public key. Please try again later.');
-        return;
-      }
 
       const response = await openRazorpayCheckout({
         key: razorpayKeyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'GR Packers & Movers',
+        name: 'Gujarat Relocation Packers',
         description: `Add ₹${effectiveAmount} to Wallet`,
         order_id: order.id,
+        prefill: {
+          name: profile?.full_name || '',
+          email: session.user.email || '',
+          contact: profile?.phone || '',
+        },
         theme: { color: '#1F4E79' },
       });
 
@@ -70,12 +81,14 @@ export default function AddMoneyScreen() {
       });
 
       await refreshProfile();
-      router.back();
+      Alert.alert('Payment successful', `₹${effectiveAmount.toLocaleString('en-IN')} has been added to your wallet.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     } catch (e: any) {
-      const msg = typeof e?.message === 'string' ? e.message : String(e ?? '');
-      if (msg === 'Payment cancelled') return;
+      const msg = paymentErrorMessage(e);
+      if (/cancel/i.test(msg)) return;
       const cleaned = msg.replace(/^\(\d+\)\s*/, '');
-      alert(cleaned || 'Payment failed. Please try again.');
+      Alert.alert('Payment failed', cleaned || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
     }

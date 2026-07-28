@@ -71,7 +71,12 @@ export default function BookingMapPicker(props: {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const results = await searchPlaces(searchQuery);
+        const map = mapRef.current;
+        const center = map?.getCenter();
+        const hasCoord = props.coord?.lat != null && props.coord?.lng != null;
+        const results = await searchPlaces(searchQuery, {
+          proximity: center ? [center.lng, center.lat] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined,
+        });
         setSearchResults(results as GeocodeFeature[]);
       } catch {
         setSearchResults([]);

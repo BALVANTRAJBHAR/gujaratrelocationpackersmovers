@@ -14,7 +14,7 @@ import {
   resolveAdTypeQuery,
   routeParam,
 } from '@/lib/properties/search-params';
-import { searchPlaces } from '@/lib/mapbox';
+import { searchPlaces, getCityCenter } from '@/lib/mapbox';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySubscription } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';
@@ -562,28 +562,9 @@ export default function PropertiesIndexScreen() {
           let proximity: [number, number] | undefined;
           let bbox: [number, number, number, number] | undefined;
           if (cityLower && stateLower) {
-            const key = `${cityLower}|${stateLower}`;
-            const cached = cityCentersRef.current[key];
-            if (cached) {
-              proximity = cached;
-            } else {
-              try {
-                const cityLookup = await searchPlaces(`${cityValue}, ${stateValue}`.trim(), {
-                  limit: 1,
-                  types: ['place'],
-                });
-                const center = (cityLookup?.[0]?.center ?? null) as any;
-                const lookedBbox = (cityLookup?.[0] as any)?.bbox ?? null;
-                if (Array.isArray(center) && center.length === 2) {
-                  proximity = [Number(center[0]), Number(center[1])];
-                  cityCentersRef.current[key] = proximity;
-                }
-                if (Array.isArray(lookedBbox) && lookedBbox.length === 4) {
-                  bbox = [Number(lookedBbox[0]), Number(lookedBbox[1]), Number(lookedBbox[2]), Number(lookedBbox[3])];
-                }
-              } catch {
-              }
-            }
+            const { center, bbox: lookedBbox } = await getCityCenter(cityValue, stateValue);
+            if (center) proximity = center;
+            if (lookedBbox) bbox = lookedBbox;
           }
 
           const results = await searchPlaces(`${q}, ${cityValue || ''} ${stateValue || ''}`.trim(), {

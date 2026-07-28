@@ -21,7 +21,7 @@ import {
   resolvePropertyFlowKey,
   type WizardStep,
 } from '@/lib/properties/wizard-flow';
-import { reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
+import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
 import { getMapboxToken } from '@/lib/public-config';
 import { hydratePropertyForm, loadPropertyForEdit } from '@/lib/load-property-for-edit';
 import { supabase } from '@/lib/supabase';
@@ -1006,7 +1006,12 @@ export default function PostPropertyScreen() {
         try {
           setLocalityLoading(true);
           const suffix = `${selectedCityName || ''} ${selectedStateName || ''}`.trim();
-          const results = await searchPlaces(`${q}, ${suffix}`.trim());
+          let proximity: [number, number] | undefined;
+          if (selectedCityName && selectedStateName) {
+            const { center } = await getCityCenter(selectedCityName, selectedStateName);
+            if (center) proximity = center;
+          }
+          const results = await searchPlaces(`${q}, ${suffix}`.trim(), { proximity });
           if (!active) return;
 
           const filtered = results

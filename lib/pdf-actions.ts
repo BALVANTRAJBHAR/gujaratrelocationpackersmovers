@@ -4,6 +4,7 @@ import { Alert, Linking, NativeModules, PermissionsAndroid, Platform, Share, Toa
 
 type PdfDownloadModule = {
   saveToDownloads(sourceUri: string, fileName: string): Promise<string>;
+  openPdf?(sourceUri: string, fileName: string): Promise<string>;
 };
 
 const nativePdfDownloader = NativeModules.PdfDownload as PdfDownloadModule | undefined;
@@ -20,6 +21,11 @@ function notifyDownloadSuccess() {
 export async function openPdf(uri: string): Promise<void> {
   if (Platform.OS === 'web') {
     window.open(uri, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  if (Platform.OS === 'android' && nativePdfDownloader?.openPdf) {
+    await nativePdfDownloader.openPdf(uri, `View_${Date.now()}.pdf`);
     return;
   }
 
