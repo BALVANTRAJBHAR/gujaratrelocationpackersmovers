@@ -1,9 +1,11 @@
 import * as Print from 'expo-print';
 import { Platform } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
 import { createWebPdfUri } from '@/lib/web-pdf';
+import { wrapAsPdf } from '@/lib/pdf-layout';
 import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 
 type HomeServicePdfData = {
@@ -86,8 +88,12 @@ function escapeHtml(s: string): string {
 export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<string> {
   const bookingLabel = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
   const reportId = bookingLabel;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
-  const logo = await getLogoBase64();
+  console.log('[generateHomeServicePdf] Loading assets...');
+  const [logo, qrUrl] = await Promise.all([
+    getLogoBase64(),
+    getQrDataUri(reportId),
+  ]);
+  console.log('[generateHomeServicePdf] Assets loaded, building HTML...');
   const now = new Date();
   const serviceLabel = labelForService(data.service_key);
 
@@ -103,15 +109,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
     return String(data.payment_status ?? 'pending').replace('_', ' ');
   }
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<style>
-  @page { margin: 14mm 12mm; }
-  * { box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; color: #1e293b; margin: 0; padding: 0; }
+  const extraCss = `
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .header-left img { width: 56px; height: 56px; object-fit: contain; }
@@ -148,12 +146,12 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
   .status-confirmed { background: #d1fae5; color: #065f46; }
   .footer { text-align: center; margin-top: 16px; font-size: 10px; color: #94a3b8; }
   .footer .line { margin: 2px 0; }
-</style>
-</head>
-<body>
+`;
+
+  const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      <img src="${escapeHtml(logo)}" alt=""/>
+      ${logo ? `<img src="${logo}" alt=""/>` : ''}
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -161,7 +159,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
       </div>
     </div>
     <div class="qr-section">
-      <img src="${escapeHtml(qrUrl)}" alt="QR"/>
+      ${qrUrl ? `<img src="${qrUrl}" alt="QR"/>` : ''}
       <div class="report-id-label">Report ID: ${escapeHtml(reportId)}</div>
     </div>
   </div>
@@ -305,39 +303,61 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
     <div class="line">${escapeHtml(COMPANY_ADDRESS)}</div>
     <div class="line">${escapeHtml(COMPANY_CONTACT)}</div>
   </div>
-</body>
-</html>`;
+`;
 
-  if (Platform.OS === 'web') return createWebPdfUri(html, 'Home Service Report');
+  const html = wrapAsPdf(bodyHtml.trim(), extraCss);
+  console.log('[generateHomeServicePdf] HTML built, generating PDF...');
+
+  if (Platform.OS === 'web') {
+    const webUri = await createWebPdfUri(html, 'Home Service Report');
+    console.log('[generateHomeServicePdf] Web PDF URI:', webUri?.slice(0, 80));
+    return webUri;
+  }
+
   const { uri } = await Print.printToFileAsync({ html, base64: false });
+  console.log('[generateHomeServicePdf] PDF generated at:', uri);
+  if (!uri) throw new Error('Print.printToFileAsync returned empty URI');
   return uri;
 }
 
 export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {
   try {
+    console.log('[shareHomeServicePdf] Generating PDF...');
     const uri = await generateHomeServicePdf(data);
-    if (!uri) return false;
+    if (!uri) {
+      console.error('[shareHomeServicePdf] generateHomeServicePdf returned empty URI');
+      return false;
+    }
+    console.log('[shareHomeServicePdf] PDF URI:', uri?.slice(0, 80));
 
     const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
     const fileName = `Home_Service_Report_${label}.pdf`;
 
+    console.log('[shareHomeServicePdf] Sharing as:', fileName);
     return sharePdf(uri, fileName, `Home Service Report - ${label}`);
   } catch (e) {
-    console.error('Share Home Service PDF failed:', e);
+    console.error('[shareHomeServicePdf] Failed:', e);
     return false;
   }
 }
 
 export async function downloadHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {
   try {
+    console.log('[downloadHomeServicePdf] Generating PDF...');
     const uri = await generateHomeServicePdf(data);
+    if (!uri) {
+      console.error('[downloadHomeServicePdf] generateHomeServicePdf returned empty URI');
+      return false;
+    }
+    console.log('[downloadHomeServicePdf] PDF URI:', uri?.slice(0, 80));
 
     const label = data.booking_number ? `GRH${data.booking_number}` : `RPT-HS-${String(data.id).slice(0, 8).toUpperCase()}`;
     const fileName = `Home_Service_Report_${label}.pdf`;
 
+    console.log('[downloadHomeServicePdf] Downloading as:', fileName);
     return downloadPdf(uri, fileName);
   } catch (e) {
-    console.error('Download Home Service PDF failed:', e);
+    console.error('[downloadHomeServicePdf] Failed:', e);
     return false;
   }
 }

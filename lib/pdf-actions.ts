@@ -19,10 +19,14 @@ function notifyDownloadSuccess() {
 
 /** Opens the document; it deliberately never invokes the share sheet. */
 export async function openPdf(uri: string): Promise<void> {
+  console.log('[openPdf] Opening URI:', uri?.slice(0, 80));
+
   if (Platform.OS === 'web') {
     window.open(uri, '_blank', 'noopener,noreferrer');
     return;
   }
+
+  if (!uri) throw new Error('openPdf called with empty URI');
 
   if (Platform.OS === 'android' && nativePdfDownloader?.openPdf) {
     await nativePdfDownloader.openPdf(uri, `View_${Date.now()}.pdf`);
@@ -58,6 +62,9 @@ function downloadPdfOnWeb(uri: string, fileName: string) {
  */
 export async function downloadPdf(uri: string, fileName: string): Promise<boolean> {
   try {
+    console.log('[downloadPdf] URI:', uri?.slice(0, 80), 'fileName:', fileName);
+    if (!uri) throw new Error('downloadPdf called with empty URI');
+
     if (Platform.OS === 'web') {
       downloadPdfOnWeb(uri, fileName);
       return true;
@@ -86,6 +93,9 @@ export async function downloadPdf(uri: string, fileName: string): Promise<boolea
 /** The only code path that is allowed to show a native share sheet. */
 export async function sharePdf(uri: string, fileName: string, dialogTitle?: string): Promise<boolean> {
   try {
+    console.log('[sharePdf] URI:', uri?.slice(0, 80), 'fileName:', fileName);
+    if (!uri) throw new Error('sharePdf called with empty URI');
+
     if (Platform.OS === 'web') {
       if (!navigator.share) return false;
       const response = await fetch(uri);

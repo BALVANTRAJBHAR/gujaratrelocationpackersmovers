@@ -1,9 +1,11 @@
 import * as Print from 'expo-print';
 import { Platform } from 'react-native';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
 import { createWebPdfUri } from '@/lib/web-pdf';
+import { wrapAsPdf } from '@/lib/pdf-layout';
 
 type BookingPdfData = {
   id: string;
@@ -132,19 +134,15 @@ function paymentLabel(data: BookingPdfData): string {
 export async function generateBookingPdf(data: BookingPdfData): Promise<string> {
   const bookingLabel = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
   const reportId = bookingLabel;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(reportId)}`;
-  const logo = await getLogoBase64();
+  console.log('[generateBookingPdf] Loading assets...');
+  const [logo, qrUrl] = await Promise.all([
+    getLogoBase64(),
+    getQrDataUri(reportId),
+  ]);
+  console.log('[generateBookingPdf] Assets loaded, building HTML...');
   const now = new Date();
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<style>
-  @page { margin: 14mm 12mm; }
-  * { box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; color: #1e293b; margin: 0; padding: 0; }
+  const extraCss = `
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .header-left img { width: 56px; height: 56px; object-fit: contain; }
@@ -185,12 +183,12 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   .status-advance-payment { background: #fef3c7; color: #92400e; }
   .footer { text-align: center; margin-top: 16px; font-size: 11px; color: #94a3b8; }
   .footer .line { margin: 2px 0; }
-</style>
-</head>
-<body>
+`;
+
+  const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      <img src="${escapeHtml(logo)}" alt=""/>
+      ${logo ? `<img src="${logo}" alt=""/>` : ''}
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -198,7 +196,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
       </div>
     </div>
     <div class="qr-section">
-      <img src="${escapeHtml(qrUrl)}" alt="QR"/>
+      ${qrUrl ? `<img src="${qrUrl}" alt="QR"/>` : ''}
       <div class="report-id-label">Report ID: ${escapeHtml(reportId)}</div>
     </div>
   </div>
@@ -315,11 +313,21 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
     <div class="line">${escapeHtml(COMPANY_ADDRESS)}</div>
     <div class="line">${escapeHtml(COMPANY_CONTACT)}</div>
   </div>
-</body>
-</html>`;
+`;
 
-  if (Platform.OS === 'web') return createWebPdfUri(html, 'Shifting Booking Report');
+  const html = wrapAsPdf(bodyHtml.trim(), extraCss);
+  console.log('[generateBookingPdf] HTML built, generating PDF...');
+
+  if (Platform.OS === 'web') {
+    const webUri = await createWebPdfUri(html, 'Shifting Booking Report');
+    console.log('[generateBookingPdf] Web PDF URI:', webUri?.slice(0, 80));
+    return webUri;
+  }
+
   const { uri } = await Print.printToFileAsync({ html, base64: false });
+  console.log('[generateBookingPdf] PDF generated at:', uri);
+
+  if (!uri) throw new Error('Print.printToFileAsync returned empty URI');
   return uri;
 }
 
@@ -330,26 +338,37 @@ async function generateFileName(data: BookingPdfData): Promise<string> {
 
 export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean> {
   try {
+    console.log('[downloadBookingPdf] Generating PDF...');
     const uri = await generateBookingPdf(data);
+    console.log('[downloadBookingPdf] PDF URI:', uri?.slice(0, 80));
+    if (!uri) throw new Error('generateBookingPdf returned empty URI');
+
     const fileName = await generateFileName(data);
+    console.log('[downloadBookingPdf] Downloading as:', fileName);
     return downloadPdf(uri, fileName);
   } catch (e) {
-    console.error('Download PDF failed:', e);
+    console.error('[downloadBookingPdf] Failed:', e);
     return false;
   }
 }
 
 export async function shareBookingPdf(data: BookingPdfData): Promise<boolean> {
   try {
+    console.log('[shareBookingPdf] Generating PDF...');
     const uri = await generateBookingPdf(data);
-    if (!uri) return false;
+    if (!uri) {
+      console.error('[shareBookingPdf] generateBookingPdf returned empty URI');
+      return false;
+    }
+    console.log('[shareBookingPdf] PDF URI:', uri?.slice(0, 80));
 
     const fileName = await generateFileName(data);
     const label = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
 
+    console.log('[shareBookingPdf] Sharing as:', fileName);
     return sharePdf(uri, fileName, `Shifting Booking Report - ${label}`);
   } catch (e) {
-    console.error('Share PDF failed:', e);
+    console.error('[shareBookingPdf] Failed:', e);
     return false;
   }
 }

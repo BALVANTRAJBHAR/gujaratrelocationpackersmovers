@@ -1,17 +1,14 @@
 import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { getQrDataUri } from '@/lib/get-qr-data-uri';
+import { wrapAsPdf } from '@/lib/pdf-layout';
 
 export async function getTermsConditionsHtml(): Promise<string> {
-  const logo = await getLogoBase64();
-  const websiteQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fgujaratrelocationpackers.com';
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<style>
-  @page { margin: 14mm 12mm; }
-  * { box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; color: #1e293b; margin: 0; padding: 0; }
+  const [logo, websiteQr] = await Promise.all([
+    getLogoBase64(),
+    getQrDataUri('https://gujaratrelocationpackers.com'),
+  ]);
+
+  const extraCss = `
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 3px solid #d7b56d; }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .header-left img { width: 56px; height: 56px; object-fit: contain; }
@@ -37,12 +34,12 @@ export async function getTermsConditionsHtml(): Promise<string> {
   .footer .line { margin: 2px 0; }
   .page-number { text-align: center; font-size: 10px; color: #cbd5e1; margin-top: 16px; }
   strong { color: #0f172a; }
-</style>
-</head>
-<body>
+`;
+
+  const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      <img src="${logo}" alt=""/>
+      ${logo ? `<img src="${logo}" alt=""/>` : ''}
       <div class="company-details">
         <p class="company-name">Gujarat Relocation Packers</p>
         <p class="company-address">Sethia Aashray, Mumbai 400101</p>
@@ -50,7 +47,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
       </div>
     </div>
     <div class="qr-section">
-      <img src="${websiteQrUrl}" alt=""/>
+      ${websiteQr ? `<img src="${websiteQr}" alt=""/>` : ''}
       <div class="qr-label">Scan to visit our website</div>
     </div>
   </div>
@@ -200,6 +197,7 @@ export async function getTermsConditionsHtml(): Promise<string> {
   </div>
 
   <div class="page-number">Page 1 of 1</div>
-</body>
-</html>`;
+`;
+
+  return wrapAsPdf(bodyHtml.trim(), extraCss);
 }
