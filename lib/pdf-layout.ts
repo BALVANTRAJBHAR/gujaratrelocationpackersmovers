@@ -12,6 +12,12 @@ export function pageMarginCss(): string {
   return `@page { margin: ${PDF_MARGINS.top}mm ${PDF_MARGINS.right}mm ${PDF_MARGINS.bottom}mm ${PDF_MARGINS.left}mm; }`;
 }
 
+/** Inline img helper — explicit dimensions prevent print engines from blowing up image size. */
+export function pdfImg(src: string, width: number, height: number, alt = ''): string {
+  if (!src) return '';
+  return `<img src="${src}" alt="${alt}" width="${width}" height="${height}" style="width:${width}px;height:${height}px;max-width:${width}px;max-height:${height}px;object-fit:contain;display:block;"/>`;
+}
+
 export function baseCss(): string {
   return `
 * { box-sizing: border-box; }

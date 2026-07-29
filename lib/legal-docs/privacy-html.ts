@@ -1,10 +1,10 @@
-import { getLogoSrcForPdf } from '@/lib/get-logo-base64';
+import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
-import { wrapAsPdf } from '@/lib/pdf-layout';
+import { pdfImg, wrapAsPdf } from '@/lib/pdf-layout';
 
 export async function getPrivacyPolicyHtml(): Promise<string> {
   const [logo, websiteQr] = await Promise.all([
-    getLogoSrcForPdf(),
+    getLogoBase64(),
     getQrDataUri('https://gujaratrelocationpackers.com'),
   ]);
 
@@ -37,7 +37,7 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
   const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      ${logo ? `<img src="${logo}" alt=""/>` : ''}
+      ${pdfImg(logo, 56, 56)}
       <div class="company-details">
         <p class="company-name">Gujarat Relocation Packers</p>
         <p class="company-address">Sethia Aashray, Mumbai 400101</p>
@@ -45,7 +45,7 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
       </div>
     </div>
     <div class="qr-section">
-      ${websiteQr ? `<img src="${websiteQr}" alt=""/>` : ''}
+      ${pdfImg(websiteQr, 64, 64)}
       <div class="qr-label">Scan to visit our website</div>
     </div>
   </div>

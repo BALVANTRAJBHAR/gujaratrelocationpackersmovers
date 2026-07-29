@@ -1,11 +1,9 @@
-import * as Print from 'expo-print';
-import { Platform } from 'react-native';
-import { getLogoSrcForPdf } from '@/lib/get-logo-base64';
+import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
-import { createWebPdfUri } from '@/lib/web-pdf';
-import { wrapAsPdf } from '@/lib/pdf-layout';
+import { pdfImg, wrapAsPdf } from '@/lib/pdf-layout';
+import { printHtmlToPdfUri } from '@/lib/print-pdf';
 import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 
 type HomeServicePdfData = {
@@ -90,7 +88,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
   const reportId = bookingLabel;
   console.log('[generateHomeServicePdf] Loading assets...');
   const [logo, qrUrl] = await Promise.all([
-    getLogoSrcForPdf(),
+    getLogoBase64(),
     getQrDataUri(reportId),
   ]);
   console.log('[generateHomeServicePdf] Assets loaded, building HTML...');
@@ -151,7 +149,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
   const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      ${logo ? `<img src="${logo}" alt=""/>` : ''}
+      ${pdfImg(logo, 56, 56)}
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -159,7 +157,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
       </div>
     </div>
     <div class="qr-section">
-      ${qrUrl ? `<img src="${qrUrl}" alt="QR"/>` : ''}
+      ${pdfImg(qrUrl, 64, 64, 'QR')}
       <div class="report-id-label">Report ID: ${escapeHtml(reportId)}</div>
     </div>
   </div>
@@ -307,17 +305,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
 
   const html = wrapAsPdf(bodyHtml.trim(), extraCss);
   console.log('[generateHomeServicePdf] HTML built, generating PDF...');
-
-  if (Platform.OS === 'web') {
-    const webUri = await createWebPdfUri(html, 'Home Service Report');
-    console.log('[generateHomeServicePdf] Web PDF URI:', webUri?.slice(0, 80));
-    return webUri;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  console.log('[generateHomeServicePdf] PDF generated at:', uri);
-  if (!uri) throw new Error('Print.printToFileAsync returned empty URI');
-  return uri;
+  return printHtmlToPdfUri(html, 'Home Service Report');
 }
 
 export async function shareHomeServicePdf(data: HomeServicePdfData): Promise<boolean> {

@@ -1,11 +1,9 @@
-import * as Print from 'expo-print';
-import { Platform } from 'react-native';
-import { getLogoSrcForPdf } from '@/lib/get-logo-base64';
+import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
-import { createWebPdfUri } from '@/lib/web-pdf';
-import { wrapAsPdf } from '@/lib/pdf-layout';
+import { pdfImg, wrapAsPdf } from '@/lib/pdf-layout';
+import { printHtmlToPdfUri } from '@/lib/print-pdf';
 
 type BookingPdfData = {
   id: string;
@@ -136,7 +134,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   const reportId = bookingLabel;
   console.log('[generateBookingPdf] Loading assets...');
   const [logo, qrUrl] = await Promise.all([
-    getLogoSrcForPdf(),
+    getLogoBase64(),
     getQrDataUri(reportId),
   ]);
   console.log('[generateBookingPdf] Assets loaded, building HTML...');
@@ -188,7 +186,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   const bodyHtml = `
   <div class="header">
     <div class="header-left">
-      ${logo ? `<img src="${logo}" alt=""/>` : ''}
+      ${pdfImg(logo, 56, 56)}
       <div class="company-details">
         <p class="company-name">${escapeHtml(COMPANY_NAME)}</p>
         <p class="company-address">${escapeHtml(COMPANY_ADDRESS)}</p>
@@ -196,7 +194,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
       </div>
     </div>
     <div class="qr-section">
-      ${qrUrl ? `<img src="${qrUrl}" alt="QR"/>` : ''}
+      ${pdfImg(qrUrl, 64, 64, 'QR')}
       <div class="report-id-label">Report ID: ${escapeHtml(reportId)}</div>
     </div>
   </div>
@@ -317,18 +315,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
 
   const html = wrapAsPdf(bodyHtml.trim(), extraCss);
   console.log('[generateBookingPdf] HTML built, generating PDF...');
-
-  if (Platform.OS === 'web') {
-    const webUri = await createWebPdfUri(html, 'Shifting Booking Report');
-    console.log('[generateBookingPdf] Web PDF URI:', webUri?.slice(0, 80));
-    return webUri;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  console.log('[generateBookingPdf] PDF generated at:', uri);
-
-  if (!uri) throw new Error('Print.printToFileAsync returned empty URI');
-  return uri;
+  return printHtmlToPdfUri(html, 'Shifting Booking Report');
 }
 
 async function generateFileName(data: BookingPdfData): Promise<string> {
