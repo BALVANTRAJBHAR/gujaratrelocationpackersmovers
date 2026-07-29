@@ -2,10 +2,10 @@ export const A4_W = 210;
 export const A4_H = 297;
 
 export const PDF_MARGINS = {
-  top: 28,
-  bottom: 30,
-  left: 22,
-  right: 22,
+  top: 20,
+  bottom: 20,
+  left: 18,
+  right: 18,
 };
 
 export function pageMarginCss(): string {

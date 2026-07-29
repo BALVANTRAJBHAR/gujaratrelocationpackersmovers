@@ -1,10 +1,10 @@
-import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { getLogoSrcForPdf } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { wrapAsPdf } from '@/lib/pdf-layout';
 
 export async function getPrivacyPolicyHtml(): Promise<string> {
   const [logo, websiteQr] = await Promise.all([
-    getLogoBase64(),
+    getLogoSrcForPdf(),
     getQrDataUri('https://gujaratrelocationpackers.com'),
   ]);
 

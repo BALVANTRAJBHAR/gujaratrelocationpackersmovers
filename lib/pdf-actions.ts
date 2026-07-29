@@ -17,12 +17,19 @@ function notifyDownloadSuccess() {
   }
 }
 
-/** Opens the document; it deliberately never invokes the share sheet. */
+/** Opens the document in a new browser tab (web) or native viewer. */
 export async function openPdf(uri: string): Promise<void> {
   console.log('[openPdf] Opening URI:', uri?.slice(0, 80));
 
   if (Platform.OS === 'web') {
-    window.open(uri, '_blank', 'noopener,noreferrer');
+    if (!uri) throw new Error('openPdf called with empty URI');
+    const link = document.createElement('a');
+    link.href = uri;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     return;
   }
 
@@ -45,12 +52,13 @@ export async function openPdf(uri: string): Promise<void> {
   await Linking.openURL(openUri);
 }
 
-/** Uses the browser's normal download manager (including mobile browsers). */
+/** Uses the browser download manager (works with blob: URLs). */
 function downloadPdfOnWeb(uri: string, fileName: string) {
   const link = document.createElement('a');
   link.href = uri;
   link.download = fileName;
   link.rel = 'noopener';
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -97,10 +105,21 @@ export async function sharePdf(uri: string, fileName: string, dialogTitle?: stri
     if (!uri) throw new Error('sharePdf called with empty URI');
 
     if (Platform.OS === 'web') {
-      if (!navigator.share) return false;
-      const response = await fetch(uri);
-      const file = new File([await response.blob()], fileName, { type: 'application/pdf' });
-      await navigator.share({ files: [file], title: dialogTitle || fileName });
+      try {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          const file = new File([blob], fileName, { type: 'application/pdf' });
+          const shareData: ShareData = { files: [file], title: dialogTitle || fileName };
+          if (!navigator.canShare || navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn('[sharePdf] Web share unavailable, falling back to download:', e);
+      }
+      downloadPdfOnWeb(uri, fileName);
       return true;
     }
 

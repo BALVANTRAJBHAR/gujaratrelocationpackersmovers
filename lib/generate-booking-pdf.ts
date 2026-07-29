@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import { Platform } from 'react-native';
-import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { getLogoSrcForPdf } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
@@ -136,7 +136,7 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   const reportId = bookingLabel;
   console.log('[generateBookingPdf] Loading assets...');
   const [logo, qrUrl] = await Promise.all([
-    getLogoBase64(),
+    getLogoSrcForPdf(),
     getQrDataUri(reportId),
   ]);
   console.log('[generateBookingPdf] Assets loaded, building HTML...');
