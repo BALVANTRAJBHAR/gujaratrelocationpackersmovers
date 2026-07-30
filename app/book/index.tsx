@@ -1197,7 +1197,7 @@ export default function BookingWizardScreen() {
           drop_lat: form.dropCoords[1],
           drop_lng: form.dropCoords[0],
           distance_km: km,
-          status: 'pending',
+          status: 'confirmed',
           payment_status: 'pending',
           estimated_price: finalPayable,
           final_price: null,
@@ -1252,7 +1252,7 @@ export default function BookingWizardScreen() {
 
       try {
         await supabase.functions.invoke('send-booking-status-push', {
-          body: { booking_id: data.id, status: 'pending' },
+          body: { booking_id: data.id, status: 'confirmed' },
         });
       } catch {
         // ignore push failures
@@ -1283,7 +1283,7 @@ export default function BookingWizardScreen() {
         estimated_price: finalPayable,
         advance_amount: amountDueNow,
         remaining_amount: remainingAmount,
-        status: 'pending',
+        status: 'confirmed',
         payment_status: 'pending',
         scheduled_date: scheduledDate,
         scheduled_time: form.preferredTime,
@@ -1503,7 +1503,7 @@ export default function BookingWizardScreen() {
 
       try {
         await supabase.functions.invoke('send-booking-status-push', {
-          body: { booking_id: createdBookingId, status: 'pending' },
+          body: { booking_id: createdBookingId, status: 'confirmed' },
         });
       } catch {
         // ignore push failures

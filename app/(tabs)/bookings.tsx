@@ -16,6 +16,7 @@ import MobileDatePicker from '@/components/MobileDatePicker';
 import { t } from '@/constants/typography';
 
 const STATUS_COLORS: Record<string, string> = {
+  confirmed: '#F97316',
   not_started: '#94A3B8',
   pickup_reached: '#FACC15',
   in_transit: '#22C55E',
@@ -660,8 +661,13 @@ function BookingsContent() {
     fetchPayments(bookingIds);
   }, [bookings]);
 
+  const placeholderColor = colorScheme === 'dark' ? '#9CA3AF' : '#9CA3AF';
+
   const renderShiftingSection = () => (
     <>
+      <style>{`
+        .date-input::placeholder { color: ${placeholderColor}; opacity: 1; }
+      `}</style>
       <YStack gap="$2" alignItems="center">
         <H2 color={theme.text} textAlign="center">Your active moves</H2>
       </YStack>
@@ -682,6 +688,8 @@ function BookingsContent() {
                 value={startDate}
                 onChange={(e) => setStartDate((e.target as any).value)}
                 type="date"
+                placeholder="Start Date"
+                className="date-input"
                 style={{
                   width: '100%',
                   backgroundColor: 'transparent',
@@ -724,6 +732,8 @@ function BookingsContent() {
                 value={endDate}
                 onChange={(e) => setEndDate((e.target as any).value)}
                 type="date"
+                placeholder="End Date"
+                className="date-input"
                 style={{
                   width: '100%',
                   backgroundColor: 'transparent',
@@ -755,6 +765,7 @@ function BookingsContent() {
             value={searchText}
             onChangeText={setSearchText}
             placeholder="Search pickup/drop"
+            placeholderTextColor={theme.textMuted ?? '#9CA3AF'}
             backgroundColor={theme.bgCardSecondary}
             borderColor={theme.border}
             color={theme.inputText}
@@ -762,15 +773,6 @@ function BookingsContent() {
             flexGrow={2}
             flexBasis={220}
           />
-          <Button
-            size="$2"
-            backgroundColor={theme.bgCardSecondary}
-            color={theme.text}
-            borderRadius={10}
-            onPress={exportBookingsCsv}
-            disabled={!filteredBookings.length}>
-            Download report
-          </Button>
         </XStack>
         <FlatList
           horizontal

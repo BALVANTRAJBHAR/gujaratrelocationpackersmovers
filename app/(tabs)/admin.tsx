@@ -2,7 +2,7 @@ import { useAuthGuard } from '@/lib/auth-guard';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 let TextRecognition: any = null;
@@ -729,6 +729,10 @@ function AdminScreenInner() {
   const [reportsError, setReportsError] = useState<string | null>(null);
   const [bookingStartDate, setBookingStartDate] = useState('');
   const [bookingEndDate, setBookingEndDate] = useState('');
+  const [bookingStartDatePickerOpen, setBookingStartDatePickerOpen] = useState(false);
+  const [bookingStartPickerValue, setBookingStartPickerValue] = useState<Date>(new Date());
+  const [bookingEndDatePickerOpen, setBookingEndDatePickerOpen] = useState(false);
+  const [bookingEndPickerValue, setBookingEndPickerValue] = useState<Date>(new Date());
   const [bookingUserFilter, setBookingUserFilter] = useState('');
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [reschedulePickerBookingId, setReschedulePickerBookingId] = useState<string | null>(null);
@@ -2425,18 +2429,29 @@ function AdminScreenInner() {
       let query = supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id(name, phone, email), driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id!inner(name, phone, email), driver:users!driver_id(name)'
         )
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        if (statusFilter === 'not_started') {
+          query = query.in('status', ['confirmed', 'pending', 'assigned', 'not_started']);
+        } else {
+          query = query.eq('status', statusFilter);
+        }
       }
       if (bookingStartDate) {
         query = query.gte('created_at', `${bookingStartDate}T00:00:00.000Z`);
       }
       if (bookingEndDate) {
         query = query.lte('created_at', `${bookingEndDate}T23:59:59.999Z`);
+      }
+      if (bookingUserFilter) {
+        const search = bookingUserFilter.trim();
+        query = query.or(
+          `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`,
+          { foreignTable: 'user' }
+        );
       }
 
       const { data, error: fetchError } = await query;
@@ -2445,22 +2460,7 @@ function AdminScreenInner() {
           setError(fetchError.message);
         }
       } else {
-        const items = (data ?? []) as BookingAdmin[];
-        if (bookingUserFilter) {
-          const search = bookingUserFilter.toLowerCase();
-          setBookings(
-            items.filter((booking) => {
-              const user = getBookingUser(booking);
-              return (
-                user.name?.toLowerCase().includes(search) ||
-                user.phone?.toLowerCase().includes(search) ||
-                user.email?.toLowerCase().includes(search)
-              );
-            })
-          );
-        } else {
-          setBookings(items);
-        }
+        setBookings((data ?? []) as BookingAdmin[]);
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -2509,6 +2509,19 @@ function AdminScreenInner() {
     fetchCoupons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage]);
+
+  const bookingSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!canManage || activeSection !== 'bookings') return;
+    if (bookingSearchTimer.current) clearTimeout(bookingSearchTimer.current);
+    bookingSearchTimer.current = setTimeout(() => {
+      fetchBookings();
+    }, 400);
+    return () => {
+      if (bookingSearchTimer.current) clearTimeout(bookingSearchTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingUserFilter, canManage, activeSection]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -3965,55 +3978,98 @@ function AdminScreenInner() {
                   <Text color={theme.textMuted} fontSize={t(14)}>
                     Filter and manage bookings.
                   </Text>
-                  <XStack gap="$2" flexWrap="wrap">
-                    <Input
-                      value={bookingStartDate}
-                      onChangeText={setBookingStartDate}
-                      placeholder="Start date YYYY-MM-DD"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={180}
-                      flexGrow={1}
-                      flexBasis={180}
-                    />
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.bgCardSecondary}
-                      color={theme.text}
-                      borderRadius={10}
-                      onPress={() => {
-                        if (Platform.OS === 'web') {
-                          openWebDatePicker(bookingStartDate, setBookingStartDate);
-                        }
-                      }}
-                      disabled={Platform.OS !== 'web'}>
-                      Pick start
-                    </Button>
-                    <Input
-                      value={bookingEndDate}
-                      onChangeText={setBookingEndDate}
-                      placeholder="End date YYYY-MM-DD"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={180}
-                      flexGrow={1}
-                      flexBasis={180}
-                    />
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.bgCardSecondary}
-                      color={theme.text}
-                      borderRadius={10}
-                      onPress={() => {
-                        if (Platform.OS === 'web') {
-                          openWebDatePicker(bookingEndDate, setBookingEndDate);
-                        }
-                      }}
-                      disabled={Platform.OS !== 'web'}>
-                      Pick end
-                    </Button>
+                  <style>{`
+                    .admin-date-input::placeholder { color: #9CA3AF; opacity: 1; }
+                  `}</style>
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={180}
+                        flexGrow={1}
+                        flexBasis={180}>
+                        <input
+                          value={bookingStartDate}
+                          onChange={(e) => setBookingStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setBookingStartPickerValue(bookingStartDate ? new Date(`${bookingStartDate}T00:00:00.000Z`) : new Date());
+                          setBookingStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 180, minWidth: 180 } as any}>
+                        <Input
+                          value={bookingStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={180}
+                        flexGrow={1}
+                        flexBasis={180}>
+                        <input
+                          value={bookingEndDate}
+                          onChange={(e) => setBookingEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setBookingEndPickerValue(bookingEndDate ? new Date(`${bookingEndDate}T00:00:00.000Z`) : new Date());
+                          setBookingEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 180, minWidth: 180 } as any}>
+                        <Input
+                          value={bookingEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
                     <Input
                       value={bookingUserFilter}
                       onChangeText={setBookingUserFilter}
@@ -4025,30 +4081,6 @@ function AdminScreenInner() {
                       flexGrow={2}
                       flexBasis={220}
                     />
-                    <Input
-                      value={rescheduleDate}
-                      onChangeText={setRescheduleDate}
-                      placeholder="Reschedule date/time (ISO)"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={200}
-                      flexGrow={1}
-                      flexBasis={200}
-                    />
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.bgCardSecondary}
-                      color={theme.text}
-                      borderRadius={10}
-                      onPress={() => {
-                        if (Platform.OS === 'web') {
-                          openWebDateTimePicker(rescheduleDate, setRescheduleDate);
-                        }
-                      }}
-                      disabled={Platform.OS !== 'web'}>
-                      Pick reschedule
-                    </Button>
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
                     {[
@@ -4075,6 +4107,8 @@ function AdminScreenInner() {
                       </Button>
                     ))}
                   </XStack>
+                  <MobileDatePicker value={bookingStartPickerValue} open={bookingStartDatePickerOpen} onClose={() => setBookingStartDatePickerOpen(false)} onChange={(d) => { setBookingStartDate(isoDay(d)); }} />
+                  <MobileDatePicker value={bookingEndPickerValue} open={bookingEndDatePickerOpen} onClose={() => setBookingEndDatePickerOpen(false)} onChange={(d) => { setBookingEndDate(isoDay(d)); }} />
                 </YStack>
 
                 {bookings.map((item) => {
@@ -4119,73 +4153,14 @@ function AdminScreenInner() {
 
                       {renderBookingStepper(item.status)}
 
-                      {canAssign ? (
-                        <YStack gap="$2">
-                          <XStack gap="$2" flexWrap="wrap" alignItems="center" justifyContent="space-between">
-                            <Button
-                              size="$2"
-                              backgroundColor={theme.inputBg}
-                              color={theme.inputText}
-                              borderRadius={10}
-                              onPress={() => setAssigningBookingId((prev) => (prev === item.id ? null : item.id))}
-                              disabled={loading || assignDriverBusy === item.id}>
-                              Assign driver
-                            </Button>
-                            {hasAssignedDriver ? (
-                              <Button
-                                size="$2"
-                                backgroundColor={theme.bgCardSecondary}
-                                color={theme.text}
-                                borderRadius={10}
-                                onPress={() => assignDriverToBooking(item.id, null, currentDriverId)}
-                                disabled={loading || assignDriverBusy === item.id}>
-                                Unassign
-                              </Button>
-                            ) : null}
-                          </XStack>
-
-                          {assigningBookingId === item.id ? (
-                            <YStack
-                              backgroundColor={theme.bgCardSecondary}
-                              borderRadius={14}
-                              padding={12}
-                              gap="$2"
-                              borderWidth={1}
-                              borderColor={theme.border}>
-                              <Text color={theme.textMuted} fontSize={t(14)}>
-                                Select driver
-                              </Text>
-                              <XStack gap="$2" flexWrap="wrap">
-                                {drivers.map((d) => (
-                                  <Button
-                                    key={d.id}
-                                    size="$2"
-                                    backgroundColor={d.id === currentDriverId ? theme.accent : theme.bgCardSecondary}
-                                    color={d.id === currentDriverId ? '#FFFFFF' : theme.text}
-                                    borderRadius={999}
-                                    onPress={() => assignDriverToBooking(item.id, d.id, currentDriverId)}
-                                    disabled={loading || assignDriverBusy === item.id}>
-                                    {d.name ?? 'Driver'}
-                                  </Button>
-                                ))}
-                              </XStack>
-                              {!drivers.length ? (
-                                <Text color={theme.textMuted} fontSize={t(14)}>
-                                  No drivers found.
-                                </Text>
-                              ) : null}
-                            </YStack>
-                          ) : null}
-                        </YStack>
-                      ) : null}
-
-                      <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
+                      <XStack gap="$2" flexWrap="wrap" alignItems="center">
                         <Button
                           size="$2"
-                          backgroundColor={theme.inputBg}
-                          color={theme.inputText}
+                          backgroundColor={theme.bgCardSecondary}
+                          color={theme.text}
                           borderRadius={10}
-                          minWidth={120}
+                          minWidth={90}
+                          pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
                           disabled={bookingUploadsBusyId === item.id}
                           onPress={async () => {
                             const nextOpen = bookingUploadsOpenId === item.id ? null : item.id;
@@ -4194,7 +4169,111 @@ function AdminScreenInner() {
                           }}>
                           {bookingUploadsOpenId === item.id ? 'Hide media' : 'Media'}
                         </Button>
+                        {canUpdateBooking ? (
+                          <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                            <Button
+                              size="$2"
+                              backgroundColor={theme.bgCardSecondary}
+                              color={theme.text}
+                              borderRadius={10}
+                              minWidth={100}
+                              pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
+                              disabled={loading || assignDriverBusy === item.id}
+                              onPress={() => setAssigningBookingId((prev) => (prev === item.id ? null : item.id))}>
+                              Assign driver
+                            </Button>
+                            {hasAssignedDriver ? (
+                              <Button
+                                size="$2"
+                                backgroundColor={theme.danger}
+                                color="#FFFFFF"
+                                borderRadius={10}
+                                minWidth={80}
+                                pressStyle={{ opacity: 0.8 }}
+                                onPress={() => assignDriverToBooking(item.id, null, currentDriverId)}
+                                disabled={loading || assignDriverBusy === item.id}>
+                                Unassign
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="$2"
+                              backgroundColor={theme.info}
+                              color="#FFFFFF"
+                              borderRadius={10}
+                              minWidth={90}
+                              pressStyle={{ opacity: 0.8 }}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/tracking',
+                                  params: { bookingId: item.id },
+                                } as any)
+                              }>
+                              Track
+                            </Button>
+                            <Button
+                              size="$2"
+                              backgroundColor={theme.danger}
+                              color="#FFFFFF"
+                              borderRadius={10}
+                              minWidth={90}
+                              pressStyle={{ opacity: 0.8 }}
+                              onPress={() => updateBookingStatus(item.id, 'cancelled')}>
+                              Cancel
+                            </Button>
+                            <Button
+                              size="$2"
+                              backgroundColor={theme.accent}
+                              color="#FFFFFF"
+                              borderRadius={10}
+                              minWidth={100}
+                              pressStyle={{ opacity: 0.8 }}
+                              onPress={() => {
+                                if (Platform.OS !== 'web') {
+                                  setReschedulePickerBookingId(item.id);
+                                  setReschedulePickerValue(new Date());
+                                  return;
+                                }
+                                updateBookingStatus(item.id, 'rescheduled');
+                              }}>
+                              Reschedule
+                            </Button>
+                          </XStack>
+                        ) : null}
                       </XStack>
+
+                      {canUpdateBooking && assigningBookingId === item.id ? (
+                        <YStack
+                          backgroundColor={theme.bgCardSecondary}
+                          borderRadius={14}
+                          padding={12}
+                          gap="$2"
+                          borderWidth={1}
+                          borderColor={theme.border}>
+                          <Text color={theme.textMuted} fontSize={t(14)}>
+                            Select driver
+                          </Text>
+                          <XStack gap="$2" flexWrap="wrap">
+                            {drivers.map((d) => (
+                              <Button
+                                key={d.id}
+                                size="$2"
+                                backgroundColor={d.id === currentDriverId ? theme.accent : theme.bgCardSecondary}
+                                color={d.id === currentDriverId ? '#FFFFFF' : theme.text}
+                                borderRadius={999}
+                                pressStyle={{ opacity: 0.8 }}
+                                onPress={() => assignDriverToBooking(item.id, d.id, currentDriverId)}
+                                disabled={loading || assignDriverBusy === item.id}>
+                                {d.name ?? 'Driver'}
+                              </Button>
+                            ))}
+                          </XStack>
+                          {!drivers.length ? (
+                            <Text color={theme.textMuted} fontSize={t(14)}>
+                              No drivers found.
+                            </Text>
+                          ) : null}
+                        </YStack>
+                      ) : null}
 
                       {bookingUploadsOpenId === item.id ? (
                         <YStack
@@ -4268,59 +4347,17 @@ function AdminScreenInner() {
                           Updated: {item.updated_at ? new Date(item.updated_at).toLocaleString() : '—'}
                         </Text>
                       </XStack>
-                      {canUpdateBooking ? (
-                        <XStack gap="$2" flexWrap="wrap">
-                          {item.status === 'assigned' ? (
-                            <Button
-                              size="$2"
-                              backgroundColor={theme.info}
-                              color="#FFFFFF"
-                              borderRadius={10}
-                              minWidth={120}
-                              onPress={() => updateBookingStatus(item.id, 'not_started')}>
-                              Start
-                            </Button>
-                          ) : null}
-                          <Button
-                            size="$2"
-                            backgroundColor={theme.inputBg}
-                            color={theme.inputText}
-                            borderRadius={10}
-                            minWidth={120}
-                            onPress={() =>
-                              router.push({
-                                pathname: '/tracking',
-                                params: { bookingId: item.id },
-                              } as any)
-                            }>
-                            Track
-                          </Button>
-                          <Button
-                            size="$2"
-                            backgroundColor={theme.danger}
-                            color="#FFFFFF"
-                            borderRadius={10}
-                            minWidth={120}
-                            onPress={() => updateBookingStatus(item.id, 'cancelled')}>
-                            Cancel
-                          </Button>
-                          <Button
-                            size="$2"
-                            backgroundColor={theme.accent}
-                            color="#FFFFFF"
-                            borderRadius={10}
-                            minWidth={120}
-                            onPress={() => {
-                              if (Platform.OS !== 'web') {
-                                setReschedulePickerBookingId(item.id);
-                                setReschedulePickerValue(new Date());
-                                return;
-                              }
-                              updateBookingStatus(item.id, 'rescheduled');
-                            }}>
-                            Reschedule
-                          </Button>
-                        </XStack>
+                      {item.status === 'assigned' ? (
+                        <Button
+                          size="$2"
+                          backgroundColor={theme.info}
+                          color="#FFFFFF"
+                          borderRadius={10}
+                          minWidth={120}
+                          pressStyle={{ opacity: 0.8 }}
+                          onPress={() => updateBookingStatus(item.id, 'not_started')}>
+                          Start
+                        </Button>
                       ) : null}
                     </YStack>
                   );

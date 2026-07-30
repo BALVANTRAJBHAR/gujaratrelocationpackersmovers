@@ -1,4 +1,4 @@
-import { getLogoBase64 } from '@/lib/get-logo-base64';
+import { BOOKING_STATUS_CONFIRMED } from '@/lib/booking-status';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
 import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';

@@ -122,11 +122,6 @@ serve(async (req) => {
       return jsonResponse({ error: 'booking_id required' }, 400);
     }
 
-    const supabaseUrl =
-      Deno.env.get('SUPABASE_URL') ??
-      Deno.env.get('SUPABASE_PROJECT_URL') ??
-      '';
-
     const serviceKey =
       Deno.env.get('SERVICE_ROLE_KEY') ??
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ??

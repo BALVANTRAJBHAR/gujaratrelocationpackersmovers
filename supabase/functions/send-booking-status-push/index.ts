@@ -21,7 +21,7 @@ type UserRow = {
 function getStatusMessages(status: string) {
   const s = String(status ?? '').trim();
 
-  if (s === 'pending') {
+  if (s === 'pending' || s === 'confirmed') {
     return {
       title: 'New booking created',
       customer: 'Your booking has been created successfully.',
@@ -304,11 +304,6 @@ serve(async (req) => {
 
     if (!bookingId) return jsonResponse({ error: 'booking_id required' }, 400);
     if (!nextStatus && eventType !== 'otp') return jsonResponse({ error: 'status required' }, 400);
-
-    const supabaseUrl =
-      Deno.env.get('SUPABASE_URL') ??
-      Deno.env.get('SUPABASE_PROJECT_URL') ??
-      '';
 
     const serviceKey =
       Deno.env.get('SERVICE_ROLE_KEY') ??
