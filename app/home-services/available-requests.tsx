@@ -9,6 +9,7 @@ import { useAuthGuard } from '@/lib/auth-guard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
+import { formatDateDDMMYYYY } from '@/lib/date-format';
 
 type AvailableRequest = {
   id: string;
@@ -257,7 +258,7 @@ function AvailableRequestsInner({ session }: { session: any }) {
                   {labelForService(req.service_key)}
                 </Text>
                 <Text color={muted} fontSize={t(11)}>
-                  {new Date(req.created_at).toLocaleDateString()}
+                  {formatDateDDMMYYYY(req.created_at)}
                 </Text>
               </XStack>
 
@@ -267,7 +268,7 @@ function AvailableRequestsInner({ session }: { session: any }) {
               </Text>
 
               {req.preferred_date ? (
-                <Text color={titleColor} fontSize={t(12)}>Preferred: {req.preferred_date}{req.preferred_time ? `, ${req.preferred_time}` : ''}</Text>
+                <Text color={titleColor} fontSize={t(12)}>Preferred: {req.preferred_date ? formatDateDDMMYYYY(req.preferred_date) : ''}{req.preferred_time ? `, ${req.preferred_time}` : ''}</Text>
               ) : null}
 
               {req.notes ? (

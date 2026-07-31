@@ -1,13 +1,20 @@
-import { bookingStatusBadgeClass, formatBookingStatus } from '@/lib/booking-status';
+import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
+import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
-import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
-import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company';
 import { pdfImg, wrapAsPdf } from '@/lib/pdf-layout';
+import { sharePdf } from '@/lib/pdf-actions';
 import { printHtmlToPdfUri } from '@/lib/print-pdf';
-import { formatDateDDMMYYYY } from '@/lib/date-format';
 
-type BookingPdfData = {
+export type ReceiptPayment = {
+  id: string;
+  amount: number | null;
+  status: string | null;
+  razorpay_payment_id: string | null;
+  created_at: string;
+};
+
+export type ReceiptBooking = {
   id: string;
   booking_number?: number | null;
   pickup_address: string | null;
@@ -121,23 +128,25 @@ function buildFareTable(breakdown: Record<string, any> | null, estimated: number
   return rows.join('\n');
 }
 
-function paymentLabel(data: BookingPdfData): string {
-  if (data.payment_status === 'paid') {
-    const remaining = Number(data.remaining_amount ?? 0);
-    return remaining <= 0 ? 'Full Paid' : 'Advance Payment';
-  }
-  return String(data.payment_status ?? 'pending').replace('_', ' ');
+function paymentLabel(paymentStatus: string | null): string {
+  const status = String(paymentStatus ?? 'pending').replace('_', ' ');
+  if (status === 'paid') return 'Paid';
+  if (status === 'captured') return 'Paid';
+  if (status === 'pending') return 'Pending';
+  if (status === 'failed') return 'Failed';
+  return status;
 }
 
-export async function generateBookingPdf(data: BookingPdfData): Promise<string> {
-  const bookingLabel = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
-  const reportId = bookingLabel;
-  console.log('[generateBookingPdf] Loading assets...');
+function bookingLabel(booking: ReceiptBooking): string {
+  return booking.booking_number ? `GRS${booking.booking_number}` : `RPT-${String(booking.id).slice(0, 8).toUpperCase()}`;
+}
+
+export async function generatePaymentReceiptPdf(booking: ReceiptBooking, payment: ReceiptPayment): Promise<string> {
+  const reportId = `${bookingLabel(booking)}-PAY${String(payment.id).slice(0, 8).toUpperCase()}`;
   const [logo, qrUrl] = await Promise.all([
     getLogoBase64(),
     getQrDataUri(reportId),
   ]);
-  console.log('[generateBookingPdf] Assets loaded, building HTML...');
   const now = new Date();
 
   const extraCss = `
@@ -173,6 +182,8 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   .status-badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
   .status-pending { background: #fef3c7; color: #92400e; }
   .status-paid { background: #dcfce7; color: #166534; }
+  .status-captured { background: #dcfce7; color: #166534; }
+  .status-failed { background: #fee2e2; color: #991b1b; }
   .status-cancelled { background: #fee2e2; color: #991b1b; }
   .status-completed { background: #dbeafe; color: #1e40af; }
   .status-assigned { background: #e0e7ff; color: #3730a3; }
@@ -200,18 +211,42 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
   </div>
 
   <div class="title-section">
-    <h1>Shifting Booking Report</h1>
+    <h1>Payment Receipt</h1>
     <div class="divider"></div>
   </div>
 
   <div class="info-bar">
-    <div class="item"><strong>Booking Date:</strong> ${escapeHtml(fmtDate(data.created_at))} ${escapeHtml(fmtTime(data.created_at))}</div>
+    <div class="item"><strong>Payment Date:</strong> ${escapeHtml(fmtDate(payment.created_at))} ${escapeHtml(fmtTime(payment.created_at))}</div>
     <div class="item"><strong>Report Generated:</strong> ${escapeHtml(fmtDate(now.toISOString()))} ${escapeHtml(fmtTime(now.toISOString()))}</div>
   </div>
 
   <div class="booking-id-box">
     <label>Shifting Booking ID</label>
-    <div class="id">${escapeHtml(bookingLabel)}</div>
+    <div class="id">${escapeHtml(bookingLabel(booking))}</div>
+  </div>
+
+  <div class="section">
+    <p class="section-title">Payment Details</p>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="row">
+          <span class="label">Status</span>
+          <span class="value"><span class="status-badge status-${escapeHtml(String(payment.status ?? 'pending'))}">${escapeHtml(paymentLabel(payment.status))}</span></span>
+        </div>
+        <div class="row">
+          <span class="label">Amount</span>
+          <span class="value">${escapeHtml(fmtCurrency(payment.amount))}</span>
+        </div>
+        <div class="row">
+          <span class="label">Payment ID</span>
+          <span class="value">${escapeHtml(payment.id)}</span>
+        </div>
+        <div class="row">
+          <span class="label">Razorpay Payment ID</span>
+          <span class="value">${escapeHtml(payment.razorpay_payment_id ?? '—')}</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="section">
@@ -220,11 +255,11 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
       <div class="info-grid">
         <div class="row">
           <span class="label">Status</span>
-          <span class="value"><span class="status-badge status-${escapeHtml(bookingStatusBadgeClass(data.status))}">${escapeHtml(formatBookingStatus(data.status))}</span></span>
+          <span class="value"><span class="status-badge status-${escapeHtml(String(booking.status ?? 'pending'))}">${escapeHtml(String(booking.status ?? 'pending').replace('_', ' '))}</span></span>
         </div>
         <div class="row">
           <span class="label">Payment Status</span>
-          <span class="value"><span class="status-badge status-${escapeHtml(String(data.payment_status ?? 'pending'))}">${escapeHtml(paymentLabel(data))}</span></span>
+          <span class="value"><span class="status-badge status-${escapeHtml(String(booking.payment_status ?? 'pending'))}">${escapeHtml(String(booking.payment_status ?? 'pending').replace('_', ' '))}</span></span>
         </div>
       </div>
     </div>
@@ -236,15 +271,15 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
       <div class="info-grid">
         <div class="row">
           <span class="label">Pickup Address</span>
-          <span class="value">${escapeHtml(data.pickup_address ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.pickup_address ?? '—')}</span>
         </div>
         <div class="row">
           <span class="label">Drop Address</span>
-          <span class="value">${escapeHtml(data.drop_address ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.drop_address ?? '—')}</span>
         </div>
         <div class="row">
           <span class="label">Distance</span>
-          <span class="value">${escapeHtml(data.distance_km != null ? String(data.distance_km) + ' km' : '—')}</span>
+          <span class="value">${escapeHtml(booking.distance_km != null ? String(booking.distance_km) + ' km' : '—')}</span>
         </div>
       </div>
     </div>
@@ -256,36 +291,36 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
       <div class="info-grid">
         <div class="row">
           <span class="label">Scheduled Date</span>
-          <span class="value">${escapeHtml(data.scheduled_date ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.scheduled_date ? formatDateDDMMYYYY(booking.scheduled_date) : '—')}</span>
         </div>
         <div class="row">
           <span class="label">Scheduled Time</span>
-          <span class="value">${escapeHtml(data.scheduled_time ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.scheduled_time ?? '—')}</span>
         </div>
         <div class="row">
           <span class="label">Vehicle Type</span>
-          <span class="value">${escapeHtml(data.vehicle_type_name ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.vehicle_type_name ?? '—')}</span>
         </div>
         <div class="row">
           <span class="label">Labor Count</span>
-          <span class="value">${escapeHtml(data.labor_count != null ? String(data.labor_count) : '—')}</span>
+          <span class="value">${escapeHtml(booking.labor_count != null ? String(booking.labor_count) : '—')}</span>
         </div>
         <div class="row">
           <span class="label">Pickup Floor</span>
-          <span class="value">${escapeHtml(data.pickup_floor ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.pickup_floor ?? '—')}</span>
         </div>
         <div class="row">
           <span class="label">Drop Floor</span>
-          <span class="value">${escapeHtml(data.drop_floor ?? '—')}</span>
+          <span class="value">${escapeHtml(booking.drop_floor ?? '—')}</span>
         </div>
       </div>
     </div>
   </div>
 
-  ${data.items_description ? `<div class="section">
+  ${booking.items_description ? `<div class="section">
     <p class="section-title">Items Description</p>
     <div class="section-body">
-      <p style="margin:0;font-size:12px;color:#1e293b;">${escapeHtml(data.items_description)}</p>
+      <p style="margin:0;font-size:12px;color:#1e293b;">${escapeHtml(booking.items_description)}</p>
     </div>
   </div>` : ''}
 
@@ -293,14 +328,14 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
     <p class="section-title">Fare Summary</p>
     <div class="section-body" style="padding:10px 14px;">
       <table class="fare">
-        ${buildFareTable(data.fare_breakdown, data.estimated_price)}
+        ${buildFareTable(booking.fare_breakdown, booking.estimated_price)}
         <tr style="border-top:1px solid #cbd5e1;">
           <td style="padding:10px 0 4px 0;font-weight:800;color:#0f172a;font-size:15px;">Advance Paid</td>
-          <td style="padding:10px 0 4px 0;text-align:right;font-weight:700;color:#16a34a;font-size:15px;">- ${fmtCurrency(data.advance_amount)}</td>
+          <td style="padding:10px 0 4px 0;text-align:right;font-weight:700;color:#16a34a;font-size:15px;">- ${fmtCurrency(booking.advance_amount)}</td>
         </tr>
         <tr>
           <td style="padding:4px 0 10px 0;font-weight:800;color:#0f172a;font-size:16px;">Remaining to Pay</td>
-          <td style="padding:4px 0 10px 0;text-align:right;font-weight:800;color:#dc2626;font-size:16px;">${fmtCurrency(data.remaining_amount)}</td>
+          <td style="padding:4px 0 10px 0;text-align:right;font-weight:800;color:#dc2626;font-size:16px;">${fmtCurrency(booking.remaining_amount)}</td>
         </tr>
       </table>
     </div>
@@ -314,48 +349,24 @@ export async function generateBookingPdf(data: BookingPdfData): Promise<string> 
 `;
 
   const html = wrapAsPdf(bodyHtml.trim(), extraCss);
-  console.log('[generateBookingPdf] HTML built, generating PDF...');
-  return printHtmlToPdfUri(html, 'Shifting Booking Report');
+  return printHtmlToPdfUri(html, 'Payment Receipt');
 }
 
-async function generateFileName(data: BookingPdfData): Promise<string> {
-  const label = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
-  return `Shifting_Booking_Report_${label}.pdf`;
+async function receiptFileName(booking: ReceiptBooking, payment: ReceiptPayment): Promise<string> {
+  return `Payment_Receipt_${bookingLabel(booking)}_${String(payment.id).slice(0, 8).toUpperCase()}.pdf`;
 }
 
-export async function downloadBookingPdf(data: BookingPdfData): Promise<boolean> {
+export async function sharePaymentReceiptPdf(booking: ReceiptBooking, payment: ReceiptPayment): Promise<boolean> {
   try {
-    console.log('[downloadBookingPdf] Generating PDF...');
-    const uri = await generateBookingPdf(data);
-    console.log('[downloadBookingPdf] PDF URI:', uri?.slice(0, 80));
-    if (!uri) throw new Error('generateBookingPdf returned empty URI');
-
-    const fileName = await generateFileName(data);
-    console.log('[downloadBookingPdf] Downloading as:', fileName);
-    return downloadPdf(uri, fileName);
-  } catch (e) {
-    console.error('[downloadBookingPdf] Failed:', e);
-    return false;
-  }
-}
-
-export async function shareBookingPdf(data: BookingPdfData): Promise<boolean> {
-  try {
-    console.log('[shareBookingPdf] Generating PDF...');
-    const uri = await generateBookingPdf(data);
+    const uri = await generatePaymentReceiptPdf(booking, payment);
     if (!uri) {
-      console.error('[shareBookingPdf] generateBookingPdf returned empty URI');
+      console.error('[sharePaymentReceiptPdf] generatePaymentReceiptPdf returned empty URI');
       return false;
     }
-    console.log('[shareBookingPdf] PDF URI:', uri?.slice(0, 80));
-
-    const fileName = await generateFileName(data);
-    const label = data.booking_number ? `GRS${data.booking_number}` : `RPT-${String(data.id).slice(0, 8).toUpperCase()}`;
-
-    console.log('[shareBookingPdf] Sharing as:', fileName);
-    return sharePdf(uri, fileName, `Shifting Booking Report - ${label}`);
+    const fileName = await receiptFileName(booking, payment);
+    return sharePdf(uri, fileName, `Payment Receipt - ${bookingLabel(booking)}`);
   } catch (e) {
-    console.error('[shareBookingPdf] Failed:', e);
+    console.error('[sharePaymentReceiptPdf] Failed:', e);
     return false;
   }
 }

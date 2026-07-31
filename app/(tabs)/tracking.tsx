@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { supabase } from '@/lib/supabase';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { t } from '@/constants/typography';
 
 type DriverLocation = {
@@ -279,7 +280,7 @@ export default function TrackingScreen() {
                 Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
               </Text>
               <Text color={theme.textMuted} fontSize={t(11)}>
-                {new Date(item.updated_at).toLocaleString()}
+                {formatDateTimeDDMMYYYY(item.updated_at)}
               </Text>
             </YStack>
           )}

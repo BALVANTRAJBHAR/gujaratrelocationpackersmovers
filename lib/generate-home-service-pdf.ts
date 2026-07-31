@@ -1,3 +1,4 @@
+import { bookingStatusBadgeClass, formatBookingStatus } from '@/lib/booking-status';
 import { getLogoBase64 } from '@/lib/get-logo-base64';
 import { getQrDataUri } from '@/lib/get-qr-data-uri';
 import { downloadPdf, sharePdf } from '@/lib/pdf-actions';
@@ -5,6 +6,7 @@ import { COMPANY_EMAIL, COMPANY_NAME, COMPANY_PHONE } from '@/constants/company'
 import { pdfImg, wrapAsPdf } from '@/lib/pdf-layout';
 import { printHtmlToPdfUri } from '@/lib/print-pdf';
 import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
+import { formatDateDDMMYYYY } from '@/lib/date-format';
 
 type HomeServicePdfData = {
   id: string;
@@ -59,9 +61,7 @@ function fmtCurrency(amount: number | null | undefined): string {
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleDateString('en-IN', {
-      year: 'numeric', month: 'short', day: 'numeric',
-    });
+    return formatDateDDMMYYYY(iso);
   } catch { return String(iso); }
 }
 
@@ -183,7 +183,7 @@ export async function generateHomeServicePdf(data: HomeServicePdfData): Promise<
       <div class="info-grid">
         <div class="row">
           <span class="label">Status</span>
-          <span class="value"><span class="status-badge status-${escapeHtml(String(data.status ?? 'pending'))}">${escapeHtml(String(data.status ?? 'pending').replace('_', ' '))}</span></span>
+          <span class="value"><span class="status-badge status-${escapeHtml(bookingStatusBadgeClass(data.status))}">${escapeHtml(formatBookingStatus(data.status))}</span></span>
         </div>
         ${paymentDone ? `<div class="row">
           <span class="label">Payment Status</span>

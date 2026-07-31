@@ -8,8 +8,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
-import { useAuthGuard } from '@/lib/auth-guard';
-import { t } from '@/constants/typography';
+  import { useAuthGuard } from '@/lib/auth-guard';
+  import { t } from '@/constants/typography';
+  import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 type NotificationRow = {
   id: string;
@@ -200,7 +201,7 @@ function NotificationsScreenInner({ session }: { session: any }) {
                 </XStack>
                 <Text color={theme.textMuted}>{item.body}</Text>
                 <Text color={theme.textMuted} fontSize={t(12)}>
-                  {new Date(item.created_at).toLocaleString()}
+                  {formatDateTimeDDMMYYYY(item.created_at)}
                 </Text>
               </YStack>
             </Pressable>

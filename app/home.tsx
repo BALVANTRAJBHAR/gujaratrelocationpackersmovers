@@ -186,14 +186,6 @@ const AppButton = ({
 
 
 
-const brandTextKeyframes = {
-  '0%': { color: '#1877F2' },
-  '25%': { color: '#E1306C' },
-  '50%': { color: '#0A66C2' },
-  '75%': { color: '#FF0000' },
-  '100%': { color: '#1877F2' },
-} as any;
-
 const BusinessCard = ({ theme, viewShotRef }: any) => {
   const { width: cardWindowWidth } = useWindowDimensions();
   const isCardNarrow = cardWindowWidth <= 520;
@@ -354,7 +346,7 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
           textAlign="center"
           lineHeight={16}
           style={{ fontFamily: APP_SERIF_FONT }}>
-          www.gujaratrelocationpackers.com • 2026 GujaratRelocationPackers
+          www.gujaratrelocationpackers.com • © 2026 Gujarat Relocation Packers
         </Text>
       </YStack>
     </YStack>
@@ -451,15 +443,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const contactHeadingRef = useRef<any>(null);
   const scrollOffsetRef = useRef(0);
   const heroTimerRef = useRef<any>(null);
-  const heroPanResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
-      onPanResponderRelease: (_, gs) => {
-        if (gs.dx > 50) setHeroIndex((p) => (p === 0 ? heroSlides.length - 1 : p - 1));
-        else if (gs.dx < -50) setHeroIndex((p) => (p + 1) % heroSlides.length);
-      },
-    })
-  ).current;
+  const [heroWidth, setHeroWidth] = useState(0);
+  const heroTranslateX = useRef(new Animated.Value(0)).current;
+  const heroIndexRef = useRef(0);
+  const heroWidthRef = useRef(0);
   const didScrollParamRef = useRef<string>('');
   const testimonialScrollRef = useRef<ScrollView | null>(null);
   const testimonialTimerRef = useRef<any>(null);
@@ -591,7 +578,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
   const serviceColumns = windowWidth < 700 ? 1 : windowWidth < 1100 ? 2 : 3;
   const serviceCardWidth = serviceColumns === 1 ? '100%' : serviceColumns === 2 ? '48%' : '32%';
-  const statsPaddingVertical = windowWidth < 480 ? (Platform.OS === 'web' ? 25 : 22) : windowWidth < 900 ? (Platform.OS === 'web' ? 55 : 48) : 136;
+  const statsPaddingVertical = windowWidth < 480 ? (Platform.OS === 'web' ? 27.5 : 22) : windowWidth < 900 ? (Platform.OS === 'web' ? 55 : 48) : 136;
   const statsMinHeight = windowWidth < 480 ? 0 : windowWidth < 900 ? 0 : 319;
   const bookBannerPaddingLeft = windowWidth < 480 ? 22 : windowWidth < 900 ? 44 : 62;
   const bookBannerPaddingRight = windowWidth < 480 ? 22 : windowWidth < 900 ? 52 : 70;
@@ -777,14 +764,70 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   }, [buttonAnim]);
 
   useEffect(() => {
+    resetHeroTimer();
+    return () => {
+      if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+    };
+  }, [resetHeroTimer]);
+
+  const animateHeroTo = React.useCallback(
+    (index: number, animated = true) => {
+      if (heroWidthRef.current <= 0) return;
+      const target = -index * heroWidthRef.current;
+      if (animated) {
+        Animated.spring(heroTranslateX, { toValue: target, useNativeDriver: true, friction: 9, tension: 60 }).start();
+      } else {
+        heroTranslateX.setValue(target);
+      }
+    },
+    [heroTranslateX]
+  );
+
+  const resetHeroTimer = React.useCallback(() => {
     if (heroTimerRef.current) clearInterval(heroTimerRef.current);
     heroTimerRef.current = setInterval(() => {
       setHeroIndex((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
-    return () => {
-      if (heroTimerRef.current) clearInterval(heroTimerRef.current);
-    };
   }, [heroSlides.length]);
+
+  const heroPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gs) =>
+        heroWidthRef.current > 0 && Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderMove: (_evt, gs) => {
+        heroTranslateX.setValue(-heroIndexRef.current * heroWidthRef.current + gs.dx);
+      },
+      onPanResponderRelease: (_evt, gs) => {
+        if (heroWidthRef.current <= 0) return;
+        const threshold = heroWidthRef.current * 0.22;
+        let next = heroIndexRef.current;
+        if (gs.dx < -threshold) next = (heroIndexRef.current + 1) % heroSlides.length;
+        else if (gs.dx > threshold) next = heroIndexRef.current === 0 ? heroSlides.length - 1 : heroIndexRef.current - 1;
+        if (next === heroIndexRef.current) {
+          animateHeroTo(heroIndexRef.current);
+        } else {
+          setHeroIndex(next);
+        }
+        resetHeroTimer();
+      },
+      onPanResponderTerminate: () => {
+        animateHeroTo(heroIndexRef.current);
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    heroIndexRef.current = heroIndex;
+  }, [heroIndex]);
+
+  useEffect(() => {
+    heroWidthRef.current = heroWidth;
+  }, [heroWidth]);
+
+  useEffect(() => {
+    if (heroWidth <= 0) return;
+    animateHeroTo(heroIndex);
+  }, [heroIndex, heroWidth, animateHeroTo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -967,8 +1010,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   const scrollToServiceMenu = () => {
     const y = sectionOffsetsRef.current.serviceMenu ?? sectionOffsetsRef.current.services;
     if (typeof y !== 'number') return;
-    const extraTopSpacing = 0;
-    const scrollY = y - (isSmallScreen ? 62 : 18) - extraTopSpacing;
+    const headerOffset = (isSmallScreen ? 63 : 77) + statusBarHeight + 8;
+    const scrollY = y - headerOffset;
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ y: Math.max(scrollY, 0), animated: true });
     });
@@ -986,8 +1029,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     }
     const y = sectionOffsetsRef.current[key];
     if (typeof y !== 'number') return;
-    const extraTopSpacing = 20;
-    const scrollY = y - (isSmallScreen ? 62 : 18) - extraTopSpacing;
+    const headerOffset = (isSmallScreen ? 63 : 77) + statusBarHeight + 8;
+    const scrollY = y - headerOffset;
     scrollRef.current?.scrollTo({ y: Math.max(scrollY, 0), animated: true });
   };
 
@@ -1839,157 +1882,178 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
 
           <XStack justifyContent="center" alignItems="center" marginTop={isSmallScreen ? (Platform.OS === 'web' ? 14 : 0) : 2}>
             <YStack alignItems="center" gap="$3" width="100%">
-              <ImageBackground
-                source={heroSlides[heroIndex]?.image}
-                style={[styles.heroBg, isSmallScreen && styles.heroBgMobile]}
-                imageStyle={styles.heroBgImage}
-                accessibilityLabel={heroSlides[heroIndex]?.title?.replace('\n', ' ') || 'Hero banner'}
-                {...heroPanResponder.panHandlers}>
-                <YStack
-                  style={[styles.heroOverlay, isSmallScreen && styles.heroOverlayMobile]}
-                  alignItems="center"
+              <View
+                style={{ width: '100%', overflow: 'hidden' }}
+                onLayout={(e) => {
+                  const w = e.nativeEvent.layout.width;
+                  if (w > 0 && w !== heroWidth) setHeroWidth(w);
+                }}>
+                <Animated.View
+                  style={{
+                    flexDirection: 'row',
+                    width: (heroWidth || (windowWidth - (isSmallScreen ? 28 : 48))) * heroSlides.length,
+                    transform: [{ translateX: heroTranslateX }],
+                  }}
+                  {...heroPanResponder.panHandlers}>
+                  {heroSlides.map((s) => (
+                    <ImageBackground
+                      key={s.key}
+                      source={s.image}
+                      style={[styles.heroBg, isSmallScreen && styles.heroBgMobile, { width: heroWidth || (windowWidth - (isSmallScreen ? 28 : 48)) }]}
+                      imageStyle={styles.heroBgImage}
+                      accessibilityLabel={s.title?.replace('\n', ' ') || 'Hero banner'}>
+                      <YStack
+                        style={[styles.heroOverlay, isSmallScreen && styles.heroOverlayMobile]}
+                        alignItems="center"
+                        justifyContent="center"
+                        gap={isSmallScreen ? '$2' : '$3.5'}>
+                        <YStack alignItems="center" gap={isSmallScreen ? '$1' : '$2.5'} marginTop={isSmallScreen ? 8 : 0}>
+                          <YStack
+                            backgroundColor="rgba(255,255,255,0.14)"
+                            paddingHorizontal={isSmallScreen ? 13 : 20}
+                            paddingVertical={isSmallScreen ? 5 : 10}
+                            borderRadius={isSmallScreen ? 12 : 16}
+                            borderWidth={1.5}
+                            borderColor="rgba(255,255,255,0.4)">
+                            <Text
+                              color="#FBBF24"
+                              fontSize={isSmallScreen ? t(10) : t(13)}
+                              fontWeight="900"
+                              lineHeight={isSmallScreen ? 12 : 18}
+                              style={{ fontFamily: APP_SERIF_FONT }}>
+                              Since 2006
+                            </Text>
+                            <Text
+                              color="#FFFFFF"
+                              fontSize={isSmallScreen ? t(10) : t(13)}
+                              fontWeight="800"
+                              lineHeight={isSmallScreen ? 12 : 18}
+                              style={{ fontFamily: APP_SERIF_FONT }}>
+                              18+ Years of Excellence
+                            </Text>
+                          </YStack>
+
+                          <H1
+                            color="#FFFFFF"
+                            fontSize={isSmallScreen ? t(28) : t(56)}
+                            textAlign={isSmallScreen ? 'center' : 'left'}
+                            fontWeight="900"
+                            lineHeight={isSmallScreen ? 34 : 66}
+                            style={{ fontFamily: APP_SERIF_FONT }}>
+                            {s.title}
+                          </H1>
+
+                          <Paragraph
+                            color="#F1F5F9"
+                            textAlign={isSmallScreen ? 'center' : 'left'}
+                            fontSize={isSmallScreen ? t(13) : t(19)}
+                            fontWeight="700"
+                            lineHeight={isSmallScreen ? 19 : 28}
+                            paddingHorizontal={isSmallScreen ? 10 : 0}
+                            style={{ fontFamily: APP_SERIF_FONT }}>
+                            {s.subtitle}
+                          </Paragraph>
+                        </YStack>
+
+                        {s.key === 'slide-4' ? (
+                          <XStack
+                            flexWrap="wrap"
+                            gap={isSmallScreen ? '$2' : '$2.5'}
+                            justifyContent="center"
+                            alignItems="center"
+                            marginTop={isSmallScreen ? 4 : 10}
+                            maxWidth={isSmallScreen ? 236 : undefined}>
+                            <AppButton
+                              label="Shifting"
+                              onPress={() => {
+                                setActiveService('shifting');
+                                scrollToServiceMenu();
+                              }}
+                              backgroundColor="#F59E0B"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                            <AppButton
+                              label="Home Services"
+                              onPress={() => {
+                                setActiveService('home_services');
+                                scrollToServiceMenu();
+                              }}
+                              backgroundColor="#3B82F6"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobileWide]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                            <AppButton
+                              label="Property"
+                              onPress={() => {
+                                setActiveService('property');
+                                scrollToServiceMenu();
+                              }}
+                              backgroundColor="#22C55E"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                          </XStack>
+                        ) : (
+                          <XStack
+                            flexWrap="wrap"
+                            gap={isSmallScreen ? '$2' : '$2.5'}
+                            justifyContent="center"
+                            alignItems="center"
+                            marginTop={isSmallScreen ? 4 : 10}
+                            maxWidth={isSmallScreen ? 236 : undefined}>
+                            <AppButton
+                              label="Call Now"
+                              onPress={handleCallNow}
+                              backgroundColor="#12a3a3ff"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                            <AppButton
+                              label="WhatsApp"
+                              onPress={handleWhatsApp}
+                              backgroundColor="#22C55E"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                            <AppButton
+                              label="Get Quote"
+                              onPress={handleOpenQuote}
+                              backgroundColor="#3a53e2ff"
+                              textColor="#FFFFFF"
+                              containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
+                              labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
+                              glowOnHover
+                            />
+                          </XStack>
+                        )}
+                      </YStack>
+                    </ImageBackground>
+                  ))}
+                </Animated.View>
+
+                <XStack
+                  gap="$2.5"
                   justifyContent="center"
-                  gap={isSmallScreen ? '$2' : '$3.5'}>
-                  <YStack alignItems="center" gap={isSmallScreen ? '$1' : '$2.5'} marginTop={isSmallScreen ? 8 : 0}>
-                    <YStack
-                      backgroundColor="rgba(255,255,255,0.14)"
-                      paddingHorizontal={isSmallScreen ? 13 : 20}
-                      paddingVertical={isSmallScreen ? 5 : 10}
-                      borderRadius={isSmallScreen ? 12 : 16}
-                      borderWidth={1.5}
-                      borderColor="rgba(255,255,255,0.4)">
-                      <Text
-                        color="#FBBF24"
-                        fontSize={isSmallScreen ? t(10) : t(13)}
-                        fontWeight="900"
-                        lineHeight={isSmallScreen ? 12 : 18}
-                        style={{ fontFamily: APP_SERIF_FONT }}>
-                        Since 2006
-                      </Text>
-                      <Text
-                        color="#FFFFFF"
-                        fontSize={isSmallScreen ? t(10) : t(13)}
-                        fontWeight="800"
-                        lineHeight={isSmallScreen ? 12 : 18}
-                        style={{ fontFamily: APP_SERIF_FONT }}>
-                        18+ Years of Excellence
-                      </Text>
-                    </YStack>
-
-                    <H1
-                      color="#FFFFFF"
-                      fontSize={isSmallScreen ? t(28) : t(56)}
-                      textAlign={isSmallScreen ? 'center' : 'left'}
-                      fontWeight="900"
-                      lineHeight={isSmallScreen ? 34 : 66}
-                      style={{ fontFamily: APP_SERIF_FONT }}>
-                      {heroSlides[heroIndex]?.title}
-                    </H1>
-
-                    <Paragraph
-                      color="#F1F5F9"
-                      textAlign={isSmallScreen ? 'center' : 'left'}
-                      fontSize={isSmallScreen ? t(13) : t(19)}
-                      fontWeight="700"
-                      lineHeight={isSmallScreen ? 19 : 28}
-                      paddingHorizontal={isSmallScreen ? 10 : 0}
-                      style={{ fontFamily: APP_SERIF_FONT }}>
-                      {heroSlides[heroIndex]?.subtitle}
-                    </Paragraph>
-                  </YStack>
-
-                  {heroSlides[heroIndex]?.key === 'slide-4' ? (
-                    <XStack
-                      flexWrap="wrap"
-                      gap={isSmallScreen ? '$2' : '$2.5'}
-                      justifyContent="center"
-                      alignItems="center"
-                      marginTop={isSmallScreen ? 4 : 10}
-                      maxWidth={isSmallScreen ? 236 : undefined}>
-                      <AppButton
-                        label="Shifting"
-                        onPress={() => {
-                          setActiveService('shifting');
-                          scrollToServiceMenu();
-                        }}
-                        backgroundColor="#F59E0B"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                      <AppButton
-                        label="Home Services"
-                        onPress={() => {
-                          setActiveService('home_services');
-                          scrollToServiceMenu();
-                        }}
-                        backgroundColor="#3B82F6"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobileWide]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                      <AppButton
-                        label="Property"
-                        onPress={() => {
-                          setActiveService('property');
-                          scrollToServiceMenu();
-                        }}
-                        backgroundColor="#22C55E"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                    </XStack>
-                  ) : (
-                    <XStack
-                      flexWrap="wrap"
-                      gap={isSmallScreen ? '$2' : '$2.5'}
-                      justifyContent="center"
-                      alignItems="center"
-                      marginTop={isSmallScreen ? 4 : 10}
-                      maxWidth={isSmallScreen ? 236 : undefined}>
-                      <AppButton
-                        label="Call Now"
-                        onPress={handleCallNow}
-                        backgroundColor="#12a3a3ff"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                      <AppButton
-                        label="WhatsApp"
-                        onPress={handleWhatsApp}
-                        backgroundColor="#22C55E"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                      <AppButton
-                        label="Get Quote"
-                        onPress={handleOpenQuote}
-                        backgroundColor="#3a53e2ff"
-                        textColor="#FFFFFF"
-                        containerStyle={[styles.heroCta, isSmallScreen && styles.heroCtaMobile]}
-                        labelStyle={{ fontFamily: APP_SERIF_FONT, fontSize: isSmallScreen ? 14 : 20, fontWeight: '900' }}
-                        glowOnHover
-                      />
-                    </XStack>
-                  )}
-
-                  <XStack gap="$2.5" justifyContent="center" alignItems="center" marginTop={isSmallScreen ? 2 : 12}>
-                    {heroSlides.map((s, i) => (
-                      <Pressable key={s.key} onPress={() => setHeroIndex(i)}>
-                        <View style={[styles.heroDot, i === heroIndex && styles.heroDotActive]} />
-                      </Pressable>
-                    ))}
-                  </XStack>
-                </YStack>
-              </ImageBackground>
+                  alignItems="center"
+                  style={{ position: 'absolute', bottom: isSmallScreen ? 6 : 12, left: 0, right: 0 }}>
+                  {heroSlides.map((s, i) => (
+                    <Pressable key={s.key} onPress={() => setHeroIndex(i)}>
+                      <View style={[styles.heroDot, i === heroIndex && styles.heroDotActive]} />
+                    </Pressable>
+                  ))}
+                </XStack>
+              </View>
 
               <View
                 style={{ width: '100%', alignItems: 'center' }}
@@ -4293,34 +4357,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
 
             <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2.5" marginTop={20}>
-              <Pressable
-                onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('copyright') : undefined}
-                onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
-                onPress={() =>
-                  Linking.openURL(
-                    'https://www.google.com/search?q=BT+SOFTECH&sca_esv=1ef01aa32e62b85d&sxsrf=ANbL-n4Qxg11bZze2VYtDUukS4Om-AfTZQ%3A1772388277243&ei=tX-kacnJDrSQseMP5pOl4QU&biw=1366&bih=641&ved=0ahUKEwiJ-KztpP-SAxU0SGwGHeZJKVwQ4dUDCBM&uact=5&oq=BT+SOFTECH&gs_lp=Egxnd3Mtd2l6LXNlcnAiCkJUIFNPRlRFQ0gyDRAuGIAEGMcBGA0YrwEyBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBxAAGIAEGA0yBhAAGA0YHjIGEAAYDRgeMgYQABgNGB4yBhAAGA0YHjIcEC4YgAQYxwEYDRivARiXBRjcBBjeBBjgBNgBAUiZTVD8DliiRHACeAGQAQCYAboBoAGSCaoBAzAuOLgBA8gBAPgBAZgCB6ACtwbCAgoQABiwAxjWBBhHwgIEECMYJ8ICBRAAGO8FwgIIEAAYogQYiQWYAwCIBgGQBgK6BgYIARABGBSSBwMyLjWgB8oesgcDMC41uAefBsIHBzAuMi4zLjLIByuACAA&sclient=gws-wiz-serp'
-                  )
-                }>
-                <Text
-                  color={footerHovered === 'copyright' ? '#D97706' : theme.textMuted}
-                  fontSize={t(13)}
-                  fontWeight="800"
-                  style={
-                    Platform.OS === 'web'
-                      ? ([
-                          { fontFamily: APP_SERIF_FONT, cursor: 'pointer' },
-                          {
-                            animationDuration: '6s',
-                            animationTimingFunction: 'linear',
-                            animationIterationCount: 'infinite',
-                            animationKeyframes: brandTextKeyframes,
-                          },
-                        ] as any)
-                      : ({ fontFamily: APP_SERIF_FONT } as any)
-                  }>
-                  2026 BT SOFTECH. All Rights Reserved.
-                </Text>
-              </Pressable>
+              <Text
+                color={theme.textMuted}
+                fontSize={t(13)}
+                fontWeight="800"
+                style={{ fontFamily: APP_SERIF_FONT }}>
+                © 2026 Gujarat Relocation Packers. All Rights Reserved.
+              </Text>
               <XStack gap="$3.5" alignItems="center">
                 <Pressable
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('privacy') : undefined}

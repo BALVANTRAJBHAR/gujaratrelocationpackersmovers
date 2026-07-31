@@ -8,6 +8,7 @@ import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 type ConversationRow = {
   id: string;
@@ -304,7 +305,7 @@ export default function SupportChatScreen() {
                       {item.message}
                     </Text>
                     <Text color={isUser ? theme.text : theme.textMuted} fontSize={t(10)} opacity={0.85} paddingTop={6}>
-                      {new Date(item.created_at).toLocaleString()}
+                      {formatDateTimeDDMMYYYY(item.created_at)}
                     </Text>
                   </YStack>
                 );

@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 type PropertyRow = {
   id: string;
@@ -274,7 +275,7 @@ export default function MyPropertiesScreen() {
 
                 <YStack backgroundColor={panelBg} borderRadius={12} padding={10} borderWidth={1} borderColor={border}>
                   <Text color={muted} fontSize={t(11)}>
-                    Created: {new Date(p.created_at).toLocaleString()}
+                    Created: {formatDateTimeDDMMYYYY(p.created_at)}
                   </Text>
                 </YStack>
               </YStack>

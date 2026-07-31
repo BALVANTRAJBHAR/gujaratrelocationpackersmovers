@@ -958,7 +958,7 @@ export default function LoginScreen() {
           ) : null}
 
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
-            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={6} paddingRight={12} gap="$2">
+            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={20} paddingRight={12} gap="$2">
               <Input
                 {...commonInputProps}
                 flex={1}

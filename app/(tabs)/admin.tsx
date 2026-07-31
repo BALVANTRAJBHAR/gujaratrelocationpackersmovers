@@ -1,9 +1,9 @@
 import { useAuthGuard } from '@/lib/auth-guard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 let TextRecognition: any = null;
 try {
@@ -21,6 +21,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
+import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 type DriverProfile = {
   id: string;
@@ -596,6 +597,7 @@ function AdminScreenInner() {
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffProfile[]>([]);
   const [bookings, setBookings] = useState<BookingAdmin[]>([]);
+  const [bookingStatusCounts, setBookingStatusCounts] = useState<Record<string, number>>({});
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequestAdmin[]>([]);
   const [quoteRequestSearch, setQuoteRequestSearch] = useState('');
   const [quoteRequestStatusFilter, setQuoteRequestStatusFilter] = useState<'all' | 'pending' | 'complete' | 'cancelled'>('all');
@@ -612,6 +614,7 @@ function AdminScreenInner() {
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
 
   const [homeServiceRequests, setHomeServiceRequests] = useState<HomeServiceRequestAdmin[]>([]);
+  const [hsStatusCounts, setHsStatusCounts] = useState<Record<string, number>>({});
   const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled'>('all');
   const [hsStartDate, setHsStartDate] = useState('');
   const [hsEndDate, setHsEndDate] = useState('');
@@ -1238,6 +1241,29 @@ function AdminScreenInner() {
         return;
       }
       setHomeServiceRequests(withHomeServicePaymentDefaults(data));
+
+      try {
+        let countQuery = supabase.from('home_service_requests').select('status');
+        if (hsStartDate) {
+          countQuery = countQuery.gte('created_at', `${hsStartDate}T00:00:00.000Z`);
+        }
+        if (hsEndDate) {
+          countQuery = countQuery.lte('created_at', `${hsEndDate}T23:59:59.999Z`);
+        }
+        if (hsSearchText) {
+          const search = hsSearchText.trim();
+          countQuery = countQuery.or(`customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`);
+        }
+        const { data: countRows, error: countError } = await countQuery;
+        if (!countError) {
+          const counts: Record<string, number> = {};
+          for (const row of (countRows ?? []) as { status: string | null }[]) {
+            const key = String(row.status ?? 'unknown');
+            counts[key] = (counts[key] ?? 0) + 1;
+          }
+          setHsStatusCounts(counts);
+        }
+      } catch { /* ignore count errors */ }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to fetch home service requests.');
@@ -1263,6 +1289,81 @@ function AdminScreenInner() {
     }
   };
 
+  const notifyDownloaded = (fileName: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(`Downloaded to Downloads folder: ${fileName}`, ToastAndroid.LONG);
+    }
+  };
+
+  const downloadTextFile = async (opts: { fileName: string; mimeType: string; content: string }) => {
+    const { fileName, mimeType, content } = opts;
+    if (Platform.OS === 'web') {
+      if (typeof document === 'undefined') return;
+      const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+    const uri = `${baseDir}${fileName}`;
+    await FileSystem.writeAsStringAsync(uri, content, { encoding: 'utf8' as any });
+    await Share.share({ url: uri, title: fileName });
+    notifyDownloaded(fileName);
+  };
+
+  const downloadPdfFile = async (fileName: string, html: string) => {
+    if (Platform.OS === 'web') {
+      if (typeof document === 'undefined') return;
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.style.opacity = '0';
+      iframe.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        document.body.removeChild(iframe);
+        return;
+      }
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {
+          // ignore
+        } finally {
+          setTimeout(() => {
+            try {
+              document.body.removeChild(iframe);
+            } catch {
+              // ignore
+            }
+          }, 1000);
+        }
+      }, 400);
+      return;
+    }
+    const { uri } = await Print.printToFileAsync({ html });
+    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+    const targetUri = `${baseDir}${fileName}`;
+    await FileSystem.copyAsync({ from: uri, to: targetUri });
+    await Share.share({ url: targetUri, title: fileName });
+    notifyDownloaded(fileName);
+  };
+
   const exportQuoteRequestsCsv = async () => {
     if (!quoteRequests.length) {
       setError('No quote requests available to export.');
@@ -1279,14 +1380,16 @@ function AdminScreenInner() {
         item.status ?? '',
         item.remark ?? '',
         item.message ?? '',
-        item.created_at ?? '',
+        formatDateTimeDDMMYYYY(item.created_at),
       ]);
       const csv = [header, ...rows]
         .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
         .join('\n');
-      const path = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}quote-requests.csv`;
-      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
-      Alert.alert('Export complete', `CSV exported to ${path}`);
+      await downloadTextFile({
+        fileName: `quote-requests-${new Date().toISOString().slice(0, 10)}.csv`,
+        mimeType: 'text/csv',
+        content: `\uFEFF${csv}`,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to export CSV.');
@@ -1310,7 +1413,7 @@ function AdminScreenInner() {
               <td>${String(item.status ?? '').replace(/</g, '&lt;')}</td>
               <td>${String(item.remark ?? '').replace(/</g, '&lt;')}</td>
               <td>${String(item.message ?? '').replace(/</g, '&lt;')}</td>
-              <td>${String(item.created_at ?? '').replace(/</g, '&lt;')}</td>
+              <td>${formatDateTimeDDMMYYYY(item.created_at)}</td>
             </tr>`
         )
         .join('');
@@ -1329,7 +1432,7 @@ function AdminScreenInner() {
           </head>
           <body>
             <h1>Quote Requests Report</h1>
-            <p>Exported on ${new Date().toLocaleString()}</p>
+            <p>Exported on ${formatDateTimeDDMMYYYY(new Date())}</p>
             <table>
               <thead>
                 <tr>
@@ -1349,7 +1452,7 @@ function AdminScreenInner() {
           </body>
         </html>
       `;
-      await Print.printAsync({ html });
+      await downloadPdfFile(`quote-requests-${new Date().toISOString().slice(0, 10)}.pdf`, html);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to export PDF.');
@@ -1588,9 +1691,9 @@ function AdminScreenInner() {
       const driver = getBookingDriver(b as any);
       return [
         b.id ?? '',
-        b.created_at ?? '',
-        b.scheduled_at ?? '',
-        (b as any).scheduled_date ?? '',
+        formatDateTimeDDMMYYYY(b.created_at),
+        formatDateTimeDDMMYYYY((b as any).scheduled_at),
+        (b as any).scheduled_date ? formatDateDDMMYYYY((b as any).scheduled_date) : '',
         (b as any).scheduled_time ?? '',
         b.status ?? '',
         b.payment_status ?? '',
@@ -1617,16 +1720,22 @@ function AdminScreenInner() {
       .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
-    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-    const uri = `${baseDir}bookings-report-${Date.now()}.csv`;
-    await FileSystem.writeAsStringAsync(uri, csv, { encoding: 'utf8' as any });
-    return uri;
+    return csv;
   };
 
   const exportReportsBookingsCsv = async () => {
-    const uri = await createReportsBookingsCsv();
-    if (!uri) return;
-    await Share.share({ url: uri, title: 'Bookings report' });
+    try {
+      const csv = await createReportsBookingsCsv();
+      if (!csv) return;
+      await downloadTextFile({
+        fileName: `bookings-report-${new Date().toISOString().slice(0, 10)}.csv`,
+        mimeType: 'text/csv',
+        content: `\uFEFF${csv}`,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setReportsError(message || 'Failed to export bookings CSV.');
+    }
   };
 
   const getPaymentUser = (p: PaymentReportRow) => {
@@ -1658,7 +1767,7 @@ function AdminScreenInner() {
       const u = getPaymentUser(p as any);
       return [
         p.id ?? '',
-        p.created_at ?? '',
+        formatDateTimeDDMMYYYY(p.created_at),
         p.booking_id ?? '',
         p.user_id ?? '',
         u.name ?? '',
@@ -1678,16 +1787,22 @@ function AdminScreenInner() {
       .map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
-    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-    const uri = `${baseDir}payments-report-${Date.now()}.csv`;
-    await FileSystem.writeAsStringAsync(uri, csv, { encoding: 'utf8' as any });
-    return uri;
+    return csv;
   };
 
   const exportReportsPaymentsCsv = async () => {
-    const uri = await createReportsPaymentsCsv();
-    if (!uri) return;
-    await Share.share({ url: uri, title: 'Payments report' });
+    try {
+      const csv = await createReportsPaymentsCsv();
+      if (!csv) return;
+      await downloadTextFile({
+        fileName: `payments-report-${new Date().toISOString().slice(0, 10)}.csv`,
+        mimeType: 'text/csv',
+        content: `\uFEFF${csv}`,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setReportsError(message || 'Failed to export payments CSV.');
+    }
   };
 
   const fetchManagedUsers = async () => {
@@ -2543,6 +2658,34 @@ function AdminScreenInner() {
       } else {
         setBookings((data ?? []) as BookingAdmin[]);
       }
+
+      try {
+        let countQuery = supabase
+          .from('bookings')
+          .select('status, user:users!user_id!inner(name, phone, email)');
+        if (bookingStartDate) {
+          countQuery = countQuery.gte('created_at', `${bookingStartDate}T00:00:00.000Z`);
+        }
+        if (bookingEndDate) {
+          countQuery = countQuery.lte('created_at', `${bookingEndDate}T23:59:59.999Z`);
+        }
+        if (bookingUserFilter) {
+          const search = bookingUserFilter.trim();
+          countQuery = countQuery.or(
+            `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`,
+            { foreignTable: 'user' }
+          );
+        }
+        const { data: countRows, error: countError } = await countQuery;
+        if (!countError) {
+          const counts: Record<string, number> = {};
+          for (const row of (countRows ?? []) as { status: string | null }[]) {
+            const key = String(row.status ?? 'unknown');
+            counts[key] = (counts[key] ?? 0) + 1;
+          }
+          setBookingStatusCounts(counts);
+        }
+      } catch { /* ignore count errors */ }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       if (!String(message ?? '').includes('AbortError')) {
@@ -2639,9 +2782,6 @@ function AdminScreenInner() {
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap="$3">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={t(14)} letterSpacing={2} textTransform="uppercase">
-              Admin
-            </Text>
             <H2 color={theme.text}>Admin dashboard</H2>
             <Paragraph color={theme.textMuted}>Manage staff, bookings, approvals, quote requests and reports.</Paragraph>
           </YStack>
@@ -2722,24 +2862,9 @@ function AdminScreenInner() {
             {[
               { label: 'Bookings', value: 'bookings' },
               { label: 'Home Services', value: 'home_services' },
+              { label: 'Properties', value: 'properties' },
               { label: 'Quote Requests', value: 'quote_requests' },
               { label: 'Reports', value: 'reports' },
-              { label: 'Properties', value: 'properties' },
-            ].map((tab) => (
-              <Button
-                key={tab.value}
-                size="$2"
-                backgroundColor={activeSection === tab.value ? theme.accent : theme.bgCardSecondary}
-                color={activeSection === tab.value ? '#FFFFFF' : theme.text}
-                borderRadius={999}
-                onPress={() => setActiveSection(tab.value as typeof activeSection)}>
-                {tab.label}
-              </Button>
-            ))}
-          </XStack>
-
-          <XStack gap="$2" flexWrap="wrap" justifyContent="flex-start">
-            {[
               { label: 'Users', value: 'users' },
               { label: 'Vehicles', value: 'vehicles' },
               { label: 'Floors', value: 'floors' },
@@ -3246,11 +3371,11 @@ function AdminScreenInner() {
                       flexBasis={200}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap">
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     {([
-                      { label: 'All', value: 'all' },
-                      { label: 'Draft', value: 'draft' },
-                      { label: 'Published', value: 'published' },
+                      { label: 'All', value: 'all', count: properties.length },
+                      { label: 'Draft', value: 'draft', count: properties.filter((p) => String(p.status ?? '') === 'draft').length },
+                      { label: 'Published', value: 'published', count: properties.filter((p) => String(p.status ?? '') === 'published').length },
                     ] as const).map((filter) => (
                       <Button
                         key={filter.value}
@@ -3259,11 +3384,9 @@ function AdminScreenInner() {
                         color={propStatusFilter === filter.value ? '#FFFFFF' : theme.text}
                         borderRadius={999}
                         onPress={() => setPropStatusFilter(filter.value)}>
-                        {filter.label}
+                        {filter.label} ({filter.count})
                       </Button>
                     ))}
-                  </XStack>
-                  <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
                       backgroundColor={theme.accent}
@@ -3552,12 +3675,12 @@ function AdminScreenInner() {
                       flexBasis={200}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap">
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     {([
-                      { label: 'All', value: 'all' },
-                      { label: 'Pending', value: 'pending' },
-                      { label: 'Confirmed', value: 'confirmed' },
-                      { label: 'Cancelled', value: 'cancelled' },
+                      { label: 'All', value: 'all', count: propBookings.length },
+                      { label: 'Pending', value: 'pending', count: propBookings.filter((pb) => String(pb.status ?? '') === 'pending').length },
+                      { label: 'Confirmed', value: 'confirmed', count: propBookings.filter((pb) => String(pb.status ?? '') === 'confirmed').length },
+                      { label: 'Cancelled', value: 'cancelled', count: propBookings.filter((pb) => String(pb.status ?? '') === 'cancelled').length },
                     ] as const).map((filter) => (
                       <Button
                         key={filter.value}
@@ -3566,12 +3689,12 @@ function AdminScreenInner() {
                         color={propBookingStatusFilter === filter.value ? '#FFFFFF' : theme.text}
                         borderRadius={999}
                         onPress={() => setPropBookingStatusFilter(filter.value)}>
-                        {filter.label}
+                        {filter.label} ({filter.count})
                       </Button>
                     ))}
+                    <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                      onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
                   </XStack>
-                  <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                    onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
                   <MobileDatePicker value={propBookingStartPickerValue} open={propBookingStartDatePickerOpen} onClose={() => setPropBookingStartDatePickerOpen(false)} onChange={(d) => { setPropBookingStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={propBookingEndPickerValue} open={propBookingEndDatePickerOpen} onClose={() => setPropBookingEndDatePickerOpen(false)} onChange={(d) => { setPropBookingEndDate(isoDay(d)); }} />
                 </YStack>
@@ -3594,7 +3717,7 @@ function AdminScreenInner() {
                           </YStack>
                           <YStack alignItems="flex-end" gap={6}>
                             <Text color={statusColor} fontSize={t(14)} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                            <Text color={theme.textMuted} fontSize={t(13)}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                            <Text color={theme.textMuted} fontSize={t(13)}>{formatDateDDMMYYYY(pb.created_at)}</Text>
                           </YStack>
                         </XStack>
                       </YStack>
@@ -4311,10 +4434,7 @@ function AdminScreenInner() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="700" fontSize={t(16)}>
-                    Bookings
-                  </Text>
-                  <Text color={theme.textMuted} fontSize={t(14)}>
+                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(16)}>
                     Filter and manage bookings.
                   </Text>
                   {Platform.OS === 'web' ? (
@@ -4424,29 +4544,36 @@ function AdminScreenInner() {
                     />
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
-                    {[
-                      { label: 'All', value: 'all' },
-                      { label: 'Not started', value: 'not_started' },
-                      { label: 'Assigned', value: 'assigned' },
-                      { label: 'Pickup reached', value: 'pickup_reached' },
-                      { label: 'In Transit', value: 'in_transit' },
-                      { label: 'Delivered', value: 'delivered' },
-                      { label: 'Cancelled', value: 'cancelled' },
-                    ].map((filter) => (
-                      <Button
-                        key={filter.value}
-                        size="$2"
-                        backgroundColor={bookingFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                        color={bookingFilter === filter.value ? '#FFFFFF' : theme.text}
-                        borderRadius={999}
-                        onPress={() => {
-                          const next = filter.value as typeof bookingFilter;
-                          setBookingFilter(next);
-                          fetchBookings({ status: next });
-                        }}>
-                        {filter.label}
-                      </Button>
-                    ))}
+                    {(() => {
+                      const counts = bookingStatusCounts;
+                      const sum = Object.values(counts).reduce((acc, n) => acc + n, 0);
+                      const countFor = (statuses: string[]) => statuses.reduce((acc, s) => acc + (counts[s] ?? 0), 0);
+                      const notStarted = countFor(['confirmed', 'pending', 'assigned', 'not_started']);
+                      return [
+                        { label: 'All', value: 'all', count: sum },
+                        { label: 'Not started', value: 'not_started', count: notStarted },
+                        { label: 'Assigned', value: 'assigned', count: countFor(['assigned']) },
+                        { label: 'Pickup reached', value: 'pickup_reached', count: countFor(['pickup_reached']) },
+                        { label: 'In Transit', value: 'in_transit', count: countFor(['in_transit']) },
+                        { label: 'Delivered', value: 'delivered', count: countFor(['delivered']) },
+                        { label: 'Cancelled', value: 'cancelled', count: countFor(['cancelled']) },
+                      ];
+                    })()
+                      .map((filter) => (
+                        <Button
+                          key={filter.value}
+                          size="$2"
+                          backgroundColor={bookingFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                          color={bookingFilter === filter.value ? '#FFFFFF' : theme.text}
+                          borderRadius={999}
+                          onPress={() => {
+                            const next = filter.value as typeof bookingFilter;
+                            setBookingFilter(next);
+                            fetchBookings({ status: next });
+                          }}>
+                          {filter.label} ({filter.count})
+                        </Button>
+                      ))}
                   </XStack>
                   <MobileDatePicker value={bookingStartPickerValue} open={bookingStartDatePickerOpen} onClose={() => setBookingStartDatePickerOpen(false)} onChange={(d) => { setBookingStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={bookingEndPickerValue} open={bookingEndDatePickerOpen} onClose={() => setBookingEndDatePickerOpen(false)} onChange={(d) => { setBookingEndDate(isoDay(d)); }} />
@@ -4489,6 +4616,9 @@ function AdminScreenInner() {
                         </Text>
                         <Text color={theme.textMuted} fontSize={t(14)}>
                           Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
+                        </Text>
+                        <Text color={theme.textMuted} fontSize={t(14)}>
+                          Shifting: {item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}
                         </Text>
                       </YStack>
 
@@ -4685,7 +4815,7 @@ function AdminScreenInner() {
                           Paid: {paidAmount !== null ? `₹${paidAmount.toFixed(2)}` : '—'}
                         </Text>
                         <Text color={theme.textMuted} fontSize={t(14)}>
-                          Updated: {item.updated_at ? new Date(item.updated_at).toLocaleString() : '—'}
+                          Updated: {formatDateTimeDDMMYYYY(item.updated_at)}
                         </Text>
                       </XStack>
                       {item.status === 'assigned' ? (
@@ -4873,26 +5003,30 @@ function AdminScreenInner() {
                     />
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
-                    {[
-                      { label: 'All', value: 'all' },
-                      { label: 'Pending', value: 'pending' },
-                      { label: 'Assigned', value: 'assigned' },
-                      { label: 'Completed', value: 'completed' },
-                      { label: 'Cancelled', value: 'cancelled' },
-                    ].map((f) => (
-                      <Button
-                        key={f.value}
-                        size="$2"
-                        backgroundColor={hsStatusFilter === f.value ? theme.accent : theme.bgCardSecondary}
-                        color={hsStatusFilter === f.value ? '#FFFFFF' : theme.text}
-                        borderRadius={999}
-                        onPress={() => {
-                          setHsStatusFilter(f.value as typeof hsStatusFilter);
-                          fetchHomeServiceRequests();
-                        }}>
-                        {f.label}
-                      </Button>
-                    ))}
+                    {(() => {
+                      const sum = Object.values(hsStatusCounts).reduce((acc, n) => acc + n, 0);
+                      return [
+                        { label: 'All', value: 'all', count: sum },
+                        { label: 'Pending', value: 'pending', count: hsStatusCounts['pending'] ?? 0 },
+                        { label: 'Assigned', value: 'assigned', count: hsStatusCounts['assigned'] ?? 0 },
+                        { label: 'Completed', value: 'completed', count: hsStatusCounts['completed'] ?? 0 },
+                        { label: 'Cancelled', value: 'cancelled', count: hsStatusCounts['cancelled'] ?? 0 },
+                      ];
+                    })()
+                      .map((f) => (
+                        <Button
+                          key={f.value}
+                          size="$2"
+                          backgroundColor={hsStatusFilter === f.value ? theme.accent : theme.bgCardSecondary}
+                          color={hsStatusFilter === f.value ? '#FFFFFF' : theme.text}
+                          borderRadius={999}
+                          onPress={() => {
+                            setHsStatusFilter(f.value as typeof hsStatusFilter);
+                            fetchHomeServiceRequests();
+                          }}>
+                          {f.label} ({f.count})
+                        </Button>
+                      ))}
                     <Button
                       size="$2"
                       backgroundColor={theme.bgCardSecondary}
@@ -4916,7 +5050,7 @@ function AdminScreenInner() {
                           ? theme.info
                           : theme.warning;
                   const open = homeServiceUploadsOpenId === r.id;
-                  const slot = `${r.preferred_date ?? '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
+                  const slot = `${r.preferred_date ? formatDateDDMMYYYY(r.preferred_date) : '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
 
                   return (
                     <YStack
@@ -5172,22 +5306,30 @@ function AdminScreenInner() {
                       flexBasis={220}
                     />
                     <XStack gap="$1" flexWrap="wrap">
-                      {([
-                        { label: 'All', value: 'all' },
-                        { label: 'Pending', value: 'pending' },
-                        { label: 'Complete', value: 'complete' },
-                        { label: 'Cancelled', value: 'cancelled' },
-                      ] as const).map((filter) => (
-                        <Button
-                          key={filter.value}
-                          size="$2"
-                          backgroundColor={quoteRequestStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                          color={quoteRequestStatusFilter === filter.value ? '#FFFFFF' : theme.text}
-                          borderRadius={999}
-                          onPress={() => setQuoteRequestStatusFilter(filter.value)}>
-                          {filter.label}
-                        </Button>
-                      ))}
+                      {(() => {
+                        const countFor = (statuses: string[]) =>
+                          quoteRequests.filter((q) => {
+                            const s = String(q.status ?? 'pending').trim().toLowerCase();
+                            return statuses.includes(s === 'completed' ? 'complete' : s === 'canceled' ? 'cancelled' : s);
+                          }).length;
+                        return [
+                          { label: 'All', value: 'all', count: quoteRequests.length },
+                          { label: 'Pending', value: 'pending', count: countFor(['pending']) },
+                          { label: 'Complete', value: 'complete', count: countFor(['complete']) },
+                          { label: 'Cancelled', value: 'cancelled', count: countFor(['cancelled']) },
+                        ];
+                      })()
+                        .map((filter) => (
+                          <Button
+                            key={filter.value}
+                            size="$2"
+                            backgroundColor={quoteRequestStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                            color={quoteRequestStatusFilter === filter.value ? '#FFFFFF' : theme.text}
+                            borderRadius={999}
+                            onPress={() => setQuoteRequestStatusFilter(filter.value)}>
+                            {filter.label} ({filter.count})
+                          </Button>
+                        ))}
                     </XStack>
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
@@ -5255,7 +5397,7 @@ function AdminScreenInner() {
                             {request.message ?? 'No message provided.'}
                           </Text>
                           <Text color={theme.textMuted} fontSize={t(14)}>
-                            Source: {request.source ?? 'Web'} • Created: {request.created_at ? new Date(request.created_at).toLocaleString() : '—'}
+                            Source: {request.source ?? 'Web'} • Created: {formatDateTimeDDMMYYYY(request.created_at)}
                           </Text>
                         </YStack>
                         <Text color={statusColor} fontSize={t(14)} fontWeight="700">

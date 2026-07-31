@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Alert, ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { t } from '@/constants/typography';
+import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 
 type HomeServiceRequestRow = {
@@ -98,13 +99,15 @@ export default function MyHomeServiceRequestsScreen() {
   const router = useRouter();
   const { session } = useSession();
   const insets = useSafeAreaInsets();
-  const shareHomePdf = async (data: any) => {
+  const shareHomePdf = async (data: any): Promise<boolean> => {
     try {
       const { shareHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
-      await shareHomeServicePdf(data);
-    } catch {}
+      return await shareHomeServicePdf(data);
+    } catch {
+      return false;
+    }
   };
-  const downloadHomePdf = async (data: any) => {
+  const downloadHomePdf = async (data: any): Promise<boolean> => {
     try {
       const { downloadHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
       return await downloadHomeServicePdf(data);
@@ -112,6 +115,8 @@ export default function MyHomeServiceRequestsScreen() {
       return false;
     }
   };
+
+  const [pdfBusy, setPdfBusy] = useState<{ id: string; action: 'download' | 'share' } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -497,7 +502,7 @@ export default function MyHomeServiceRequestsScreen() {
                       {r.locality || r.city || r.state ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}` : 'Location not provided'}
                     </Text>
                     <Text color={muted} fontSize={t(11)}>
-                      Created: {new Date(r.created_at).toLocaleString()}
+                      Created: {formatDateTimeDDMMYYYY(r.created_at)}
                     </Text>
                   </YStack>
 
@@ -513,8 +518,18 @@ export default function MyHomeServiceRequestsScreen() {
                           color="#FFFFFF"
                           borderRadius={10}
                           paddingHorizontal={10}
-                          onPress={() => void shareHomePdf(r as any)}>
-                          PDF
+                          disabled={!!pdfBusy}
+                          onPress={async () => {
+                            setPdfBusy({ id: r.id, action: 'share' });
+                            try {
+                              const ok = await shareHomePdf(r as any);
+                              if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
+                            } catch { Alert.alert('Error', 'Failed to share report.'); }
+                            finally { setPdfBusy(null); }
+                          }}>
+                          {pdfBusy?.id === r.id && pdfBusy.action === 'share'
+                            ? <ActivityIndicator size="small" color="#FFFFFF" />
+                            : 'Share PDF'}
                         </Button>
                       ) : null}
                       <Button
@@ -559,7 +574,7 @@ export default function MyHomeServiceRequestsScreen() {
                         Preferred slot
                       </Text>
                       <Text color={muted} fontSize={t(12)}>
-                        {(r.preferred_date ?? '—') + (r.preferred_time ? ` • ${r.preferred_time}` : '')}
+                        {(r.preferred_date ? formatDateDDMMYYYY(r.preferred_date) : '—') + (r.preferred_time ? ` • ${r.preferred_time}` : '')}
                       </Text>
                     </YStack>
 
@@ -639,9 +654,19 @@ export default function MyHomeServiceRequestsScreen() {
                         backgroundColor={theme.primary || '#1F4E79'}
                         color="#FFFFFF"
                         borderRadius={10}
-                        onPress={() => void downloadHomePdf(r as any)}>
-                          Download Report
-                        </Button>
+                        disabled={!!pdfBusy}
+                        onPress={async () => {
+                          setPdfBusy({ id: r.id, action: 'download' });
+                          try {
+                            const ok = await downloadHomePdf(r as any);
+                            if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+                          } catch { Alert.alert('Error', 'Failed to generate report.'); }
+                          finally { setPdfBusy(null); }
+                        }}>
+                        {pdfBusy?.id === r.id && pdfBusy.action === 'download'
+                          ? <ActivityIndicator size="small" color="#FFFFFF" />
+                          : 'Download Report'}
+                      </Button>
                     ) : null}
 
                     {r.status === 'pending' && r.payment_option === 'after_service' ? (

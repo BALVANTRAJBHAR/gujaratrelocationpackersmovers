@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Linking, Modal, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Linking, Modal, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
@@ -14,6 +14,7 @@ import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import { t } from '@/constants/typography';
+import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: '#F97316',
@@ -197,6 +198,23 @@ function BookingsContent() {
       return false;
     }
   };
+  const downloadHomePdf = async (data: any): Promise<boolean> => {
+    try {
+      const { downloadHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
+      return await downloadHomeServicePdf(data);
+    } catch {
+      return false;
+    }
+  };
+  const shareHomePdf = async (data: any): Promise<boolean> => {
+    try {
+      const { shareHomeServicePdf } = await import('@/lib/generate-home-service-pdf');
+      return await shareHomeServicePdf(data);
+    } catch {
+      return false;
+    }
+  };
+  const [pdfBusy, setPdfBusy] = useState<{ id: string; action: 'download' | 'share'; tab: 'shifting' | 'home' } | null>(null);
   const { session, profile } = useSession();
   const colorScheme = useColorScheme();
   const [activeTab, setActiveTab] = useState<'shifting' | 'home_services' | 'properties'>('shifting');
@@ -796,13 +814,16 @@ function BookingsContent() {
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[
-            { label: 'All', value: 'all' },
-            { label: 'Not started', value: 'not_started' },
-            { label: 'Pickup reached', value: 'pickup_reached' },
-            { label: 'Transit', value: 'in_transit' },
-            { label: 'Delivered', value: 'delivered' },
-          ]}
+          data={(() => {
+            const base = bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'rescheduled');
+            return [
+              { label: 'All', value: 'all', count: base.length },
+              { label: 'Not started', value: 'not_started', count: base.filter((b) => normalizeStepperStatus(b.status) === 'not_started').length },
+              { label: 'Pickup reached', value: 'pickup_reached', count: base.filter((b) => normalizeStepperStatus(b.status) === 'pickup_reached').length },
+              { label: 'Transit', value: 'in_transit', count: base.filter((b) => normalizeStepperStatus(b.status) === 'in_transit').length },
+              { label: 'Delivered', value: 'delivered', count: base.filter((b) => normalizeStepperStatus(b.status) === 'delivered').length },
+            ];
+          })()}
           keyExtractor={(item) => item.value}
           contentContainerStyle={{ gap: 8, paddingTop: 6, paddingBottom: 4 } as any}
           renderItem={({ item }) => (
@@ -812,7 +833,7 @@ function BookingsContent() {
               color={statusFilter === item.value ? '#FFFFFF' : theme.inputText}
               borderRadius={999}
               onPress={() => setStatusFilter(item.value as typeof statusFilter)}>
-              {item.label}
+              {item.label} ({item.count})
             </Button>
           )}
         />
@@ -840,6 +861,13 @@ function BookingsContent() {
             </XStack>
             {renderStatusStepper(item.status)}
             <XStack justifyContent="space-between" alignItems="center">
+              <Text color={theme.textMuted} fontSize={t(13)}>Shifting</Text>
+              <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">
+                {item.scheduled_date ? formatDateDDMMYYYY(item.scheduled_date) : '—'}
+                {item.scheduled_time ? `, ${item.scheduled_time}` : ''}
+              </Text>
+            </XStack>
+            <XStack justifyContent="space-between" alignItems="center">
               <Text color={theme.textMuted} fontSize={t(13)}>Payment</Text>
               <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
                 {item.payment_status ?? 'pending'}
@@ -852,7 +880,7 @@ function BookingsContent() {
             <XStack justifyContent="space-between" alignItems="center">
               <Text color={theme.textMuted} fontSize={t(13)}>Updated</Text>
               <Text color={theme.inputText} fontSize={t(13)}>
-                {item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString()}
+                {formatDateTimeDDMMYYYY(item.updated_at ?? item.created_at)}
               </Text>
             </XStack>
             {item.driver_id ? (
@@ -878,7 +906,7 @@ function BookingsContent() {
                 <Text color={theme.textMuted} fontSize={t(13)}>Payment history</Text>
                 {paymentHistory[item.id].slice(0, 2).map((payment) => (
                   <Text key={payment.id} color={theme.inputText} fontSize={t(12)}>
-                    {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
+                    {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {formatDateTimeDDMMYYYY(payment.created_at)}
                   </Text>
                 ))}
                 <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
@@ -887,9 +915,11 @@ function BookingsContent() {
             ) : null}
             {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={t(13)}>{paymentInfo[item.id]}</Text> : null}
             <XStack gap="$2" flexWrap="wrap">
-              <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+              <Button size="$2" backgroundColor={theme.info} color="#FFFFFF" borderRadius={10}
+                pressStyle={{ opacity: 0.8 } as any}
                 onPress={() => router.push({ pathname: '/(tabs)/tracking', params: { bookingId: item.id } } as any)}>Track</Button>
-              <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+              <Button size="$2" backgroundColor={theme.info} color="#FFFFFF" borderRadius={10}
+                pressStyle={{ opacity: 0.8 } as any}
                 onPress={async () => {
                   try {
                     const trackUrl = Platform.OS === 'web'
@@ -912,7 +942,9 @@ function BookingsContent() {
             </XStack>
             <XStack gap="$2" flexWrap="wrap">
               <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                disabled={!!pdfBusy}
                 onPress={async () => {
+                  setPdfBusy({ id: item.id, action: 'download', tab: 'shifting' });
                   try {
                     const ok = await downloadPdf({
                       id: item.id,
@@ -938,10 +970,17 @@ function BookingsContent() {
                     });
                     if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
                   } catch { Alert.alert('Error', 'Failed to generate report.'); }
-                }}>Download Report</Button>
+                  finally { setPdfBusy(null); }
+                }}>
+                {pdfBusy?.id === item.id && pdfBusy.action === 'download' && pdfBusy.tab === 'shifting'
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : 'Download Report'}
+              </Button>
               <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
                 color={theme.text} borderRadius={10}
+                disabled={!!pdfBusy}
                 onPress={async () => {
+                  setPdfBusy({ id: item.id, action: 'share', tab: 'shifting' });
                   try {
                     const ok = await sharePdf({
                       id: item.id,
@@ -967,7 +1006,12 @@ function BookingsContent() {
                     });
                     if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
                   } catch { Alert.alert('Error', 'Failed to share report.'); }
-                }}>Share Report</Button>
+                  finally { setPdfBusy(null); }
+                }}>
+                {pdfBusy?.id === item.id && pdfBusy.action === 'share' && pdfBusy.tab === 'shifting'
+                  ? <ActivityIndicator size="small" color={theme.text} />
+                  : 'Share Report'}
+              </Button>
             </XStack>
             {(() => {
               const paid = (paymentHistory[item.id] ?? [])
@@ -975,16 +1019,26 @@ function BookingsContent() {
                 .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
               const targetAdvance = Number(item.advance_amount ?? 500);
               const targetFull = Number(item.estimated_price ?? item.remaining_amount ?? 500);
-              const advanceEnabled = paid < targetFull;
+              const advanceEnabled = paid < targetAdvance;
               const fullEnabled = paid < targetFull;
               return item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                 <XStack gap="$2" flexWrap="wrap">
-                  <Button size="$2" backgroundColor={advanceEnabled ? theme.accent : theme.bgCardSecondary}
-                    color={advanceEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
+                  <Button size="$2"
+                    backgroundColor={advanceEnabled ? theme.accent : theme.bgCardSecondary}
+                    color={advanceEnabled ? '#FFFFFF' : theme.textMuted}
+                    borderWidth={1}
+                    borderColor={advanceEnabled ? theme.accent : theme.border}
+                    borderRadius={10}
+                    pressStyle={{ opacity: 0.8 } as any}
                     disabled={!advanceEnabled}
                     onPress={() => advanceEnabled && handleCreateOrder(item.id, targetAdvance)}>Pay Advance</Button>
-                  <Button size="$2" backgroundColor={fullEnabled ? theme.accent : theme.bgCardSecondary}
-                    color={fullEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
+                  <Button size="$2"
+                    backgroundColor={fullEnabled ? theme.success : theme.bgCardSecondary}
+                    color={fullEnabled ? '#FFFFFF' : theme.textMuted}
+                    borderWidth={1}
+                    borderColor={fullEnabled ? theme.success : theme.border}
+                    borderRadius={10}
+                    pressStyle={{ opacity: 0.8 } as any}
                     disabled={!fullEnabled}
                     onPress={() => fullEnabled && handleCreateOrder(item.id, targetFull)}>Pay Full</Button>
                 </XStack>
@@ -1129,13 +1183,16 @@ function BookingsContent() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={[
-              { label: 'All', value: 'all' },
-              { label: 'Pending', value: 'pending' },
-              { label: 'Assigned', value: 'assigned' },
-              { label: 'Completed', value: 'completed' },
-              { label: 'Cancelled', value: 'cancelled' },
-            ]}
+            data={(() => {
+              const countByStatus = (s: string) => homeServiceItems.filter((x) => String(x.status ?? '') === s).length;
+              return [
+                { label: 'All', value: 'all', count: homeServiceItems.length },
+                { label: 'Pending', value: 'pending', count: countByStatus('pending') },
+                { label: 'Assigned', value: 'assigned', count: countByStatus('assigned') },
+                { label: 'Completed', value: 'completed', count: countByStatus('completed') },
+                { label: 'Cancelled', value: 'cancelled', count: countByStatus('cancelled') },
+              ];
+            })()}
             keyExtractor={(item) => item.value}
             contentContainerStyle={{ gap: 8 } as any}
             renderItem={({ item }) => (
@@ -1145,7 +1202,7 @@ function BookingsContent() {
                 color={hsStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
                 borderRadius={999}
                 onPress={() => setHsStatusFilter(item.value as typeof hsStatusFilter)}>
-                {item.label}
+                {item.label} ({item.count})
               </Button>
             )}
           />
@@ -1158,7 +1215,7 @@ function BookingsContent() {
           ) : null}
           {filtered.map((r) => {
             const statusColor = STATUS_COLORS_HS[r.status ?? 'pending'] ?? theme.warning;
-            const slot = `${r.preferred_date ?? '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
+            const slot = `${r.preferred_date ? formatDateDDMMYYYY(r.preferred_date) : '—'}${r.preferred_time ? ` • ${r.preferred_time}` : ''}`;
             const loc = [r.locality, r.city, r.state].filter(Boolean).join(', ') || '—';
             return (
               <YStack key={r.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
@@ -1171,6 +1228,75 @@ function BookingsContent() {
                 {r.notes ? <Text color={theme.textMuted} fontSize={t(13)}>Notes: {r.notes}</Text> : null}
                 {r.provider_name ? <Text color={theme.textMuted} fontSize={t(13)}>Provider: {r.provider_name}</Text> : null}
                 {r.payment_option ? <Text color={theme.textMuted} fontSize={t(13)}>Payment: {r.payment_option}</Text> : null}
+                <XStack gap="$2" flexWrap="wrap">
+                  <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                    disabled={!!pdfBusy}
+                    onPress={async () => {
+                      setPdfBusy({ id: r.id, action: 'download', tab: 'home' });
+                      try {
+                        const ok = await downloadHomePdf({
+                          id: r.id,
+                          service_key: r.service_key,
+                          customer_name: r.customer_name,
+                          customer_phone: r.customer_phone,
+                          address_line1: null,
+                          address_line2: null,
+                          state: r.state,
+                          city: r.city,
+                          locality: r.locality,
+                          notes: r.notes,
+                          preferred_date: r.preferred_date,
+                          preferred_time: r.preferred_time,
+                          status: r.status,
+                          created_at: r.created_at,
+                          payment_option: r.payment_option,
+                          payment_status: r.payment_status,
+                          advance_payment: r.advance_payment,
+                          provider_name: r.provider_name,
+                        });
+                        if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+                      } catch { Alert.alert('Error', 'Failed to generate report.'); }
+                      finally { setPdfBusy(null); }
+                    }}>
+                    {pdfBusy?.id === r.id && pdfBusy.action === 'download' && pdfBusy.tab === 'home'
+                      ? <ActivityIndicator size="small" color="#FFFFFF" />
+                      : 'Download Report'}
+                  </Button>
+                  <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
+                    color={theme.text} borderRadius={10}
+                    disabled={!!pdfBusy}
+                    onPress={async () => {
+                      setPdfBusy({ id: r.id, action: 'share', tab: 'home' });
+                      try {
+                        const ok = await shareHomePdf({
+                          id: r.id,
+                          service_key: r.service_key,
+                          customer_name: r.customer_name,
+                          customer_phone: r.customer_phone,
+                          address_line1: null,
+                          address_line2: null,
+                          state: r.state,
+                          city: r.city,
+                          locality: r.locality,
+                          notes: r.notes,
+                          preferred_date: r.preferred_date,
+                          preferred_time: r.preferred_time,
+                          status: r.status,
+                          created_at: r.created_at,
+                          payment_option: r.payment_option,
+                          payment_status: r.payment_status,
+                          advance_payment: r.advance_payment,
+                          provider_name: r.provider_name,
+                        });
+                        if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
+                      } catch { Alert.alert('Error', 'Failed to share report.'); }
+                      finally { setPdfBusy(null); }
+                    }}>
+                    {pdfBusy?.id === r.id && pdfBusy.action === 'share' && pdfBusy.tab === 'home'
+                      ? <ActivityIndicator size="small" color={theme.text} />
+                      : 'Share Report'}
+                  </Button>
+                </XStack>
               </YStack>
             );
           })}
@@ -1241,12 +1367,17 @@ const renderPropertiesSection = () => {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={[
-              { label: 'All', value: 'all' },
-              { label: 'Pending', value: 'pending' },
-              { label: 'Confirmed', value: 'confirmed' },
-              { label: 'Cancelled', value: 'cancelled' },
-            ]}
+            data={(() => {
+              const countByStatus = (s: string) =>
+                propertyBookings.filter((pb) => String(pb.status ?? '') === s).length +
+                myProperties.filter((p) => String(p.status ?? '') === s).length;
+              return [
+                { label: 'All', value: 'all', count: propertyBookings.length + myProperties.length },
+                { label: 'Pending', value: 'pending', count: countByStatus('pending') },
+                { label: 'Confirmed', value: 'confirmed', count: countByStatus('confirmed') },
+                { label: 'Cancelled', value: 'cancelled', count: countByStatus('cancelled') },
+              ];
+            })()}
             keyExtractor={(item) => item.value}
             contentContainerStyle={{ gap: 8 } as any}
             renderItem={({ item }) => (
@@ -1256,7 +1387,7 @@ const renderPropertiesSection = () => {
                 color={propStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
                 borderRadius={999}
                 onPress={() => setPropStatusFilter(item.value as typeof propStatusFilter)}>
-                {item.label}
+                {item.label} ({item.count})
               </Button>
             )}
           />
@@ -1301,7 +1432,7 @@ const renderPropertiesSection = () => {
                             </YStack>
                             <YStack alignItems="flex-end" gap={6}>
                               <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                              <Text color={theme.textMuted} fontSize={t(12)}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                              <Text color={theme.textMuted} fontSize={t(12)}>{formatDateDDMMYYYY(pb.created_at)}</Text>
                             </YStack>
                           </XStack>
                           {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (

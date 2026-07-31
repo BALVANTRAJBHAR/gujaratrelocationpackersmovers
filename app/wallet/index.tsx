@@ -7,6 +7,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { t } from '@/constants/typography';
 import { getWalletBalance, getWalletTransactions, type WalletTransaction } from '@/lib/wallet';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { useSession } from '@/providers/session-provider';
 
 export default function WalletScreen() {
@@ -103,7 +104,7 @@ export default function WalletScreen() {
                 </Text>
               </XStack>
               <Text color={theme.textMuted} fontSize={t(11)}>
-                {new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {formatDateTimeDDMMYYYY(tx.created_at)}
               </Text>
             </YStack>
           ))}

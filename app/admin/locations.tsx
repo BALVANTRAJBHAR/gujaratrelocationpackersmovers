@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, Share } from 'react-native';
+import { Platform, Pressable, ScrollView } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -57,6 +58,7 @@ export default function AdminLocationsScreen() {
 }
 
 function AdminLocationsInner() {
+  const router = useRouter();
   const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ function AdminLocationsInner() {
   const [newState, setNewState] = useState('');
   const [selectedStateId, setSelectedStateId] = useState('');
   const [newCity, setNewCity] = useState('');
+  const [chooseOpen, setChooseOpen] = useState(false);
 
   // Fetch states on mount
   useEffect(() => {
@@ -99,6 +102,15 @@ function AdminLocationsInner() {
     setError(null);
     setLoading(true);
     try {
+      const { data: existing } = await supabase
+        .from('states')
+        .select('id,name')
+        .ilike('name', trimmed)
+        .maybeSingle();
+      if (existing?.id) {
+        setError(`State "${existing.name}" already exists.`);
+        return;
+      }
       const { error: insertError } = await supabase.from('states').insert({ name: trimmed });
       if (insertError) throw new Error(insertError.message);
       setSuccess('State added.');
@@ -141,12 +153,26 @@ function AdminLocationsInner() {
   // Export sample CSV format
   const handleExportSample = async () => {
     try {
-      await Share.share({
-        message: SAMPLE_CSV,
-        title: 'Locations Import Format (CSV)',
-      });
+      const csvContent = `\uFEFF${SAMPLE_CSV}`;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'locations-import-format.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setSuccess('Sample format downloaded.');
+      } else {
+        const uri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}locations-import-format.csv`;
+        await FileSystem.writeAsStringAsync(uri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+        await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Save sample format' });
+        setSuccess('Sample format exported.');
+      }
     } catch {
-      setError('Failed to share sample format.');
+      setError('Failed to export sample format.');
     }
   };
 
@@ -182,30 +208,43 @@ function AdminLocationsInner() {
       setBulkLoading(true);
       // Upsert states first
       const stateMap = new Map<string, string>();
+      let existingStates = 0;
       for (const row of rows) {
         if (!stateMap.has(row.state)) {
-          const { data } = await supabase.from('states').select('id').eq('name', row.state).single();
+          const { data } = await supabase.from('states').select('id').ilike('name', row.state).maybeSingle();
           if (data?.id) {
             stateMap.set(row.state, data.id);
+            existingStates++;
           } else {
-            const { data: inserted } = await supabase.from('states').insert({ name: row.state }).select('id').single();
+            const { data: inserted } = await supabase.from('states').insert({ name: row.state }).select('id').maybeSingle();
             if (inserted?.id) stateMap.set(row.state, inserted.id);
           }
         }
       }
       // Upsert cities
       let insertedCities = 0;
+      let existingCities = 0;
       for (const row of rows) {
         const stateId = stateMap.get(row.state);
         if (stateId) {
-          const { data: existing } = await supabase.from('cities').select('id').eq('state_id', stateId).eq('name', row.city).single();
+          const { data: existing } = await supabase
+            .from('cities')
+            .select('id')
+            .eq('state_id', stateId)
+            .ilike('name', row.city)
+            .maybeSingle();
           if (!existing?.id) {
             const { error } = await supabase.from('cities').insert({ state_id: stateId, name: row.city });
             if (!error) insertedCities++;
+          } else {
+            existingCities++;
           }
         }
       }
-      setSuccess(`Imported ${rows.length} rows. Added ${insertedCities} new cities.`);
+      const summaryParts = [`Imported ${rows.length} rows. Added ${insertedCities} new cities.`];
+      if (existingCities > 0) summaryParts.push(`${existingCities} cities already registered (skipped).`);
+      if (existingStates > 0) summaryParts.push(`${existingStates} states already existed (skipped).`);
+      setSuccess(summaryParts.join(' '));
       // Refetch states
       const { data: newStates } = await supabase.from('states').select('id,name').order('name');
       setStates(((newStates as any) ?? []) as StateRow[]);
@@ -279,20 +318,51 @@ function AdminLocationsInner() {
             <Button
               backgroundColor={theme.border}
               color={theme.text}
-              size="$3"
-              onPress={() => {
-                Alert.alert(
-                  'Select State',
-                  'Choose a state to add a city under',
-                  states.map((s) => ({
-                    text: s.name,
-                    onPress: () => setSelectedStateId(s.id),
-                  }))
-                );
-              }}>
-              Choose
+              onPress={() => setChooseOpen((v) => !v)}>
+              {chooseOpen ? 'Close' : 'Choose'}
             </Button>
           </XStack>
+          {chooseOpen ? (
+            <YStack borderWidth={1} borderColor={border} borderRadius={10} overflow="hidden">
+              <ScrollView style={{ maxHeight: 220 }}>
+                {states.length ? (
+                  states.map((s) => {
+                    const selected = s.id === selectedStateId;
+                    return (
+                      <Pressable
+                        key={s.id}
+                        onPress={() => {
+                          setSelectedStateId(s.id);
+                          setChooseOpen(false);
+                        }}>
+                        <XStack
+                          alignItems="center"
+                          justifyContent="space-between"
+                          paddingVertical={10}
+                          paddingHorizontal={12}
+                          backgroundColor={selected ? theme.info : theme.inputBg}
+                          borderBottomWidth={1}
+                          borderBottomColor={border}>
+                          <Text color={selected ? '#FFFFFF' : theme.text} fontWeight={selected ? '700' : '400'}>
+                            {s.name}
+                          </Text>
+                          {selected ? (
+                            <Text color="#FFFFFF" fontSize={t(13)}>
+                              Selected
+                            </Text>
+                          ) : null}
+                        </XStack>
+                      </Pressable>
+                    );
+                  })
+                ) : (
+                  <Text color={muted} padding={12}>
+                    No states available. Add a state first.
+                  </Text>
+                )}
+              </ScrollView>
+            </YStack>
+          ) : null}
           <XStack gap="$2">
             <Input
               value={newCity}
