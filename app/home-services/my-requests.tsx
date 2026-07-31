@@ -14,6 +14,8 @@ import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import RescheduleDialog from '@/components/RescheduleDialog';
+import { timeLabelTo24h } from '@/lib/reschedule-options';
 
 
 type HomeServiceRequestRow = {
@@ -126,6 +128,7 @@ export default function MyHomeServiceRequestsScreen() {
   const [uploadsByRequest, setUploadsByRequest] = useState<Record<string, HomeServiceUploadRow[]>>({});
 
   const [searchText, setSearchText] = useState('');
+  const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
 
   const fetchSeqRef = useRef(0);
 
@@ -444,6 +447,10 @@ export default function MyHomeServiceRequestsScreen() {
               <Text color={theme.textMuted} fontSize={t(10)}>Cancelled</Text>
             </YStack>
             <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
+              <Text color={theme.info} fontWeight="900" fontSize={t(16)}>{statusCounts.rescheduled ?? 0}</Text>
+              <Text color={theme.textMuted} fontSize={t(10)}>Rescheduled</Text>
+            </YStack>
+            <YStack backgroundColor={theme.bgCard} borderRadius={12} padding={10} minWidth={70} alignItems="center" borderWidth={1} borderColor={theme.border}>
               <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{statusCounts.paid ?? 0}</Text>
               <Text color={theme.textMuted} fontSize={t(10)}>Paid</Text>
             </YStack>
@@ -482,7 +489,9 @@ export default function MyHomeServiceRequestsScreen() {
                   ? theme.danger
                   : r.status === 'assigned'
                     ? theme.info
-                    : theme.warning;
+                    : r.status === 'rescheduled'
+                      ? theme.accent
+                      : theme.warning;
 
             return (
               <YStack
@@ -609,7 +618,44 @@ export default function MyHomeServiceRequestsScreen() {
                         (uploadsByRequest[r.id] ?? []).map((u) => {
                           const url = String(u.file_url ?? '').trim();
                           const label = u.file_name || u.file_type || 'File';
-                          return (
+  const handleReschedule = async (r: HomeServiceRequestRow, day: string, timeLabel: string) => {
+    if (!day) return;
+    try {
+      const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+      const { error: updateError } = await supabase
+        .from('home_service_requests')
+        .update({
+          status: 'rescheduled',
+          reschedule_date: iso,
+          preferred_date: day,
+          preferred_time: timeLabel,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', r.id);
+      if (updateError) {
+        Alert.alert('Error', updateError.message);
+        return;
+      }
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: {
+            request_id: r.id,
+            status: 'rescheduled',
+            new_date: day,
+            new_time: timeLabel,
+          },
+        });
+      } catch {
+        // ignore
+      }
+      Alert.alert('Rescheduled', 'Your service request has been rescheduled.');
+      await fetchRequests();
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to reschedule.');
+    }
+  };
+
+  return (
                             <Pressable
                               key={u.id}
                               onPress={() => {
@@ -711,6 +757,16 @@ export default function MyHomeServiceRequestsScreen() {
                       </Button>
                     ) : null}
 
+                    {r.status === 'pending' || r.status === 'assigned' ? (
+                      <Button
+                        size="$2"
+                        backgroundColor={theme.accent}
+                        color="#FFFFFF"
+                        onPress={() => setRescheduleDialogId(r.id)}>
+                        Reschedule
+                      </Button>
+                    ) : null}
+
                     {r.status === 'cancelled' && r.payment_status === 'cancelled_with_charge' ? (
                       <Text color={theme.danger} fontSize={t(12)} fontWeight="800">
                         ₹150 charge applied (cancelled within 1 hour of schedule).
@@ -736,6 +792,19 @@ export default function MyHomeServiceRequestsScreen() {
           </Button>
         </XStack>
       </YStack>
+
+      <RescheduleDialog
+        open={!!rescheduleDialogId}
+        title="Reschedule service"
+        confirmLabel="Reschedule service"
+        onClose={() => setRescheduleDialogId(null)}
+        onConfirm={(day, timeLabel) => {
+          const request = items.find((x) => x.id === rescheduleDialogId);
+          setRescheduleDialogId(null);
+          if (!request) return;
+          void handleReschedule(request, day, timeLabel);
+        }}
+      />
     </View>
   );
 }

@@ -13,6 +13,7 @@ try {
 }
 
 import MobileDatePicker from '@/components/MobileDatePicker';
+import RescheduleDialog from '@/components/RescheduleDialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,7 @@ import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import { timeLabelTo24h } from '@/lib/reschedule-options';
 
 type DriverProfile = {
   id: string;
@@ -465,6 +467,11 @@ const withHomeServicePaymentDefaults = (rows: unknown) =>
     ...row,
   })) as HomeServiceRequestAdmin[];
 
+const isMissingQuoteColumnError = (error: unknown) => {
+  const message = String((error as any)?.message ?? error ?? '').toLowerCase();
+  return message.includes('quote_requests') && message.includes('does not exist');
+};
+
 type QuoteRequestAdmin = {
   id: string;
   name: string | null;
@@ -615,7 +622,7 @@ function AdminScreenInner() {
 
   const [homeServiceRequests, setHomeServiceRequests] = useState<HomeServiceRequestAdmin[]>([]);
   const [hsStatusCounts, setHsStatusCounts] = useState<Record<string, number>>({});
-  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled'>('all');
+  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled' | 'rescheduled'>('all');
   const [hsStartDate, setHsStartDate] = useState('');
   const [hsEndDate, setHsEndDate] = useState('');
   const [hsStartDatePickerOpen, setHsStartDatePickerOpen] = useState(false);
@@ -773,9 +780,8 @@ function AdminScreenInner() {
   const [bookingEndDatePickerOpen, setBookingEndDatePickerOpen] = useState(false);
   const [bookingEndPickerValue, setBookingEndPickerValue] = useState<Date>(new Date());
   const [bookingUserFilter, setBookingUserFilter] = useState('');
-  const [rescheduleDate, setRescheduleDate] = useState('');
-  const [reschedulePickerBookingId, setReschedulePickerBookingId] = useState<string | null>(null);
-  const [reschedulePickerValue, setReschedulePickerValue] = useState<Date>(new Date());
+  const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
+  const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
 
   const [userSearchText, setUserSearchText] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'customer' | 'driver' | 'staff' | 'admin' | 'worker'>('all');
@@ -1273,11 +1279,20 @@ function AdminScreenInner() {
   const fetchQuoteRequests = async () => {
     if (!canManage) return;
     try {
-      const { data, error: fetchError } = await supabase
+      let { data, error: fetchError } = await supabase
         .from('quote_requests')
         .select('id,name,phone,email,service,message,source,status,remark,created_at,updated_at')
         .order('created_at', { ascending: false })
         .limit(200);
+      if (fetchError && isMissingQuoteColumnError(fetchError)) {
+        const fallback = await supabase
+          .from('quote_requests')
+          .select('id,name,phone,email,service,message,source,created_at')
+          .order('created_at', { ascending: false })
+          .limit(200);
+        data = fallback.data;
+        fetchError = fallback.error;
+      }
       if (fetchError) {
         setError(fetchError.message);
         return;
@@ -1481,19 +1496,42 @@ function AdminScreenInner() {
     }
   };
 
-  const updateHomeServiceStatus = async (requestId: string, status: string) => {
+  const updateHomeServiceStatus = async (
+    requestId: string,
+    status: string,
+    overrides?: { preferred_date?: string; preferred_time?: string; reschedule_date?: string }
+  ) => {
     if (!canManage) return;
     if (!requestId) return;
     setHomeServiceStatusBusyId(requestId);
     try {
       setError(null);
+      const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+      if (status === 'rescheduled') {
+        payload.reschedule_date = overrides?.reschedule_date ?? null;
+        if (overrides?.preferred_date) payload.preferred_date = overrides.preferred_date;
+        if (overrides?.preferred_time) payload.preferred_time = overrides.preferred_time;
+      }
       const { error: updateError } = await supabase
         .from('home_service_requests')
-        .update({ status })
+        .update(payload)
         .eq('id', requestId);
       if (updateError) {
         setError(updateError.message);
         return;
+      }
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: {
+            request_id: requestId,
+            status,
+            send_email: status === 'rescheduled',
+            new_date: overrides?.preferred_date ?? undefined,
+            new_time: overrides?.preferred_time ?? undefined,
+          },
+        });
+      } catch {
+        // ignore
       }
       await fetchHomeServiceRequests();
     } catch (e) {
@@ -2695,16 +2733,21 @@ function AdminScreenInner() {
     setLoading(false);
   };
 
-  const updateBookingStatus = async (bookingId: string, status: string, rescheduleOverride?: string) => {
+  const updateBookingStatus = async (bookingId: string, status: string, rescheduleOverride?: string, timeOverride?: string) => {
     setLoading(true);
     const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-    const nextRescheduleDate = rescheduleOverride ?? rescheduleDate;
+    const nextRescheduleDate = rescheduleOverride ?? '';
     if (status === 'rescheduled' && !nextRescheduleDate) {
       setError('Please provide reschedule date.');
       setLoading(false);
       return;
     }
-    if (status === 'rescheduled') payload.reschedule_date = nextRescheduleDate;
+    if (status === 'rescheduled') {
+      payload.reschedule_date = nextRescheduleDate;
+      const day = String(nextRescheduleDate).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) payload.scheduled_date = day;
+      if (timeOverride) payload.scheduled_time = timeOverride;
+    }
 
     const { error: updateError } = await supabase.from('bookings').update(payload).eq('id', bookingId);
     if (updateError) {
@@ -2712,7 +2755,13 @@ function AdminScreenInner() {
     } else {
       try {
         await supabase.functions.invoke('send-booking-status-push', {
-          body: { booking_id: bookingId, status },
+          body: {
+            booking_id: bookingId,
+            status,
+            send_email: status === 'rescheduled',
+            new_date: status === 'rescheduled' ? String(nextRescheduleDate).slice(0, 10) : undefined,
+            new_time: status === 'rescheduled' ? timeOverride ?? undefined : undefined,
+          },
         });
       } catch {
         // ignore
@@ -4556,6 +4605,7 @@ function AdminScreenInner() {
                         { label: 'Pickup reached', value: 'pickup_reached', count: countFor(['pickup_reached']) },
                         { label: 'In Transit', value: 'in_transit', count: countFor(['in_transit']) },
                         { label: 'Delivered', value: 'delivered', count: countFor(['delivered']) },
+                        { label: 'Rescheduled', value: 'rescheduled', count: countFor(['rescheduled']) },
                         { label: 'Cancelled', value: 'cancelled', count: countFor(['cancelled']) },
                       ];
                     })()
@@ -4698,14 +4748,7 @@ function AdminScreenInner() {
                               borderRadius={10}
                               minWidth={100}
                               pressStyle={{ opacity: 0.8 }}
-                              onPress={() => {
-                                if (Platform.OS !== 'web') {
-                                  setReschedulePickerBookingId(item.id);
-                                  setReschedulePickerValue(new Date());
-                                  return;
-                                }
-                                updateBookingStatus(item.id, 'rescheduled');
-                              }}>
+                              onPress={() => setRescheduleDialogId(item.id)}>
                               Reschedule
                             </Button>
                           </XStack>
@@ -4833,13 +4876,18 @@ function AdminScreenInner() {
                     </YStack>
                   );
                 })}
-                <MobileDatePicker value={reschedulePickerValue} open={!!reschedulePickerBookingId} onClose={() => setReschedulePickerBookingId(null)} onChange={(d) => {
-                  const bookingId = reschedulePickerBookingId;
-                  setReschedulePickerBookingId(null);
-                  const iso = d.toISOString();
-                  setRescheduleDate(iso);
-                  void updateBookingStatus(bookingId, 'rescheduled', iso);
-                }} />
+                <RescheduleDialog
+                  open={!!rescheduleDialogId}
+                  title="Reschedule booking"
+                  confirmLabel="Confirm reschedule"
+                  onClose={() => setRescheduleDialogId(null)}
+                  onConfirm={(day, timeLabel) => {
+                    const bookingId = rescheduleDialogId;
+                    setRescheduleDialogId(null);
+                    const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+                    void updateBookingStatus(bookingId ?? '', 'rescheduled', iso, timeLabel);
+                  }}
+                />
               </YStack>
             ) : null}
 
@@ -5010,6 +5058,7 @@ function AdminScreenInner() {
                         { label: 'Pending', value: 'pending', count: hsStatusCounts['pending'] ?? 0 },
                         { label: 'Assigned', value: 'assigned', count: hsStatusCounts['assigned'] ?? 0 },
                         { label: 'Completed', value: 'completed', count: hsStatusCounts['completed'] ?? 0 },
+                        { label: 'Rescheduled', value: 'rescheduled', count: hsStatusCounts['rescheduled'] ?? 0 },
                         { label: 'Cancelled', value: 'cancelled', count: hsStatusCounts['cancelled'] ?? 0 },
                       ];
                     })()
@@ -5120,6 +5169,15 @@ function AdminScreenInner() {
                             {s.replaceAll('_', ' ')}
                           </Button>
                         ))}
+                        <Button
+                          size="$2"
+                          backgroundColor={String(r.status ?? '') === 'rescheduled' ? theme.accent : theme.bgCardSecondary}
+                          color={String(r.status ?? '') === 'rescheduled' ? '#FFFFFF' : theme.text}
+                          borderRadius={999}
+                          disabled={homeServiceStatusBusyId === r.id}
+                          onPress={() => setHsRescheduleDialogId(r.id)}>
+                          Reschedule
+                        </Button>
                       </XStack>
 
                       {open ? (
@@ -5187,6 +5245,22 @@ function AdminScreenInner() {
                 ) : null}
                 <MobileDatePicker value={hsStartPickerValue} open={hsStartDatePickerOpen} onClose={() => setHsStartDatePickerOpen(false)} onChange={(d) => { setHsStartDate(isoDay(d)); }} />
                 <MobileDatePicker value={hsEndPickerValue} open={hsEndDatePickerOpen} onClose={() => setHsEndDatePickerOpen(false)} onChange={(d) => { setHsEndDate(isoDay(d)); }} />
+                <RescheduleDialog
+                  open={!!hsRescheduleDialogId}
+                  title="Reschedule service"
+                  confirmLabel="Reschedule service"
+                  onClose={() => setHsRescheduleDialogId(null)}
+                  onConfirm={(day, timeLabel) => {
+                    const requestId = hsRescheduleDialogId;
+                    setHsRescheduleDialogId(null);
+                    const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+                    void updateHomeServiceStatus(requestId ?? '', 'rescheduled', {
+                      preferred_date: day,
+                      preferred_time: timeLabel,
+                      reschedule_date: iso,
+                    });
+                  }}
+                />
               </YStack>
             ) : null}
 

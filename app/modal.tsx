@@ -131,10 +131,10 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
       <Paragraph color={muted}>Booking: {bookingId ?? '—'}</Paragraph>
       <XStack gap="$2" flexWrap="wrap">
         {[
-          { label: 'All', value: 'all' },
-          { label: 'Paid', value: 'paid' },
-          { label: 'Pending', value: 'pending' },
-          { label: 'Failed', value: 'failed' },
+          { label: 'All', value: 'all', count: payments.length },
+          { label: 'Paid', value: 'paid', count: payments.filter((p) => paidStatuses.has(p.status ?? '')).length },
+          { label: 'Pending', value: 'pending', count: payments.filter((p) => (p.status ?? '') === 'pending').length },
+          { label: 'Failed', value: 'failed', count: payments.filter((p) => (p.status ?? '') === 'failed').length },
         ].map((filter) => (
           <Button
             key={filter.value}
@@ -143,7 +143,7 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
             color={statusFilter === filter.value ? activeBtnText : idleBtnText}
             borderRadius={999}
             onPress={() => setStatusFilter(filter.value as typeof statusFilter)}>
-            {filter.label}
+            {filter.label} ({filter.count})
           </Button>
         ))}
       </XStack>

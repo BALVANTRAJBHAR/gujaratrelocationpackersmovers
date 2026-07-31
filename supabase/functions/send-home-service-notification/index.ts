@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import nodemailer from 'npm:nodemailer@6.9.13';
 
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -27,8 +28,116 @@ type UserRow = {
   id: string;
   expo_push_token: string | null;
   name: string | null;
+  email?: string | null;
   role?: string | null;
 };
+
+function escapeHtml(value: string): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getServiceLabel(serviceKey: string): string {
+  const labels: Record<string, string> = {
+    ac: 'AC',
+    carpenter: 'Carpenter',
+    electrician: 'Electrician',
+    plumber: 'Plumber',
+    pest: 'Pest Control',
+    cleaning: 'Deep Cleaning',
+    painting: 'Painting',
+    ro: 'RO Service',
+  };
+  return labels[serviceKey] || serviceKey;
+}
+
+function getStatusMessages(status: string) {
+  const s = String(status ?? '').trim();
+
+  if (s === 'rescheduled') {
+    return {
+      title: 'Home service rescheduled',
+      customer: 'Your home service request has been rescheduled.',
+      admin: 'A home service request was rescheduled.',
+    };
+  }
+
+  if (s === 'cancelled') {
+    return {
+      title: 'Home service cancelled',
+      customer: 'Your home service request has been cancelled.',
+      admin: 'A home service request was cancelled.',
+    };
+  }
+
+  const human = s.replaceAll('_', ' ');
+  return {
+    title: 'Home service updated',
+    customer: `Your home service request status updated: ${human}.`,
+    admin: `Home service request status updated: ${human}.`,
+  };
+}
+
+async function sendRescheduleEmail(opts: { to: string; customerName: string; serviceLabel: string; newDate: string; newTime: string }) {
+  const to = String(opts.to ?? '').trim();
+  if (!to) return;
+  const smtpHost = Deno.env.get('SMTP_HOST') ?? '';
+  const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '587');
+  const smtpUser = Deno.env.get('SMTP_USER') ?? '';
+  const smtpPass = Deno.env.get('SMTP_PASS') ?? '';
+  const smtpSecure = String(Deno.env.get('SMTP_SECURE') ?? 'false').toLowerCase() === 'true';
+  const fromEmail = Deno.env.get('SMTP_FROM') ?? smtpUser;
+  const fromName = Deno.env.get('SMTP_FROM_NAME') ?? 'Packers & Movers';
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromEmail) return;
+
+  const serviceText = String(opts.serviceLabel ?? 'service').trim();
+  const dateText = String(opts.newDate ?? '').trim();
+  const timeText = String(opts.newTime ?? '').trim();
+
+  const subject = 'Your home service request has been rescheduled';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8fafc; padding: 24px;">
+      <div style="background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);">
+        <div style="background: #0f172a; color: #ffffff; padding: 28px 24px;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.02em;">Service Rescheduled</h1>
+          <p style="margin: 10px 0 0 0; color: #cbd5e1; font-size: 14px;">Your home service request has been rescheduled. Please check the new schedule below.</p>
+        </div>
+        <div style="padding: 24px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; background: #f8fafc;">
+            <p style="margin: 0; color: #334155; font-weight: 700;">Service</p>
+            <p style="margin: 6px 0 0 0; color: #475569;">${escapeHtml(serviceText)}</p>
+            <p style="margin: 14px 0 0 0; color: #334155; font-weight: 700;">New schedule</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Date:</b> ${escapeHtml(dateText || '-')}</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Time:</b> ${escapeHtml(timeText || '-')}</p>
+            <p style="margin: 14px 0 0 0; color: #64748b; font-size: 13px;">If you need to make any changes, please contact our team.</p>
+          </div>
+        </div>
+        <div style="padding: 20px 24px 28px 24px; background: #f8fafc;">
+          <p style="margin: 0; color: #64748b; font-size: 13px;">This email was generated automatically by the app.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  await transport.sendMail({
+    from: `${fromName} <${fromEmail}>`,
+    to,
+    subject,
+    text: `Your ${serviceText} request has been rescheduled.\nNew date: ${dateText || '-'}\nNew time: ${timeText || '-'}`,
+    html,
+  });
+}
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -161,20 +270,6 @@ async function sendWebPushForUser(
   }
 }
 
-function getServiceLabel(serviceKey: string): string {
-  const labels: Record<string, string> = {
-    ac: 'AC',
-    carpenter: 'Carpenter',
-    electrician: 'Electrician',
-    plumber: 'Plumber',
-    pest: 'Pest Control',
-    cleaning: 'Deep Cleaning',
-    painting: 'Painting',
-    ro: 'RO Service',
-  };
-  return labels[serviceKey] || serviceKey;
-}
-
 function getBearer(req: Request) {
   const auth = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
   const m = auth.match(/^Bearer\s+(.+)$/i);
@@ -229,10 +324,10 @@ serve(async (req) => {
 
     if (!requestId) return jsonResponse({ error: 'request_id required' }, 400);
 
-    const supabaseUrl =
-      Deno.env.get('SUPABASE_URL') ??
-      Deno.env.get('SUPABASE_PROJECT_URL') ??
-      '';
+    const nextStatus = String(body.status ?? '').trim();
+    const sendEmail = String(body.send_email ?? '').trim() === 'true';
+    const newDate = String(body.new_date ?? '').trim();
+    const newTime = String(body.new_time ?? '').trim();
 
     const serviceKey =
       Deno.env.get('SERVICE_ROLE_KEY') ??
@@ -250,6 +345,93 @@ serve(async (req) => {
     );
 
     if (!homeServiceRequest) return jsonResponse({ error: 'Home service request not found' }, 404);
+
+    if (nextStatus) {
+      try {
+        const [customer] = await getRest<UserRow[]>(
+          `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.user_id}&select=id,expo_push_token,name,role,email`,
+          serviceKey
+        );
+        const admins = await getRest<UserRow[]>(
+          `${supabaseUrl}/rest/v1/users?select=id,expo_push_token,name,role&role=in.(admin,staff)`,
+          serviceKey
+        );
+
+        const statusMessages = getStatusMessages(nextStatus);
+        const serviceLabel = getServiceLabel(String(homeServiceRequest.service_key ?? '').trim());
+        const title = statusMessages.title;
+        const customerMessage = statusMessages.customer;
+        const adminMessage = statusMessages.admin;
+
+        if (nextStatus === 'rescheduled' && sendEmail && customer?.email) {
+          try {
+            await sendRescheduleEmail({
+              to: customer.email,
+              customerName: customer?.name ?? 'Customer',
+              serviceLabel,
+              newDate,
+              newTime,
+            });
+          } catch (e) {
+            console.error('Home service reschedule email failed:', e);
+          }
+        }
+
+        const rows: Array<{ user_id: string; title: string; body: string; type?: string; data?: Record<string, unknown> }> = [];
+        if (customer?.id) {
+          rows.push({
+            user_id: customer.id,
+            title,
+            body: customerMessage,
+            type: 'home_service_status',
+            data: { request_id: requestId, status: nextStatus },
+          });
+          if (customer.expo_push_token) {
+            await sendExpoPush(customer.expo_push_token, title, customerMessage, {
+              request_id: requestId,
+              status: nextStatus,
+            });
+          }
+          await sendWebPushForUser(supabaseUrl, serviceKey, customer.id, title, customerMessage, `/home-services/${requestId}`);
+        }
+
+        for (const admin of admins ?? []) {
+          if (admin?.id) {
+            rows.push({
+              user_id: admin.id,
+              title,
+              body: adminMessage,
+              type: 'home_service_status',
+              data: { request_id: requestId, status: nextStatus },
+            });
+          }
+          if (admin?.expo_push_token) {
+            try {
+              await sendExpoPush(admin.expo_push_token, title, adminMessage, {
+                request_id: requestId,
+                status: nextStatus,
+              });
+            } catch {
+              // ignore
+            }
+          }
+          if (admin?.id) {
+            await sendWebPushForUser(supabaseUrl, serviceKey, admin.id, title, adminMessage, `/home-services/${requestId}`);
+          }
+        }
+
+        try {
+          await insertNotifications(supabaseUrl, serviceKey, rows);
+        } catch {
+          // ignore notification inbox failures
+        }
+
+        return jsonResponse({ sent: true, status: nextStatus });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        return jsonResponse({ error: msg }, 500);
+      }
+    }
 
     const requestServiceKey = String(homeServiceRequest.service_key ?? '').trim();
     const requestState = String(homeServiceRequest.state ?? '').trim();

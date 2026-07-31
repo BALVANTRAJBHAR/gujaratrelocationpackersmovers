@@ -13,8 +13,10 @@ import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MobileDatePicker from '@/components/MobileDatePicker';
+import RescheduleDialog from '@/components/RescheduleDialog';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import { timeLabelTo24h } from '@/lib/reschedule-options';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: '#F97316',
@@ -22,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
   pickup_reached: '#FACC15',
   in_transit: '#22C55E',
   delivered: '#10B981',
+  rescheduled: '#8B5CF6',
 };
 
 const PAYMENT_COLORS: Record<string, string> = {
@@ -163,6 +166,7 @@ const STATUS_COLORS_HS: Record<string, string> = {
   assigned: '#3B82F6',
   completed: '#10B981',
   cancelled: '#EF4444',
+  rescheduled: '#8B5CF6',
   paid: '#10B981',
 };
 
@@ -223,12 +227,10 @@ function BookingsContent() {
   const [errorBookings, setErrorBookings] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<Record<string, string>>({});
   const [paymentHistory, setPaymentHistory] = useState<Record<string, Payment[]>>({});
-  const [statusFilter, setStatusFilter] = useState<'all' | 'not_started' | 'pickup_reached' | 'in_transit' | 'delivered'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'not_started' | 'pickup_reached' | 'in_transit' | 'delivered' | 'rescheduled'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [rescheduleDate, setRescheduleDate] = useState('');
-  const [reschedulePickerBookingId, setReschedulePickerBookingId] = useState<string | null>(null);
-  const [reschedulePickerValue, setReschedulePickerValue] = useState<Date>(new Date());
+  const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
   const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
   const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
   const [startPickerValue, setStartPickerValue] = useState<Date>(new Date());
@@ -236,7 +238,7 @@ function BookingsContent() {
   const [searchText, setSearchText] = useState('');
   const [homeServiceItems, setHomeServiceItems] = useState<HomeServiceRow[]>([]);
   const [hsSearch, setHsSearch] = useState('');
-  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled'>('all');
+  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled' | 'rescheduled'>('all');
   const [hsStartDate, setHsStartDate] = useState('');
   const [hsEndDate, setHsEndDate] = useState('');
   const [hsStartDatePickerOpen, setHsStartDatePickerOpen] = useState(false);
@@ -306,7 +308,7 @@ function BookingsContent() {
 
   const filteredBookings = useMemo(() => {
     let items = bookings;
-    items = items.filter((booking) => booking.status !== 'cancelled' && booking.status !== 'rescheduled');
+    items = items.filter((booking) => booking.status !== 'cancelled');
     if (statusFilter !== 'all') {
       items = items.filter((booking) => normalizeStepperStatus(booking.status) === statusFilter);
     }
@@ -460,21 +462,8 @@ function BookingsContent() {
   }, [params.toastBookingId, router]);
 
   const confirmBookingUpdate = (bookingId: string, status: 'cancelled' | 'rescheduled') => {
-    if (status === 'rescheduled' && Platform.OS === 'web') {
-      try {
-        const nextDate = window.prompt('Reschedule date (YYYY-MM-DD)') ?? '';
-        if (!nextDate) return;
-        setRescheduleDate(nextDate);
-        void updateBookingStatus(bookingId, status, nextDate);
-        return;
-      } catch {
-        // ignore
-      }
-    }
-
-    if (status === 'rescheduled' && Platform.OS !== 'web') {
-      setReschedulePickerBookingId(bookingId);
-      setReschedulePickerValue(new Date());
+    if (status === 'rescheduled') {
+      setRescheduleDialogId(bookingId);
       return;
     }
 
@@ -492,19 +481,25 @@ function BookingsContent() {
   const updateBookingStatus = async (
     bookingId: string,
     status: 'cancelled' | 'rescheduled',
-    rescheduleOverride?: string
+    rescheduleOverride?: string,
+    timeOverride?: string
   ) => {
     if (!session?.user?.id) return;
     setErrorBookings(null);
     setLoading(true);
     const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-    const nextRescheduleDate = rescheduleOverride ?? rescheduleDate;
+    const nextRescheduleDate = rescheduleOverride ?? '';
     if (status === 'rescheduled' && !nextRescheduleDate) {
-      setErrorBookings('Please provide reschedule date (YYYY-MM-DD).');
+      setErrorBookings('Please provide reschedule date.');
       setLoading(false);
       return;
     }
-    if (status === 'rescheduled') payload.reschedule_date = nextRescheduleDate;
+    if (status === 'rescheduled') {
+      payload.reschedule_date = nextRescheduleDate;
+      const day = String(nextRescheduleDate).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) payload.scheduled_date = day;
+      if (timeOverride) payload.scheduled_time = timeOverride;
+    }
 
     const { error: updateError } = await supabase
       .from('bookings')
@@ -815,13 +810,14 @@ function BookingsContent() {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={(() => {
-            const base = bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'rescheduled');
+            const base = bookings.filter((b) => b.status !== 'cancelled');
             return [
               { label: 'All', value: 'all', count: base.length },
               { label: 'Not started', value: 'not_started', count: base.filter((b) => normalizeStepperStatus(b.status) === 'not_started').length },
               { label: 'Pickup reached', value: 'pickup_reached', count: base.filter((b) => normalizeStepperStatus(b.status) === 'pickup_reached').length },
               { label: 'Transit', value: 'in_transit', count: base.filter((b) => normalizeStepperStatus(b.status) === 'in_transit').length },
               { label: 'Delivered', value: 'delivered', count: base.filter((b) => normalizeStepperStatus(b.status) === 'delivered').length },
+              { label: 'Rescheduled', value: 'rescheduled', count: base.filter((b) => b.status === 'rescheduled').length },
             ];
           })()}
           keyExtractor={(item) => item.value}
@@ -1049,13 +1045,18 @@ function BookingsContent() {
       />
       <MobileDatePicker value={startPickerValue} open={startDatePickerOpen} onClose={() => setStartDatePickerOpen(false)} onChange={(d) => { setStartDate(formatDate(d)); }} />
       <MobileDatePicker value={endPickerValue} open={endDatePickerOpen} onClose={() => setEndDatePickerOpen(false)} onChange={(d) => { setEndDate(formatDate(d)); }} />
-      <MobileDatePicker value={reschedulePickerValue} open={!!reschedulePickerBookingId} onClose={() => setReschedulePickerBookingId(null)} onChange={(d) => {
-        const bookingId = reschedulePickerBookingId;
-        setReschedulePickerBookingId(null);
-        const iso = d.toISOString();
-        setRescheduleDate(iso);
-        void updateBookingStatus(bookingId, 'rescheduled', iso);
-      }} />
+      <RescheduleDialog
+        open={!!rescheduleDialogId}
+        title="Reschedule booking"
+        confirmLabel="Confirm reschedule"
+        onClose={() => setRescheduleDialogId(null)}
+        onConfirm={(day, timeLabel) => {
+          const bookingId = rescheduleDialogId;
+          setRescheduleDialogId(null);
+          const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+          void updateBookingStatus(bookingId ?? '', 'rescheduled', iso, timeLabel);
+        }}
+      />
     </>
   );
 
@@ -1190,6 +1191,7 @@ function BookingsContent() {
                 { label: 'Pending', value: 'pending', count: countByStatus('pending') },
                 { label: 'Assigned', value: 'assigned', count: countByStatus('assigned') },
                 { label: 'Completed', value: 'completed', count: countByStatus('completed') },
+                { label: 'Rescheduled', value: 'rescheduled', count: countByStatus('rescheduled') },
                 { label: 'Cancelled', value: 'cancelled', count: countByStatus('cancelled') },
               ];
             })()}

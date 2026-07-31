@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import nodemailer from 'npm:nodemailer@6.9.13';
 
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -15,8 +16,72 @@ type UserRow = {
   id: string;
   expo_push_token: string | null;
   name: string | null;
+  email?: string | null;
   role?: string | null;
 };
+
+function escapeHtml(value: string): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+async function sendRescheduleEmail(opts: { to: string; customerName: string; newDate: string; newTime: string }) {
+  const to = String(opts.to ?? '').trim();
+  if (!to) return;
+  const smtpHost = Deno.env.get('SMTP_HOST') ?? '';
+  const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '587');
+  const smtpUser = Deno.env.get('SMTP_USER') ?? '';
+  const smtpPass = Deno.env.get('SMTP_PASS') ?? '';
+  const smtpSecure = String(Deno.env.get('SMTP_SECURE') ?? 'false').toLowerCase() === 'true';
+  const fromEmail = Deno.env.get('SMTP_FROM') ?? smtpUser;
+  const fromName = Deno.env.get('SMTP_FROM_NAME') ?? 'Packers & Movers';
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromEmail) return;
+
+  const dateText = String(opts.newDate ?? '').trim();
+  const timeText = String(opts.newTime ?? '').trim();
+
+  const subject = 'Your shifting booking has been rescheduled';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8fafc; padding: 24px;">
+      <div style="background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);">
+        <div style="background: #0f172a; color: #ffffff; padding: 28px 24px;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.02em;">Booking Rescheduled</h1>
+          <p style="margin: 10px 0 0 0; color: #cbd5e1; font-size: 14px;">Your shifting booking has been rescheduled. Please check the new schedule below.</p>
+        </div>
+        <div style="padding: 24px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; background: #f8fafc;">
+            <p style="margin: 0; color: #334155; font-weight: 700;">New schedule</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Date:</b> ${escapeHtml(dateText || '-')}</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Time:</b> ${escapeHtml(timeText || '-')}</p>
+            <p style="margin: 14px 0 0 0; color: #64748b; font-size: 13px;">If you need to make any changes, please contact our team.</p>
+          </div>
+        </div>
+        <div style="padding: 20px 24px 28px 24px; background: #f8fafc;">
+          <p style="margin: 0; color: #64748b; font-size: 13px;">This email was generated automatically by the app.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  await transport.sendMail({
+    from: `${fromName} <${fromEmail}>`,
+    to,
+    subject,
+    text: `Your booking has been rescheduled.\nNew date: ${dateText || '-'}\nNew time: ${timeText || '-'}`,
+    html,
+  });
+}
 
 function getStatusMessages(status: string) {
   const s = String(status ?? '').trim();
@@ -299,6 +364,9 @@ serve(async (req) => {
     const nextStatus = String(body.status ?? '').trim();
     const eventType = String(body.type ?? '').trim();
     const otpKind = String(body.otp_kind ?? '').trim();
+    const sendEmail = String(body.send_email ?? '').trim() === 'true';
+    const newDate = String(body.new_date ?? '').trim();
+    const newTime = String(body.new_time ?? '').trim();
     const oldDriverIdOverride = body.old_driver_id ? String(body.old_driver_id).trim() : '';
     const newDriverIdOverride = body.new_driver_id ? String(body.new_driver_id).trim() : '';
 
@@ -326,7 +394,7 @@ serve(async (req) => {
     if (!userId) return jsonResponse({ error: 'Booking missing user_id' }, 500);
 
     const [customer] = await getRest<UserRow[]>(
-      `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=id,expo_push_token,name,role`,
+      `${supabaseUrl}/rest/v1/users?id=eq.${userId}&select=id,expo_push_token,name,role,email`,
       serviceKey
     );
 
@@ -478,6 +546,19 @@ serve(async (req) => {
     const title = statusMessages.title;
     const customerMessage = statusMessages.customer;
     const adminMessage = statusMessages.admin;
+
+    if (nextStatus === 'rescheduled' && sendEmail) {
+      try {
+        await sendRescheduleEmail({
+          to: customer?.email ?? '',
+          customerName: customer?.name ?? 'Customer',
+          newDate,
+          newTime,
+        });
+      } catch (e) {
+        console.error('Reschedule email failed:', e);
+      }
+    }
 
     const notifications: Array<{ to: string; body: string }> = [];
 

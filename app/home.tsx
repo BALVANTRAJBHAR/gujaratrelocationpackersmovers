@@ -763,13 +763,6 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     ).start();
   }, [buttonAnim]);
 
-  useEffect(() => {
-    resetHeroTimer();
-    return () => {
-      if (heroTimerRef.current) clearInterval(heroTimerRef.current);
-    };
-  }, [resetHeroTimer]);
-
   const animateHeroTo = React.useCallback(
     (index: number, animated = true) => {
       if (heroWidthRef.current <= 0) return;
@@ -823,6 +816,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
   useEffect(() => {
     heroWidthRef.current = heroWidth;
   }, [heroWidth]);
+
+  useEffect(() => {
+    resetHeroTimer();
+    return () => {
+      if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+    };
+  }, [resetHeroTimer]);
 
   useEffect(() => {
     if (heroWidth <= 0) return;

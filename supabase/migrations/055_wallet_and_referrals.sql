@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_users_referral_code ON public.users(referral_code
 -- RLS: users can see only their own wallet transactions
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS wallet_transactions_select_own ON public.wallet_transactions;
 CREATE POLICY wallet_transactions_select_own ON public.wallet_transactions
   FOR SELECT USING (auth.uid() = user_id);
 
