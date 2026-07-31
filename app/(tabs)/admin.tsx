@@ -599,6 +599,12 @@ function AdminScreenInner() {
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequestAdmin[]>([]);
   const [quoteRequestSearch, setQuoteRequestSearch] = useState('');
   const [quoteRequestStatusFilter, setQuoteRequestStatusFilter] = useState<'all' | 'pending' | 'complete' | 'cancelled'>('all');
+  const [quoteStartDate, setQuoteStartDate] = useState('');
+  const [quoteEndDate, setQuoteEndDate] = useState('');
+  const [quoteStartDatePickerOpen, setQuoteStartDatePickerOpen] = useState(false);
+  const [quoteStartPickerValue, setQuoteStartPickerValue] = useState<Date>(new Date());
+  const [quoteEndDatePickerOpen, setQuoteEndDatePickerOpen] = useState(false);
+  const [quoteEndPickerValue, setQuoteEndPickerValue] = useState<Date>(new Date());
   const [quoteRequestStatusBusyId, setQuoteRequestStatusBusyId] = useState<string | null>(null);
   const [quoteRequestRemarkDrafts, setQuoteRequestRemarkDrafts] = useState<Record<string, string>>({});
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeAdmin[]>([]);
@@ -606,6 +612,14 @@ function AdminScreenInner() {
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
 
   const [homeServiceRequests, setHomeServiceRequests] = useState<HomeServiceRequestAdmin[]>([]);
+  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled'>('all');
+  const [hsStartDate, setHsStartDate] = useState('');
+  const [hsEndDate, setHsEndDate] = useState('');
+  const [hsStartDatePickerOpen, setHsStartDatePickerOpen] = useState(false);
+  const [hsStartPickerValue, setHsStartPickerValue] = useState<Date>(new Date());
+  const [hsEndDatePickerOpen, setHsEndDatePickerOpen] = useState(false);
+  const [hsEndPickerValue, setHsEndPickerValue] = useState<Date>(new Date());
+  const [hsSearchText, setHsSearchText] = useState('');
   const [homeServiceUploadsOpenId, setHomeServiceUploadsOpenId] = useState<string | null>(null);
   const [homeServiceUploadsBusyId, setHomeServiceUploadsBusyId] = useState<string | null>(null);
   const [homeServiceUploads, setHomeServiceUploads] = useState<Record<string, HomeServiceUploadAdmin[]>>({});
@@ -614,12 +628,30 @@ function AdminScreenInner() {
   const [properties, setProperties] = useState<PropertyAdmin[]>([]);
   const [propertyStatusBusyId, setPropertyStatusBusyId] = useState<string | null>(null);
 
+  const [propSearchText, setPropSearchText] = useState('');
+  const [propStatusFilter, setPropStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
+  const [propStartDate, setPropStartDate] = useState('');
+  const [propEndDate, setPropEndDate] = useState('');
+  const [propStartDatePickerOpen, setPropStartDatePickerOpen] = useState(false);
+  const [propStartPickerValue, setPropStartPickerValue] = useState<Date>(new Date());
+  const [propEndDatePickerOpen, setPropEndDatePickerOpen] = useState(false);
+  const [propEndPickerValue, setPropEndPickerValue] = useState<Date>(new Date());
+
   const [propertyUploadsOpenId, setPropertyUploadsOpenId] = useState<string | null>(null);
   const [propertyUploadsBusyId, setPropertyUploadsBusyId] = useState<string | null>(null);
   const [propertyUploads, setPropertyUploads] = useState<Record<string, PropertyUploadAdmin[]>>({});
 
   const [propBookings, setPropBookings] = useState<any[]>([]);
   const [propBookingBusyId, setPropBookingBusyId] = useState<string | null>(null);
+
+  const [propBookingSearch, setPropBookingSearch] = useState('');
+  const [propBookingStatusFilter, setPropBookingStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
+  const [propBookingStartDate, setPropBookingStartDate] = useState('');
+  const [propBookingEndDate, setPropBookingEndDate] = useState('');
+  const [propBookingStartDatePickerOpen, setPropBookingStartDatePickerOpen] = useState(false);
+  const [propBookingStartPickerValue, setPropBookingStartPickerValue] = useState<Date>(new Date());
+  const [propBookingEndDatePickerOpen, setPropBookingEndDatePickerOpen] = useState(false);
+  const [propBookingEndPickerValue, setPropBookingEndPickerValue] = useState<Date>(new Date());
 
   const [bookingUploadsOpenId, setBookingUploadsOpenId] = useState<string | null>(null);
   const [bookingUploadsBusyId, setBookingUploadsBusyId] = useState<string | null>(null);
@@ -723,6 +755,10 @@ function AdminScreenInner() {
 
   const [reportsStartDate, setReportsStartDate] = useState('');
   const [reportsEndDate, setReportsEndDate] = useState('');
+  const [reportsStartDatePickerOpen, setReportsStartDatePickerOpen] = useState(false);
+  const [reportsStartPickerValue, setReportsStartPickerValue] = useState<Date>(new Date());
+  const [reportsEndDatePickerOpen, setReportsEndDatePickerOpen] = useState(false);
+  const [reportsEndPickerValue, setReportsEndPickerValue] = useState<Date>(new Date());
   const [reportsBookings, setReportsBookings] = useState<BookingAdmin[]>([]);
   const [reportsPayments, setReportsPayments] = useState<PaymentReportRow[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
@@ -812,9 +848,36 @@ function AdminScreenInner() {
       const statusValue = normalizedStatus === 'completed' ? 'complete' : normalizedStatus === 'canceled' ? 'cancelled' : normalizedStatus;
       const statusMatches = quoteRequestStatusFilter === 'all' || statusValue === quoteRequestStatusFilter;
       const searchMatches = !search || haystack.includes(search);
-      return statusMatches && searchMatches;
+      const createdDay = item.created_at ? String(item.created_at).slice(0, 10) : '';
+      const dateMatches = (!quoteStartDate || createdDay >= quoteStartDate) && (!quoteEndDate || createdDay <= quoteEndDate);
+      return statusMatches && searchMatches && dateMatches;
     });
-  }, [quoteRequestSearch, quoteRequestStatusFilter, quoteRequests]);
+  }, [quoteRequestSearch, quoteRequestStatusFilter, quoteStartDate, quoteEndDate, quoteRequests]);
+
+  const filteredProperties = useMemo(() => {
+    const search = propSearchText.trim().toLowerCase();
+    return properties.filter((item) => {
+      const statusMatches = propStatusFilter === 'all' || String(item.status ?? '').trim() === propStatusFilter;
+      const haystack = [item.title, item.locality, item.city, item.state, item.owner_user_id].join(' ').toLowerCase();
+      const searchMatches = !search || haystack.includes(search);
+      const createdDay = item.created_at ? String(item.created_at).slice(0, 10) : '';
+      const dateMatches = (!propStartDate || createdDay >= propStartDate) && (!propEndDate || createdDay <= propEndDate);
+      return statusMatches && searchMatches && dateMatches;
+    });
+  }, [propSearchText, propStatusFilter, propStartDate, propEndDate, properties]);
+
+  const filteredPropBookings = useMemo(() => {
+    const search = propBookingSearch.trim().toLowerCase();
+    return propBookings.filter((item) => {
+      const prop = item.properties;
+      const statusMatches = propBookingStatusFilter === 'all' || String(item.status ?? '').trim() === propBookingStatusFilter;
+      const haystack = [item.contact_name, item.contact_phone, prop?.title, prop?.city, prop?.locality].join(' ').toLowerCase();
+      const searchMatches = !search || haystack.includes(search);
+      const createdDay = item.created_at ? String(item.created_at).slice(0, 10) : '';
+      const dateMatches = (!propBookingStartDate || createdDay >= propBookingStartDate) && (!propBookingEndDate || createdDay <= propBookingEndDate);
+      return statusMatches && searchMatches && dateMatches;
+    });
+  }, [propBookingSearch, propBookingStatusFilter, propBookingStartDate, propBookingEndDate, propBookings]);
 
   useEffect(() => {
     void refreshProfile();
@@ -1138,11 +1201,29 @@ function AdminScreenInner() {
   const fetchHomeServiceRequests = async () => {
     if (!canManage) return;
     try {
-      let { data, error: fetchError } = await supabase
+      let query = supabase
         .from('home_service_requests')
         .select(homeServiceAdminSelect)
         .order('created_at', { ascending: false })
         .limit(100);
+
+      if (hsStatusFilter !== 'all') {
+        query = query.eq('status', hsStatusFilter);
+      }
+      if (hsStartDate) {
+        query = query.gte('created_at', `${hsStartDate}T00:00:00.000Z`);
+      }
+      if (hsEndDate) {
+        query = query.lte('created_at', `${hsEndDate}T23:59:59.999Z`);
+      }
+      if (hsSearchText) {
+        const search = hsSearchText.trim();
+        query = query.or(
+          `customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`
+        );
+      }
+
+      let { data, error: fetchError } = await query;
       if (fetchError && isMissingHomeServicePaymentColumnError(fetchError)) {
         const fallback = await supabase
           .from('home_service_requests')
@@ -2523,6 +2604,19 @@ function AdminScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingUserFilter, canManage, activeSection]);
 
+  const hsSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!canManage || activeSection !== 'home_services') return;
+    if (hsSearchTimer.current) clearTimeout(hsSearchTimer.current);
+    hsSearchTimer.current = setTimeout(() => {
+      fetchHomeServiceRequests();
+    }, 400);
+    return () => {
+      if (hsSearchTimer.current) clearTimeout(hsSearchTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hsSearchText, hsStartDate, hsEndDate, canManage, activeSection]);
+
   useEffect(() => {
     if (!canManage) return;
     if (activeSection === 'users') fetchManagedUsers();
@@ -2590,6 +2684,7 @@ function AdminScreenInner() {
             </Pressable>
             <Button
               size="$2"
+              height={40}
               backgroundColor={theme.bgCardSecondary}
               color={theme.text}
               borderRadius={10}
@@ -2598,6 +2693,7 @@ function AdminScreenInner() {
             </Button>
             <Button
               size="$2"
+              height={40}
               backgroundColor={theme.bgCardSecondary}
               color={theme.text}
               borderRadius={10}
@@ -2613,6 +2709,8 @@ function AdminScreenInner() {
                 fetchProperties();
                 void fetchPropBookings();
                 fetchQuoteRequests();
+                fetchReportsBookings();
+                fetchReportsPayments();
               }}>
               Refresh
             </Button>
@@ -3047,6 +3145,124 @@ function AdminScreenInner() {
                   <Text color={theme.textMuted} fontSize={t(14)}>
                     View, publish/unpublish, or delete properties.
                   </Text>
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={propStartDate}
+                          onChange={(e) => setPropStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setPropStartPickerValue(propStartDate ? new Date(`${propStartDate}T00:00:00.000Z`) : new Date());
+                          setPropStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={propStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={propEndDate}
+                          onChange={(e) => setPropEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setPropEndPickerValue(propEndDate ? new Date(`${propEndDate}T00:00:00.000Z`) : new Date());
+                          setPropEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={propEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    <Input
+                      value={propSearchText}
+                      onChangeText={setPropSearchText}
+                      placeholder="Search by title/location/owner"
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
+                      minWidth={200}
+                      flexGrow={1}
+                      flexBasis={200}
+                    />
+                  </XStack>
+                  <XStack gap="$2" flexWrap="wrap">
+                    {([
+                      { label: 'All', value: 'all' },
+                      { label: 'Draft', value: 'draft' },
+                      { label: 'Published', value: 'published' },
+                    ] as const).map((filter) => (
+                      <Button
+                        key={filter.value}
+                        size="$2"
+                        backgroundColor={propStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                        color={propStatusFilter === filter.value ? '#FFFFFF' : theme.text}
+                        borderRadius={999}
+                        onPress={() => setPropStatusFilter(filter.value)}>
+                        {filter.label}
+                      </Button>
+                    ))}
+                  </XStack>
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
                       size="$2"
@@ -3058,9 +3274,11 @@ function AdminScreenInner() {
                       Refresh
                     </Button>
                   </XStack>
+                  <MobileDatePicker value={propStartPickerValue} open={propStartDatePickerOpen} onClose={() => setPropStartDatePickerOpen(false)} onChange={(d) => { setPropStartDate(isoDay(d)); }} />
+                  <MobileDatePicker value={propEndPickerValue} open={propEndDatePickerOpen} onClose={() => setPropEndDatePickerOpen(false)} onChange={(d) => { setPropEndDate(isoDay(d)); }} />
                 </YStack>
 
-                {properties.map((p) => {
+                {filteredProperties.map((p) => {
                   const statusText = String(p.status ?? 'draft').replaceAll('_', ' ');
                   const statusColor =
                     p.status === 'published'
@@ -3217,7 +3435,7 @@ function AdminScreenInner() {
                   );
                 })}
 
-                {!properties.length ? (
+                {!filteredProperties.length ? (
                   <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
                     <Text color={theme.text} fontWeight="800">No properties found</Text>
                     <Text color={theme.textMuted} fontSize={t(14)}>
@@ -3233,10 +3451,131 @@ function AdminScreenInner() {
                 <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                   <Text color={theme.text} fontWeight="700" fontSize={t(16)}>Property Bookings</Text>
                   <Text color={theme.textMuted} fontSize={t(14)}>View and manage customer property bookings/inquiries.</Text>
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={propBookingStartDate}
+                          onChange={(e) => setPropBookingStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setPropBookingStartPickerValue(propBookingStartDate ? new Date(`${propBookingStartDate}T00:00:00.000Z`) : new Date());
+                          setPropBookingStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={propBookingStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={propBookingEndDate}
+                          onChange={(e) => setPropBookingEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setPropBookingEndPickerValue(propBookingEndDate ? new Date(`${propBookingEndDate}T00:00:00.000Z`) : new Date());
+                          setPropBookingEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={propBookingEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    <Input
+                      value={propBookingSearch}
+                      onChangeText={setPropBookingSearch}
+                      placeholder="Search by name/phone/property"
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
+                      minWidth={200}
+                      flexGrow={1}
+                      flexBasis={200}
+                    />
+                  </XStack>
+                  <XStack gap="$2" flexWrap="wrap">
+                    {([
+                      { label: 'All', value: 'all' },
+                      { label: 'Pending', value: 'pending' },
+                      { label: 'Confirmed', value: 'confirmed' },
+                      { label: 'Cancelled', value: 'cancelled' },
+                    ] as const).map((filter) => (
+                      <Button
+                        key={filter.value}
+                        size="$2"
+                        backgroundColor={propBookingStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
+                        color={propBookingStatusFilter === filter.value ? '#FFFFFF' : theme.text}
+                        borderRadius={999}
+                        onPress={() => setPropBookingStatusFilter(filter.value)}>
+                        {filter.label}
+                      </Button>
+                    ))}
+                  </XStack>
                   <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                     onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
+                  <MobileDatePicker value={propBookingStartPickerValue} open={propBookingStartDatePickerOpen} onClose={() => setPropBookingStartDatePickerOpen(false)} onChange={(d) => { setPropBookingStartDate(isoDay(d)); }} />
+                  <MobileDatePicker value={propBookingEndPickerValue} open={propBookingEndDatePickerOpen} onClose={() => setPropBookingEndDatePickerOpen(false)} onChange={(d) => { setPropBookingEndDate(isoDay(d)); }} />
                 </YStack>
-                {propBookings.map((pb: any) => {
+                {filteredPropBookings.map((pb: any) => {
                   const prop = pb.properties;
                   const statusColor = pb.status === 'confirmed' ? theme.success : pb.status === 'cancelled' ? theme.danger : theme.warning;
                   return (
@@ -3271,7 +3610,7 @@ function AdminScreenInner() {
                     </YStack>
                   );
                 })}
-                {!propBookings.length ? (
+                {!filteredPropBookings.length ? (
                   <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border} gap="$1">
                     <Text color={theme.text} fontWeight="800">No property bookings</Text>
                     <Text color={theme.textMuted} fontSize={t(14)}>Customers have not booked any properties yet.</Text>
@@ -3978,9 +4317,11 @@ function AdminScreenInner() {
                   <Text color={theme.textMuted} fontSize={t(14)}>
                     Filter and manage bookings.
                   </Text>
-                  <style>{`
-                    .admin-date-input::placeholder { color: #9CA3AF; opacity: 1; }
-                  `}</style>
+                  {Platform.OS === 'web' ? (
+                    <style>{`
+                      .admin-date-input::placeholder { color: #9CA3AF; opacity: 1; }
+                    `}</style>
+                  ) : null}
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     {Platform.OS === 'web' ? (
                       <YStack
@@ -4430,11 +4771,132 @@ function AdminScreenInner() {
                     );
                   })()}
 
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={hsStartDate}
+                          onChange={(e) => setHsStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setHsStartPickerValue(hsStartDate ? new Date(`${hsStartDate}T00:00:00.000Z`) : new Date());
+                          setHsStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={hsStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={hsEndDate}
+                          onChange={(e) => setHsEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setHsEndPickerValue(hsEndDate ? new Date(`${hsEndDate}T00:00:00.000Z`) : new Date());
+                          setHsEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={hsEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    <Input
+                      value={hsSearchText}
+                      onChangeText={setHsSearchText}
+                      placeholder="Search by name/phone"
+                      backgroundColor={theme.inputBg}
+                      borderColor={theme.border}
+                      color={theme.inputText}
+                      minWidth={200}
+                      flexGrow={1}
+                      flexBasis={200}
+                    />
+                  </XStack>
                   <XStack gap="$2" flexWrap="wrap">
+                    {[
+                      { label: 'All', value: 'all' },
+                      { label: 'Pending', value: 'pending' },
+                      { label: 'Assigned', value: 'assigned' },
+                      { label: 'Completed', value: 'completed' },
+                      { label: 'Cancelled', value: 'cancelled' },
+                    ].map((f) => (
+                      <Button
+                        key={f.value}
+                        size="$2"
+                        backgroundColor={hsStatusFilter === f.value ? theme.accent : theme.bgCardSecondary}
+                        color={hsStatusFilter === f.value ? '#FFFFFF' : theme.text}
+                        borderRadius={999}
+                        onPress={() => {
+                          setHsStatusFilter(f.value as typeof hsStatusFilter);
+                          fetchHomeServiceRequests();
+                        }}>
+                        {f.label}
+                      </Button>
+                    ))}
                     <Button
                       size="$2"
-                      backgroundColor={theme.accent}
-                      color={'#FFFFFF'}
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
                       borderRadius={10}
                       onPress={fetchHomeServiceRequests}
                       disabled={loading}>
@@ -4589,6 +5051,8 @@ function AdminScreenInner() {
                     No home service requests.
                   </Text>
                 ) : null}
+                <MobileDatePicker value={hsStartPickerValue} open={hsStartDatePickerOpen} onClose={() => setHsStartDatePickerOpen(false)} onChange={(d) => { setHsStartDate(isoDay(d)); }} />
+                <MobileDatePicker value={hsEndPickerValue} open={hsEndDatePickerOpen} onClose={() => setHsEndDatePickerOpen(false)} onChange={(d) => { setHsEndDate(isoDay(d)); }} />
               </YStack>
             ) : null}
 
@@ -4608,6 +5072,94 @@ function AdminScreenInner() {
                     View, search, filter and update callback request status.
                   </Text>
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={quoteStartDate}
+                          onChange={(e) => setQuoteStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setQuoteStartPickerValue(quoteStartDate ? new Date(`${quoteStartDate}T00:00:00.000Z`) : new Date());
+                          setQuoteStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={quoteStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={quoteEndDate}
+                          onChange={(e) => setQuoteEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setQuoteEndPickerValue(quoteEndDate ? new Date(`${quoteEndDate}T00:00:00.000Z`) : new Date());
+                          setQuoteEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={quoteEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
                     <Input
                       value={quoteRequestSearch}
                       onChangeText={setQuoteRequestSearch}
@@ -4667,6 +5219,8 @@ function AdminScreenInner() {
                       Export PDF
                     </Button>
                   </XStack>
+                  <MobileDatePicker value={quoteStartPickerValue} open={quoteStartDatePickerOpen} onClose={() => setQuoteStartDatePickerOpen(false)} onChange={(d) => { setQuoteStartDate(isoDay(d)); }} />
+                  <MobileDatePicker value={quoteEndPickerValue} open={quoteEndDatePickerOpen} onClose={() => setQuoteEndDatePickerOpen(false)} onChange={(d) => { setQuoteEndDate(isoDay(d)); }} />
                 </YStack>
 
                 {filteredQuoteRequests.map((request) => {
@@ -4827,56 +5381,94 @@ function AdminScreenInner() {
                   </XStack>
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                    <YStack gap="$1">
-                      <Text color={theme.textMuted} fontSize={t(13)}>Start date (YYYY-MM-DD)</Text>
-                      <Input
-                        value={reportsStartDate}
-                        onChangeText={setReportsStartDate}
-                        placeholder="2024-01-01"
-                        backgroundColor={theme.inputBg}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
                         borderColor={theme.border}
-                        color={theme.inputText}
-                        width={160}
-                      />
-                    </YStack>
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.bgCardSecondary}
-                      color={theme.text}
-                      borderRadius={10}
-                      onPress={() => {
-                        if (Platform.OS === 'web') {
-                          openWebDatePicker(reportsStartDate, setReportsStartDate);
-                        }
-                      }}
-                      disabled={Platform.OS !== 'web'}>
-                      Pick
-                    </Button>
-                    <YStack gap="$1">
-                      <Text color={theme.textMuted} fontSize={t(13)}>End date (YYYY-MM-DD)</Text>
-                      <Input
-                        value={reportsEndDate}
-                        onChangeText={setReportsEndDate}
-                        placeholder="2024-12-31"
-                        backgroundColor={theme.inputBg}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={reportsStartDate}
+                          onChange={(e) => setReportsStartDate((e.target as any).value)}
+                          type="date"
+                          placeholder="Start Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setReportsStartPickerValue(reportsStartDate ? new Date(`${reportsStartDate}T00:00:00.000Z`) : new Date());
+                          setReportsStartDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={reportsStartDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Start date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.bgCardSecondary}
                         borderColor={theme.border}
-                        color={theme.inputText}
-                        width={160}
-                      />
-                    </YStack>
-                    <Button
-                      size="$2"
-                      backgroundColor={theme.bgCardSecondary}
-                      color={theme.text}
-                      borderRadius={10}
-                      onPress={() => {
-                        if (Platform.OS === 'web') {
-                          openWebDatePicker(reportsEndDate, setReportsEndDate);
-                        }
-                      }}
-                      disabled={Platform.OS !== 'web'}>
-                      Pick
-                    </Button>
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={170}
+                        flexGrow={1}
+                        flexBasis={170}>
+                        <input
+                          value={reportsEndDate}
+                          onChange={(e) => setReportsEndDate((e.target as any).value)}
+                          type="date"
+                          placeholder="End Date"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setReportsEndPickerValue(reportsEndDate ? new Date(`${reportsEndDate}T00:00:00.000Z`) : new Date());
+                          setReportsEndDatePickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                        <Input
+                          value={reportsEndDate}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="End date"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
                     <Button
                       size="$2"
                       backgroundColor={theme.accent}
@@ -4906,6 +5498,8 @@ function AdminScreenInner() {
                       Last 30 days
                     </Button>
                   </XStack>
+                  <MobileDatePicker value={reportsStartPickerValue} open={reportsStartDatePickerOpen} onClose={() => setReportsStartDatePickerOpen(false)} onChange={(d) => { setReportsStartDate(isoDay(d)); }} />
+                  <MobileDatePicker value={reportsEndPickerValue} open={reportsEndDatePickerOpen} onClose={() => setReportsEndDatePickerOpen(false)} onChange={(d) => { setReportsEndDate(isoDay(d)); }} />
 
                   {reportsLoading ? <Text color={theme.textMuted}>Loading report...</Text> : null}
                   {reportsError ? <Text color="#FCA5A5">{reportsError}</Text> : null}

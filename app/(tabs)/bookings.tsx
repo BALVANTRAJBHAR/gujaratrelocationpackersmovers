@@ -218,9 +218,18 @@ function BookingsContent() {
   const [searchText, setSearchText] = useState('');
   const [homeServiceItems, setHomeServiceItems] = useState<HomeServiceRow[]>([]);
   const [hsSearch, setHsSearch] = useState('');
+  const [hsStatusFilter, setHsStatusFilter] = useState<'all' | 'pending' | 'assigned' | 'completed' | 'cancelled'>('all');
+  const [hsStartDate, setHsStartDate] = useState('');
+  const [hsEndDate, setHsEndDate] = useState('');
+  const [hsStartDatePickerOpen, setHsStartDatePickerOpen] = useState(false);
+  const [hsStartPickerValue, setHsStartPickerValue] = useState<Date>(new Date());
+  const [hsEndDatePickerOpen, setHsEndDatePickerOpen] = useState(false);
+  const [hsEndPickerValue, setHsEndPickerValue] = useState<Date>(new Date());
   const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
   const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
   const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
+  const [propSearch, setPropSearch] = useState('');
+  const [propStatusFilter, setPropStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [pbBusyId, setPbBusyId] = useState<string | null>(null);
   const fetchSeqRef = useRef(0);
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -665,14 +674,24 @@ function BookingsContent() {
 
   const renderShiftingSection = () => (
     <>
-      <style>{`
-        .date-input::placeholder { color: ${placeholderColor}; opacity: 1; }
-      `}</style>
+      {Platform.OS === 'web' ? (
+        <style>{`
+          .date-input::placeholder { color: ${placeholderColor}; opacity: 1; }
+        `}</style>
+      ) : null}
       <YStack gap="$2" alignItems="center">
         <H2 color={theme.text} textAlign="center">Your active moves</H2>
       </YStack>
-      <YStack gap="$2">
-        <XStack gap="$2" flexWrap="wrap" alignItems="center">
+      <FlatList
+        data={filteredBookings}
+        keyExtractor={(item) => item.id}
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+        contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+        ListHeaderComponent={
+          <YStack gap="$2">
+            <XStack gap="$2" flexWrap="wrap" alignItems="center">
           {Platform.OS === 'web' ? (
             <YStack
               backgroundColor={theme.bgCardSecondary}
@@ -797,26 +816,18 @@ function BookingsContent() {
             </Button>
           )}
         />
-        <MobileDatePicker value={startPickerValue} open={startDatePickerOpen} onClose={() => setStartDatePickerOpen(false)} onChange={(d) => { setStartDate(formatDate(d)); }} />
-        <MobileDatePicker value={endPickerValue} open={endDatePickerOpen} onClose={() => setEndDatePickerOpen(false)} onChange={(d) => { setEndDate(formatDate(d)); }} />
-      </YStack>
-      {loading ? (
-        <Text color={theme.textMuted}>Loading bookings...</Text>
-      ) : errorBookings ? (
-        <Text color="#FCA5A5">{errorBookings}</Text>
-      ) : !filteredBookings.length ? (
-        <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-          <Text color={theme.text} fontWeight="800" fontSize={t(15)}>No moves found</Text>
-          <Text color={theme.textMuted} fontSize={t(13)}>Try adjusting filters or create a new booking.</Text>
-        </YStack>
-      ) : null}
-      <FlatList
-        data={filteredBookings}
-        keyExtractor={(item) => item.id}
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator
-        contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+            {loading ? (
+              <Text color={theme.textMuted}>Loading bookings...</Text>
+            ) : errorBookings ? (
+              <Text color="#FCA5A5">{errorBookings}</Text>
+            ) : !filteredBookings.length ? (
+              <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                <Text color={theme.text} fontWeight="800" fontSize={t(15)}>No moves found</Text>
+                <Text color={theme.textMuted} fontSize={t(13)}>Try adjusting filters or create a new booking.</Text>
+              </YStack>
+            ) : null}
+          </YStack>
+        }
         renderItem={({ item }) => (
           <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
             <XStack justifyContent="space-between" alignItems="center">
@@ -862,6 +873,19 @@ function BookingsContent() {
                 <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">{String(item.delivery_otp)}</Text>
               </XStack>
             ) : null}
+            {paymentHistory[item.id]?.length ? (
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontSize={t(13)}>Payment history</Text>
+                {paymentHistory[item.id].slice(0, 2).map((payment) => (
+                  <Text key={payment.id} color={theme.inputText} fontSize={t(12)}>
+                    {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
+                  </Text>
+                ))}
+                <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                  onPress={() => router.push({ pathname: '/modal', params: { bookingId: item.id } } as any)}>View all</Button>
+              </YStack>
+            ) : null}
+            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={t(13)}>{paymentInfo[item.id]}</Text> : null}
             <XStack gap="$2" flexWrap="wrap">
               <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
                 onPress={() => router.push({ pathname: '/(tabs)/tracking', params: { bookingId: item.id } } as any)}>Track</Button>
@@ -877,65 +901,6 @@ function BookingsContent() {
                     });
                   } catch { if (Platform.OS === 'android') ToastAndroid.show('Unable to share right now.', ToastAndroid.SHORT); }
                 }}>Share ID</Button>
-              <XStack gap="$2">
-                <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                  onPress={async () => {
-                    try {
-                      const ok = await downloadPdf({
-                        id: item.id,
-                        booking_number: item.booking_number,
-                        pickup_address: item.pickup_address,
-                        drop_address: item.drop_address,
-                        distance_km: item.distance_km,
-                        estimated_price: item.estimated_price,
-                        advance_amount: item.advance_amount,
-                        remaining_amount: item.remaining_amount,
-                        status: item.status,
-                        payment_status: item.payment_status,
-                        scheduled_date: item.scheduled_date ?? null,
-                        scheduled_time: item.scheduled_time ?? null,
-                        labor_count: item.labor_count ?? null,
-                        pickup_floor: item.pickup_floor ?? null,
-                        drop_floor: item.drop_floor ?? null,
-                        pickup_lift_available: item.pickup_lift_available ?? null,
-                        drop_lift_available: item.drop_lift_available ?? null,
-                        items_description: item.items_description ?? null,
-                        fare_breakdown: item.fare_breakdown ?? null,
-                        created_at: item.created_at,
-                      });
-                      if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
-                    } catch { Alert.alert('Error', 'Failed to generate report.'); }
-                  }}>Download Report</Button>
-                <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
-                  color={theme.text} borderRadius={10}
-                  onPress={async () => {
-                    try {
-                      const ok = await sharePdf({
-                        id: item.id,
-                        booking_number: item.booking_number,
-                        pickup_address: item.pickup_address,
-                        drop_address: item.drop_address,
-                        distance_km: item.distance_km,
-                        estimated_price: item.estimated_price,
-                        advance_amount: item.advance_amount,
-                        remaining_amount: item.remaining_amount,
-                        status: item.status,
-                        payment_status: item.payment_status,
-                        scheduled_date: item.scheduled_date ?? null,
-                        scheduled_time: item.scheduled_time ?? null,
-                        labor_count: item.labor_count ?? null,
-                        pickup_floor: item.pickup_floor ?? null,
-                        drop_floor: item.drop_floor ?? null,
-                        pickup_lift_available: item.pickup_lift_available ?? null,
-                        drop_lift_available: item.drop_lift_available ?? null,
-                        items_description: item.items_description ?? null,
-                        fare_breakdown: item.fare_breakdown ?? null,
-                        created_at: item.created_at,
-                      });
-                      if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
-                    } catch { Alert.alert('Error', 'Failed to share report.'); }
-                  }}>Share Report</Button>
-              </XStack>
               {item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
                 <>
                   <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
@@ -944,6 +909,65 @@ function BookingsContent() {
                     onPress={() => confirmBookingUpdate(item.id, 'rescheduled')}>Reschedule</Button>
                 </>
               ) : null}
+            </XStack>
+            <XStack gap="$2" flexWrap="wrap">
+              <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                onPress={async () => {
+                  try {
+                    const ok = await downloadPdf({
+                      id: item.id,
+                      booking_number: item.booking_number,
+                      pickup_address: item.pickup_address,
+                      drop_address: item.drop_address,
+                      distance_km: item.distance_km,
+                      estimated_price: item.estimated_price,
+                      advance_amount: item.advance_amount,
+                      remaining_amount: item.remaining_amount,
+                      status: item.status,
+                      payment_status: item.payment_status,
+                      scheduled_date: item.scheduled_date ?? null,
+                      scheduled_time: item.scheduled_time ?? null,
+                      labor_count: item.labor_count ?? null,
+                      pickup_floor: item.pickup_floor ?? null,
+                      drop_floor: item.drop_floor ?? null,
+                      pickup_lift_available: item.pickup_lift_available ?? null,
+                      drop_lift_available: item.drop_lift_available ?? null,
+                      items_description: item.items_description ?? null,
+                      fare_breakdown: item.fare_breakdown ?? null,
+                      created_at: item.created_at,
+                    });
+                    if (!ok) Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+                  } catch { Alert.alert('Error', 'Failed to generate report.'); }
+                }}>Download Report</Button>
+              <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
+                color={theme.text} borderRadius={10}
+                onPress={async () => {
+                  try {
+                    const ok = await sharePdf({
+                      id: item.id,
+                      booking_number: item.booking_number,
+                      pickup_address: item.pickup_address,
+                      drop_address: item.drop_address,
+                      distance_km: item.distance_km,
+                      estimated_price: item.estimated_price,
+                      advance_amount: item.advance_amount,
+                      remaining_amount: item.remaining_amount,
+                      status: item.status,
+                      payment_status: item.payment_status,
+                      scheduled_date: item.scheduled_date ?? null,
+                      scheduled_time: item.scheduled_time ?? null,
+                      labor_count: item.labor_count ?? null,
+                      pickup_floor: item.pickup_floor ?? null,
+                      drop_floor: item.drop_floor ?? null,
+                      pickup_lift_available: item.pickup_lift_available ?? null,
+                      drop_lift_available: item.drop_lift_available ?? null,
+                      items_description: item.items_description ?? null,
+                      fare_breakdown: item.fare_breakdown ?? null,
+                      created_at: item.created_at,
+                    });
+                    if (!ok) Alert.alert('Error', 'Failed to share PDF. Please try again.');
+                  } catch { Alert.alert('Error', 'Failed to share report.'); }
+                }}>Share Report</Button>
             </XStack>
             {(() => {
               const paid = (paymentHistory[item.id] ?? [])
@@ -954,7 +978,7 @@ function BookingsContent() {
               const advanceEnabled = paid < targetFull;
               const fullEnabled = paid < targetFull;
               return item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
-                <>
+                <XStack gap="$2" flexWrap="wrap">
                   <Button size="$2" backgroundColor={advanceEnabled ? theme.accent : theme.bgCardSecondary}
                     color={advanceEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
                     disabled={!advanceEnabled}
@@ -963,25 +987,14 @@ function BookingsContent() {
                     color={fullEnabled ? '#FFFFFF' : theme.text} borderRadius={10}
                     disabled={!fullEnabled}
                     onPress={() => fullEnabled && handleCreateOrder(item.id, targetFull)}>Pay Full</Button>
-                </>
+                </XStack>
               ) : null;
             })()}
-            {paymentInfo[item.id] ? <Text color={theme.textMuted} fontSize={t(13)}>{paymentInfo[item.id]}</Text> : null}
-            {paymentHistory[item.id]?.length ? (
-              <YStack gap="$1">
-                <Text color={theme.textMuted} fontSize={t(13)}>Payment history</Text>
-                {paymentHistory[item.id].slice(0, 2).map((payment) => (
-                  <Text key={payment.id} color={theme.inputText} fontSize={t(12)}>
-                    {payment.status ?? 'pending'} • ₹{Number(payment.amount ?? 0).toFixed(2)} • {new Date(payment.created_at).toLocaleString()}
-                  </Text>
-                ))}
-                <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
-                  onPress={() => router.push({ pathname: '/modal', params: { bookingId: item.id } } as any)}>View all</Button>
-              </YStack>
-            ) : null}
           </YStack>
         )}
       />
+      <MobileDatePicker value={startPickerValue} open={startDatePickerOpen} onClose={() => setStartDatePickerOpen(false)} onChange={(d) => { setStartDate(formatDate(d)); }} />
+      <MobileDatePicker value={endPickerValue} open={endDatePickerOpen} onClose={() => setEndDatePickerOpen(false)} onChange={(d) => { setEndDate(formatDate(d)); }} />
       <MobileDatePicker value={reschedulePickerValue} open={!!reschedulePickerBookingId} onClose={() => setReschedulePickerBookingId(null)} onChange={(d) => {
         const bookingId = reschedulePickerBookingId;
         setReschedulePickerBookingId(null);
@@ -995,22 +1008,146 @@ function BookingsContent() {
   const renderHomeServicesSection = () => {
     const filtered = homeServiceItems.filter((x) => {
       const q = hsSearch.trim().toLowerCase();
-      if (!q) return true;
-      return homeServiceLabel(x.service_key ?? '').toLowerCase().includes(q)
-        || String(x.status ?? '').toLowerCase().includes(q)
-        || `${x.locality ?? ''} ${x.city ?? ''}`.toLowerCase().includes(q);
+      if (q) {
+        const matched =
+          homeServiceLabel(x.service_key ?? '').toLowerCase().includes(q) ||
+          String(x.status ?? '').toLowerCase().includes(q) ||
+          `${x.locality ?? ''} ${x.city ?? ''}`.toLowerCase().includes(q);
+        if (!matched) return false;
+      }
+      if (hsStatusFilter !== 'all' && String(x.status ?? '') !== hsStatusFilter) return false;
+      if (hsStartDate && new Date(x.created_at).getTime() < new Date(`${hsStartDate}T00:00:00.000Z`).getTime()) return false;
+      if (hsEndDate && new Date(x.created_at).getTime() > new Date(`${hsEndDate}T23:59:59.999Z`).getTime()) return false;
+      return true;
     });
     return (
+      <>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <YStack gap="$3">
           <H2 color={theme.text}>Home Service Requests</H2>
-          <Input
-            value={hsSearch}
-            onChangeText={setHsSearch}
-            placeholder="Search by service, status, or location"
-            backgroundColor={theme.bgCardSecondary}
-            borderColor={theme.border}
-            color={theme.inputText}
+          <XStack gap="$2" flexWrap="wrap" alignItems="center">
+            {Platform.OS === 'web' ? (
+              <YStack
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
+                borderWidth={1}
+                borderRadius={10}
+                paddingHorizontal={12}
+                paddingVertical={10}
+                minWidth={170}
+                flexGrow={1}
+                flexBasis={170}>
+                <input
+                  value={hsStartDate}
+                  onChange={(e) => setHsStartDate((e.target as any).value)}
+                  type="date"
+                  placeholder="Start Date"
+                  className="date-input"
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: theme.inputText,
+                    outline: 'none',
+                  }}
+                />
+              </YStack>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  setHsStartPickerValue(hsStartDate ? new Date(`${hsStartDate}T00:00:00.000Z`) : new Date());
+                  setHsStartDatePickerOpen(true);
+                }}
+                style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                <Input
+                  value={hsStartDate}
+                  editable={false}
+                  pointerEvents="none"
+                  placeholder="Start date"
+                  backgroundColor={theme.bgCardSecondary}
+                  borderColor={theme.border}
+                  color={theme.inputText}
+                />
+              </Pressable>
+            )}
+            {Platform.OS === 'web' ? (
+              <YStack
+                backgroundColor={theme.bgCardSecondary}
+                borderColor={theme.border}
+                borderWidth={1}
+                borderRadius={10}
+                paddingHorizontal={12}
+                paddingVertical={10}
+                minWidth={170}
+                flexGrow={1}
+                flexBasis={170}>
+                <input
+                  value={hsEndDate}
+                  onChange={(e) => setHsEndDate((e.target as any).value)}
+                  type="date"
+                  placeholder="End Date"
+                  className="date-input"
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: theme.inputText,
+                    outline: 'none',
+                  }}
+                />
+              </YStack>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  setHsEndPickerValue(hsEndDate ? new Date(`${hsEndDate}T00:00:00.000Z`) : new Date());
+                  setHsEndDatePickerOpen(true);
+                }}
+                style={{ flexGrow: 1, flexBasis: 170, minWidth: 170 } as any}>
+                <Input
+                  value={hsEndDate}
+                  editable={false}
+                  pointerEvents="none"
+                  placeholder="End date"
+                  backgroundColor={theme.bgCardSecondary}
+                  borderColor={theme.border}
+                  color={theme.inputText}
+                />
+              </Pressable>
+            )}
+            <Input
+              value={hsSearch}
+              onChangeText={setHsSearch}
+              placeholder="Search by service, status, or location"
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              color={theme.inputText}
+              minWidth={220}
+              flexGrow={2}
+              flexBasis={220}
+            />
+          </XStack>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[
+              { label: 'All', value: 'all' },
+              { label: 'Pending', value: 'pending' },
+              { label: 'Assigned', value: 'assigned' },
+              { label: 'Completed', value: 'completed' },
+              { label: 'Cancelled', value: 'cancelled' },
+            ]}
+            keyExtractor={(item) => item.value}
+            contentContainerStyle={{ gap: 8 } as any}
+            renderItem={({ item }) => (
+              <Button
+                size="$2"
+                backgroundColor={hsStatusFilter === item.value ? theme.accent : theme.bgCardSecondary}
+                color={hsStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
+                borderRadius={999}
+                onPress={() => setHsStatusFilter(item.value as typeof hsStatusFilter)}>
+                {item.label}
+              </Button>
+            )}
           />
           {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
           {!filtered.length && !loading ? (
@@ -1039,10 +1176,13 @@ function BookingsContent() {
           })}
         </YStack>
       </ScrollView>
-    );
-  };
+      <MobileDatePicker value={hsStartPickerValue} open={hsStartDatePickerOpen} onClose={() => setHsStartDatePickerOpen(false)} onChange={(d) => { setHsStartDate(formatDate(d)); }} />
+      <MobileDatePicker value={hsEndPickerValue} open={hsEndDatePickerOpen} onClose={() => setHsEndDatePickerOpen(false)} onChange={(d) => { setHsEndDate(formatDate(d)); }} />
+    </>
+  );
+};
 
-  const renderPropertiesSection = () => {
+const renderPropertiesSection = () => {
     const isOwner = role === 'provider' && providerSubtype === 'property_owner';
     const canToggle = role === 'customer' || isOwner;
     const tabs = [];
@@ -1085,73 +1225,126 @@ function BookingsContent() {
               ))}
             </XStack>
           ) : null}
+          <XStack gap="$2" flexWrap="wrap" alignItems="center">
+            <Input
+              value={propSearch}
+              onChangeText={setPropSearch}
+              placeholder="Search by title or location"
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              color={theme.inputText}
+              minWidth={220}
+              flexGrow={2}
+              flexBasis={220}
+            />
+          </XStack>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[
+              { label: 'All', value: 'all' },
+              { label: 'Pending', value: 'pending' },
+              { label: 'Confirmed', value: 'confirmed' },
+              { label: 'Cancelled', value: 'cancelled' },
+            ]}
+            keyExtractor={(item) => item.value}
+            contentContainerStyle={{ gap: 8 } as any}
+            renderItem={({ item }) => (
+              <Button
+                size="$2"
+                backgroundColor={propStatusFilter === item.value ? theme.accent : theme.bgCardSecondary}
+                color={propStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
+                borderRadius={999}
+                onPress={() => setPropStatusFilter(item.value as typeof propStatusFilter)}>
+                {item.label}
+              </Button>
+            )}
+          />
           {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
           {showBooked ? (
             <>
-              {!propertyBookings.length && !loading ? (
-                <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="800">No bookings yet</Text>
-                  <Text color={theme.textMuted} fontSize={t(13)}>Browse properties and send an inquiry.</Text>
-                </YStack>
-              ) : null}
-              {propertyBookings.map((pb) => {
-                const prop = pb.properties;
-                const statusColor = STATUS_COLORS_HS[pb.status] ?? theme.warning;
+              {(() => {
+                const q = propSearch.trim().toLowerCase();
+                const filteredBookings = propertyBookings.filter((pb) => {
+                  if (propStatusFilter !== 'all' && String(pb.status ?? '') !== propStatusFilter) return false;
+                  if (!q) return true;
+                  return (
+                    pb.properties?.title?.toLowerCase().includes(q) ||
+                    pb.properties?.locality?.toLowerCase().includes(q) ||
+                    pb.properties?.city?.toLowerCase().includes(q) ||
+                    pb.contact_name?.toLowerCase().includes(q) ||
+                    pb.contact_phone?.toLowerCase().includes(q)
+                  );
+                });
                 return (
-                  <YStack key={pb.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-                    <XStack justifyContent="space-between" alignItems="center">
-                      <YStack flex={1} gap={4}>
-                        <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{prop?.title ?? 'Property'}</Text>
-                        <Text color={theme.textMuted} fontSize={t(13)}>
-                          {[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}
-                        </Text>
-                        {prop?.price != null ? (
-                          <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
-                        ) : null}
+                  <>
+                    {!filteredBookings.length && !loading ? (
+                      <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">No bookings yet</Text>
+                        <Text color={theme.textMuted} fontSize={t(13)}>Browse properties and send an inquiry.</Text>
                       </YStack>
-                      <YStack alignItems="flex-end" gap={6}>
-                        <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
-                        <Text color={theme.textMuted} fontSize={t(12)}>{new Date(pb.created_at).toLocaleDateString()}</Text>
-                      </YStack>
-                    </XStack>
-                    {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (
-                      <XStack gap="$2">
-                        <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
-                          disabled={pbBusyId === pb.id}
-                          onPress={() => handleCancelBooking(pb.id)}>Cancel</Button>
-                        <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                          onPress={() => router.push({ pathname: '/properties/[id]', params: { id: pb.property_id } } as any)}>View</Button>
-                      </XStack>
                     ) : null}
-                    {isOwner && pb.status === 'pending' ? (
-                      <XStack gap="$2">
-                        <Button size="$2" backgroundColor={theme.success} color="#FFFFFF" borderRadius={10}
-                          disabled={pbBusyId === pb.id}
-                          onPress={async () => {
-                            setPbBusyId(pb.id);
-                            try {
-                              await supabase.from('property_bookings').update({ status: 'confirmed' }).eq('id', pb.id);
-                              try {
-                                await supabase.functions.invoke('send-property-notification', {
-                                  body: {
-                                    event_type: 'booking_status_changed',
-                                    booking_id: pb.id,
-                                    status: 'confirmed',
-                                    changed_by: 'owner',
-                                  },
-                                });
-                              } catch { /* ignore notification failures */ }
-                              await fetchPropertyBookings();
-                            } catch { /* ignore */ } finally { setPbBusyId(null); }
-                          }}>Confirm</Button>
-                        <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
-                          disabled={pbBusyId === pb.id}
-                          onPress={() => handleCancelBooking(pb.id)}>Reject</Button>
-                      </XStack>
-                    ) : null}
-                  </YStack>
+                    {filteredBookings.map((pb) => {
+                      const prop = pb.properties;
+                      const statusColor = STATUS_COLORS_HS[pb.status] ?? theme.warning;
+                      return (
+                        <YStack key={pb.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                          <XStack justifyContent="space-between" alignItems="center">
+                            <YStack flex={1} gap={4}>
+                              <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{prop?.title ?? 'Property'}</Text>
+                              <Text color={theme.textMuted} fontSize={t(13)}>
+                                {[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}
+                              </Text>
+                              {prop?.price != null ? (
+                                <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
+                              ) : null}
+                            </YStack>
+                            <YStack alignItems="flex-end" gap={6}>
+                              <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{pb.status}</Text>
+                              <Text color={theme.textMuted} fontSize={t(12)}>{new Date(pb.created_at).toLocaleDateString()}</Text>
+                            </YStack>
+                          </XStack>
+                          {(role === 'customer' || role === 'admin') && pb.status === 'pending' ? (
+                            <XStack gap="$2">
+                              <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                                disabled={pbBusyId === pb.id}
+                                onPress={() => handleCancelBooking(pb.id)}>Cancel</Button>
+                              <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                                onPress={() => router.push({ pathname: '/properties/[id]', params: { id: pb.property_id } } as any)}>View</Button>
+                            </XStack>
+                          ) : null}
+                          {isOwner && pb.status === 'pending' ? (
+                            <XStack gap="$2">
+                              <Button size="$2" backgroundColor={theme.success} color="#FFFFFF" borderRadius={10}
+                                disabled={pbBusyId === pb.id}
+                                onPress={async () => {
+                                  setPbBusyId(pb.id);
+                                  try {
+                                    await supabase.from('property_bookings').update({ status: 'confirmed' }).eq('id', pb.id);
+                                    try {
+                                      await supabase.functions.invoke('send-property-notification', {
+                                        body: {
+                                          event_type: 'booking_status_changed',
+                                          booking_id: pb.id,
+                                          status: 'confirmed',
+                                          changed_by: 'owner',
+                                        },
+                                      });
+                                    } catch { /* ignore notification failures */ }
+                                    await fetchPropertyBookings();
+                                  } catch { /* ignore */ } finally { setPbBusyId(null); }
+                                }}>Confirm</Button>
+                              <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                                disabled={pbBusyId === pb.id}
+                                onPress={() => handleCancelBooking(pb.id)}>Reject</Button>
+                            </XStack>
+                          ) : null}
+                        </YStack>
+                      );
+                    })}
+                  </>
                 );
-              })}
+              })()}
             </>
           ) : null}
           {showListings ? (
@@ -1160,30 +1353,47 @@ function BookingsContent() {
                 <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                   onPress={() => router.push('/properties/post' as any)}>Post Property</Button>
               </XStack>
-              {!myProperties.length && !loading ? (
-                <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
-                  <Text color={theme.text} fontWeight="800">No properties listed</Text>
-                  <Text color={theme.textMuted} fontSize={t(13)}>Post your first property listing.</Text>
-                </YStack>
-              ) : null}
-              {myProperties.map((p) => (
-                <YStack key={p.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <YStack flex={1} gap={4}>
-                      <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{p.title ?? 'Property'}</Text>
-                      <Text color={theme.textMuted} fontSize={t(13)}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
-                      {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
-                    </YStack>
-                    <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{p.status}</Text>
-                  </XStack>
-                  <XStack gap="$2">
-                    <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
-                      onPress={() => router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any)}>View</Button>
-                    <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                      onPress={() => router.push('/properties/post' as any)}>Edit</Button>
-                  </XStack>
-                </YStack>
-              ))}
+              {(() => {
+                const q = propSearch.trim().toLowerCase();
+                const filteredListings = myProperties.filter((p) => {
+                  if (propStatusFilter !== 'all' && String(p.status ?? '') !== propStatusFilter) return false;
+                  if (!q) return true;
+                  return (
+                    p.title?.toLowerCase().includes(q) ||
+                    p.locality?.toLowerCase().includes(q) ||
+                    p.city?.toLowerCase().includes(q) ||
+                    p.state?.toLowerCase().includes(q)
+                  );
+                });
+                return (
+                  <>
+                    {!filteredListings.length && !loading ? (
+                      <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} borderWidth={1} borderColor={theme.border}>
+                        <Text color={theme.text} fontWeight="800">No properties listed</Text>
+                        <Text color={theme.textMuted} fontSize={t(13)}>Post your first property listing.</Text>
+                      </YStack>
+                    ) : null}
+                    {filteredListings.map((p) => (
+                      <YStack key={p.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <YStack flex={1} gap={4}>
+                            <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{p.title ?? 'Property'}</Text>
+                            <Text color={theme.textMuted} fontSize={t(13)}>{[p.locality, p.city, p.state].filter(Boolean).join(', ') || '—'}</Text>
+                            {p.price != null ? <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(p.price).toLocaleString('en-IN')}</Text> : null}
+                          </YStack>
+                          <Text color={p.status === 'published' ? theme.success : theme.warning} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{p.status}</Text>
+                        </XStack>
+                        <XStack gap="$2">
+                          <Button size="$2" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={10}
+                            onPress={() => router.push({ pathname: '/properties/[id]', params: { id: p.id } } as any)}>View</Button>
+                          <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                            onPress={() => router.push('/properties/post' as any)}>Edit</Button>
+                        </XStack>
+                      </YStack>
+                    ))}
+                  </>
+                );
+              })()}
             </>
           ) : null}
         </YStack>

@@ -4260,7 +4260,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 <YStack style={styles.footerBodyWrap}>
                   {[ 
                     { label: 'Home', action: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) },
-                    { label: 'Services', action: () => scrollToSection('services') },
+                    { label: 'Services', action: () => scrollToServiceMenu() },
                     {
                       label: 'Track',
                       action: () => {
@@ -4343,30 +4343,23 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           </YStack>
         </YStack>
       </ScrollView>
-      {isSmallScreen ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={homeScrollY > 120 ? 'Scroll to top' : 'Scroll to bottom'}
-          onPress={() => scrollRef.current?.scrollTo({ y: homeScrollY > 120 ? 0 : 100000, animated: true })}
-          style={{
-            position: 'absolute',
-            right: 18,
-            bottom: 76,
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: '#D97706',
-            alignItems: 'center',
-            justifyContent: 'center',
-            elevation: 8,
-            shadowColor: '#000',
-            shadowOpacity: 0.25,
-            shadowRadius: 6,
-            shadowOffset: { width: 0, height: 3 },
-          }}>
-          <FontAwesome name={homeScrollY > 120 ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF" />
-        </Pressable>
-      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={homeScrollY > 120 ? 'Scroll to top' : 'Scroll to bottom'}
+        onPress={() => scrollRef.current?.scrollTo({ y: homeScrollY > 120 ? 0 : 100000, animated: true })}
+        style={{
+          position: 'absolute',
+          right: 18,
+          bottom: 76,
+          width: 42,
+          height: 42,
+          borderRadius: 21,
+          backgroundColor: 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <FontAwesome name={homeScrollY > 120 ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF" />
+      </Pressable>
     </View>
     </>
   );
