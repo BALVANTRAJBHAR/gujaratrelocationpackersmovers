@@ -1,18 +1,53 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
+import { t } from '@/constants/typography';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
-import { openRazorpayCheckout } from '@/lib/razorpay-checkout';
-import { t } from '@/constants/typography';
 import { creditWallet } from '@/lib/wallet';
 import { useSession } from '@/providers/session-provider';
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
+
+/** Load Razorpay script on web. Same implementation as book/index.tsx. */
+async function loadRazorpayScript(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  if ((window as any).Razorpay) return true;
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
+    document.body.appendChild(script);
+  });
+  return Boolean((window as any).Razorpay);
+}
+
+/** Exact same pattern as the working openRazorpayCheckout in book/index.tsx. */
+async function openRazorpayCheckout(options: any): Promise<any> {
+  if (Platform.OS === 'web') {
+    const ok = await loadRazorpayScript();
+    if (!ok) throw new Error('Razorpay unavailable on web');
+    return await new Promise((resolve, reject) => {
+      const Razorpay = (window as any).Razorpay;
+      const rz = new Razorpay({
+        ...options,
+        handler: (response: any) => resolve(response),
+        modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
+      });
+      rz.open();
+    });
+  }
+  // Native: direct top-level import — same as book/index.tsx (RazorpayCheckout.open)
+  return await RazorpayCheckout.open(options);
+}
 
 export default function AddMoneyScreen() {
   const router = useRouter();
@@ -25,12 +60,30 @@ export default function AddMoneyScreen() {
 
   const effectiveAmount = custom ? parseInt(custom, 10) : amount;
 
-  const paymentErrorMessage = (error: unknown) => {
-    if (error && typeof error === 'object') {
-      const value = error as Record<string, unknown>;
-      return String(value.description || value.message || value.error || value.reason || 'Payment could not be completed.');
+  /** Extract a human-readable string from any error shape (handles nested Razorpay objects). */
+  const extractErrorMessage = (err: unknown): string => {
+    if (!err) return '';
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object') {
+      const v = err as Record<string, unknown>;
+      const desc = v.description;
+      if (desc) {
+        if (typeof desc === 'string') return desc;
+        if (typeof desc === 'object') {
+          const d = desc as Record<string, unknown>;
+          return String(d.reason || d.message || d.error || JSON.stringify(desc));
+        }
+      }
+      const direct = v.message || v.error || v.reason || v.detail;
+      if (direct) {
+        if (typeof direct === 'string') return direct;
+        if (typeof direct === 'object') return JSON.stringify(direct);
+        return String(direct);
+      }
+      return JSON.stringify(err);
     }
-    return String(error || 'Payment could not be completed.');
+    return String(err);
   };
 
   const handleAddMoney = async () => {
@@ -40,34 +93,37 @@ export default function AddMoneyScreen() {
       const razorpayKeyId = await getRazorpayKeyId();
       if (!razorpayKeyId) throw new Error('Missing Razorpay public key. Please try again later.');
 
-      // This is deliberately the same order + checkout + verification sequence
-      // used by the working shifting-booking payment flow.
+      // Razorpay receipt max = 40 chars. Use last 8 chars of userId + timestamp last 8 digits.
+      const receiptSuffix = session.user.id.replace(/-/g, '').slice(-8);
+      const tsSuffix = String(Date.now()).slice(-8);
       const order = await createRazorpayOrder({
         amount: effectiveAmount * 100,
         currency: 'INR',
-        receipt: `wallet_${session.user.id}_${Date.now()}`,
+        receipt: `wlt_${receiptSuffix}_${tsSuffix}`, // max 25 chars, well within 40
         notes: { user_id: session.user.id },
       });
 
-      const response = await openRazorpayCheckout({
+      const options = {
         key: razorpayKeyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'Gujarat Relocation Packers',
+        name: 'Gujarat Relocation PackersMovers',
         description: `Add ₹${effectiveAmount} to Wallet`,
         order_id: order.id,
         prefill: {
-          name: profile?.full_name || '',
+          name: profile?.name || '',
           email: session.user.email || '',
           contact: profile?.phone || '',
         },
         theme: { color: '#1F4E79' },
-      });
+      };
+
+      const paymentData: any = await openRazorpayCheckout(options);
 
       const valid = await verifyRazorpaySignature({
         order_id: order.id,
-        payment_id: response.razorpay_payment_id,
-        signature: response.razorpay_signature,
+        payment_id: paymentData.razorpay_payment_id,
+        signature: paymentData.razorpay_signature,
       });
 
       if (!valid) throw new Error('Payment verification failed');
@@ -76,19 +132,23 @@ export default function AddMoneyScreen() {
         userId: session.user.id,
         amount: effectiveAmount,
         referenceType: 'add_money',
-        referenceId: response.razorpay_payment_id,
+        referenceId: paymentData.razorpay_payment_id,
         description: `Added ₹${effectiveAmount} to wallet`,
       });
 
       await refreshProfile();
-      Alert.alert('Payment successful', `₹${effectiveAmount.toLocaleString('en-IN')} has been added to your wallet.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        'Payment Successful',
+        `₹${effectiveAmount.toLocaleString('en-IN')} has been added to your wallet.`,
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (e: any) {
-      const msg = paymentErrorMessage(e);
+      // Log raw error so we can inspect exact Razorpay / Edge Function error shape in dev tools
+      console.error('[Wallet AddMoney] raw error:', JSON.stringify(e, null, 2), e);
+      const msg = extractErrorMessage(e);
       if (/cancel/i.test(msg)) return;
-      const cleaned = msg.replace(/^\(\d+\)\s*/, '');
-      Alert.alert('Payment failed', cleaned || 'Payment failed. Please try again.');
+      const cleaned = msg.replace(/^\(\d+\)\s*/, '').trim();
+      Alert.alert('Payment Failed', cleaned || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -115,10 +175,7 @@ export default function AddMoneyScreen() {
                 backgroundColor={!custom && amount === a ? '#1F4E79' : theme.bgSecondary}
                 borderWidth={1}
                 borderColor={!custom && amount === a ? '#1F4E79' : theme.border}>
-                <Text
-                  fontWeight="800"
-                  fontSize={t(15)}
-                  color={!custom && amount === a ? '#FFFFFF' : theme.text}>
+                <Text fontWeight="800" fontSize={t(15)} color={!custom && amount === a ? '#FFFFFF' : theme.text}>
                   ₹{a}
                 </Text>
               </YStack>

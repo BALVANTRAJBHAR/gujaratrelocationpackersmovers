@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView } from 'react-native';
+import { Platform, Pressable, ScrollView, Alert, NativeModules, ToastAndroid } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Notifications from 'expo-notifications';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { supabase } from '@/lib/supabase';
@@ -63,33 +65,42 @@ function AdminLocationsInner() {
 
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [states, setStates] = useState<StateRow[]>([]);
+  const [cities, setCities] = useState<CityRow[]>([]);
   const [newState, setNewState] = useState('');
   const [selectedStateId, setSelectedStateId] = useState('');
   const [newCity, setNewCity] = useState('');
   const [chooseOpen, setChooseOpen] = useState(false);
 
-  // Fetch states on mount
+  // Fetch states + cities on mount
+  const loadData = async () => {
+    try {
+      const [statesRes, citiesRes] = await Promise.all([
+        supabase.from('states').select('id,name').order('name'),
+        supabase.from('cities').select('id,state_id,name').order('name'),
+      ]);
+      if (statesRes.error) throw new Error(statesRes.error.message);
+      if (citiesRes.error) throw new Error(citiesRes.error.message);
+      setStates((statesRes.data ?? []) as StateRow[]);
+      setCities((citiesRes.data ?? []) as CityRow[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load locations.');
+    }
+  };
+
   useEffect(() => {
     let active = true;
-    const loadStates = async () => {
-      try {
-        const { data, error: fetchError } = await supabase.from('states').select('id,name').order('name');
-        if (!active) return;
-        if (fetchError) throw new Error(fetchError.message);
-        setStates(((data as any) ?? []) as StateRow[]);
-      } catch {
-        if (!active) return;
-        setStates([]);
-      }
-    };
-    loadStates();
-    return () => {
-      active = false;
-    };
+    supabase.from('states').select('id,name').order('name').then(({ data }) => {
+      if (active) setStates((data ?? []) as StateRow[]);
+    });
+    supabase.from('cities').select('id,state_id,name').order('name').then(({ data }) => {
+      if (active) setCities((data ?? []) as CityRow[]);
+    });
+    return () => { active = false; };
   }, []);
 
   // Add a new state
@@ -115,9 +126,7 @@ function AdminLocationsInner() {
       if (insertError) throw new Error(insertError.message);
       setSuccess('State added.');
       setNewState('');
-      // Refetch
-      const { data } = await supabase.from('states').select('id,name').order('name');
-      setStates(((data as any) ?? []) as StateRow[]);
+      await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to add state.');
     } finally {
@@ -143,6 +152,7 @@ function AdminLocationsInner() {
       if (insertError) throw new Error(insertError.message);
       setSuccess('City added.');
       setNewCity('');
+      await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to add city.');
     } finally {
@@ -193,7 +203,6 @@ function AdminLocationsInner() {
         setError('CSV must have header and at least one data row.');
         return;
       }
-      // Parse CSV (simple comma split, no quoted commas support)
       const rows: BulkRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(',').map((c) => c.trim());
@@ -206,7 +215,6 @@ function AdminLocationsInner() {
         return;
       }
       setBulkLoading(true);
-      // Upsert states first
       const stateMap = new Map<string, string>();
       let existingStates = 0;
       for (const row of rows) {
@@ -221,7 +229,6 @@ function AdminLocationsInner() {
           }
         }
       }
-      // Upsert cities
       let insertedCities = 0;
       let existingCities = 0;
       for (const row of rows) {
@@ -245,13 +252,105 @@ function AdminLocationsInner() {
       if (existingCities > 0) summaryParts.push(`${existingCities} cities already registered (skipped).`);
       if (existingStates > 0) summaryParts.push(`${existingStates} states already existed (skipped).`);
       setSuccess(summaryParts.join(' '));
-      // Refetch states
-      const { data: newStates } = await supabase.from('states').select('id,name').order('name');
-      setStates(((newStates as any) ?? []) as StateRow[]);
+      await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed.');
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  // Helper: save file to Downloads or share
+  const saveOrShare = async (uri: string, fileName: string, mimeType: string) => {
+    const nativeDl = NativeModules.PdfDownload as { saveToDownloads(s: string, n: string): Promise<string> } | undefined;
+    if (Platform.OS === 'android' && nativeDl) {
+      const saved = await nativeDl.saveToDownloads(uri, fileName);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Download complete',
+          body: `${fileName} saved to Downloads. Tap to open.`,
+          data: { fileUri: saved || uri },
+        },
+        trigger: null,
+      });
+      ToastAndroid.show(`Saved to Downloads: ${fileName}`, ToastAndroid.LONG);
+    } else {
+      await Sharing.shareAsync(uri, { mimeType, dialogTitle: `Save ${fileName}` });
+    }
+  };
+
+  // Export locations as CSV (opens in Excel)
+  const handleExportCSV = async () => {
+    setExportLoading(true);
+    setError(null);
+    try {
+      const header = 'State,City';
+      const rows = states.flatMap((s) => {
+        const stateCities = cities.filter((c) => c.state_id === s.id);
+        if (stateCities.length === 0) return [`"${s.name}",""`];
+        return stateCities.map((c) => `"${s.name}","${c.name}"`);
+      });
+      const csv = `\uFEFF${[header, ...rows].join('\n')}`;
+      const fileName = `locations-${new Date().toISOString().slice(0, 10)}.csv`;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setSuccess('Locations exported as CSV.');
+        return;
+      }
+      const tempUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(tempUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await saveOrShare(tempUri, fileName, 'text/csv');
+      setSuccess('Locations exported as CSV (Excel).');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'CSV export failed.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Export locations as PDF
+  const handleExportPDF = async () => {
+    setExportLoading(true);
+    setError(null);
+    try {
+      const rows = states.map((s) => {
+        const stateCities = cities.filter((c) => c.state_id === s.id).map((c) => c.name).join(', ') || '—';
+        return `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;">${s.name}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#4b5563;">${stateCities}</td></tr>`;
+      }).join('');
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>body{font-family:sans-serif;padding:20px;color:#111827}h1{font-size:22px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#3b82f6;color:#fff;padding:10px 12px;text-align:left}tr:nth-child(even){background:#f9fafb}</style></head><body><h1>Locations Report</h1><p>Generated: ${new Date().toLocaleDateString('en-IN')}</p><table><thead><tr><th>State</th><th>Cities</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+      if (Platform.OS === 'web') {
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.open(); doc.write(html); doc.close();
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            setTimeout(() => document.body.removeChild(iframe), 2000);
+          }, 500);
+        }
+        setSuccess('Sending to print dialog...');
+        return;
+      }
+      const { uri } = await Print.printToFileAsync({ html });
+      const fileName = `locations-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const destUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: destUri });
+      await saveOrShare(destUri, fileName, 'application/pdf');
+      setSuccess('Locations exported as PDF.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'PDF export failed.');
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -262,7 +361,7 @@ function AdminLocationsInner() {
   const panelBg = theme.bgSecondary;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 150 }}>
       <YStack gap="$4">
         <YStack backgroundColor={theme.primary} padding={16} paddingTop={18} borderRadius={16}>
           <XStack alignItems="center" justifyContent="center" position="relative">
@@ -397,19 +496,65 @@ function AdminLocationsInner() {
           </XStack>
         </YStack>
 
-        {/* Existing States */}
+        {/* Download Locations Report */}
         <YStack backgroundColor={panelBg} borderRadius={12} padding={16} borderWidth={1} borderColor={border} gap="$3">
           <Text color={titleColor} fontWeight="900">
-            Existing States ({states.length})
+            Download Locations Report
           </Text>
-          {states.map((s) => (
-            <XStack key={s.id} justifyContent="space-between" alignItems="center">
-              <Text color={titleColor}>{s.name}</Text>
-              <Text color={muted} fontSize={t(14)}>
-                ID: {s.id}
-              </Text>
-            </XStack>
-          ))}
+          <Text color={muted} fontSize={t(13)}>
+            Export all states and cities as Excel (CSV) or PDF.
+          </Text>
+          <XStack gap="$2" flexWrap="wrap">
+            <Button
+              flex={1}
+              backgroundColor={theme.info}
+              color="#FFFFFF"
+              borderRadius={10}
+              disabled={exportLoading}
+              onPress={handleExportCSV}>
+              {exportLoading ? 'Exporting...' : '📊 Export Excel (CSV)'}
+            </Button>
+            <Button
+              flex={1}
+              backgroundColor={theme.danger}
+              color="#FFFFFF"
+              borderRadius={10}
+              disabled={exportLoading}
+              onPress={handleExportPDF}>
+              {exportLoading ? 'Exporting...' : '📄 Export PDF'}
+            </Button>
+          </XStack>
+        </YStack>
+
+        {/* Existing States with Cities */}
+        <YStack backgroundColor={panelBg} borderRadius={12} padding={16} borderWidth={1} borderColor={border} gap="$3">
+          <Text color={titleColor} fontWeight="900">
+            States & Cities ({states.length} states, {cities.length} cities)
+          </Text>
+          {states.length === 0 ? (
+            <Text color={muted} fontSize={t(14)}>No states added yet.</Text>
+          ) : (
+            states.map((s) => {
+              const stateCities = cities.filter((c) => c.state_id === s.id);
+              return (
+                <YStack
+                  key={s.id}
+                  borderBottomWidth={1}
+                  borderBottomColor={border}
+                  paddingVertical={10}
+                  gap="$1">
+                  <Text color={titleColor} fontWeight="800" fontSize={t(15)}>
+                    📍 {s.name}
+                  </Text>
+                  <Text color={muted} fontSize={t(13)} flexShrink={1}>
+                    {stateCities.length > 0
+                      ? stateCities.map((c) => c.name).join(', ')
+                      : 'No cities added yet'}
+                  </Text>
+                </YStack>
+              );
+            })
+          )}
         </YStack>
       </YStack>
     </ScrollView>

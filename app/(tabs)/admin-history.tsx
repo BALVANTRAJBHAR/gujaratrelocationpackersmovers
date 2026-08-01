@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Notifications from 'expo-notifications';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Platform, Pressable, Share, ToastAndroid } from 'react-native';
+import { ActivityIndicator, FlatList, NativeModules, Platform, Pressable, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import MobileDatePicker from '@/components/MobileDatePicker';
@@ -33,6 +34,9 @@ type ActionLog = {
 function AdminHistoryGuard() {
   const router = useRouter();
   const authGuard = useAuthGuard(['admin', 'staff']);
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
   useEffect(() => {
     if (authGuard.isLoading) return;
     if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
@@ -41,7 +45,15 @@ function AdminHistoryGuard() {
       router.replace('/unauthorized' as any);
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  if (authGuard.isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
+  if (!authGuard.isAuthenticated || authGuard.error) return null;
 
   return <AdminHistoryInner />;
 }
@@ -234,12 +246,30 @@ function AdminHistoryInner() {
         URL.revokeObjectURL(url);
         return;
       }
-      const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-      const uri = `${baseDir}${fileName}`;
-      await FileSystem.writeAsStringAsync(uri, content, { encoding: 'utf8' as any });
-      await Share.share({ url: uri, title: fileName });
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(`Downloaded to Downloads folder: ${fileName}`, ToastAndroid.LONG);
+      // Native: write to temp file then save to public Downloads folder
+      const baseDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
+      const tempUri = `${baseDir}${fileName}`;
+      await FileSystem.writeAsStringAsync(tempUri, content, { encoding: 'utf8' as any });
+      const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string): Promise<string> } | undefined;
+      if (Platform.OS === 'android' && nativePdfDownloader) {
+        const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
+        // Schedule a local notification that opens the file on tap
+        if (Platform.OS !== 'web') {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Download complete',
+              body: `${fileName} saved to Downloads`,
+              data: { fileUri: savedPath || tempUri },
+            },
+            trigger: null,
+          });
+        }
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(`Saved: ${fileName}`, ToastAndroid.LONG);
+        }
+      } else {
+        // iOS: share the file
+        await Share.share({ url: tempUri, title: fileName });
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -374,7 +404,7 @@ function AdminHistoryInner() {
           <FlatList
             data={records}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+            contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
             ListFooterComponent={
               <YStack gap="$3" marginTop={12}>
                 <Text color={theme.text} fontWeight="700">Admin action logs</Text>

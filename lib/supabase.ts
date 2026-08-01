@@ -153,6 +153,19 @@ if (!globalForSupabase.__supabase) {
 const supabase = globalForSupabase.__supabase as ReturnType<typeof createClient>;
 export { supabase };
 
+/**
+ * RealtimeClient.channel(name) returns the EXISTING channel instance when one with the
+ * same topic is still registered. If that instance is still joined (e.g. an async
+ * removeChannel was interrupted by navigation), a subsequent .on('postgres_changes', ...)
+ * throws "cannot add postgres_changes callbacks for <topic> after subscribe()".
+ * Call this before subscribing to a channel name to drop any leftover instance.
+ */
+export function removeStaleRealtimeChannel(channelName: string) {
+  const topic = `realtime:${channelName}`;
+  const existing = supabase.getChannels().find((ch) => ch.topic === topic);
+  if (existing) void supabase.removeChannel(existing);
+}
+
 let authChain: Promise<unknown> = Promise.resolve();
 
 /** Serialize auth calls to avoid auth-js navigator lock aborts on web. */

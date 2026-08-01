@@ -1,4 +1,4 @@
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
@@ -122,8 +122,16 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
     fetchBooking();
   }, [bookingId]);
 
+  const handleClose = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/bookings' as any);
+    }
+  };
+
   return (
-    <YStack flex={1} backgroundColor={pageBg} padding={24} gap="$3">
+    <YStack flex={1} backgroundColor={pageBg} padding={24} gap="$3" paddingBottom={64}>
       <Text color={activeBtnBg} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
         Booking transactions
       </Text>
@@ -179,11 +187,14 @@ function ModalScreenInner({ bookingId }: { bookingId?: string }) {
         )}
       />
 
-      <Link href="/" dismissTo asChild>
-        <Button backgroundColor={idleBtnBg} color={idleBtnText} borderRadius={12}>
-          Close
-        </Button>
-      </Link>
+      <Button
+        backgroundColor={idleBtnBg}
+        color={idleBtnText}
+        borderRadius={12}
+        marginTop={8}
+        onPress={handleClose}>
+        Back
+      </Button>
     </YStack>
   );
 }

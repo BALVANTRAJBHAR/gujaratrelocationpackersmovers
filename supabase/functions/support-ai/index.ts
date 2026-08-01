@@ -20,6 +20,9 @@ type SupportMessageRow = {
   created_at: string;
 };
 
+const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -77,12 +80,15 @@ async function postRest<T>(url: string, serviceKey: string, payload: unknown): P
   return (await res.json()) as T;
 }
 
-async function callHuggingFace(args: {
+async function callGroq(args: {
   apiKey: string;
   model: string;
   messages: Array<{ role: string; content: string }>;
 }) {
-  const res = await fetch('https://api-inference.huggingface.co/v1/chat/completions', {
+  const startedAt = Date.now();
+  console.log(`[support-ai] Calling Groq: model=${args.model}, messages=${args.messages.length}`);
+
+  const res = await fetch(GROQ_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -91,8 +97,8 @@ async function callHuggingFace(args: {
     body: JSON.stringify({
       model: args.model,
       messages: args.messages,
-      max_tokens: 280,
       temperature: 0.2,
+      max_tokens: 300,
     }),
   });
 
@@ -106,14 +112,20 @@ async function callHuggingFace(args: {
 
   if (!res.ok) {
     const msg =
+      parsed?.error?.message ||
       parsed?.error ||
       parsed?.message ||
       text ||
-      `Hugging Face error: ${res.status}`;
+      `Groq API error: ${res.status}`;
+    console.error(`[support-ai] Groq API error (${res.status}): ${msg}`);
     throw new Error(String(msg));
   }
 
   const generated = parsed?.choices?.[0]?.message?.content ?? '';
+  const elapsedMs = Date.now() - startedAt;
+  console.log(
+    `[support-ai] Groq response OK in ${elapsedMs}ms, content length=${String(generated).length}`
+  );
   return String(generated ?? '').trim();
 }
 
@@ -148,18 +160,24 @@ serve(async (req) => {
       Deno.env.get('SB_SERVICE_ROLE_KEY') ??
       '';
 
-    const hfKey =
-      Deno.env.get('HUGGINGFACE_API_KEY') ??
-      Deno.env.get('HF_API_KEY') ??
-      Deno.env.get('HF_TOKEN') ??
-      '';
-    const hfModel = Deno.env.get('HUGGINGFACE_MODEL') ?? 'TinyLlama/TinyLlama-1.1B-Chat-v1.0';
+    const groqKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    const groqModel = Deno.env.get('GROQ_MODEL') ?? DEFAULT_GROQ_MODEL;
 
     if (!supabaseUrl || !anonKey || !serviceKey) {
-      return jsonResponse({ error: 'Supabase env missing' }, 500);
+      console.error(
+        `[support-ai] Missing Supabase env (SUPABASE_URL=${supabaseUrl ? 'set' : 'missing'}, SUPABASE_ANON_KEY=${anonKey ? 'set' : 'missing'}, SERVICE_ROLE_KEY=${serviceKey ? 'set' : 'missing'})`
+      );
+      return jsonResponse(
+        { error: 'Server configuration error: Supabase environment variables are missing (SUPABASE_URL, SUPABASE_ANON_KEY, SERVICE_ROLE_KEY).' },
+        500
+      );
     }
-    if (!hfKey) {
-      return jsonResponse({ error: 'Hugging Face token missing (set HF_TOKEN or HUGGINGFACE_API_KEY)' }, 500);
+    if (!groqKey) {
+      console.error('[support-ai] Missing GROQ_API_KEY environment variable');
+      return jsonResponse(
+        { error: 'Server configuration error: GROQ_API_KEY is not set. Add GROQ_API_KEY to the Edge Function secrets.' },
+        500
+      );
     }
 
     const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
@@ -169,8 +187,10 @@ serve(async (req) => {
 
     const userId = await getAuthUserId(supabaseUrl, anonKey, authHeader);
     if (!userId) {
+      console.warn('[support-ai] Authentication failed for request');
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
+    console.log(`[support-ai] Authenticated user=${userId}`);
 
     const body = await req.json();
     const conversationId = String(body.conversation_id ?? '').trim();
@@ -186,6 +206,7 @@ serve(async (req) => {
     );
 
     if (!conv || (conv.user_id ?? '') !== userId) {
+      console.warn(`[support-ai] Conversation not found or not owned by user (conversation_id=${conversationId})`);
       return jsonResponse({ error: 'Conversation not found' }, 404);
     }
 
@@ -203,6 +224,7 @@ serve(async (req) => {
       `${supabaseUrl}/rest/v1/support_messages?conversation_id=eq.${conversationId}&select=id,sender,message,created_at&order=created_at.asc&limit=20`,
       serviceKey
     );
+    console.log(`[support-ai] Loaded ${history.length} history messages for conversation ${conversationId}`);
 
     const chatMessages: Array<{ role: string; content: string }> = [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -219,7 +241,7 @@ serve(async (req) => {
       else chatMessages.push({ role: 'assistant', content: m.message });
     }
 
-    const aiText = await callHuggingFace({ apiKey: hfKey, model: hfModel, messages: chatMessages });
+    const aiText = await callGroq({ apiKey: groqKey, model: groqModel, messages: chatMessages });
     const safeAiText = aiText || 'Please share a bit more detail. If urgent, use WhatsApp/Call support.';
 
     const [insertedAi] = await postRest<SupportMessageRow[]>(`${supabaseUrl}/rest/v1/support_messages`, serviceKey, [
@@ -228,7 +250,7 @@ serve(async (req) => {
         user_id: userId,
         sender: 'ai',
         message: safeAiText,
-        meta: bookingId ? { booking_id: bookingId, model: hfModel, provider: 'huggingface' } : { model: hfModel, provider: 'huggingface' },
+        meta: bookingId ? { booking_id: bookingId, model: groqModel, provider: 'groq' } : { model: groqModel, provider: 'groq' },
       },
     ]);
 
@@ -237,6 +259,14 @@ serve(async (req) => {
       ai_message: insertedAi,
     });
   } catch (e: any) {
-    return jsonResponse({ error: String(e?.message ?? e ?? 'Unknown error') }, 500);
+    const msg = String(e?.message ?? e ?? 'Unknown error');
+    console.error(`[support-ai] Request failed: ${msg}`);
+    const isClientError =
+      String(e?.message ?? '').includes('conversation_id required') ||
+      String(e?.message ?? '').includes('message required');
+    if (isClientError) {
+      return jsonResponse({ error: msg }, 400);
+    }
+    return jsonResponse({ error: `Support AI request failed: ${msg}` }, 500);
   }
 });

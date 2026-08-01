@@ -4,10 +4,12 @@ import '@/lib/supabase-auth-guard-init';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { PortalProvider } from '@tamagui/portal';
 import * as Font from 'expo-font';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Notifications from 'expo-notifications';
 import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
-import { Platform, Text as RNText, TextInput as RNTextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Linking, Platform, Text as RNText, TextInput as RNTextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 
@@ -20,6 +22,20 @@ import { installSupabaseAuthAbortGuard } from '@/lib/supabase-auth-guard';
 import { ColorSchemeProvider } from '@/providers/color-scheme-provider';
 import { SessionProvider, useSession } from '@/providers/session-provider';
 import tamaguiConfig from '@/tamagui.config';
+
+// Configure notification handler globally so all push/local notifications
+// display an alert, make a sound, and set a badge.
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 const appFontFamily = Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman';
 
@@ -50,6 +66,7 @@ function AppLayoutInner() {
   const isMobile = screenWidth <= 768;
   const hideNav =
     segments.length === 0 ||
+    (segments[0] === 'modal') ||
     (segments[0] === 'auth') ||
     (segments[0] === 'book') ||
     (segments[0] === 'home-services' && segments[1] === 'request') ||
@@ -58,6 +75,32 @@ function AppLayoutInner() {
     segments[0] === 'wallet';
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+
+  // Listen for taps on download-complete notifications and open the file.
+  const notifListenerRef = useRef<Notifications.Subscription | null>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(
+      async (response) => {
+        try {
+          const data = response.notification.request.content.data as Record<string, unknown>;
+          const fileUri = data?.fileUri as string | undefined;
+          if (!fileUri) return;
+          if (Platform.OS === 'android') {
+            const contentUri = await (FileSystem as any).getContentUriAsync(fileUri);
+            await Linking.openURL(contentUri);
+          } else {
+            await Linking.openURL(fileUri);
+          }
+        } catch (e) {
+          console.warn('[layout] Failed to open file from notification:', e);
+        }
+      }
+    );
+    return () => {
+      notifListenerRef.current?.remove();
+    };
+  }, []);
 
   return (
     <>

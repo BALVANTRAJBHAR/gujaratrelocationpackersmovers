@@ -30,7 +30,7 @@ import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui'
 import { themes } from '@/constants/theme';
 import { searchPlaces, getCityCenter } from '@/lib/mapbox';
 import { getDashboardRoute } from '@/lib/role-routing';
-import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
+import { removeStaleRealtimeChannel, signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
@@ -627,24 +627,32 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     void fetchUnread();
 
     const channelName = `home-notification-unread-${userId}`;
+    removeStaleRealtimeChannel(channelName);
 
-    const existing = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`);
-    if (existing) supabase.removeChannel(existing);
-
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => {
-          void fetchUnread();
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+          () => {
+            void fetchUnread();
+          }
+        )
+        .subscribe((status, err) => {
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && err) {
+            console.warn(`[realtime] ${channelName} error:`, err);
+            void supabase.removeChannel(channel);
+          }
+        });
+    } catch (err) {
+      console.warn(`[realtime] failed to subscribe ${channelName}:`, err);
+    }
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [canManage, session?.user?.id]);
 
@@ -4357,13 +4365,22 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </XStack>
 
             <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2.5" marginTop={20}>
-              <Text
-                color={theme.textMuted}
-                fontSize={t(13)}
-                fontWeight="800"
-                style={{ fontFamily: APP_SERIF_FONT }}>
-                © 2026 Gujarat Relocation Packers. All Rights Reserved.
-              </Text>
+              <YStack gap="$1">
+                <Text
+                  color={theme.textMuted}
+                  fontSize={t(13)}
+                  fontWeight="800"
+                  style={{ fontFamily: APP_SERIF_FONT }}>
+                  © 2026 Gujarat Relocation Packers.
+                </Text>
+                <Text
+                  color={theme.textMuted}
+                  fontSize={t(13)}
+                  fontWeight="800"
+                  style={{ fontFamily: APP_SERIF_FONT }}>
+                  All Rights Reserved.
+                </Text>
+              </YStack>
               <XStack gap="$3.5" alignItems="center">
                 <Pressable
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('privacy') : undefined}

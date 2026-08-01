@@ -37,7 +37,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: (Platform.OS === 'web' || isMobile) ? { display: 'none' } : undefined,
+        tabBarStyle: { display: 'none' },
       }}>
       <Tabs.Screen
         key="tab-index"
@@ -50,74 +50,34 @@ export default function TabLayout() {
       <Tabs.Screen
         key="tab-bookings"
         name="bookings"
-        options={{
-          tabBarButton: (Platform.OS !== 'web' && !canSeeBookings) ? () => null : undefined,
-          title: 'Bookings',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
-        }}
+        options={{ title: 'Bookings', tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} /> }}
       />
       <Tabs.Screen
         key="tab-tracking"
         name="tracking"
-        options={{
-          title: 'Tracking',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="location.fill" color={color} />,
-        }}
+        options={{ title: 'Tracking', tabBarIcon: ({ color }) => <IconSymbol size={28} name="location.fill" color={color} /> }}
       />
-
       <Tabs.Screen
         key="tab-properties"
         name="properties"
-        options={{
-          tabBarButton: (Platform.OS !== 'web' && !canSeeProperties) ? () => null : undefined,
-          title: 'Properties',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="building.2.fill" color={color} />,
-        }}
+        options={{ title: 'Properties', tabBarIcon: ({ color }) => <IconSymbol size={28} name="building.2.fill" color={color} /> }}
       />
-
       <Tabs.Screen
         key="tab-home-service"
         name="home-service"
-        options={{
-          tabBarButton: (Platform.OS !== 'web' && !canSeeHomeService) ? () => null : undefined,
-          title: 'Home Service',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.and.screwdriver.fill" color={color} />,
-        }}
+        options={{ title: 'Home Service', tabBarIcon: ({ color }) => <IconSymbol size={28} name="wrench.and.screwdriver.fill" color={color} /> }}
       />
-
-      <Tabs.Screen
-        key="tab-explore-hidden"
-        name="explore"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        key="tab-admin-history-hidden"
-        name="admin-history"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen key="tab-explore-hidden" name="explore" options={{ href: null }} />
+      <Tabs.Screen key="tab-admin-history-hidden" name="admin-history" options={{ href: null }} />
       <Tabs.Screen
         key="tab-driver"
         name="driver"
-        options={{
-          tabBarButton: (Platform.OS !== 'web' && !canSeeDriver) ? () => null : undefined,
-          title: 'Driver',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="steeringwheel" color={color} />,
-        }}
+        options={{ title: 'Driver', tabBarIcon: ({ color }) => <IconSymbol size={28} name="steeringwheel" color={color} /> }}
       />
-
       <Tabs.Screen
         key="tab-admin"
         name="admin"
-        options={{
-          tabBarButton: (Platform.OS !== 'web' && !canSeeAdmin) ? () => null : undefined,
-          title: 'Admin',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
-        }}
+        options={{ title: 'Admin', tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} /> }}
       />
     </Tabs>
   );

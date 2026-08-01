@@ -71,6 +71,15 @@ export default function SupportChatScreen() {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<MessageRow> | null>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  const scrollToLatest = useCallback(() => {
+    try {
+      scrollRef.current?.scrollToEnd?.({ animated: true });
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const fetchConversation = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -190,17 +199,13 @@ export default function SupportChatScreen() {
         setText('');
         await fetchMessages();
         setTimeout(() => {
-          try {
-            (listRef.current as any)?.scrollToEnd?.({ animated: true });
-          } catch {
-            // ignore
-          }
-        }, 60);
+          scrollToLatest();
+        }, 100);
       } finally {
         setLoading(false);
       }
     },
-    [bookingId, conversation?.id, fetchConversation, fetchMessages, router, session?.user?.id, text]
+    [bookingId, conversation?.id, fetchConversation, fetchMessages, router, scrollToLatest, session?.user?.id, text]
   );
 
   const renderedMessages = useMemo(() => {
@@ -211,7 +216,13 @@ export default function SupportChatScreen() {
 
   return (
     <YStack flex={1} backgroundColor={theme.bg}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
+      <ScrollView
+        ref={scrollRef as any}
+        onContentSizeChange={() => {
+          // keep the latest AI response in view when new messages render
+          scrollToLatest();
+        }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={980} alignSelf="center">
           <YStack gap="$1">
             <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">

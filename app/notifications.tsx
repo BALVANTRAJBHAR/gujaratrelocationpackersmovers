@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { supabase } from '@/lib/supabase';
+import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
-  import { useAuthGuard } from '@/lib/auth-guard';
-  import { t } from '@/constants/typography';
-  import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import { useAuthGuard } from '@/lib/auth-guard';
+import { t } from '@/constants/typography';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 
 type NotificationRow = {
   id: string;
@@ -32,9 +32,6 @@ function NotificationsGuard() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
-  const [items, setItems] = useState<NotificationRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     if (authGuard.isLoading) return;
     if (!authGuard.isAuthenticated || authGuard.error === 'not_authenticated') {
@@ -43,7 +40,16 @@ function NotificationsGuard() {
       router.replace('/unauthorized' as any);
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+
+  if (authGuard.isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
+
+  if (!authGuard.isAuthenticated || authGuard.error) return null;
 
   return <NotificationsScreenInner session={session} />;
 }
@@ -55,6 +61,7 @@ export default function NotificationsScreen() {
 function NotificationsScreenInner({ session }: { session: any }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const router = useRouter();
 
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,19 +94,32 @@ function NotificationsScreenInner({ session }: { session: any }) {
   useEffect(() => {
     if (!userId) return;
 
-    const channel = supabase
-      .channel('notifications-inbox')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => {
-          void fetchNotifications();
-        }
-      )
-      .subscribe();
+    const channelName = 'notifications-inbox';
+    removeStaleRealtimeChannel(channelName);
+
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+          () => {
+            void fetchNotifications();
+          }
+        )
+        .subscribe((status, err) => {
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && err) {
+            console.warn(`[realtime] ${channelName} error:`, err);
+            void supabase.removeChannel(channel);
+          }
+        });
+    } catch (err) {
+      console.warn(`[realtime] failed to subscribe ${channelName}:`, err);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [fetchNotifications, userId]);
 
@@ -163,7 +183,7 @@ function NotificationsScreenInner({ session }: { session: any }) {
         data={items}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ paddingBottom: 40 } as any}
+        contentContainerStyle={{ paddingBottom: 120 } as any}
         ListEmptyComponent={
           <YStack padding={16} borderRadius={12} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
             <Text color={theme.textMuted}>{loading ? 'Loading…' : 'No notifications yet.'}</Text>

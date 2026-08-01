@@ -6,6 +6,8 @@ import { Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '@/constants/typography';
 import { signOutSupabaseSafe } from '@/lib/supabase';
+import { getDashboardRoute } from '@/lib/role-routing';
+import { useSession } from '@/providers/session-provider';
 
 const TABS = [
   { key: 'home', icon: 'home', label: 'Home' },
@@ -46,6 +48,7 @@ export default function MobileBottomNav({
   const router = useRouter();
   const segments = useSegments();
   const insets = useSafeAreaInsets();
+  const { profile } = useSession();
   const [activeTab, setActiveTab] = useState<string>('home');
   const [sheetOpen, setSheetOpen] = useState<string | null>(null);
 
@@ -69,8 +72,13 @@ export default function MobileBottomNav({
       try {
         if (!session) {
           router.replace('/auth/login' as any);
+        } else if (onDashboardPress) {
+          onDashboardPress();
         } else {
-          onDashboardPress ? onDashboardPress() : router.replace('/(tabs)/bookings' as any);
+          const role = profile?.role ?? session?.user?.user_metadata?.role ?? 'customer';
+          const providerSubtype = session?.user?.user_metadata?.provider_subtype ?? '';
+          const route = getDashboardRoute(role, providerSubtype, Platform.OS === 'web' ? 'web' : 'native');
+          router.replace(route as any);
         }
       } catch {
         // fallback: replace to home if navigation fails

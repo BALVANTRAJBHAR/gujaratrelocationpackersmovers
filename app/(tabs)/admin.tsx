@@ -1,9 +1,10 @@
 import { useAuthGuard } from '@/lib/auth-guard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
+import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Linking, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, NativeModules, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 let TextRecognition: any = null;
 try {
@@ -16,7 +17,7 @@ import MobileDatePicker from '@/components/MobileDatePicker';
 import RescheduleDialog from '@/components/RescheduleDialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
-import { supabase } from '@/lib/supabase';
+import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { t } from '@/constants/typography';
@@ -328,6 +329,7 @@ type BookingAdmin = {
   remaining_amount?: number | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
+  reschedule_date?: string | null;
   scheduled_at: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -526,6 +528,8 @@ type PropertyUploadAdmin = {
 
 function AdminGuardFallback() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const { isLoading: authLoading, isAuthenticated, error: authError } = useAuthGuard(['admin', 'staff']);
 
   useEffect(() => {
@@ -534,7 +538,14 @@ function AdminGuardFallback() {
     else if (authError === 'forbidden') router.replace('/unauthorized' as any);
   }, [authLoading, isAuthenticated, authError, router]);
 
-  if (authLoading || !isAuthenticated || authError) return null;
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
+  if (!isAuthenticated || authError) return null;
 
   return <AdminScreenInner />;
 }
@@ -579,20 +590,33 @@ function AdminScreenInner() {
 
     void fetchUnread();
 
-    const channel = supabase
-      .channel('admin-notification-unread')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => {
-          void fetchUnread();
-        }
-      )
-      .subscribe();
+    const channelName = 'admin-notification-unread';
+    removeStaleRealtimeChannel(channelName);
+
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+          () => {
+            void fetchUnread();
+          }
+        )
+        .subscribe((status, err) => {
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && err) {
+            console.warn(`[realtime] ${channelName} error:`, err);
+            void supabase.removeChannel(channel);
+          }
+        });
+    } catch (err) {
+      console.warn(`[realtime] failed to subscribe ${channelName}:`, err);
+    }
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [session?.user?.id]);
 
@@ -1325,11 +1349,28 @@ function AdminScreenInner() {
       URL.revokeObjectURL(url);
       return;
     }
-    const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-    const uri = `${baseDir}${fileName}`;
-    await FileSystem.writeAsStringAsync(uri, content, { encoding: 'utf8' as any });
-    await Share.share({ url: uri, title: fileName });
-    notifyDownloaded(fileName);
+    // Native: write to temp location then save to public Downloads folder
+    const baseDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
+    const tempUri = `${baseDir}${fileName}`;
+    await FileSystem.writeAsStringAsync(tempUri, content, { encoding: 'utf8' as any });
+    const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string): Promise<string> } | undefined;
+    if (Platform.OS === 'android' && nativePdfDownloader) {
+      const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
+      // Fire a local notification so user can tap to open the file
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Download complete',
+          body: `${fileName} saved to Downloads. Tap to open.`,
+          data: { fileUri: savedPath || tempUri },
+        },
+        trigger: null,
+      });
+      ToastAndroid.show(`Saved to Downloads: ${fileName}`, ToastAndroid.LONG);
+    } else {
+      // iOS fallback: share the file
+      await Share.share({ url: tempUri, title: fileName });
+      notifyDownloaded(fileName);
+    }
   };
 
   const downloadPdfFile = async (fileName: string, html: string) => {
@@ -2663,7 +2704,7 @@ function AdminScreenInner() {
       let query = supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_at, created_at, updated_at, user:users!user_id!inner(name, phone, email), driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_date, scheduled_time, reschedule_date, scheduled_at, created_at, updated_at, user:users!user_id!inner(name, phone, email), driver:users!driver_id(name)'
         )
         .order('created_at', { ascending: false });
 
@@ -2826,7 +2867,7 @@ function AdminScreenInner() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={{ padding: 24, paddingBottom: 40 } as any}
+      contentContainerStyle={{ padding: 24, paddingBottom: 120 } as any}
       keyboardShouldPersistTaps="handled">
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap="$3">
@@ -2907,7 +2948,7 @@ function AdminScreenInner() {
         </XStack>
 
         <YStack gap="$2">
-          <XStack gap="$2" flexWrap="wrap" justifyContent="flex-start">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
             {[
               { label: 'Bookings', value: 'bookings' },
               { label: 'Home Services', value: 'home_services' },
@@ -2929,7 +2970,7 @@ function AdminScreenInner() {
                 {tab.label}
               </Button>
             ))}
-          </XStack>
+          </ScrollView>
         </YStack>
 
         {!canManage ? (
@@ -3420,7 +3461,7 @@ function AdminScreenInner() {
                       flexBasis={200}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} style={{ marginBottom: 2 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                     {([
                       { label: 'All', value: 'all', count: properties.length },
                       { label: 'Draft', value: 'draft', count: properties.filter((p) => String(p.status ?? '') === 'draft').length },
@@ -3445,7 +3486,7 @@ function AdminScreenInner() {
                       disabled={loading}>
                       Refresh
                     </Button>
-                  </XStack>
+                  </ScrollView>
                   <MobileDatePicker value={propStartPickerValue} open={propStartDatePickerOpen} onClose={() => setPropStartDatePickerOpen(false)} onChange={(d) => { setPropStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={propEndPickerValue} open={propEndDatePickerOpen} onClose={() => setPropEndDatePickerOpen(false)} onChange={(d) => { setPropEndDate(isoDay(d)); }} />
                 </YStack>
@@ -3724,7 +3765,7 @@ function AdminScreenInner() {
                       flexBasis={200}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} style={{ marginBottom: 2 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                     {([
                       { label: 'All', value: 'all', count: propBookings.length },
                       { label: 'Pending', value: 'pending', count: propBookings.filter((pb) => String(pb.status ?? '') === 'pending').length },
@@ -3743,7 +3784,7 @@ function AdminScreenInner() {
                     ))}
                     <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                       onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
-                  </XStack>
+                  </ScrollView>
                   <MobileDatePicker value={propBookingStartPickerValue} open={propBookingStartDatePickerOpen} onClose={() => setPropBookingStartDatePickerOpen(false)} onChange={(d) => { setPropBookingStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={propBookingEndPickerValue} open={propBookingEndDatePickerOpen} onClose={() => setPropBookingEndDatePickerOpen(false)} onChange={(d) => { setPropBookingEndDate(isoDay(d)); }} />
                 </YStack>
@@ -4592,7 +4633,7 @@ function AdminScreenInner() {
                       flexBasis={220}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} style={{ marginBottom: 2 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                     {(() => {
                       const counts = bookingStatusCounts;
                       const sum = Object.values(counts).reduce((acc, n) => acc + n, 0);
@@ -4624,7 +4665,7 @@ function AdminScreenInner() {
                           {filter.label} ({filter.count})
                         </Button>
                       ))}
-                  </XStack>
+                  </ScrollView>
                   <MobileDatePicker value={bookingStartPickerValue} open={bookingStartDatePickerOpen} onClose={() => setBookingStartDatePickerOpen(false)} onChange={(d) => { setBookingStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={bookingEndPickerValue} open={bookingEndDatePickerOpen} onClose={() => setBookingEndDatePickerOpen(false)} onChange={(d) => { setBookingEndDate(isoDay(d)); }} />
                 </YStack>
@@ -4635,10 +4676,11 @@ function AdminScreenInner() {
                   const remaining = typeof item.remaining_amount === 'number' ? item.remaining_amount : null;
                   const paymentModeLabel = remaining !== null ? (remaining <= 0 ? 'Full' : 'Advance') : null;
                   const paidAmount = typeof item.advance_amount === 'number' ? item.advance_amount : null;
-                  const canUpdateBooking = item.status !== 'cancelled' && item.status !== 'rescheduled';
+                  const canUpdateBooking = item.status !== 'cancelled' && item.status !== 'delivered';
                   const currentDriverId = (item as any).driver_id ?? null;
                   const hasAssignedDriver = Boolean(currentDriverId);
-                  const canAssign = canUpdateBooking;
+                  const hasStarted = ['pickup_reached', 'in_transit', 'delivered'].includes(item.status ?? '');
+                  const canAssign = canUpdateBooking && !hasStarted;
                   const statusText = String(item.status ?? '—').replaceAll('_', ' ');
                   const statusColor =
                     item.status === 'assigned'
@@ -4658,70 +4700,83 @@ function AdminScreenInner() {
                       borderColor={theme.border}
                       borderWidth={1}>
                       <YStack gap="$1">
-                        <Text color={theme.text} fontWeight="800" fontSize={t(16)}>
-                          {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
-                        </Text>
-                        <Text color={theme.textMuted} fontSize={t(14)}>
+                        <YStack gap={2}>
+                          <Text color="#EF4444" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
+                            🔴 From: {item.pickup_address ?? 'Pickup address'}
+                          </Text>
+                          <Text color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
+                            🟢 To: {item.drop_address ?? 'Drop address'}
+                          </Text>
+                        </YStack>
+                        <Text color={theme.textMuted} fontSize={t(13)}>
                           User: {user.name ?? '—'} • {user.phone ?? '—'} • {user.email ?? '—'}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={t(14)}>
+                        <Text color={theme.textMuted} fontSize={t(13)}>
                           Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={t(14)}>
-                          Shifting: {item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}
+                        <Text color={theme.textMuted} fontSize={t(13)}>
+                          {item.status === 'rescheduled' || item.reschedule_date ? 'Rescheduled Shifting' : 'Shifting'}: {item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}
                         </Text>
                       </YStack>
 
                       {renderBookingStepper(item.status)}
 
-                      <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                        <Button
-                          size="$2"
-                          backgroundColor={theme.bgCardSecondary}
-                          color={theme.text}
-                          borderRadius={10}
-                          minWidth={90}
-                          pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
-                          disabled={bookingUploadsBusyId === item.id}
-                          onPress={async () => {
-                            const nextOpen = bookingUploadsOpenId === item.id ? null : item.id;
-                            setBookingUploadsOpenId(nextOpen);
-                            if (nextOpen) await fetchBookingUploads(item.id);
-                          }}>
-                          {bookingUploadsOpenId === item.id ? 'Hide media' : 'Media'}
-                        </Button>
-                        {canUpdateBooking ? (
-                          <XStack gap="$2" flexWrap="wrap" alignItems="center">
-                            <Button
-                              size="$2"
-                              backgroundColor={theme.bgCardSecondary}
-                              color={theme.text}
-                              borderRadius={10}
-                              minWidth={100}
-                              pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
-                              disabled={loading || assignDriverBusy === item.id}
-                              onPress={() => setAssigningBookingId((prev) => (prev === item.id ? null : item.id))}>
-                              Assign driver
-                            </Button>
-                            {hasAssignedDriver ? (
+                      <YStack gap="$2">
+                        {/* Row 1: Media + Assign/Unassign */}
+                        <XStack gap="$2" flexWrap="nowrap" alignItems="center">
+                          <Button
+                            size="$2"
+                            backgroundColor={theme.bgCardSecondary}
+                            color={theme.text}
+                            borderRadius={10}
+                            flex={1}
+                            pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
+                            disabled={bookingUploadsBusyId === item.id}
+                            onPress={async () => {
+                              const nextOpen = bookingUploadsOpenId === item.id ? null : item.id;
+                              setBookingUploadsOpenId(nextOpen);
+                              if (nextOpen) await fetchBookingUploads(item.id);
+                            }}>
+                            {bookingUploadsOpenId === item.id ? 'Hide media' : 'Media'}
+                          </Button>
+                          {canUpdateBooking && canAssign ? (
+                            <>
                               <Button
                                 size="$2"
-                                backgroundColor={theme.danger}
-                                color="#FFFFFF"
+                                backgroundColor={theme.bgCardSecondary}
+                                color={theme.text}
                                 borderRadius={10}
-                                minWidth={80}
-                                pressStyle={{ opacity: 0.8 }}
-                                onPress={() => assignDriverToBooking(item.id, null, currentDriverId)}
-                                disabled={loading || assignDriverBusy === item.id}>
-                                Unassign
+                                flex={1}
+                                pressStyle={{ opacity: 0.8, backgroundColor: theme.border }}
+                                disabled={loading || assignDriverBusy === item.id}
+                                onPress={() => setAssigningBookingId((prev) => (prev === item.id ? null : item.id))}>
+                                Assign driver
                               </Button>
-                            ) : null}
+                              {hasAssignedDriver ? (
+                                <Button
+                                  size="$2"
+                                  backgroundColor={theme.danger}
+                                  color="#FFFFFF"
+                                  borderRadius={10}
+                                  flex={1}
+                                  pressStyle={{ opacity: 0.8 }}
+                                  onPress={() => assignDriverToBooking(item.id, null, currentDriverId)}
+                                  disabled={loading || assignDriverBusy === item.id}>
+                                  Unassign
+                                </Button>
+                              ) : null}
+                            </>
+                          ) : null}
+                        </XStack>
+                        {/* Row 2: Track + Cancel + Reschedule */}
+                        {canUpdateBooking ? (
+                          <XStack gap="$2" flexWrap="nowrap" alignItems="center">
                             <Button
                               size="$2"
                               backgroundColor={theme.info}
                               color="#FFFFFF"
                               borderRadius={10}
-                              minWidth={90}
+                              flex={1}
                               pressStyle={{ opacity: 0.8 }}
                               onPress={() =>
                                 router.push({
@@ -4736,7 +4791,7 @@ function AdminScreenInner() {
                               backgroundColor={theme.danger}
                               color="#FFFFFF"
                               borderRadius={10}
-                              minWidth={90}
+                              flex={1}
                               pressStyle={{ opacity: 0.8 }}
                               onPress={() => updateBookingStatus(item.id, 'cancelled')}>
                               Cancel
@@ -4746,16 +4801,16 @@ function AdminScreenInner() {
                               backgroundColor={theme.accent}
                               color="#FFFFFF"
                               borderRadius={10}
-                              minWidth={100}
+                              flex={1}
                               pressStyle={{ opacity: 0.8 }}
                               onPress={() => setRescheduleDialogId(item.id)}>
                               Reschedule
                             </Button>
                           </XStack>
                         ) : null}
-                      </XStack>
+                      </YStack>
 
-                      {canUpdateBooking && assigningBookingId === item.id ? (
+                      {canAssign && assigningBookingId === item.id ? (
                         <YStack
                           backgroundColor={theme.bgCardSecondary}
                           borderRadius={14}
@@ -4916,36 +4971,42 @@ function AdminScreenInner() {
                     const unpaid = homeServiceRequests.filter((r) => r.payment_status === 'pending' || !r.payment_status).length;
                     const withCharge = homeServiceRequests.filter((r) => r.payment_status === 'cancelled_with_charge').length;
                     return (
-                      <XStack gap="$2" flexWrap="wrap" marginTop={4}>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.text} fontWeight="900" fontSize={t(17)}>{total}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Total</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.warning} fontWeight="900" fontSize={t(17)}>{pending}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Pending</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.success} fontWeight="900" fontSize={t(17)}>{completed}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Completed</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.danger} fontWeight="900" fontSize={t(17)}>{cancelled}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Cancelled</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.success} fontWeight="900" fontSize={t(17)}>{paid}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Paid</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.warning} fontWeight="900" fontSize={t(17)}>{unpaid}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>Unpaid</Text>
-                        </YStack>
-                        <YStack bg={theme.bgCardSecondary} borderRadius={10} px="$2.5" py="$1.5" alignItems="center" minWidth={60}>
-                          <Text color={theme.primary} fontWeight="900" fontSize={t(17)}>{withCharge}</Text>
-                          <Text color={theme.textMuted} fontSize={t(12)}>₹150 Chrg</Text>
-                        </YStack>
-                      </XStack>
+                      <YStack gap="$2" marginTop={4}>
+                        {/* Row 1: Total, Pending, Completed, Cancelled */}
+                        <XStack gap="$2">
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.text} fontWeight="900" fontSize={t(16)}>{total}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Total</Text>
+                          </YStack>
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{pending}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Pending</Text>
+                          </YStack>
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{completed}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Completed</Text>
+                          </YStack>
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.danger} fontWeight="900" fontSize={t(16)}>{cancelled}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Cancelled</Text>
+                          </YStack>
+                        </XStack>
+                        {/* Row 2: Paid, Unpaid, ₹150 Chrg */}
+                        <XStack gap="$2">
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{paid}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Paid</Text>
+                          </YStack>
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{unpaid}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>Unpaid</Text>
+                          </YStack>
+                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                            <Text color={theme.primary} fontWeight="900" fontSize={t(16)}>{withCharge}</Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>₹150 Chrg</Text>
+                          </YStack>
+                        </XStack>
+                      </YStack>
                     );
                   })()}
 
@@ -5050,7 +5111,7 @@ function AdminScreenInner() {
                       flexBasis={200}
                     />
                   </XStack>
-                  <XStack gap="$2" flexWrap="wrap">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} style={{ marginBottom: 2 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                     {(() => {
                       const sum = Object.values(hsStatusCounts).reduce((acc, n) => acc + n, 0);
                       return [
@@ -5085,7 +5146,7 @@ function AdminScreenInner() {
                       disabled={loading}>
                       Refresh
                     </Button>
-                  </XStack>
+                  </ScrollView>
                 </YStack>
 
                 {homeServiceRequests.map((r) => {
@@ -5379,7 +5440,7 @@ function AdminScreenInner() {
                       flexGrow={2}
                       flexBasis={220}
                     />
-                    <XStack gap="$1" flexWrap="wrap">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} style={{ marginBottom: 2 }} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                       {(() => {
                         const countFor = (statuses: string[]) =>
                           quoteRequests.filter((q) => {
@@ -5404,7 +5465,7 @@ function AdminScreenInner() {
                             {filter.label} ({filter.count})
                           </Button>
                         ))}
-                    </XStack>
+                    </ScrollView>
                   </XStack>
                   <XStack gap="$2" flexWrap="wrap">
                     <Button

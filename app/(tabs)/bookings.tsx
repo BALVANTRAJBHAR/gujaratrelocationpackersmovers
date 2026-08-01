@@ -8,7 +8,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
-import { supabase } from '@/lib/supabase';
+import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -245,6 +245,8 @@ function BookingsContent() {
   const [hsStartPickerValue, setHsStartPickerValue] = useState<Date>(new Date());
   const [hsEndDatePickerOpen, setHsEndDatePickerOpen] = useState(false);
   const [hsEndPickerValue, setHsEndPickerValue] = useState<Date>(new Date());
+  const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
+  const [hsStatusBusyId, setHsStatusBusyId] = useState<string | null>(null);
   const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
   const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
   const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
@@ -522,6 +524,62 @@ function BookingsContent() {
     setLoading(false);
   };
 
+  const updateHomeServiceRequestStatus = async (
+    requestId: string,
+    status: 'cancelled' | 'rescheduled',
+    overrides?: { preferred_date?: string; preferred_time?: string; reschedule_date?: string }
+  ) => {
+    if (!session?.user?.id) return;
+    setErrorBookings(null);
+    setHsStatusBusyId(requestId);
+    try {
+      const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+      if (status === 'rescheduled') {
+        payload.reschedule_date = overrides?.reschedule_date ?? null;
+        if (overrides?.preferred_date) payload.preferred_date = overrides.preferred_date;
+        if (overrides?.preferred_time) payload.preferred_time = overrides.preferred_time;
+      }
+      const { error: updateError } = await supabase
+        .from('home_service_requests')
+        .update(payload)
+        .eq('id', requestId)
+        .eq('user_id', session.user.id);
+      if (updateError) {
+        setErrorBookings(updateError.message);
+        return;
+      }
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: {
+            request_id: requestId,
+            status,
+            send_email: status === 'rescheduled',
+            new_date: overrides?.preferred_date ?? undefined,
+            new_time: overrides?.preferred_time ?? undefined,
+          },
+        });
+      } catch {
+        // ignore
+      }
+      await fetchHomeServiceRequests();
+    } catch (e) {
+      setErrorBookings(e instanceof Error ? e.message : String(e));
+    } finally {
+      setHsStatusBusyId(null);
+    }
+  };
+
+  const confirmHomeServiceCancel = (requestId: string) => {
+    Alert.alert('Cancel home service?', 'This will cancel your home service request. Continue?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes',
+        style: 'destructive',
+        onPress: () => void updateHomeServiceRequestStatus(requestId, 'cancelled'),
+      },
+    ]);
+  };
+
   const createBookingsCsvFile = async () => {
     if (!filteredBookings.length) return;
     const headers = ['pickup', 'drop', 'distance_km', 'status', 'payment_status', 'created_at'];
@@ -653,26 +711,39 @@ function BookingsContent() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    const channel = supabase
-      .channel(`bookings-user-${session.user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `user_id=eq.${session.user.id}` },
-        (payload) => {
-          const next: any = (payload as any).new;
-          const prev: any = (payload as any).old;
-          const nextStatus = String(next?.status ?? '');
-          const prevStatus = String(prev?.status ?? '');
-          if (nextStatus && nextStatus !== prevStatus && (nextStatus === 'cancelled' || nextStatus === 'rescheduled')) {
-            Alert.alert('Booking updated', `Your booking was ${nextStatus}.`);
+    const channelName = `bookings-user-${session.user.id}`;
+    removeStaleRealtimeChannel(channelName);
+
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `user_id=eq.${session.user.id}` },
+          (payload) => {
+            const next: any = (payload as any).new;
+            const prev: any = (payload as any).old;
+            const nextStatus = String(next?.status ?? '');
+            const prevStatus = String(prev?.status ?? '');
+            if (nextStatus && nextStatus !== prevStatus && (nextStatus === 'cancelled' || nextStatus === 'rescheduled')) {
+              Alert.alert('Booking updated', `Your booking was ${nextStatus}.`);
+            }
+            void fetchBookings();
           }
-          void fetchBookings();
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status, err) => {
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && err) {
+            console.warn(`[realtime] ${channelName} error:`, err);
+            void supabase.removeChannel(channel);
+          }
+        });
+    } catch (err) {
+      console.warn(`[realtime] failed to subscribe ${channelName}:`, err);
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
@@ -1299,6 +1370,21 @@ function BookingsContent() {
                       : 'Share Report'}
                   </Button>
                 </XStack>
+                {r.status === 'pending' || r.status === 'assigned' ? (
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button size="$2" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={10}
+                      disabled={hsStatusBusyId === r.id}
+                      onPress={() => confirmHomeServiceCancel(r.id)}>
+                      Cancel
+                    </Button>
+                    <Button size="$2" backgroundColor={theme.bgCard} borderWidth={1} borderColor={theme.border}
+                      color={theme.text} borderRadius={10}
+                      disabled={hsStatusBusyId === r.id}
+                      onPress={() => setHsRescheduleDialogId(r.id)}>
+                      Reschedule
+                    </Button>
+                  </XStack>
+                ) : null}
               </YStack>
             );
           })}
@@ -1306,6 +1392,22 @@ function BookingsContent() {
       </ScrollView>
       <MobileDatePicker value={hsStartPickerValue} open={hsStartDatePickerOpen} onClose={() => setHsStartDatePickerOpen(false)} onChange={(d) => { setHsStartDate(formatDate(d)); }} />
       <MobileDatePicker value={hsEndPickerValue} open={hsEndDatePickerOpen} onClose={() => setHsEndDatePickerOpen(false)} onChange={(d) => { setHsEndDate(formatDate(d)); }} />
+      <RescheduleDialog
+        open={!!hsRescheduleDialogId}
+        title="Reschedule service"
+        confirmLabel="Reschedule service"
+        onClose={() => setHsRescheduleDialogId(null)}
+        onConfirm={(day, timeLabel) => {
+          const requestId = hsRescheduleDialogId;
+          setHsRescheduleDialogId(null);
+          const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+          void updateHomeServiceRequestStatus(requestId ?? '', 'rescheduled', {
+            preferred_date: day,
+            preferred_time: timeLabel,
+            reschedule_date: iso,
+          });
+        }}
+      />
     </>
   );
 };

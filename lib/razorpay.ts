@@ -1,3 +1,37 @@
+/**
+ * Safely extract a human-readable string from any error value.
+ * Handles: Error instances, plain objects (Razorpay error shape), nested objects, strings.
+ */
+const extractErrorMessage = (value: unknown): string => {
+  if (!value) return '';
+  // Standard JS Error
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    const v = value as Record<string, unknown>;
+    // Razorpay error object: { code, description, reason, field, source, step, metadata }
+    // description can itself be an object
+    const desc = v.description;
+    if (desc) {
+      if (typeof desc === 'string') return desc;
+      if (typeof desc === 'object') {
+        const d = desc as Record<string, unknown>;
+        return String(d.reason || d.message || d.error || JSON.stringify(desc));
+      }
+    }
+    // Try common message fields
+    const direct = v.message || v.error || v.reason || v.detail || v.msg;
+    if (direct) {
+      if (typeof direct === 'string') return direct;
+      if (typeof direct === 'object') return JSON.stringify(direct);
+      return String(direct);
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
 const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> => {
   const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -35,14 +69,21 @@ const invokeEdgeFunction = async <T,>(name: string, body: unknown): Promise<T> =
     }
 
     if (!res.ok) {
-      const msg = parsed?.error || parsed?.message || text || `Edge Function error (${res.status})`;
+      // parsed?.error may itself be a nested object (Razorpay API error shape)
+      const errPayload = parsed?.error ?? parsed?.message ?? parsed;
+      const msg = extractErrorMessage(errPayload) || text || `Edge Function error (${res.status})`;
       throw new Error(`(${res.status}) ${msg}`);
     }
 
     return parsed as T;
   } catch (e: any) {
-    const msg = e?.name === 'AbortError' ? 'Timeout calling payment service. Please try again.' : e?.message;
-    throw new Error(msg || 'Payment service failed.');
+    if (e?.name === 'AbortError') {
+      throw new Error('Timeout calling payment service. Please try again.');
+    }
+    // Re-throw already formatted Error objects unchanged
+    if (e instanceof Error) throw e;
+    // Unexpected non-Error throw
+    throw new Error(extractErrorMessage(e) || 'Payment service failed.');
   } finally {
     clearTimeout(timeout);
   }

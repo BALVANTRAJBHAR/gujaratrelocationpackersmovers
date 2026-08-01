@@ -426,6 +426,7 @@ export default function LoginScreen() {
     placeholderTextColor: theme.textMuted as const,
     fontFamily: 'Times New Roman' as const,
     fontSize: 16,
+    borderRadius: 9 as const,
   };
 
   const title = useMemo(() => {
@@ -958,7 +959,7 @@ export default function LoginScreen() {
           ) : null}
 
           {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
-            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={20} paddingRight={12} gap="$2">
+            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={9} paddingRight={4} overflow="hidden">
               <Input
                 {...commonInputProps}
                 flex={1}
@@ -966,11 +967,11 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 placeholder="Password"
+                borderWidth={0}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
-                style={{ padding: 8, justifyContent: 'center', alignItems: 'center' } as any}>
-                <MaterialIcons
+                style={{ padding: 8, borderRadius: 9, justifyContent: 'center', alignItems: 'center' } as any}>                <MaterialIcons
                   name={showPassword ? 'visibility-off' : 'visibility'}
                   size={22}
                   color={theme.text}
@@ -990,7 +991,7 @@ export default function LoginScreen() {
                 placeholder="Enter new password"
                 borderWidth={1}
                 borderColor={theme.border}
-                borderRadius={6}
+                borderRadius={9}
                 paddingHorizontal={12}
               />
             </YStack>
