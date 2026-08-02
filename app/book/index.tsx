@@ -11,6 +11,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import BookingMapPicker from '@/components/booking-map-picker';
+import PageHeader from '@/components/PageHeader';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/mapbox';
@@ -1894,31 +1895,7 @@ export default function BookingWizardScreen() {
 
   return (
     <YStack flex={1} backgroundColor={theme.bg}>
-      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={insets.top + 16}>
-        <XStack alignItems="center" justifyContent="center" position="relative">
-          <Button
-            size="$3"
-            chromeless
-            color="#FFFFFF"
-            position="absolute"
-            left={0}
-            fontSize={36}
-            fontWeight="900"
-            onPress={() => {
-              handleBack();
-            }}>
-            ‹
-          </Button>
-          <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={t(18)} fontWeight="800">
-              Book Your Move
-            </Text>
-            <Text color="#CFE3F4" fontSize={t(14)} fontWeight="600">
-              Step {stepIndex + 1} of 5
-            </Text>
-          </YStack>
-        </XStack>
-      </YStack>
+      <PageHeader dark title="Book Your Move" subtitle={`Step ${stepIndex + 1} of 5`} onBack={handleBack} />
 
       <YStack backgroundColor={theme.bgCard} padding={14} borderBottomWidth={1} borderBottomColor={theme.border}>
         <XStack justifyContent="space-between" alignItems="center">

@@ -350,6 +350,24 @@ export default function StickyHeader({
                   </MenuBtn>
                 ) : null}
 
+                {session ? (
+                  <MenuBtn id="refer" hovered={headerHovered} setHovered={setHeaderHovered} onPress={() => router.push('/refer-and-earn')} theme={theme}>
+                    <FontAwesome name="gift" size={14} color="#F59E0B" />
+                    <Text color="#F59E0B" fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Refer & Earn
+                    </Text>
+                  </MenuBtn>
+                ) : null}
+
+                {session ? (
+                  <MenuBtn id="wallet" hovered={headerHovered} setHovered={setHeaderHovered} onPress={() => router.push('/wallet')} theme={theme}>
+                    <FontAwesome name="credit-card" size={14} color={menuTextColor} />
+                    <Text color={menuTextColor} fontSize={menuFontSize} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT, textDecorationLine: 'none' }}>
+                      Wallet
+                    </Text>
+                  </MenuBtn>
+                ) : null}
+
                 {session && onProfilePress ? (
                   <MenuBtn id="profile" hovered={headerHovered} setHovered={setHeaderHovered} onPress={onProfilePress} theme={theme}>
                     <FontAwesome name="user" size={14} color={menuTextColor} />

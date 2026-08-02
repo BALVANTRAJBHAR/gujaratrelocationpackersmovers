@@ -1,3 +1,4 @@
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MobileDatePicker from '@/components/MobileDatePicker';
+import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
@@ -159,6 +161,19 @@ const homeServiceLabel = (key: string) => {
   if (k === 'painting') return 'Painting';
   if (k === 'ro') return 'RO Service';
   return key;
+};
+
+const homeServiceIcon = (key: string): string => {
+  const k = String(key ?? '').toLowerCase();
+  if (k === 'ac') return 'wind';
+  if (k === 'carpenter') return 'hammer';
+  if (k === 'electrician') return 'bolt';
+  if (k === 'plumber') return 'wrench';
+  if (k === 'pest') return 'bug';
+  if (k === 'cleaning') return 'broom';
+  if (k === 'painting') return 'paint-roller';
+  if (k === 'ro') return 'tint';
+  return 'tools';
 };
 
 const STATUS_COLORS_HS: Record<string, string> = {
@@ -505,7 +520,7 @@ function BookingsContent() {
 
     const { error: updateError } = await supabase
       .from('bookings')
-      .update(payload)
+      .update(payload as any)
       .eq('id', bookingId)
       .eq('user_id', session.user.id);
 
@@ -880,6 +895,7 @@ function BookingsContent() {
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
+          extraData={bookings}
           data={(() => {
             const base = bookings.filter((b) => b.status !== 'cancelled');
             return [
@@ -897,10 +913,11 @@ function BookingsContent() {
             <Button
               size="$2"
               backgroundColor={statusFilter === item.value ? theme.accent : theme.bgCardSecondary}
-              color={statusFilter === item.value ? '#FFFFFF' : theme.inputText}
               borderRadius={999}
               onPress={() => setStatusFilter(item.value as typeof statusFilter)}>
-              {item.label} ({item.count})
+              <Text color={statusFilter === item.value ? '#FFFFFF' : theme.inputText} fontSize={t(12)} fontWeight="700">
+                {`${item.label} (${item.count})`}
+              </Text>
             </Button>
           )}
         />
@@ -919,40 +936,45 @@ function BookingsContent() {
         renderItem={({ item }) => (
           <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.text} fontWeight="700" fontSize={t(15)}>
-                {item.pickup_address ?? 'Pickup'} → {item.drop_address ?? 'Drop'}
-              </Text>
-              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
+              <YStack flex={1} gap={2} marginRight={8}>
+                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
+                  🔴 From: {item.pickup_address ?? 'Pickup'}
+                </Text>
+                <Text color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
+                  🟢 To: {item.drop_address ?? 'Drop'}
+                </Text>
+              </YStack>
+              <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase" fontWeight="700">
                 {item.status ?? 'pending'}
               </Text>
             </XStack>
             {renderStatusStepper(item.status)}
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={t(13)}>Shifting</Text>
+              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Shifting</Text>
               <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">
                 {item.scheduled_date ? formatDateDDMMYYYY(item.scheduled_date) : '—'}
                 {item.scheduled_time ? `, ${item.scheduled_time}` : ''}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={t(13)}>Payment</Text>
+              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Payment</Text>
               <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
                 {item.payment_status ?? 'pending'}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={t(13)}>Paid</Text>
+              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Paid</Text>
               <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color={theme.textMuted} fontSize={t(13)}>Updated</Text>
+              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Updated</Text>
               <Text color={theme.inputText} fontSize={t(13)}>
                 {formatDateTimeDDMMYYYY(item.updated_at ?? item.created_at)}
               </Text>
             </XStack>
             {item.driver_id ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color={theme.textMuted} fontSize={t(13)}>Driver</Text>
+                <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Driver</Text>
                 <Text color={theme.inputText} fontSize={t(13)}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
               </XStack>
             ) : null}
@@ -1255,6 +1277,7 @@ function BookingsContent() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
+            extraData={homeServiceItems}
             data={(() => {
               const countByStatus = (s: string) => homeServiceItems.filter((x) => String(x.status ?? '') === s).length;
               return [
@@ -1272,10 +1295,11 @@ function BookingsContent() {
               <Button
                 size="$2"
                 backgroundColor={hsStatusFilter === item.value ? theme.accent : theme.bgCardSecondary}
-                color={hsStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
                 borderRadius={999}
                 onPress={() => setHsStatusFilter(item.value as typeof hsStatusFilter)}>
-                {item.label} ({item.count})
+                <Text color={hsStatusFilter === item.value ? '#FFFFFF' : theme.inputText} fontSize={t(12)} fontWeight="700">
+                  {`${item.label} (${item.count})`}
+                </Text>
               </Button>
             )}
           />
@@ -1293,15 +1317,39 @@ function BookingsContent() {
             return (
               <YStack key={r.id} backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{homeServiceLabel(r.service_key ?? '')}</Text>
+                  <XStack gap={8} alignItems="center">
+                    <FontAwesome5 name={homeServiceIcon(r.service_key ?? '')} size={15} color={theme.accent} />
+                    <Text color={theme.text} fontWeight="700" fontSize={t(15)}>{homeServiceLabel(r.service_key ?? '')}</Text>
+                  </XStack>
                   <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
                 </XStack>
-                <Text color={theme.textMuted} fontSize={t(13)}>Location: {loc}</Text>
-                <Text color={theme.textMuted} fontSize={t(13)}>Slot: {slot}</Text>
-                {r.notes ? <Text color={theme.textMuted} fontSize={t(13)}>Notes: {r.notes}</Text> : null}
-                {r.provider_name ? <Text color={theme.textMuted} fontSize={t(13)}>Provider: {r.provider_name}</Text> : null}
-                {r.payment_option ? <Text color={theme.textMuted} fontSize={t(13)}>Payment: {r.payment_option}</Text> : null}
-                <XStack gap="$2" flexWrap="wrap">
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Location</Text>
+                  <Text color={theme.inputText} fontSize={t(13)} numberOfLines={1}>{loc}</Text>
+                </XStack>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Slot</Text>
+                  <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">{slot}</Text>
+                </XStack>
+                {r.notes ? (
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Notes</Text>
+                    <Text color={theme.inputText} fontSize={t(13)} numberOfLines={1}>{r.notes}</Text>
+                  </XStack>
+                ) : null}
+                {r.provider_name ? (
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Provider</Text>
+                    <Text color={theme.inputText} fontSize={t(13)}>{r.provider_name}</Text>
+                  </XStack>
+                ) : null}
+                {r.payment_option ? (
+                  <XStack justifyContent="space-between" alignItems="center">
+                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Payment</Text>
+                    <Text color={theme.inputText} fontSize={t(13)} textTransform="uppercase">{r.payment_option}</Text>
+                  </XStack>
+                ) : null}
+                <XStack gap="$2" flexWrap="wrap" marginTop={4}>
                   <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                     disabled={!!pdfBusy}
                     onPress={async () => {
@@ -1471,6 +1519,7 @@ const renderPropertiesSection = () => {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
+            extraData={propertyBookings.length + myProperties.length}
             data={(() => {
               const countByStatus = (s: string) =>
                 propertyBookings.filter((pb) => String(pb.status ?? '') === s).length +
@@ -1488,10 +1537,11 @@ const renderPropertiesSection = () => {
               <Button
                 size="$2"
                 backgroundColor={propStatusFilter === item.value ? theme.accent : theme.bgCardSecondary}
-                color={propStatusFilter === item.value ? '#FFFFFF' : theme.inputText}
                 borderRadius={999}
                 onPress={() => setPropStatusFilter(item.value as typeof propStatusFilter)}>
-                {item.label} ({item.count})
+                <Text color={propStatusFilter === item.value ? '#FFFFFF' : theme.inputText} fontSize={t(12)} fontWeight="700">
+                  {`${item.label} (${item.count})`}
+                </Text>
               </Button>
             )}
           />
@@ -1532,6 +1582,22 @@ const renderPropertiesSection = () => {
                               </Text>
                               {prop?.price != null ? (
                                 <Text color={theme.success} fontWeight="600" fontSize={t(14)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text>
+                              ) : null}
+                              {isOwner && (pb.contact_name || pb.contact_phone) ? (
+                                <XStack gap={4} alignItems="center" flexWrap="wrap" marginTop={4}>
+                                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Contact:</Text>
+                                  <Text color={theme.text} fontSize={t(13)}>{pb.contact_name ?? '—'}</Text>
+                                  {pb.contact_phone ? (
+                                    <>
+                                      <Text color={theme.textMuted} fontSize={t(13)}> · </Text>
+                                      <Pressable onPress={() => Linking.openURL(`tel:${pb.contact_phone}`)}>
+                                        <Text color="#3B82F6" fontWeight="700" fontSize={t(13)} style={{ textDecorationLine: 'underline' }}>
+                                          {pb.contact_phone}
+                                        </Text>
+                                      </Pressable>
+                                    </>
+                                  ) : null}
+                                </XStack>
                               ) : null}
                             </YStack>
                             <YStack alignItems="flex-end" gap={6}>
@@ -1639,20 +1705,37 @@ const renderPropertiesSection = () => {
   return (
     <YStack flex={1} backgroundColor={theme.bg} padding={24}>
       <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} style={{ minHeight: 0 }}>
-        <XStack gap="$2" flexWrap="wrap" justifyContent="center" marginBottom={8}>
-          <Button size="$2"
-            backgroundColor={activeTab === 'shifting' ? theme.accent : theme.bgCardSecondary}
-            color={activeTab === 'shifting' ? '#FFFFFF' : theme.text} borderRadius={999}
-            onPress={() => setActiveTab('shifting')}>Shifting</Button>
-          <Button size="$2"
-            backgroundColor={activeTab === 'home_services' ? theme.accent : theme.bgCardSecondary}
-            color={activeTab === 'home_services' ? '#FFFFFF' : theme.text} borderRadius={999}
-            onPress={() => setActiveTab('home_services')}>Home Services</Button>
-          <Button size="$2"
-            backgroundColor={activeTab === 'properties' ? theme.accent : theme.bgCardSecondary}
-            color={activeTab === 'properties' ? '#FFFFFF' : theme.text} borderRadius={999}
-            onPress={() => setActiveTab('properties')}>Properties</Button>
-        </XStack>
+        <PageHeader title="Dashboard" subtitle="Track moves, home services and property requests." />
+
+        <XStack gap="$2" flexWrap="wrap" justifyContent="center">
+            <Button size="$2"
+              backgroundColor={activeTab === 'shifting' ? theme.accent : theme.bgCardSecondary}
+              borderRadius={999}
+              onPress={() => setActiveTab('shifting')}>
+              <XStack gap={6} alignItems="center">
+                <FontAwesome5 name="truck" size={13} color={activeTab === 'shifting' ? '#FFFFFF' : theme.text} />
+                <Text color={activeTab === 'shifting' ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">Shifting</Text>
+              </XStack>
+            </Button>
+            <Button size="$2"
+              backgroundColor={activeTab === 'home_services' ? theme.accent : theme.bgCardSecondary}
+              borderRadius={999}
+              onPress={() => setActiveTab('home_services')}>
+              <XStack gap={6} alignItems="center">
+                <FontAwesome5 name="tools" size={13} color={activeTab === 'home_services' ? '#FFFFFF' : theme.text} />
+                <Text color={activeTab === 'home_services' ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">Home Services</Text>
+              </XStack>
+            </Button>
+            <Button size="$2"
+              backgroundColor={activeTab === 'properties' ? theme.accent : theme.bgCardSecondary}
+              borderRadius={999}
+              onPress={() => setActiveTab('properties')}>
+              <XStack gap={6} alignItems="center">
+                <FontAwesome5 name="building" size={13} color={activeTab === 'properties' ? '#FFFFFF' : theme.text} />
+                <Text color={activeTab === 'properties' ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">Properties</Text>
+              </XStack>
+            </Button>
+          </XStack>
         {activeTab === 'shifting' ? renderShiftingSection() : null}
         {activeTab === 'home_services' ? renderHomeServicesSection() : null}
         {activeTab === 'properties' ? renderPropertiesSection() : null}

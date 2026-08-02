@@ -561,6 +561,17 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
     return list.length ? list : ['Select city'];
   }, [propertyCities, propertyFallbackCityByState, propertyState]);
 
+  const HOME_SERVICE_ICONS: Record<string, string> = {
+    ac: 'snowflake',
+    carpenter: 'hammer',
+    electrician: 'bolt',
+    plumber: 'wrench',
+    pest: 'bug',
+    cleaning: 'broom',
+    painting: 'paint-roller',
+    ro: 'tint',
+  };
+
   const homeServiceOptions = useMemo(
     () =>
       [
@@ -569,9 +580,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
         { key: 'electrician', label: 'Electrician' },
         { key: 'plumber', label: 'Plumber' },
         { key: 'pest', label: 'Pest Control' },
-      { key: 'cleaning', label: 'Deep Cleaning' },
-      { key: 'painting', label: 'Painting' },
-      { key: 'ro', label: 'RO Service' },
+        { key: 'cleaning', label: 'Deep Cleaning' },
+        { key: 'painting', label: 'Painting' },
+        { key: 'ro', label: 'RO Service' },
       ] as const,
     []
   );
@@ -2800,6 +2811,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                           alignItems="center"
                           justifyContent="center"
                           gap="$1.5">
+                          <FontAwesome5 name={HOME_SERVICE_ICONS[s.key] || 'concierge-bell'} size={26} color={theme.primary} />
                           <Text color={theme.text} fontWeight="900" textAlign="center" style={{ fontFamily: APP_SERIF_FONT }}>
                             {s.label}
                           </Text>
@@ -2857,7 +2869,12 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         : { backgroundColor: '#22C55E', color: '#FFFFFF' }) as any
                     }
                     onPress={activeService === 'home_services' ? handleCallNow : handlePrimaryServiceAction}>
-                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? 'Call me' : 'Post Property'}
+                    {activeService === 'shifting' ? 'Book Shifting' : activeService === 'home_services' ? (
+                      <XStack gap="$1.5" alignItems="center">
+                        <FontAwesome name="phone" size={15} color="#FFFFFF" />
+                        <Text color="#FFFFFF" fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>Call me</Text>
+                      </XStack>
+                    ) : 'Post Property'}
                   </Button>
                 </XStack>
                 </YStack>

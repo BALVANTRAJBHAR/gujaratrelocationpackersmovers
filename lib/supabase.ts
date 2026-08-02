@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
@@ -150,7 +150,7 @@ if (!globalForSupabase.__supabase) {
   globalForSupabase.__supabase = createSupabaseClient();
 }
 
-const supabase = globalForSupabase.__supabase as ReturnType<typeof createClient>;
+const supabase = globalForSupabase.__supabase as SupabaseClient;
 export { supabase };
 
 /**

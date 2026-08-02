@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Notifications from 'expo-notifications';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, NativeModules, Platform, Pressable, Share, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, NativeModules, Platform, Pressable, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import MobileDatePicker from '@/components/MobileDatePicker';
@@ -212,7 +212,7 @@ function AdminHistoryInner() {
     }
 
     const headers = ['action_type', 'admin_name', 'target_name', 'created_at', 'metadata'];
-    const rows = (data ?? []).map((log) => [
+    const rows = (data ?? []).map((log: any) => [
       log.action_type ?? '',
       log.admin_user?.[0]?.name ?? '',
       log.target_user?.[0]?.name ?? '',
@@ -254,16 +254,14 @@ function AdminHistoryInner() {
       if (Platform.OS === 'android' && nativePdfDownloader) {
         const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
         // Schedule a local notification that opens the file on tap
-        if (Platform.OS !== 'web') {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Download complete',
-              body: `${fileName} saved to Downloads`,
-              data: { fileUri: savedPath || tempUri },
-            },
-            trigger: null,
-          });
-        }
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Download complete',
+            body: `${fileName} saved to Downloads`,
+            data: { fileUri: savedPath || tempUri },
+          },
+          trigger: null,
+        });
         if (Platform.OS === 'android') {
           ToastAndroid.show(`Saved: ${fileName}`, ToastAndroid.LONG);
         }
@@ -496,7 +494,14 @@ function AdminHistoryInner() {
                 <Text color={theme.text} fontWeight="700" fontSize={t(14)}>
                   {item.name ?? 'Driver'}
                 </Text>
-                <Text color={theme.textMuted} fontSize={t(12)}>Phone: {item.phone ?? '—'}</Text>
+                <XStack gap={4} alignItems="center">
+                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(12)}>Phone:</Text>
+                  {item.phone ? (
+                    <Pressable onPress={() => Linking.openURL(`tel:${item.phone}`)}>  
+                      <Text color="#3B82F6" fontWeight="700" fontSize={t(12)} style={{ textDecorationLine: 'underline' }}>{item.phone}</Text>
+                    </Pressable>
+                  ) : <Text color={theme.textMuted} fontSize={t(12)}>—</Text>}
+                </XStack>
                 <Text color={theme.textMuted} fontSize={t(12)}>
                   Approved: {formatDateTimeDDMMYYYY(item.updated_at)}
                 </Text>

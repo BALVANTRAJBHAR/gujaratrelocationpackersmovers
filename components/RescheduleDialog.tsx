@@ -1,4 +1,4 @@
-import { Modal, Platform, Pressable } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable } from 'react-native';
 import { useState } from 'react';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
@@ -111,7 +111,14 @@ export default function RescheduleDialog({ open, title, confirmLabel, onClose, o
                 borderRadius={10}
                 disabled={busy || !date}
                 onPress={() => { if (date) onConfirm(date, time); }}>
-                {confirmLabel ?? 'Confirm'}
+                {busy ? (
+                  <XStack gap={6} alignItems="center">
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text color="#FFFFFF" fontWeight="700">Processing...</Text>
+                  </XStack>
+                ) : (
+                  confirmLabel ?? 'Confirm'
+                )}
               </Button>
             </XStack>
           </YStack>

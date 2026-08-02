@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, ScrollView } from 'react-native';
+import { Alert, FlatList, Linking, Platform, ScrollView, Pressable } from 'react-native';
 import { Button, H2, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
@@ -317,26 +317,34 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
         ) : (
           <YStack gap="$3">
             <XStack gap="$2" alignItems="center" justifyContent="space-between" flexWrap="wrap">
-              <XStack gap="$2" flexWrap="wrap">
-                <Button
-                  size="$3"
-                  backgroundColor={filter === 'upcoming' ? theme.accent : theme.bgCardSecondary}
-                  color={filter === 'upcoming' ? '#FFFFFF' : theme.text}
-                  borderColor={theme.border}
-                  borderWidth={1}
-                  onPress={() => setFilter('upcoming')}>
-                  Upcoming
-                </Button>
-                <Button
-                  size="$3"
-                  backgroundColor={filter === 'completed' ? theme.accent : theme.bgCardSecondary}
-                  color={filter === 'completed' ? '#FFFFFF' : theme.text}
-                  borderColor={theme.border}
-                  borderWidth={1}
-                  onPress={() => setFilter('completed')}>
-                  Completed
-                </Button>
-              </XStack>
+              {(() => {
+                const completedCount = bookings.filter((b) => isCompletedStatus(b.status)).length;
+                const upcomingCount = bookings.length - completedCount;
+                return (
+                  <XStack gap="$2" flexWrap="wrap">
+                    <Button
+                      size="$3"
+                      backgroundColor={filter === 'upcoming' ? theme.accent : theme.bgCardSecondary}
+                      borderColor={theme.border}
+                      borderWidth={1}
+                      onPress={() => setFilter('upcoming')}>
+                      <Text color={filter === 'upcoming' ? '#FFFFFF' : theme.text} fontWeight="700">
+                        {`Upcoming (${upcomingCount})`}
+                      </Text>
+                    </Button>
+                    <Button
+                      size="$3"
+                      backgroundColor={filter === 'completed' ? theme.accent : theme.bgCardSecondary}
+                      borderColor={theme.border}
+                      borderWidth={1}
+                      onPress={() => setFilter('completed')}>
+                      <Text color={filter === 'completed' ? '#FFFFFF' : theme.text} fontWeight="700">
+                        {`Completed (${completedCount})`}
+                      </Text>
+                    </Button>
+                  </XStack>
+                );
+              })()}
 
               <Button
                 size="$3"
@@ -424,9 +432,21 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                         <Text color={theme.text} fontWeight="700">
                           Booking #{(item as any).booking_number ? `GRS${(item as any).booking_number}` : String(item.id).slice(0, 8).toUpperCase()}
                         </Text>
-                        <Text color={theme.textMuted} fontSize={t(13)}>
-                          {customerName}{customerPhone ? ` · ${customerPhone}` : ''}
-                        </Text>
+                        <XStack gap={4} alignItems="center" flexWrap="wrap">
+                          <Text color={theme.textMuted} fontSize={t(13)}>
+                            {customerName}
+                          </Text>
+                          {customerPhone ? (
+                            <>
+                              <Text color={theme.textMuted} fontSize={t(13)}> · </Text>
+                              <Pressable onPress={() => Linking.openURL(`tel:${customerPhone}`)}>
+                                <Text color="#3B82F6" fontWeight="700" fontSize={t(13)} style={{ textDecorationLine: 'underline' }}>
+                                  {customerPhone}
+                                </Text>
+                              </Pressable>
+                            </>
+                          ) : null}
+                        </XStack>
                       </YStack>
 
                       <Text color={theme.textMuted} fontSize={t(13)}>

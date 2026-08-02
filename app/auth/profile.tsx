@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import PageHeader from '@/components/PageHeader';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { findExistingUserByPhone } from '@/lib/user-duplicate-check';
@@ -298,17 +299,10 @@ export default function ProfileSetupScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={theme.bg} padding={24} minHeight="100%" gap="$4">
-      <XStack alignItems="center" justifyContent="space-between">
-        <H2 color={theme.text}>Profile</H2>
-        <Pressable onPress={() => router.back()}>
-          <Text color={theme.info} fontWeight="700">
-            Back
-          </Text>
-        </Pressable>
-      </XStack>
-
-      <Paragraph color={theme.textMuted}>Your account details</Paragraph>
+    <YStack flex={1} backgroundColor={theme.bg}>
+      <PageHeader title="Profile" />
+      <YStack padding={24} minHeight="100%" gap="$4">
+        <Paragraph color={theme.textMuted}>Your account details</Paragraph>
 
       {sessionLoading && !profile ? (
         <Text color={theme.textMuted} fontSize={t(15)}>
@@ -647,6 +641,7 @@ export default function ProfileSetupScreen() {
         <Text color={theme.textMuted} fontSize={t(13)}>
           {Platform.OS === 'android' ? 'Android' : Platform.OS}
         </Text>
+      </YStack>
       </YStack>
     </YStack>
   );

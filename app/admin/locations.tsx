@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, Alert, NativeModules, ToastAndroid } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Alert, NativeModules, ToastAndroid } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -50,7 +50,13 @@ function AdminLocationsGuard() {
       router.replace('/unauthorized' as any);
     }
   }, [authGuard.isLoading, authGuard.isAuthenticated, authGuard.error, router]);
-  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) return null;
+  if (authGuard.isLoading || !authGuard.isAuthenticated || authGuard.error) {
+    return (
+      <YStack flex={1} backgroundColor="#1A2D42" justifyContent="center" alignItems="center">
+        <ActivityIndicator size="large" color="#FBBF24" />
+      </YStack>
+    );
+  }
 
   return <AdminLocationsInner />;
 }

@@ -64,15 +64,24 @@ function AppLayoutInner() {
   const { width: screenWidth } = useWindowDimensions();
   const segments = useSegments();
   const isMobile = screenWidth <= 768;
+  // Bottom navigation is only visible on root/main pages. Any child page
+  // opened from Home/Services/Dashboard/Profile hides it and shows its own
+  // PageHeader with a back button instead.
+  const ROOT_NAV_SEGMENTS: string[][] = [
+    [],
+    ['index'],
+    ['splash'],
+    ['home'],
+    ['(tabs)', 'index'],
+    ['(tabs)', 'tracking'],
+    ['(tabs)', 'properties'],
+    ['(tabs)', 'home-service'],
+    ['(tabs)', 'driver'],
+    ['(tabs)', 'explore'],
+    ['(tabs)', 'admin-history'],
+  ];
   const hideNav =
-    segments.length === 0 ||
-    (segments[0] === 'modal') ||
-    (segments[0] === 'auth') ||
-    (segments[0] === 'book') ||
-    (segments[0] === 'home-services' && segments[1] === 'request') ||
-    (segments[0] === 'properties' && segments[1] === 'post') ||
-    (segments[0] === 'properties' && segments[1] === 'my-properties') ||
-    segments[0] === 'wallet';
+    !ROOT_NAV_SEGMENTS.some((s) => s.length === segments.length && s.every((seg, i) => seg === segments[i]));
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
@@ -126,7 +135,7 @@ function AppLayoutInner() {
         <Stack.Screen name="terms-and-conditions" options={{ headerShown: false }} />
         <Stack.Screen name="auth/login" options={{ title: 'Sign In' }} />
         <Stack.Screen name="auth/register" options={{ title: 'Sign Up' }} />
-        <Stack.Screen name="auth/profile" options={{ title: 'My Profile' }} />
+        <Stack.Screen name="auth/profile" options={{ title: 'My Profile', headerShown: false }} />
         <Stack.Screen name="wallet/index" options={{ headerShown: false }} />
         <Stack.Screen name="wallet/add" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Payment History' }} />

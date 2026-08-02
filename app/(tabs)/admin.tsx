@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, NativeModules, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Modal, NativeModules, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 let TextRecognition: any = null;
 try {
@@ -14,6 +14,7 @@ try {
 }
 
 import MobileDatePicker from '@/components/MobileDatePicker';
+import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
@@ -25,6 +26,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { timeLabelTo24h } from '@/lib/reschedule-options';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 type DriverProfile = {
   id: string;
@@ -565,6 +567,10 @@ function AdminScreenInner() {
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [quoteRequestsExportCsvLoading, setQuoteRequestsExportCsvLoading] = useState(false);
+  const [quoteRequestsExportPdfLoading, setQuoteRequestsExportPdfLoading] = useState(false);
+  const [reportsExportBookingsCsvLoading, setReportsExportBookingsCsvLoading] = useState(false);
+  const [reportsExportPaymentsCsvLoading, setReportsExportPaymentsCsvLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const maxContentWidth = 1100;
@@ -787,6 +793,7 @@ function AdminScreenInner() {
     'all'
   );
 
+  const [reportsServiceType, setReportsServiceType] = useState<'all' | 'shifting' | 'home_services' | 'properties'>('all');
   const [reportsStartDate, setReportsStartDate] = useState('');
   const [reportsEndDate, setReportsEndDate] = useState('');
   const [reportsStartDatePickerOpen, setReportsStartDatePickerOpen] = useState(false);
@@ -806,6 +813,7 @@ function AdminScreenInner() {
   const [bookingUserFilter, setBookingUserFilter] = useState('');
   const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
   const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
+  const [cancelHomeServiceModalId, setCancelHomeServiceModalId] = useState<string | null>(null);
 
   const [userSearchText, setUserSearchText] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'customer' | 'driver' | 'staff' | 'admin' | 'worker'>('all');
@@ -1231,6 +1239,19 @@ function AdminScreenInner() {
   return key;
   };
 
+  const homeServiceIcon = (key: string): string => {
+    const k = String(key ?? '').trim().toLowerCase();
+    if (k === 'ac') return 'wind';
+    if (k === 'carpenter') return 'hammer';
+    if (k === 'electrician') return 'bolt';
+    if (k === 'plumber') return 'wrench';
+    if (k === 'pest') return 'bug';
+    if (k === 'cleaning') return 'broom';
+    if (k === 'painting') return 'paint-roller';
+    if (k === 'ro') return 'tint';
+    return 'tools';
+  };
+
   const fetchHomeServiceRequests = async () => {
     if (!canManage) return;
     try {
@@ -1336,9 +1357,10 @@ function AdminScreenInner() {
 
   const downloadTextFile = async (opts: { fileName: string; mimeType: string; content: string }) => {
     const { fileName, mimeType, content } = opts;
+    const bomContent = content.startsWith('\uFEFF') ? content : `\uFEFF${content}`;
     if (Platform.OS === 'web') {
       if (typeof document === 'undefined') return;
-      const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+      const blob = new Blob([bomContent], { type: `${mimeType};charset=utf-8;` });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -1352,11 +1374,11 @@ function AdminScreenInner() {
     // Native: write to temp location then save to public Downloads folder
     const baseDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
     const tempUri = `${baseDir}${fileName}`;
-    await FileSystem.writeAsStringAsync(tempUri, content, { encoding: 'utf8' as any });
+    await FileSystem.writeAsStringAsync(tempUri, bomContent, { encoding: 'utf8' as any });
     const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string): Promise<string> } | undefined;
     if (Platform.OS === 'android' && nativePdfDownloader) {
       const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
-      // Fire a local notification so user can tap to open the file
+      // Single notification: tap to open file (no duplicate toast)
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Download complete',
@@ -1365,11 +1387,9 @@ function AdminScreenInner() {
         },
         trigger: null,
       });
-      ToastAndroid.show(`Saved to Downloads: ${fileName}`, ToastAndroid.LONG);
     } else {
       // iOS fallback: share the file
       await Share.share({ url: tempUri, title: fileName });
-      notifyDownloaded(fileName);
     }
   };
 
@@ -1425,6 +1445,7 @@ function AdminScreenInner() {
       setError('No quote requests available to export.');
       return;
     }
+    setQuoteRequestsExportCsvLoading(true);
     try {
       const header = ['Name', 'Phone', 'Email', 'Service', 'Source', 'Status', 'Remark', 'Message', 'Created At'];
       const rows = quoteRequests.map((item) => [
@@ -1449,6 +1470,8 @@ function AdminScreenInner() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to export CSV.');
+    } finally {
+      setQuoteRequestsExportCsvLoading(false);
     }
   };
 
@@ -1457,6 +1480,7 @@ function AdminScreenInner() {
       setError('No quote requests available to export.');
       return;
     }
+    setQuoteRequestsExportPdfLoading(true);
     try {
       const rows = quoteRequests
         .map(
@@ -1512,6 +1536,8 @@ function AdminScreenInner() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message || 'Failed to export PDF.');
+    } finally {
+      setQuoteRequestsExportPdfLoading(false);
     }
   };
 
@@ -1803,6 +1829,7 @@ function AdminScreenInner() {
   };
 
   const exportReportsBookingsCsv = async () => {
+    setReportsExportBookingsCsvLoading(true);
     try {
       const csv = await createReportsBookingsCsv();
       if (!csv) return;
@@ -1814,6 +1841,8 @@ function AdminScreenInner() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setReportsError(message || 'Failed to export bookings CSV.');
+    } finally {
+      setReportsExportBookingsCsvLoading(false);
     }
   };
 
@@ -1870,6 +1899,7 @@ function AdminScreenInner() {
   };
 
   const exportReportsPaymentsCsv = async () => {
+    setReportsExportPaymentsCsvLoading(true);
     try {
       const csv = await createReportsPaymentsCsv();
       if (!csv) return;
@@ -1881,6 +1911,8 @@ function AdminScreenInner() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setReportsError(message || 'Failed to export payments CSV.');
+    } finally {
+      setReportsExportPaymentsCsvLoading(false);
     }
   };
 
@@ -2870,12 +2902,11 @@ function AdminScreenInner() {
       contentContainerStyle={{ padding: 24, paddingBottom: 120 } as any}
       keyboardShouldPersistTaps="handled">
       <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
-        <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap="$3">
-          <YStack gap="$1">
-            <H2 color={theme.text}>Admin dashboard</H2>
-            <Paragraph color={theme.textMuted}>Manage staff, bookings, approvals, quote requests and reports.</Paragraph>
-          </YStack>
-          <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
+        <PageHeader
+          title="Admin Dashboard"
+          subtitle="Manage staff, bookings, approvals, quote requests and reports."
+          right={
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <Pressable
               onPress={() => {
                 (router as any).push('/notifications');
@@ -2883,20 +2914,21 @@ function AdminScreenInner() {
               <XStack
                 alignItems="center"
                 justifyContent="center"
-                width={40}
                 height={40}
+                paddingHorizontal={12}
                 borderRadius={12}
                 backgroundColor={theme.bgCardSecondary}
                 borderWidth={1}
                 borderColor={theme.border}
+                gap={6}
                 position="relative">
-                <IconSymbol name="bell.fill" size={20} color={theme.text} />
+                <IconSymbol name="bell.fill" size={18} color={theme.text} />
+                <Text color={theme.text} fontSize={t(13)} fontWeight="700">
+                  Notification
+                </Text>
                 {unreadCount > 0 ? (
                   <View
                     style={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
                       minWidth: 16,
                       height: 16,
                       borderRadius: 99,
@@ -2905,7 +2937,7 @@ function AdminScreenInner() {
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Text color="#FFFFFF" fontSize={t(12)} fontWeight="700">
+                    <Text color="#FFFFFF" fontSize={t(11)} fontWeight="700">
                       {unreadCount > 99 ? '99+' : String(unreadCount)}
                     </Text>
                   </View>
@@ -2944,30 +2976,35 @@ function AdminScreenInner() {
               }}>
               Refresh
             </Button>
-          </XStack>
-        </XStack>
+            </ScrollView>
+          }
+        />
 
         <YStack gap="$2">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
             {[
-              { label: 'Bookings', value: 'bookings' },
-              { label: 'Home Services', value: 'home_services' },
-              { label: 'Properties', value: 'properties' },
-              { label: 'Quote Requests', value: 'quote_requests' },
-              { label: 'Reports', value: 'reports' },
-              { label: 'Users', value: 'users' },
-              { label: 'Vehicles', value: 'vehicles' },
-              { label: 'Floors', value: 'floors' },
-              { label: 'Coupons', value: 'coupons' },
+              { label: 'Bookings', value: 'bookings', icon: 'truck' },
+              { label: 'Home Services', value: 'home_services', icon: 'tools' },
+              { label: 'Properties', value: 'properties', icon: 'building' },
+              { label: 'Quote Requests', value: 'quote_requests', icon: 'file-alt' },
+              { label: 'Reports', value: 'reports', icon: 'chart-bar' },
+              { label: 'Users', value: 'users', icon: 'users' },
+              { label: 'Vehicles', value: 'vehicles', icon: 'car' },
+              { label: 'Floors', value: 'floors', icon: 'layer-group' },
+              { label: 'Coupons', value: 'coupons', icon: 'ticket-alt' },
             ].map((tab) => (
               <Button
                 key={tab.value}
                 size="$2"
                 backgroundColor={activeSection === tab.value ? theme.accent : theme.bgCardSecondary}
-                color={activeSection === tab.value ? '#FFFFFF' : theme.text}
                 borderRadius={999}
                 onPress={() => setActiveSection(tab.value as typeof activeSection)}>
-                {tab.label}
+                <XStack gap={6} alignItems="center">
+                  <FontAwesome5 name={tab.icon as any} size={13} color={activeSection === tab.value ? '#FFFFFF' : theme.text} />
+                  <Text color={activeSection === tab.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                    {tab.label}
+                  </Text>
+                </XStack>
               </Button>
             ))}
           </ScrollView>
@@ -3082,8 +3119,22 @@ function AdminScreenInner() {
                                   </Text>
                                 </YStack>
                               </XStack>
-                              <Text color={theme.textMuted} fontSize={t(14)}>Phone: {item.phone ?? '—'}</Text>
-                              <Text color={theme.textMuted} fontSize={t(14)}>Email: {item.email ?? '—'}</Text>
+                              <XStack gap={4} alignItems="center">
+                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Phone:</Text>
+                                {item.phone ? (
+                                  <Pressable onPress={() => Linking.openURL(`tel:${item.phone}`)}>
+                                    <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{item.phone}</Text>
+                                  </Pressable>
+                                ) : <Text color={theme.textMuted} fontSize={t(14)}>—</Text>}
+                              </XStack>
+                              <XStack gap={4} alignItems="center">
+                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Email:</Text>
+                                {item.email ? (
+                                  <Pressable onPress={() => Linking.openURL(`mailto:${item.email}`)}>
+                                    <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{item.email}</Text>
+                                  </Pressable>
+                                ) : <Text color={theme.textMuted} fontSize={t(14)}>—</Text>}
+                              </XStack>
                             </YStack>
                             <YStack alignItems="flex-end" gap="$2">
                               <Text color={item.is_verified ? theme.success : '#FCA5A5'} fontSize={t(14)} fontWeight="800">
@@ -3471,10 +3522,11 @@ function AdminScreenInner() {
                         key={filter.value}
                         size="$2"
                         backgroundColor={propStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                        color={propStatusFilter === filter.value ? '#FFFFFF' : theme.text}
                         borderRadius={999}
                         onPress={() => setPropStatusFilter(filter.value)}>
-                        {filter.label} ({filter.count})
+                        <Text color={propStatusFilter === filter.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                          {`${filter.label} (${filter.count})`}
+                        </Text>
                       </Button>
                     ))}
                     <Button
@@ -3776,10 +3828,11 @@ function AdminScreenInner() {
                         key={filter.value}
                         size="$2"
                         backgroundColor={propBookingStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                        color={propBookingStatusFilter === filter.value ? '#FFFFFF' : theme.text}
                         borderRadius={999}
                         onPress={() => setPropBookingStatusFilter(filter.value)}>
-                        {filter.label} ({filter.count})
+                        <Text color={propBookingStatusFilter === filter.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                          {`${filter.label} (${filter.count})`}
+                        </Text>
                       </Button>
                     ))}
                     <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
@@ -3799,9 +3852,17 @@ function AdminScreenInner() {
                             <Text color={theme.text} fontWeight="800" fontSize={t(16)}>{prop?.title ?? 'Property'}</Text>
                             <Text color={theme.textMuted} fontSize={t(14)}>{[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}</Text>
                             {prop?.price != null ? <Text color={theme.success} fontWeight="600" fontSize={t(15)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text> : null}
-                            <Text color={theme.textMuted} fontSize={t(14)}>Customer: {pb.contact_name ?? pb.user_id ?? '—'}</Text>
+                            <XStack gap={4} alignItems="center">
+                              <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Customer:</Text>
+                              <Text color={theme.textMuted} fontSize={t(14)}>{pb.contact_name ?? pb.user_id ?? '—'}</Text>
+                            </XStack>
                             {pb.contact_phone ? (
-                              <Text color={theme.textMuted} fontSize={t(14)}>Phone: {pb.contact_phone}</Text>
+                              <XStack gap={4} alignItems="center">
+                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Phone:</Text>
+                                <Pressable onPress={() => Linking.openURL(`tel:${pb.contact_phone}`)}>
+                                  <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{pb.contact_phone}</Text>
+                                </Pressable>
+                              </XStack>
                             ) : null}
                             {pb.message ? <Text color={theme.textMuted} fontSize={t(14)}>Message: {pb.message}</Text> : null}
                           </YStack>
@@ -4655,14 +4716,15 @@ function AdminScreenInner() {
                           key={filter.value}
                           size="$2"
                           backgroundColor={bookingFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                          color={bookingFilter === filter.value ? '#FFFFFF' : theme.text}
                           borderRadius={999}
                           onPress={() => {
                             const next = filter.value as typeof bookingFilter;
                             setBookingFilter(next);
                             fetchBookings({ status: next });
                           }}>
-                          {filter.label} ({filter.count})
+                          <Text color={bookingFilter === filter.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                            {`${filter.label} (${filter.count})`}
+                          </Text>
                         </Button>
                       ))}
                   </ScrollView>
@@ -4701,22 +4763,42 @@ function AdminScreenInner() {
                       borderWidth={1}>
                       <YStack gap="$1">
                         <YStack gap={2}>
-                          <Text color="#EF4444" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
+                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
                             🔴 From: {item.pickup_address ?? 'Pickup address'}
                           </Text>
                           <Text color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
                             🟢 To: {item.drop_address ?? 'Drop address'}
                           </Text>
                         </YStack>
-                        <Text color={theme.textMuted} fontSize={t(13)}>
-                          User: {user.name ?? '—'} • {user.phone ?? '—'} • {user.email ?? '—'}
-                        </Text>
-                        <Text color={theme.textMuted} fontSize={t(13)}>
-                          Driver: {hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}
-                        </Text>
-                        <Text color={theme.textMuted} fontSize={t(13)}>
-                          {item.status === 'rescheduled' || item.reschedule_date ? 'Rescheduled Shifting' : 'Shifting'}: {item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}
-                        </Text>
+                        <XStack gap={4} flexWrap="wrap" alignItems="center">
+                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>User:</Text>
+                          <Text color={theme.textMuted} fontSize={t(13)}>{user.name ?? '—'} • </Text>
+                          {user.phone ? (
+                            <Pressable onPress={() => Linking.openURL(`tel:${user.phone}`)}>
+                              <Text color="#3B82F6" fontWeight="700" fontSize={t(13)} style={{ textDecorationLine: 'underline' }}>
+                                {user.phone}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text color={theme.textMuted} fontSize={t(13)}>—</Text>
+                          )}
+                          {user.email ? (
+                            <>
+                              <Text color={theme.textMuted} fontSize={t(13)}> • </Text>
+                              <Pressable onPress={() => Linking.openURL(`mailto:${user.email}`)}>
+                                <Text color="#3B82F6" fontWeight="700" fontSize={t(13)} style={{ textDecorationLine: 'underline' }}>{user.email}</Text>
+                              </Pressable>
+                            </>
+                          ) : <Text color={theme.textMuted} fontSize={t(13)}> • —</Text>}
+                        </XStack>
+                        <XStack gap={4} flexWrap="wrap">
+                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Driver:</Text>
+                          <Text color={theme.textMuted} fontSize={t(13)}>{hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}</Text>
+                        </XStack>
+                        <XStack gap={4} flexWrap="wrap">
+                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>{item.status === 'rescheduled' || item.reschedule_date ? 'Rescheduled Shifting:' : 'Shifting Date:'}</Text>
+                          <Text color={theme.textMuted} fontSize={t(13)}>{item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}</Text>
+                        </XStack>
                       </YStack>
 
                       {renderBookingStepper(item.status)}
@@ -4974,34 +5056,34 @@ function AdminScreenInner() {
                       <YStack gap="$2" marginTop={4}>
                         {/* Row 1: Total, Pending, Completed, Cancelled */}
                         <XStack gap="$2">
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.text} fontWeight="900" fontSize={t(16)}>{total}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Total</Text>
                           </YStack>
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{pending}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Pending</Text>
                           </YStack>
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{completed}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Completed</Text>
                           </YStack>
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.danger} fontWeight="900" fontSize={t(16)}>{cancelled}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Cancelled</Text>
                           </YStack>
                         </XStack>
                         {/* Row 2: Paid, Unpaid, ₹150 Chrg */}
                         <XStack gap="$2">
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.success} fontWeight="900" fontSize={t(16)}>{paid}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Paid</Text>
                           </YStack>
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.warning} fontWeight="900" fontSize={t(16)}>{unpaid}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>Unpaid</Text>
                           </YStack>
-                          <YStack flex={1} bg={theme.bgCardSecondary} borderRadius={10} py="$1.5" alignItems="center">
+                          <YStack flex={1} backgroundColor={theme.bgCardSecondary} borderRadius={10} paddingVertical={12} alignItems="center">
                             <Text color={theme.primary} fontWeight="900" fontSize={t(16)}>{withCharge}</Text>
                             <Text color={theme.textMuted} fontSize={t(11)}>₹150 Chrg</Text>
                           </YStack>
@@ -5128,13 +5210,14 @@ function AdminScreenInner() {
                           key={f.value}
                           size="$2"
                           backgroundColor={hsStatusFilter === f.value ? theme.accent : theme.bgCardSecondary}
-                          color={hsStatusFilter === f.value ? '#FFFFFF' : theme.text}
                           borderRadius={999}
                           onPress={() => {
                             setHsStatusFilter(f.value as typeof hsStatusFilter);
                             fetchHomeServiceRequests();
                           }}>
-                          {f.label} ({f.count})
+                          <Text color={hsStatusFilter === f.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                            {`${f.label} (${f.count})`}
+                          </Text>
                         </Button>
                       ))}
                     <Button
@@ -5174,12 +5257,25 @@ function AdminScreenInner() {
                       <YStack gap="$1">
                         <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
                           <YStack flex={1} gap={4}>
-                            <Text color={theme.text} fontWeight="800" fontSize={t(16)}>
-                              {homeServiceLabel(r.service_key)}
-                            </Text>
-                            <Text color={theme.textMuted} fontSize={t(14)}>
-                              Customer: {r.customer_name ?? '—'} • {r.customer_phone ?? '—'}
-                            </Text>
+                            <XStack gap={8} alignItems="center">
+                              <FontAwesome5 name={homeServiceIcon(r.service_key)} size={15} color={theme.accent} />
+                              <Text color={theme.text} fontWeight="800" fontSize={t(16)}>
+                                {homeServiceLabel(r.service_key)}
+                              </Text>
+                            </XStack>
+                            <XStack gap={4} alignItems="center" flexWrap="wrap">
+                              <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Customer:</Text>
+                              <Text color={theme.textMuted} fontSize={t(14)}>{r.customer_name ?? '—'} • </Text>
+                              {r.customer_phone ? (
+                                <Pressable onPress={() => Linking.openURL(`tel:${r.customer_phone}`)}>
+                                  <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>
+                                    {r.customer_phone}
+                                  </Text>
+                                </Pressable>
+                              ) : (
+                                <Text color={theme.textMuted} fontSize={t(14)}>—</Text>
+                              )}
+                            </XStack>
                             <Text color={theme.textMuted} fontSize={t(14)}>
                               {r.locality || r.city || r.state
                                 ? `${r.locality ?? ''}${r.locality ? ', ' : ''}${r.city ?? ''}${r.city ? ', ' : ''}${r.state ?? ''}`
@@ -5222,11 +5318,17 @@ function AdminScreenInner() {
                           <Button
                             key={s}
                             size="$2"
-                            backgroundColor={String(r.status ?? 'pending') === s ? theme.accent : theme.bgCardSecondary}
+                            backgroundColor={String(r.status ?? 'pending') === s ? (s === 'cancelled' ? theme.danger : theme.accent) : theme.bgCardSecondary}
                             color={String(r.status ?? 'pending') === s ? '#FFFFFF' : theme.text}
                             borderRadius={999}
                             disabled={homeServiceStatusBusyId === r.id}
-                            onPress={() => updateHomeServiceStatus(r.id, s)}>
+                            onPress={() => {
+                              if (s === 'cancelled') {
+                                setCancelHomeServiceModalId(r.id);
+                              } else {
+                                updateHomeServiceStatus(r.id, s);
+                              }
+                            }}>
                             {s.replaceAll('_', ' ')}
                           </Button>
                         ))}
@@ -5310,18 +5412,41 @@ function AdminScreenInner() {
                   open={!!hsRescheduleDialogId}
                   title="Reschedule service"
                   confirmLabel="Reschedule service"
+                  busy={Boolean(homeServiceStatusBusyId && homeServiceStatusBusyId === hsRescheduleDialogId)}
                   onClose={() => setHsRescheduleDialogId(null)}
-                  onConfirm={(day, timeLabel) => {
+                  onConfirm={async (day, timeLabel) => {
                     const requestId = hsRescheduleDialogId;
-                    setHsRescheduleDialogId(null);
                     const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
-                    void updateHomeServiceStatus(requestId ?? '', 'rescheduled', {
+                    await updateHomeServiceStatus(requestId ?? '', 'rescheduled', {
                       preferred_date: day,
                       preferred_time: timeLabel,
                       reschedule_date: iso,
                     });
+                    setHsRescheduleDialogId(null);
                   }}
                 />
+                <Modal visible={Boolean(cancelHomeServiceModalId)} transparent animationType="fade" onRequestClose={() => setCancelHomeServiceModalId(null)}>
+                  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={20} maxWidth={400} width="100%" gap="$3" borderWidth={1} borderColor={theme.border}>
+                      <Text fontSize={t(18)} fontWeight="900" color={theme.text}>Cancel Booking</Text>
+                      <Text fontSize={t(14)} color={theme.textMuted}>Do you really want to cancel this booking?</Text>
+                      <XStack gap="$3" justifyContent="flex-end" marginTop={10}>
+                        <Button size="$3" backgroundColor={theme.bgCardSecondary} color={theme.text} onPress={() => setCancelHomeServiceModalId(null)}>
+                          NO
+                        </Button>
+                        <Button size="$3" backgroundColor={theme.danger} color="#FFFFFF" onPress={async () => {
+                          if (cancelHomeServiceModalId) {
+                            const targetId = cancelHomeServiceModalId;
+                            setCancelHomeServiceModalId(null);
+                            await updateHomeServiceStatus(targetId, 'cancelled');
+                          }
+                        }}>
+                          YES
+                        </Button>
+                      </XStack>
+                    </YStack>
+                  </View>
+                </Modal>
               </YStack>
             ) : null}
 
@@ -5459,10 +5584,11 @@ function AdminScreenInner() {
                             key={filter.value}
                             size="$2"
                             backgroundColor={quoteRequestStatusFilter === filter.value ? theme.accent : theme.bgCardSecondary}
-                            color={quoteRequestStatusFilter === filter.value ? '#FFFFFF' : theme.text}
                             borderRadius={999}
-                            onPress={() => setQuoteRequestStatusFilter(filter.value)}>
-                            {filter.label} ({filter.count})
+                            onPress={() => setQuoteRequestStatusFilter(filter.value as any)}>
+                            <Text color={quoteRequestStatusFilter === filter.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                              {`${filter.label} (${filter.count})`}
+                            </Text>
                           </Button>
                         ))}
                     </ScrollView>
@@ -5483,8 +5609,8 @@ function AdminScreenInner() {
                       color={theme.text}
                       borderRadius={10}
                       onPress={exportQuoteRequestsCsv}
-                      disabled={!quoteRequests.length}>
-                      Export CSV
+                      disabled={!quoteRequests.length || quoteRequestsExportCsvLoading}>
+                      {quoteRequestsExportCsvLoading ? 'Exporting...' : 'Export CSV'}
                     </Button>
                     <Button
                       size="$2"
@@ -5492,8 +5618,8 @@ function AdminScreenInner() {
                       color={theme.text}
                       borderRadius={10}
                       onPress={exportQuoteRequestsPdf}
-                      disabled={!quoteRequests.length}>
-                      Export PDF
+                      disabled={!quoteRequests.length || quoteRequestsExportPdfLoading}>
+                      {quoteRequestsExportPdfLoading ? 'Exporting...' : 'Export PDF'}
                     </Button>
                   </XStack>
                   <MobileDatePicker value={quoteStartPickerValue} open={quoteStartDatePickerOpen} onClose={() => setQuoteStartDatePickerOpen(false)} onChange={(d) => { setQuoteStartDate(isoDay(d)); }} />
@@ -5525,9 +5651,18 @@ function AdminScreenInner() {
                           <Text color={theme.text} fontWeight="800" fontSize={t(16)}>
                             {request.name ?? 'Unknown'} • {request.service ?? 'Service'}
                           </Text>
-                          <Text color={theme.textMuted} fontSize={t(14)}>
-                            {request.phone ?? '—'} • {request.email ?? '—'}
-                          </Text>
+                          <XStack gap={4} alignItems="center" flexWrap="wrap">
+                            {request.phone ? (
+                              <Pressable onPress={() => Linking.openURL(`tel:${request.phone}`)}>
+                                <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>
+                                  {request.phone}
+                                </Text>
+                              </Pressable>
+                            ) : (
+                              <Text color={theme.textMuted} fontSize={t(14)}>—</Text>
+                            )}
+                            <Text color={theme.textMuted} fontSize={t(14)}> • {request.email ?? '—'}</Text>
+                          </XStack>
                           <Text color={theme.textMuted} fontSize={t(14)} numberOfLines={2}>
                             {request.message ?? 'No message provided.'}
                           </Text>
@@ -5552,7 +5687,26 @@ function AdminScreenInner() {
                         flexBasis={200}
                       />
 
-                      <XStack gap="$2" flexWrap="wrap">
+                      <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                        <Button
+                          size="$2"
+                          backgroundColor="#2563EB"
+                          color="#FFFFFF"
+                          borderRadius={10}
+                          disabled={!request.email}
+                          onPress={() => {
+                            if (!request.email) {
+                              Alert.alert('No Email', 'Customer email address is not available.');
+                              return;
+                            }
+                            const remarkText = quoteRequestRemarkDrafts[request.id] ?? request.remark ?? request.message ?? '';
+                            const mailUrl = `mailto:${request.email}?subject=${encodeURIComponent('Gujarat Relocation - Quote Request Update')}&body=${encodeURIComponent(remarkText)}`;
+                            Linking.openURL(mailUrl).catch(() => {
+                              Alert.alert('Error', 'Could not open mail client.');
+                            });
+                          }}>
+                          Send Email
+                        </Button>
                         {(['pending', 'complete', 'cancelled'] as const).map((nextStatus) => (
                           <Button
                             key={nextStatus}
@@ -5567,7 +5721,7 @@ function AdminScreenInner() {
                               try {
                                 const { error } = await supabase
                                   .from('quote_requests')
-                                  .update({ status: nextStatus, remark: quoteRequestRemarkDrafts[request.id] ?? request.remark, updated_at: new Date().toISOString() })
+                                  .update({ status: nextStatus, remark: quoteRequestRemarkDrafts[request.id] ?? request.remark, updated_at: new Date().toISOString() } as any)
                                   .eq('id', request.id);
                                 if (error) {
                                   setError(error.message);
@@ -5634,8 +5788,8 @@ function AdminScreenInner() {
                         color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsBookingsCsv}
-                        disabled={reportsLoading || !reportsBookings.length}>
-                        Export bookings CSV
+                        disabled={reportsLoading || !reportsBookings.length || reportsExportBookingsCsvLoading}>
+                        {reportsExportBookingsCsvLoading ? 'Exporting...' : 'Export bookings CSV'}
                       </Button>
                       <Button
                         size="$2"
@@ -5643,8 +5797,8 @@ function AdminScreenInner() {
                         color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsPaymentsCsv}
-                        disabled={reportsLoading || !reportsPayments.length}>
-                        Export payments CSV
+                        disabled={reportsLoading || !reportsPayments.length || reportsExportPaymentsCsvLoading}>
+                        {reportsExportPaymentsCsvLoading ? 'Exporting...' : 'Export payments CSV'}
                       </Button>
                       <Button
                         size="$2"
@@ -5656,6 +5810,30 @@ function AdminScreenInner() {
                       </Button>
                     </XStack>
                   </XStack>
+
+                  {/* Service Type Filter */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+                    {([
+                      { label: 'All', value: 'all', icon: 'th-large' },
+                      { label: 'Shifting', value: 'shifting', icon: 'truck' },
+                      { label: 'Home Services', value: 'home_services', icon: 'tools' },
+                      { label: 'Properties', value: 'properties', icon: 'building' },
+                    ] as const).map((tab) => (
+                      <Button
+                        key={tab.value}
+                        size="$2"
+                        backgroundColor={reportsServiceType === tab.value ? theme.accent : theme.bgCardSecondary}
+                        borderRadius={999}
+                        onPress={() => setReportsServiceType(tab.value)}>
+                        <XStack gap={6} alignItems="center">
+                          <FontAwesome5 name={tab.icon as any} size={12} color={reportsServiceType === tab.value ? '#FFFFFF' : theme.text} />
+                          <Text color={reportsServiceType === tab.value ? '#FFFFFF' : theme.text} fontSize={t(12)} fontWeight="700">
+                            {tab.label}
+                          </Text>
+                        </XStack>
+                      </Button>
+                    ))}
+                  </ScrollView>
 
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
                     {Platform.OS === 'web' ? (
@@ -5783,7 +5961,13 @@ function AdminScreenInner() {
                 </YStack>
 
                 {(() => {
-                  const total = reportsBookings.length;
+                  const filteredReportBookings = reportsServiceType === 'all'
+                    ? reportsBookings
+                    : reportsServiceType === 'shifting'
+                      ? reportsBookings.filter((b) => !(b as any).service_type || (b as any).service_type === 'shifting')
+                      : reportsBookings.filter((b) => (b as any).service_type === reportsServiceType);
+
+                  const total = filteredReportBookings.length;
                   const byStatus: Record<string, number> = {};
                   const byDriver: Record<string, number> = {};
                   let advanceSum = 0;
@@ -5817,7 +6001,7 @@ function AdminScreenInner() {
                   const monthlyBookings: Record<string, number> = {};
                   const monthlyPaidAmount: Record<string, number> = {};
 
-                  for (const b of reportsBookings) {
+                  for (const b of filteredReportBookings) {
                     const status = String((b as any).status ?? 'unknown').trim() || 'unknown';
                     byStatus[status] = (byStatus[status] ?? 0) + 1;
 

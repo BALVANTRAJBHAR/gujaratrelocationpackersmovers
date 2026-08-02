@@ -7,11 +7,24 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { FontAwesome5 } from '@expo/vector-icons';
+
+const SERVICE_ICONS: Record<string, string> = {
+  ac: 'snowflake',
+  carpenter: 'hammer',
+  electrician: 'bolt',
+  plumber: 'wrench',
+  pest: 'bug',
+  cleaning: 'broom',
+  painting: 'paint-roller',
+  ro: 'tint',
+};
 
 import { getWalletBalance, debitWallet, creditWallet, rewardReferralOnBooking } from '@/lib/wallet';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import MobileDatePicker from '@/components/MobileDatePicker';
+import PageHeader from '@/components/PageHeader';
 
 function MobileTimePicker({ value, onChange, open, onClose }: {
   value: Date; onChange: (d: Date) => void; open: boolean; onClose: () => void;
@@ -1245,30 +1258,15 @@ export default function HomeServiceRequestScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <YStack backgroundColor="#1F4E79" padding={16} paddingTop={18}>
-        <XStack alignItems="center" justifyContent="center" position="relative">
-          <Button
-            size="$3"
-            chromeless
-            color="#FFFFFF"
-            position="absolute"
-            left={0}
-            fontSize={36}
-            fontWeight="900"
-            onPress={goBack}>
-            ‹
-          </Button>
-          <YStack alignItems="center">
-            <Text color="#FFFFFF" fontSize={t(18)} fontWeight="800">
-              Home Service Request
-            </Text>
-            <Text color={theme.menuText} fontSize={t(14)} fontWeight="600">
-              {step === 'service' ? 'Step 1 of 5' : step === 'details' ? 'Step 2 of 5' : step === 'uploads' ? 'Step 3 of 5' : step === 'payment' ? 'Step 4 of 5' : 'Step 5 of 5'}
-            </Text>
-          </YStack>
-        </XStack>
-      </YStack>
+<View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <PageHeader
+        dark
+        title="Home Service Request"
+        subtitle={
+          step === 'service' ? 'Step 1 of 5' : step === 'details' ? 'Step 2 of 5' : step === 'uploads' ? 'Step 3 of 5' : step === 'payment' ? 'Step 4 of 5' : 'Step 5 of 5'
+        }
+        onBack={goBack}
+      />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120, alignItems: 'center' }}>
         <YStack width={containerWidth} gap="$4">
@@ -1277,24 +1275,26 @@ export default function HomeServiceRequestScreen() {
               <Text fontSize={t(18)} fontWeight="800" color="#1F4E79">
                 Select Service
               </Text>
-              <XStack flexWrap="wrap" gap="$3" justifyContent="center" width="100%">
+              <XStack flexWrap="wrap" gap="$2.5" justifyContent="space-between" width="100%">
                 {serviceOptions.map((s) => {
                   const selected = serviceKey === s.key;
                   return (
-                    <Pressable key={s.key} onPress={() => setServiceKey(s.key)} style={{ width: '48%', minHeight: 96 } as any}>
+                    <Pressable key={s.key} onPress={() => setServiceKey(s.key)} style={{ width: '48%', minHeight: 100, marginBottom: 8 } as any}>
                       <YStack
                         backgroundColor={selected ? theme.info : theme.bgCard}
                         borderRadius={14}
                         padding={14}
                         borderWidth={2}
                         borderColor={selected ? '#1F4E79' : theme.border}
-                        gap="$1"
-                        minHeight={96}
+                        gap="$1.5"
+                        minHeight={100}
+                        alignItems="center"
                         justifyContent="center">
-                        <Text fontWeight="800" color={theme.text}>
+                        <FontAwesome5 name={SERVICE_ICONS[s.key] || 'concierge-bell'} size={24} color={selected ? '#FFFFFF' : '#1F4E79'} />
+                        <Text fontWeight="800" color={selected ? '#FFFFFF' : theme.text} textAlign="center">
                           {s.label}
                         </Text>
-                        <Text fontSize={t(13)} color={theme.textSecondary} fontWeight="700">
+                        <Text fontSize={t(13)} color={selected ? '#E0F2FE' : theme.textSecondary} fontWeight="700">
                           Tap to choose
                         </Text>
                       </YStack>

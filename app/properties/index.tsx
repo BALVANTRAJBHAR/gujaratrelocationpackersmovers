@@ -4,6 +4,7 @@ import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import Head from 'expo-router/head';
 
 import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
+import PageHeader from '@/components/PageHeader';
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import {
   collectLocalityTokens,
@@ -1221,30 +1222,8 @@ export default function PropertiesIndexScreen() {
         <meta name="twitter:title" content={PROPERTIES_SEO.title} />
         <meta name="twitter:description" content={PROPERTIES_SEO.description} />
       </Head>
-      <View style={{ flex: 1, backgroundColor: pageBg }}>
-      <YStack backgroundColor={theme.bgSecondary} padding={16} paddingTop={18}>
-        <XStack alignItems="center" justifyContent="center" position="relative">
-          <Button
-            size="$3"
-            chromeless
-            color={theme.text}
-            position="absolute"
-            left={0}
-            fontSize={36}
-            fontWeight="900"
-            onPress={() => router.back()}>
-            ‹
-          </Button>
-          <YStack alignItems="center">
-            <Text color={theme.text} fontSize={t(16)} fontWeight="800">
-              Properties
-            </Text>
-            <Text color={theme.textMuted} fontSize={t(12)} fontWeight="600">
-              Search listings
-            </Text>
-          </YStack>
-        </XStack>
-      </YStack>
+<View style={{ flex: 1, backgroundColor: pageBg }}>
+      <PageHeader title="Properties" subtitle="Search listings" />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
         <XStack gap="$3" alignItems="flex-start" flexWrap="wrap">

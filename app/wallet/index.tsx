@@ -1,8 +1,9 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable } from 'react-native';
-import { Button, H2, Text, XStack, YStack } from 'tamagui';
+import { ActivityIndicator, Platform } from 'react-native';
+import { Button, Text, XStack, YStack } from 'tamagui';
 
+import PageHeader from '@/components/PageHeader';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { t } from '@/constants/typography';
@@ -53,15 +54,10 @@ export default function WalletScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor={theme.bg} padding={24} minHeight="100%" gap="$4">
-      <XStack alignItems="center" justifyContent="space-between">
-        <H2 color={theme.text}>Wallet</H2>
-        <Pressable onPress={() => router.back()}>
-          <Text color={theme.info} fontWeight="700">Back</Text>
-        </Pressable>
-      </XStack>
-
-      <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3" alignItems="center">
+    <YStack flex={1} backgroundColor={theme.bg}>
+      <PageHeader title="Wallet" />
+      <YStack padding={24} minHeight="100%" gap="$4">
+        <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3" alignItems="center">
         <Text color={theme.textMuted} fontSize={t(13)}>Available Balance</Text>
         <Text fontSize={t(36)} fontWeight="900" color={theme.text}>₹{balance.toLocaleString('en-IN')}</Text>
         <Button
@@ -110,6 +106,7 @@ export default function WalletScreen() {
           ))}
         </YStack>
       )}
+      </YStack>
     </YStack>
   );
 }

@@ -220,16 +220,18 @@ function AvailableRequestsInner({ session }: { session: any }) {
         <Button
           flex={1}
           backgroundColor={statusFilter === 'pending' ? '#1F4E79' : theme.bgSecondary}
-          color={statusFilter === 'pending' ? '#FFFFFF' : theme.text}
           onPress={() => setStatusFilter('pending')}>
-          Pending
+          <Text color={statusFilter === 'pending' ? '#FFFFFF' : theme.text} fontWeight="700">
+            Pending
+          </Text>
         </Button>
         <Button
           flex={1}
           backgroundColor={statusFilter === 'accepted' ? '#1F4E79' : theme.bgSecondary}
-          color={statusFilter === 'accepted' ? '#FFFFFF' : theme.text}
           onPress={() => setStatusFilter('accepted')}>
-          My Accepted
+          <Text color={statusFilter === 'accepted' ? '#FFFFFF' : theme.text} fontWeight="700">
+            My Accepted
+          </Text>
         </Button>
       </XStack>
 

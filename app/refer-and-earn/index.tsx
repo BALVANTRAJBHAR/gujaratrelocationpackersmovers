@@ -1,11 +1,11 @@
 import { FontAwesome5 } from '@expo/vector-icons';
 import Head from 'expo-router/head';
-import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Platform, Pressable, ScrollView, Share, View } from 'react-native';
+import { Animated, Linking, Platform, ScrollView, Share, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import PageHeader from '@/components/PageHeader';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
 import { REFER_SEO } from '@/constants/seo';
@@ -13,7 +13,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/providers/session-provider';
 
 export default function ReferAndEarnScreen() {
-  const router = useRouter();
   const { session } = useSession();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
@@ -133,15 +132,10 @@ export default function ReferAndEarnScreen() {
         <meta property="og:title" content={REFER_SEO.title} />
         <meta property="og:description" content={REFER_SEO.description} />
       </Head>
+      <PageHeader title="Refer & Earn" />
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
         <ScrollView style={{ flex: 1, backgroundColor: theme.bg }}>
         <YStack padding={24} gap="$4" minHeight="100%">
-          <XStack alignItems="center" justifyContent="space-between">
-            <Text fontSize={t(22)} fontWeight="900" color={theme.text}>Refer & Earn</Text>
-            <Pressable onPress={() => router.back()}>
-              <Text color={theme.info} fontWeight="700">Back</Text>
-            </Pressable>
-          </XStack>
 
           {/* Hero */}
           <YStack backgroundColor={theme.bgCard} borderRadius={22} padding={20} borderWidth={1} borderColor={theme.border} gap="$3" alignItems="center">

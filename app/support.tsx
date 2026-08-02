@@ -2,8 +2,9 @@ import Head from 'expo-router/head';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView } from 'react-native';
-import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
+import { Button, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import PageHeader from '@/components/PageHeader';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { useSession } from '@/providers/session-provider';
@@ -74,22 +75,14 @@ export default function SupportScreen() {
         <meta property="og:title" content={SUPPORT_SEO.title} />
         <meta property="og:description" content={SUPPORT_SEO.description} />
       </Head>
-      <YStack flex={1} backgroundColor={theme.bg}>
+<YStack flex={1} backgroundColor={theme.bg}>
+      <PageHeader title="Contact Us" subtitle={bookingId ? `Booking: ${bookingId}` : undefined} />
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 } as any}>
         <YStack gap="$4" width="100%" maxWidth={900} alignSelf="center">
           <YStack gap="$1">
-            <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
-              Support
-            </Text>
-            <H2 color={theme.text}>Chat with us</H2>
             <Paragraph color={theme.textMuted}>
               Send a WhatsApp message, call, or email—our team will help you quickly.
             </Paragraph>
-            {bookingId ? (
-              <Text color={theme.textMuted} fontSize={t(12)}>
-                Booking: {bookingId}
-              </Text>
-            ) : null}
           </YStack>
 
           <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} borderRadius={18} padding={16} gap="$2">
