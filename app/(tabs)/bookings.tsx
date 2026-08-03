@@ -2,7 +2,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ActivityIndicator, FlatList, Linking, Modal, Platform, Pressable, ScrollView, Share, ToastAndroid } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Linking, Modal, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
@@ -13,6 +13,7 @@ import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
@@ -262,6 +263,7 @@ function BookingsContent() {
   const [hsEndPickerValue, setHsEndPickerValue] = useState<Date>(new Date());
   const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
   const [hsStatusBusyId, setHsStatusBusyId] = useState<string | null>(null);
+  const [cancelDialog, setCancelDialog] = useState<{ kind: 'shifting' | 'home_service'; id: string } | null>(null);
   const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
   const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
   const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
@@ -484,15 +486,7 @@ function BookingsContent() {
       return;
     }
 
-    const title = status === 'cancelled' ? 'Cancel booking?' : 'Reschedule booking?';
-    const message =
-      status === 'cancelled'
-        ? 'This will cancel your booking. You can create a new booking any time.'
-        : 'This will update your booking date. Continue?';
-    Alert.alert(title, message, [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes', style: 'destructive', onPress: () => updateBookingStatus(bookingId, status) },
-    ]);
+    setCancelDialog({ kind: 'shifting', id: bookingId });
   };
 
   const updateBookingStatus = async (
@@ -585,14 +579,7 @@ function BookingsContent() {
   };
 
   const confirmHomeServiceCancel = (requestId: string) => {
-    Alert.alert('Cancel home service?', 'This will cancel your home service request. Continue?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes',
-        style: 'destructive',
-        onPress: () => void updateHomeServiceRequestStatus(requestId, 'cancelled'),
-      },
-    ]);
+    setCancelDialog({ kind: 'home_service', id: requestId });
   };
 
   const createBookingsCsvFile = async () => {
@@ -1703,9 +1690,9 @@ const renderPropertiesSection = () => {
   };
 
   return (
-    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
-      <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} style={{ minHeight: 0 }}>
-        <PageHeader title="Dashboard" subtitle="Track moves, home services and property requests." />
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <PageHeader title="Dashboard" subtitle="Track moves, home services and property requests." />
+      <YStack width="100%" maxWidth={1100} alignSelf="center" gap="$4" flex={1} padding={24} paddingTop={16} style={{ minHeight: 0 }}>
 
         <XStack gap="$2" flexWrap="wrap" justifyContent="center">
             <Button size="$2"
@@ -1739,7 +1726,29 @@ const renderPropertiesSection = () => {
         {activeTab === 'shifting' ? renderShiftingSection() : null}
         {activeTab === 'home_services' ? renderHomeServicesSection() : null}
         {activeTab === 'properties' ? renderPropertiesSection() : null}
+
+        <ConfirmDialog
+          open={!!cancelDialog}
+          title="Do you want to cancel this booking?"
+          message={
+            cancelDialog?.kind === 'home_service'
+              ? 'This will cancel your home service request. You can create a new one any time.'
+              : 'This will cancel your booking. You can create a new booking any time.'
+          }
+          busy={loading || (cancelDialog?.kind === 'home_service' && hsStatusBusyId === cancelDialog?.id)}
+          onClose={() => setCancelDialog(null)}
+          onConfirm={() => {
+            const target = cancelDialog;
+            if (!target) return;
+            setCancelDialog(null);
+            if (target.kind === 'home_service') {
+              void updateHomeServiceRequestStatus(target.id, 'cancelled');
+            } else {
+              void updateBookingStatus(target.id, 'cancelled');
+            }
+          }}
+        />
       </YStack>
-    </YStack>
+    </View>
   );
 }

@@ -21,7 +21,7 @@ export function getDashboardRoute(role?: string | null, providerSubtype?: string
   }
 
   if (normalizedRole === 'customer') {
-    return platform === 'web' ? '/home' : '/(tabs)';
+    return platform === 'web' ? '/home' : '/(tabs)/bookings';
   }
 
   return platform === 'web' ? '/home' : '/(tabs)';

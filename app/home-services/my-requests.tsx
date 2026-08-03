@@ -394,9 +394,46 @@ export default function MyHomeServiceRequestsScreen() {
           await supabase.from('home_service_requests').update(updates).eq('id', r.id);
           Alert.alert('Cancelled', oneHourBefore ? 'Request cancelled successfully.' : 'Request cancelled. ₹150 will be charged.');
           await fetchRequests();
-        },
-      },
-    ]);
+            },
+            },
+            ]);
+  };
+
+  const handleReschedule = async (r: HomeServiceRequestRow, day: string, timeLabel: string) => {
+    if (!day) return;
+    try {
+      const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
+      const { error: updateError } = await supabase
+        .from('home_service_requests')
+        .update({
+          status: 'rescheduled',
+          reschedule_date: iso,
+          preferred_date: day,
+          preferred_time: timeLabel,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', r.id);
+      if (updateError) {
+        Alert.alert('Error', updateError.message);
+        return;
+      }
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: {
+            request_id: r.id,
+            status: 'rescheduled',
+            new_date: day,
+            new_time: timeLabel,
+          },
+        });
+      } catch {
+        // ignore
+      }
+      Alert.alert('Rescheduled', 'Your service request has been rescheduled.');
+      await fetchRequests();
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to reschedule.');
+    }
   };
 
   return (
@@ -618,44 +655,7 @@ export default function MyHomeServiceRequestsScreen() {
                         (uploadsByRequest[r.id] ?? []).map((u) => {
                           const url = String(u.file_url ?? '').trim();
                           const label = u.file_name || u.file_type || 'File';
-  const handleReschedule = async (r: HomeServiceRequestRow, day: string, timeLabel: string) => {
-    if (!day) return;
-    try {
-      const iso = new Date(`${day}T${timeLabelTo24h(timeLabel)}:00`).toISOString();
-      const { error: updateError } = await supabase
-        .from('home_service_requests')
-        .update({
-          status: 'rescheduled',
-          reschedule_date: iso,
-          preferred_date: day,
-          preferred_time: timeLabel,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', r.id);
-      if (updateError) {
-        Alert.alert('Error', updateError.message);
-        return;
-      }
-      try {
-        await supabase.functions.invoke('send-home-service-notification', {
-          body: {
-            request_id: r.id,
-            status: 'rescheduled',
-            new_date: day,
-            new_time: timeLabel,
-          },
-        });
-      } catch {
-        // ignore
-      }
-      Alert.alert('Rescheduled', 'Your service request has been rescheduled.');
-      await fetchRequests();
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to reschedule.');
-    }
-  };
-
-  return (
+                          return (
                             <Pressable
                               key={u.id}
                               onPress={() => {

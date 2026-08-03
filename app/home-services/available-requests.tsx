@@ -70,6 +70,7 @@ export default function AvailableRequestsScreen() {
 }
 
 function AvailableRequestsInner({ session }: { session: any }) {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 

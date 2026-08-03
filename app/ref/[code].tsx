@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, YStack } from 'tamagui';
+import { ActivityIndicator } from 'react-native';
+import { YStack } from 'tamagui';
 
 export default function ReferralRedirect() {
   const { code } = useLocalSearchParams<{ code: string }>();

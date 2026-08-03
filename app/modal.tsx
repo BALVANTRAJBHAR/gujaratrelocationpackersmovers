@@ -43,6 +43,7 @@ export default function ModalScreen() {
 }
 
 function ModalScreenInner({ bookingId }: { bookingId?: string }) {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;

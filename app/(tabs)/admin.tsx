@@ -16,6 +16,7 @@ try {
 import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
 import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
@@ -814,7 +815,7 @@ function AdminScreenInner() {
   const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
   const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
   const [cancelHomeServiceModalId, setCancelHomeServiceModalId] = useState<string | null>(null);
-
+  const [cancelBookingDialogId, setCancelBookingDialogId] = useState<string | null>(null);
   const [userSearchText, setUserSearchText] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'customer' | 'driver' | 'staff' | 'admin' | 'worker'>('all');
   const [selectedManagedUserId, setSelectedManagedUserId] = useState<string | null>(null);
@@ -2897,88 +2898,87 @@ function AdminScreenInner() {
   }, [activeSection, canManage]);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={{ padding: 24, paddingBottom: 120 } as any}
-      keyboardShouldPersistTaps="handled">
-      <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
-        <PageHeader
-          title="Admin Dashboard"
-          subtitle="Manage staff, bookings, approvals, quote requests and reports."
-          right={
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable
-              onPress={() => {
-                (router as any).push('/notifications');
-              }}>
-              <XStack
-                alignItems="center"
-                justifyContent="center"
-                height={40}
-                paddingHorizontal={12}
-                borderRadius={12}
-                backgroundColor={theme.bgCardSecondary}
-                borderWidth={1}
-                borderColor={theme.border}
-                gap={6}
-                position="relative">
-                <IconSymbol name="bell.fill" size={18} color={theme.text} />
-                <Text color={theme.text} fontSize={t(13)} fontWeight="700">
-                  Notification
-                </Text>
-                {unreadCount > 0 ? (
-                  <View
-                    style={{
-                      minWidth: 16,
-                      height: 16,
-                      borderRadius: 99,
-                      backgroundColor: theme.danger,
-                      paddingHorizontal: 4,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <Text color="#FFFFFF" fontSize={t(11)} fontWeight="700">
-                      {unreadCount > 99 ? '99+' : String(unreadCount)}
-                    </Text>
-                  </View>
-                ) : null}
-              </XStack>
-            </Pressable>
-            <Button
-              size="$2"
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <PageHeader
+        title="Admin Dashboard"
+        subtitle="Manage staff, bookings, approvals, quote requests and reports."
+      />
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.bg }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 120 } as any}
+        keyboardShouldPersistTaps="handled">
+        <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Pressable
+            onPress={() => {
+              (router as any).push('/notifications');
+            }}>
+            <XStack
+              alignItems="center"
+              justifyContent="center"
               height={40}
+              paddingHorizontal={12}
+              borderRadius={12}
               backgroundColor={theme.bgCardSecondary}
-              color={theme.text}
-              borderRadius={10}
-              onPress={() => router.push('/admin/locations' as any)}>
-              Manage Locations
-            </Button>
-            <Button
-              size="$2"
-              height={40}
-              backgroundColor={theme.bgCardSecondary}
-              color={theme.text}
-              borderRadius={10}
-              onPress={() => {
-                fetchDrivers();
-                fetchStaff();
-                fetchManagedUsers();
-                fetchBookings();
-                fetchVehicleTypes();
-                fetchFloorOptions();
-                fetchCoupons();
-                fetchHomeServiceRequests();
-                fetchProperties();
-                void fetchPropBookings();
-                fetchQuoteRequests();
-                fetchReportsBookings();
-                fetchReportsPayments();
-              }}>
-              Refresh
-            </Button>
-            </ScrollView>
-          }
-        />
+              borderWidth={1}
+              borderColor={theme.border}
+              gap={6}
+              position="relative">
+              <IconSymbol name="bell.fill" size={18} color={theme.text} />
+              <Text color={theme.text} fontSize={t(13)} fontWeight="700">
+                Notification
+              </Text>
+              {unreadCount > 0 ? (
+                <View
+                  style={{
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 99,
+                    backgroundColor: theme.danger,
+                    paddingHorizontal: 4,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Text color="#FFFFFF" fontSize={t(11)} fontWeight="700">
+                    {unreadCount > 99 ? '99+' : String(unreadCount)}
+                  </Text>
+                </View>
+              ) : null}
+            </XStack>
+          </Pressable>
+          <Button
+            size="$2"
+            height={40}
+            backgroundColor={theme.bgCardSecondary}
+            color={theme.text}
+            borderRadius={10}
+            onPress={() => router.push('/admin/locations' as any)}>
+            Manage Locations
+          </Button>
+          <Button
+            size="$2"
+            height={40}
+            backgroundColor={theme.bgCardSecondary}
+            color={theme.text}
+            borderRadius={10}
+            onPress={() => {
+              fetchDrivers();
+              fetchStaff();
+              fetchManagedUsers();
+              fetchBookings();
+              fetchVehicleTypes();
+              fetchFloorOptions();
+              fetchCoupons();
+              fetchHomeServiceRequests();
+              fetchProperties();
+              void fetchPropBookings();
+              fetchQuoteRequests();
+              fetchReportsBookings();
+              fetchReportsPayments();
+            }}>
+            Refresh
+          </Button>
+        </ScrollView>
 
         <YStack gap="$2">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled={true} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
@@ -4875,7 +4875,7 @@ function AdminScreenInner() {
                               borderRadius={10}
                               flex={1}
                               pressStyle={{ opacity: 0.8 }}
-                              onPress={() => updateBookingStatus(item.id, 'cancelled')}>
+                              onPress={() => setCancelBookingDialogId(item.id)}>
                               Cancel
                             </Button>
                             <Button
@@ -6360,7 +6360,20 @@ function AdminScreenInner() {
             ) : null}
           </>
         )}
+        <ConfirmDialog
+          open={!!cancelBookingDialogId}
+          title="Do you want to cancel this booking?"
+          message="This will cancel the booking and notify the customer."
+          onClose={() => setCancelBookingDialogId(null)}
+          onConfirm={() => {
+            const targetId = cancelBookingDialogId;
+            if (!targetId) return;
+            setCancelBookingDialogId(null);
+            void updateBookingStatus(targetId, 'cancelled');
+          }}
+        />
       </YStack>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }

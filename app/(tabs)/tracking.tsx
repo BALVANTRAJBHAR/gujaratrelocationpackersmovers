@@ -1,16 +1,17 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList } from 'react-native';
+import { FlatList, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
+import PageHeader from '@/components/PageHeader';
 import TrackingMap from '@/components/tracking-map';
 import { themes } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { t } from '@/constants/typography';
+import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { getMapboxToken } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
-import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
-import { t } from '@/constants/typography';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type DriverLocation = {
   id: string;
@@ -104,8 +105,8 @@ export default function TrackingScreen() {
   useEffect(() => {
     let cancelled = false;
     getMapboxToken()
-      .then((t) => {
-        if (!cancelled) setMapboxToken(t);
+      .then((tk) => {
+        if (!cancelled) setMapboxToken(tk);
       })
       .catch(() => {
         if (!cancelled) setMapboxToken('');
@@ -192,126 +193,132 @@ export default function TrackingScreen() {
   }, [params.bookingId]);
 
   return (
-    <YStack flex={1} backgroundColor={theme.bg} padding={24}>
-      <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
-        <Text color={theme.accent} fontSize={t(18)} fontWeight="900" letterSpacing={2} textTransform="uppercase">
-          Live tracking
-        </Text>
-        <H2 color={theme.text}>Driver signals</H2>
-        <Paragraph color={theme.textMuted}>
-          Realtime updates will appear here once driver starts the trip.
-        </Paragraph>
+    <YStack flex={1} backgroundColor={theme.bg}>
+      {/* Header with back arrow */}
+      <PageHeader title="Live Tracking" />
 
-        {!params.bookingId ? (
-          <YStack
-            backgroundColor={theme.bgCardSecondary}
-            borderColor={theme.border}
-            borderWidth={1}
-            borderRadius={18}
-            padding={14}
-            gap="$2">
-            <Text color={theme.text} fontSize={t(12)} fontWeight="700">
-              Enter Tracking ID
-            </Text>
-            <Input
-              value={trackingId}
-              onChangeText={setTrackingId}
-              placeholder="Paste booking / tracking ID"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Button
-              backgroundColor={theme.accent}
-              color="#FFFFFF"
-              onPress={() => {
-                const id = String(trackingId ?? '').trim();
-                if (!id) return;
-                setTrackingId('');
-                router.push({ pathname: '/(tabs)/tracking', params: { bookingId: id } } as any);
-              }}>
-              Track Now
-            </Button>
-            <Text color={theme.textMuted} fontSize={t(11)}>
-              Customer can share this Tracking ID to view live status and driver location.
-            </Text>
-          </YStack>
-        ) : null}
-        {params.bookingId ? (
-          <Text color={theme.textMuted} fontSize={t(12)}>Tracking booking: {params.bookingId}</Text>
-        ) : null}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 32 }}>
+        <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$3">
+          <H2 color={theme.text}>Driver signals</H2>
+          <Paragraph color={theme.textMuted}>
+            Realtime updates will appear here once driver starts the trip.
+          </Paragraph>
 
-        {params.bookingId ? (
-          <YStack
-            backgroundColor={theme.bgCardSecondary}
-            borderColor={theme.border}
-            borderWidth={1}
-            borderRadius={18}
-            padding={14}
-            gap="$2">
-            <Text color={theme.text} fontSize={t(12)} fontWeight="700">
-              Status
-            </Text>
-            <XStack gap="$2" flexWrap="wrap" alignItems="center">
-              {STATUS_STEPS.map((step, idx) => {
-                const normalizedStatus = !bookingStatus ? null : ['pending', 'assigned', 'confirmed'].includes(bookingStatus) ? 'not_started' : bookingStatus;
-                const statusIndex = STATUS_STEPS.findIndex((s) => s.key === normalizedStatus);
-                const stepIndex = idx;
-                const isActive = statusIndex >= stepIndex && statusIndex !== -1;
-                return (
-                  <XStack key={step.key} alignItems="center" gap="$2">
-                    <Text
-                      fontSize={t(11)}
-                      paddingHorizontal={10}
-                      paddingVertical={6}
-                      borderRadius={999}
-                      backgroundColor={isActive ? theme.accent : theme.bgCardSecondary}
-                      color={isActive ? '#FFFFFF' : theme.textMuted}>
-                      {step.label}
-                    </Text>
-                    {idx !== STATUS_STEPS.length - 1 ? (
-                      <Text color={theme.textMuted} fontSize={t(12)}>
-                        —
-                      </Text>
-                    ) : null}
-                  </XStack>
-                );
-              })}
-            </XStack>
-          </YStack>
-        ) : null}
-
-        <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary} style={{ position: 'relative' } as any}>
-          <TrackingMap
-            token={mapboxToken}
-            latitude={mapLat}
-            longitude={mapLng}
-            hasLiveLocation={Boolean(latestLocation?.lat && latestLocation?.lng)}
-            pickupLat={pickupLat}
-            pickupLng={pickupLng}
-            dropLat={dropLat}
-            dropLng={dropLng}
-            pickupAddress={pickupAddress}
-            dropAddress={dropAddress}
-          />
-        </YStack>
-
-        <FlatList
-          data={displayedLocations}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
-          renderItem={({ item }) => (
-            <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
-              <Text color={theme.text} fontSize={t(13)}>Booking: {item.booking_id}</Text>
-              <Text color={theme.textMuted} fontSize={t(12)}>
-                Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
+          {!params.bookingId ? (
+            <YStack
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              borderWidth={1}
+              borderRadius={18}
+              padding={14}
+              gap="$2">
+              <Text color={theme.text} fontSize={t(12)} fontWeight="700">
+                Enter Tracking ID
               </Text>
+              <Input
+                value={trackingId}
+                onChangeText={setTrackingId}
+                placeholder="Paste booking / tracking ID"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Button
+                backgroundColor={theme.accent}
+                color="#FFFFFF"
+                onPress={() => {
+                  const id = String(trackingId ?? '').trim();
+                  if (!id) return;
+                  setTrackingId('');
+                  router.push({ pathname: '/(tabs)/tracking', params: { bookingId: id } } as any);
+                }}>
+                Track Now
+              </Button>
               <Text color={theme.textMuted} fontSize={t(11)}>
-                {formatDateTimeDDMMYYYY(item.updated_at)}
+                Customer can share this Tracking ID to view live status and driver location.
               </Text>
             </YStack>
-          )}
-        />
-      </YStack>
+          ) : null}
+
+          {params.bookingId ? (
+            <Text color={theme.textMuted} fontSize={t(12)}>Tracking booking: {params.bookingId}</Text>
+          ) : null}
+
+          {params.bookingId ? (
+            <YStack
+              backgroundColor={theme.bgCardSecondary}
+              borderColor={theme.border}
+              borderWidth={1}
+              borderRadius={18}
+              padding={14}
+              gap="$2">
+              <Text color={theme.text} fontSize={t(12)} fontWeight="700">
+                Status
+              </Text>
+              <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                {STATUS_STEPS.map((step, idx) => {
+                  const normalizedStatus = !bookingStatus ? null : ['pending', 'assigned', 'confirmed'].includes(bookingStatus) ? 'not_started' : bookingStatus;
+                  const statusIndex = STATUS_STEPS.findIndex((s) => s.key === normalizedStatus);
+                  const stepIndex = idx;
+                  const isActive = statusIndex >= stepIndex && statusIndex !== -1;
+                  return (
+                    <XStack key={step.key} alignItems="center" gap="$2">
+                      <Text
+                        fontSize={t(11)}
+                        paddingHorizontal={10}
+                        paddingVertical={6}
+                        borderRadius={999}
+                        backgroundColor={isActive ? theme.accent : theme.bgCardSecondary}
+                        color={isActive ? '#FFFFFF' : theme.textMuted}>
+                        {step.label}
+                      </Text>
+                      {idx !== STATUS_STEPS.length - 1 ? (
+                        <Text color={theme.textMuted} fontSize={t(12)}>
+                          —
+                        </Text>
+                      ) : null}
+                    </XStack>
+                  );
+                })}
+              </XStack>
+            </YStack>
+          ) : null}
+
+          <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary} style={{ position: 'relative' } as any}>
+            <TrackingMap
+              token={mapboxToken}
+              latitude={mapLat}
+              longitude={mapLng}
+              hasLiveLocation={Boolean(latestLocation?.lat && latestLocation?.lng)}
+              pickupLat={pickupLat}
+              pickupLng={pickupLng}
+              dropLat={dropLat}
+              dropLng={dropLng}
+              pickupAddress={pickupAddress}
+              dropAddress={dropAddress}
+            />
+          </YStack>
+
+          <FlatList
+            data={displayedLocations}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            contentContainerStyle={{ gap: 12, paddingTop: 8, paddingBottom: 24 }}
+            renderItem={({ item }) => (
+              <YStack backgroundColor={theme.bgCard} borderColor={theme.border} borderWidth={1} padding={16} borderRadius={16} gap="$1">
+                <Text color={theme.text} fontSize={t(13)}>Booking: {item.booking_id}</Text>
+                <Text color={theme.textMuted} fontSize={t(12)}>
+                  Lat: {item.lat ?? '—'}, Lng: {item.lng ?? '—'}
+                </Text>
+                <Text color={theme.textMuted} fontSize={t(11)}>
+                  {formatDateTimeDDMMYYYY(item.updated_at)}
+                </Text>
+              </YStack>
+            )}
+          />
+        </YStack>
+      </ScrollView>
     </YStack>
   );
 }

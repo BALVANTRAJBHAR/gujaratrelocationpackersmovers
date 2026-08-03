@@ -67,13 +67,12 @@ function AppLayoutInner() {
   // Bottom navigation is only visible on root/main pages. Any child page
   // opened from Home/Services/Dashboard/Profile hides it and shows its own
   // PageHeader with a back button instead.
+  // Note: expo-router pops the trailing 'index' segment from tab state
+  // (routeInfo.js), so the Home tab reports ['(tabs)'] — not ['(tabs)','index'].
   const ROOT_NAV_SEGMENTS: string[][] = [
-    [],
-    ['index'],
-    ['splash'],
     ['home'],
+    ['(tabs)'],
     ['(tabs)', 'index'],
-    ['(tabs)', 'tracking'],
     ['(tabs)', 'properties'],
     ['(tabs)', 'home-service'],
     ['(tabs)', 'driver'],

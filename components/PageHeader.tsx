@@ -31,7 +31,7 @@ export default function PageHeader({ title, subtitle, onBack, dark = false, righ
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/home' as any);
+      router.replace(Platform.OS === 'web' ? ('/home' as any) : ('/(tabs)' as any));
     }
   };
 
@@ -74,17 +74,17 @@ export default function PageHeader({ title, subtitle, onBack, dark = false, righ
           </YStack>
         </Pressable>
 
-        <YStack minWidth={0} alignItems="center" flexShrink={1}>
+        <YStack minWidth={0} alignItems="center" flexShrink={1} paddingHorizontal={44}>
           <Text
             color={fg}
-            fontSize={t(16)}
-            fontWeight="800"
+            fontSize={t(17)}
+            fontWeight="900"
             numberOfLines={1}
             style={{ fontFamily: Platform.OS === 'web' ? "'Times New Roman', Times, serif" : 'Times New Roman' }}>
             {title}
           </Text>
           {subtitle ? (
-            <Text color={subFg} fontSize={t(11)} fontWeight="600" numberOfLines={1}>
+            <Text color={subFg} fontSize={t(11)} fontWeight="600" numberOfLines={1} marginTop={3}>
               {subtitle}
             </Text>
           ) : null}

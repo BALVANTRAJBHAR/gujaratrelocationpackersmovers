@@ -5,7 +5,7 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Button, Dialog, H4, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
@@ -1320,7 +1320,6 @@ export default function BookingWizardScreen() {
       };
 
       setBookingData(pdfData);
-      setBookingId(createdBookingId);
       setProcessingOpen(false);
       setSuccessOpen(true);
 

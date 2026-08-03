@@ -53,7 +53,12 @@ export default function MobileBottomNav({
   const [sheetOpen, setSheetOpen] = useState<string | null>(null);
 
   // Detect if we are already on /home to avoid duplicate navigation
-  const isOnHome = segments.length === 0 || segments[0] === 'home' || segments[0] === 'index';
+  const segs = segments as any;
+  const isOnHome =
+    segs.length === 0 ||
+    segs[0] === 'home' ||
+    segs[0] === 'index' ||
+    (segs[0] === '(tabs)' && (segs.length === 1 || segs[1] === 'index' || segs[1] === ''));
 
   const handleTabPress = (key: string) => {
     setActiveTab(key);
@@ -63,7 +68,7 @@ export default function MobileBottomNav({
         onHomePress();
       } else if (!isOnHome) {
         // Use replace so home doesn't stack on top of itself
-        router.replace('/home' as any);
+        router.replace(Platform.OS === 'web' ? ('/home' as any) : ('/(tabs)' as any));
       }
     } else if (key === 'services') {
       setSheetOpen(sheetOpen === 'services' ? null : 'services');
@@ -71,18 +76,18 @@ export default function MobileBottomNav({
       setSheetOpen(null);
       try {
         if (!session) {
-          router.replace('/auth/login' as any);
+          router.push('/auth/login' as any);
         } else if (onDashboardPress) {
           onDashboardPress();
         } else {
           const role = profile?.role ?? session?.user?.user_metadata?.role ?? 'customer';
           const providerSubtype = session?.user?.user_metadata?.provider_subtype ?? '';
           const route = getDashboardRoute(role, providerSubtype, Platform.OS === 'web' ? 'web' : 'native');
-          router.replace(route as any);
+          router.push(route as any);
         }
       } catch {
-        // fallback: replace to home if navigation fails
-        router.replace('/home' as any);
+        // fallback: redirect to home if navigation fails
+        router.replace(Platform.OS === 'web' ? ('/home' as any) : ('/(tabs)' as any));
       }
     } else if (key === 'profile') {
       setSheetOpen(sheetOpen === 'profile' ? null : 'profile');
@@ -238,7 +243,7 @@ export default function MobileBottomNav({
               <Pressable onPress={() => handleProfileAction('contact')}>
                 <YStack paddingVertical={14} borderBottomWidth={1} borderBottomColor={theme.border}>
                   <XStack gap={12} alignItems="center">
-                    <FontAwesome name="headset" size={22} color={theme.text} />
+                    <FontAwesome name={"headset" as any} size={22} color={theme.text} />
                     <Text color={theme.text} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Contact Us</Text>
                   </XStack>
                 </YStack>
@@ -268,7 +273,7 @@ export default function MobileBottomNav({
               <Pressable onPress={() => handleProfileAction('contact')}>
                 <YStack paddingVertical={14}>
                   <XStack gap={12} alignItems="center">
-                    <FontAwesome name="headset" size={22} color={theme.text} />
+                    <FontAwesome name={"headset" as any} size={22} color={theme.text} />
                     <Text color={theme.text} fontSize={t(15)} fontWeight="700" style={{ fontFamily: APP_SERIF_FONT }}>Contact Us</Text>
                   </XStack>
                 </YStack>
