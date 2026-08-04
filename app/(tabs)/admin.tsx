@@ -1,10 +1,9 @@
 import { useAuthGuard } from '@/lib/auth-guard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Modal, NativeModules, Platform, Pressable, ScrollView, Share, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Modal, NativeModules, Platform, Pressable, ScrollView, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 let TextRecognition: any = null;
 try {
@@ -17,6 +16,7 @@ import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import EndOfResults from '@/components/EndOfResults';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { themes } from '@/constants/theme';
 import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
@@ -559,6 +559,7 @@ export default function AdminGuardFallbackWrapper() {
 
 function AdminScreenInner() {
   const router = useRouter();
+  const adminScrollRef = useRef<ScrollView | null>(null);
   const params = useLocalSearchParams<{ section?: string }>();
   const section = params?.section;
   const { session, profile, refreshProfile } = useSession();
@@ -783,9 +784,9 @@ function AdminScreenInner() {
   }>({
     id: null,
     label: '',
-    sort_order: '0',
-    charge_with_lift: '0',
-    charge_without_lift: '0',
+    sort_order: '',
+    charge_with_lift: '',
+    charge_without_lift: '',
     is_active: true,
   });
   const [bookingFilter, setBookingFilter] = useState<
@@ -866,7 +867,7 @@ function AdminScreenInner() {
     discount_type: 'percent',
     discount_value: '',
     max_discount: '',
-    min_order_amount: '0',
+    min_order_amount: '',
     valid_from: '',
     valid_until: '',
     usage_limit: '',
@@ -1350,12 +1351,6 @@ function AdminScreenInner() {
     }
   };
 
-  const notifyDownloaded = (fileName: string) => {
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(`Downloaded to Downloads folder: ${fileName}`, ToastAndroid.LONG);
-    }
-  };
-
   const downloadTextFile = async (opts: { fileName: string; mimeType: string; content: string }) => {
     const { fileName, mimeType, content } = opts;
     const bomContent = content.startsWith('\uFEFF') ? content : `\uFEFF${content}`;
@@ -1376,21 +1371,14 @@ function AdminScreenInner() {
     const baseDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
     const tempUri = `${baseDir}${fileName}`;
     await FileSystem.writeAsStringAsync(tempUri, bomContent, { encoding: 'utf8' as any });
-    const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string): Promise<string> } | undefined;
+    const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string, type?: string): Promise<string> } | undefined;
     if (Platform.OS === 'android' && nativePdfDownloader) {
-      const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
-      // Single notification: tap to open file (no duplicate toast)
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Download complete',
-          body: `${fileName} saved to Downloads. Tap to open.`,
-          data: { fileUri: savedPath || tempUri },
-        },
-        trigger: null,
-      });
+      await nativePdfDownloader.saveToDownloads(tempUri, fileName, mimeType);
+      ToastAndroid.show('Downloaded successfully.', ToastAndroid.LONG);
     } else {
-      // iOS fallback: share the file
-      await Share.share({ url: tempUri, title: fileName });
+      const destination = `${(FileSystem as any).documentDirectory || baseDir}${fileName}`;
+      if (destination !== tempUri) await FileSystem.copyAsync({ from: tempUri, to: destination });
+      Alert.alert('Download complete', 'File saved successfully.');
     }
   };
 
@@ -1434,11 +1422,16 @@ function AdminScreenInner() {
       return;
     }
     const { uri } = await Print.printToFileAsync({ html });
+    const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string, type?: string): Promise<string> } | undefined;
+    if (Platform.OS === 'android' && nativePdfDownloader) {
+      await nativePdfDownloader.saveToDownloads(uri, fileName, 'application/pdf');
+      ToastAndroid.show('PDF downloaded successfully.', ToastAndroid.LONG);
+      return;
+    }
     const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
     const targetUri = `${baseDir}${fileName}`;
     await FileSystem.copyAsync({ from: uri, to: targetUri });
-    await Share.share({ url: targetUri, title: fileName });
-    notifyDownloaded(fileName);
+    Alert.alert('Download complete', 'PDF downloaded successfully.');
   };
 
   const exportQuoteRequestsCsv = async () => {
@@ -1593,7 +1586,7 @@ function AdminScreenInner() {
           body: {
             request_id: requestId,
             status,
-            send_email: status === 'rescheduled',
+            send_email: status === 'rescheduled' || status === 'cancelled',
             new_date: overrides?.preferred_date ?? undefined,
             new_time: overrides?.preferred_time ?? undefined,
           },
@@ -2187,7 +2180,7 @@ function AdminScreenInner() {
       discount_type: 'percent',
       discount_value: '',
       max_discount: '',
-      min_order_amount: '0',
+      min_order_amount: '',
       valid_from: '',
       valid_until: '',
       usage_limit: '',
@@ -2462,8 +2455,8 @@ function AdminScreenInner() {
       id: null,
       label: '',
       sort_order: nextFloorSortOrder,
-      charge_with_lift: '0',
-      charge_without_lift: '0',
+      charge_with_lift: '',
+      charge_without_lift: '',
       is_active: true,
     });
   };
@@ -2832,7 +2825,7 @@ function AdminScreenInner() {
           body: {
             booking_id: bookingId,
             status,
-            send_email: status === 'rescheduled',
+            send_email: status === 'rescheduled' || status === 'cancelled',
             new_date: status === 'rescheduled' ? String(nextRescheduleDate).slice(0, 10) : undefined,
             new_time: status === 'rescheduled' ? timeOverride ?? undefined : undefined,
           },
@@ -2904,10 +2897,11 @@ function AdminScreenInner() {
         subtitle="Manage staff, bookings, approvals, quote requests and reports."
       />
       <ScrollView
+        ref={adminScrollRef}
         style={{ flex: 1, backgroundColor: theme.bg }}
-        contentContainerStyle={{ padding: 24, paddingBottom: 120 } as any}
+        contentContainerStyle={{ padding: 24, paddingBottom: 64 } as any}
         keyboardShouldPersistTaps="handled">
-        <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4">
+        <YStack width="100%" maxWidth={maxContentWidth} alignSelf="center" gap="$4" flexGrow={1}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <Pressable
             onPress={() => {
@@ -2953,7 +2947,10 @@ function AdminScreenInner() {
             color={theme.text}
             borderRadius={10}
             onPress={() => router.push('/admin/locations' as any)}>
-            Manage Locations
+            <XStack gap={6} alignItems="center">
+              <FontAwesome5 name="map-marker-alt" size={14} color={theme.text} />
+              <Text color={theme.text} fontSize={t(13)} fontWeight="700">Manage Locations</Text>
+            </XStack>
           </Button>
           <Button
             size="$2"
@@ -4214,18 +4211,10 @@ function AdminScreenInner() {
                     />
                   </XStack>
 
-                  <XStack gap="$2" flexWrap="wrap">
-                    <Input
-                      value={couponForm.discount_type}
-                      onChangeText={(v) => setCouponForm((p) => ({ ...p, discount_type: v }))}
-                      placeholder="Type (percent/flat)"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={200}
-                      flexGrow={1}
-                      flexBasis={220}
-                    />
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    <Text color={theme.textMuted} fontSize={t(13)}>Discount type</Text>
+                    <Button size="$2" borderRadius={10} backgroundColor={couponForm.discount_type === 'percent' ? theme.accent : theme.inputBg} color={couponForm.discount_type === 'percent' ? '#FFFFFF' : theme.inputText} onPress={() => setCouponForm((p) => ({ ...p, discount_type: 'percent' }))}>Percent</Button>
+                    <Button size="$2" borderRadius={10} backgroundColor={couponForm.discount_type === 'flat' ? theme.accent : theme.inputBg} color={couponForm.discount_type === 'flat' ? '#FFFFFF' : theme.inputText} onPress={() => setCouponForm((p) => ({ ...p, discount_type: 'flat' }))}>Flat</Button>
                     <Input
                       value={couponForm.discount_value}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, discount_value: v }))}
@@ -4256,7 +4245,7 @@ function AdminScreenInner() {
                     <Input
                       value={couponForm.min_order_amount}
                       onChangeText={(v) => setCouponForm((p) => ({ ...p, min_order_amount: v }))}
-                      placeholder="Min order amount"
+                      placeholder="Min. order amount (e.g., ₹2,000)"
                       keyboardType="numeric"
                       backgroundColor={theme.inputBg}
                       borderColor={theme.border}
@@ -4387,7 +4376,7 @@ function AdminScreenInner() {
                                     : String(item.max_discount),
                                 min_order_amount:
                                   item.min_order_amount === null || item.min_order_amount === undefined
-                                    ? '0'
+                                    ? ''
                                     : String(item.min_order_amount),
                                 valid_from: item.valid_from ?? '',
                                 valid_until: item.valid_until ?? '',
@@ -4461,7 +4450,7 @@ function AdminScreenInner() {
                     <Input
                       value={floorForm.charge_with_lift}
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, charge_with_lift: v }))}
-                      placeholder="Charge (with lift)"
+                      placeholder="With lift (e.g., 500)"
                       keyboardType="numeric"
                       backgroundColor={theme.inputBg}
                       borderColor={theme.border}
@@ -4473,7 +4462,7 @@ function AdminScreenInner() {
                     <Input
                       value={floorForm.charge_without_lift}
                       onChangeText={(v) => setFloorForm((p) => ({ ...p, charge_without_lift: v }))}
-                      placeholder="Charge (without lift)"
+                      placeholder="Without lift (e.g., 1000)"
                       keyboardType="numeric"
                       backgroundColor={theme.inputBg}
                       borderColor={theme.border}
@@ -4763,12 +4752,14 @@ function AdminScreenInner() {
                       borderWidth={1}>
                       <YStack gap="$1">
                         <YStack gap={2}>
-                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
-                            🔴 From: {item.pickup_address ?? 'Pickup address'}
-                          </Text>
-                          <Text color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
-                            🟢 To: {item.drop_address ?? 'Drop address'}
-                          </Text>
+                          <XStack alignItems="flex-start" gap={8}>
+                            <FontAwesome5 name="map-marker-alt" size={16} color="#EF4444" />
+                            <Text flex={1} color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup address'}</Text>
+                          </XStack>
+                          <XStack alignItems="flex-start" gap={8}>
+                            <FontAwesome5 name="map-marker-alt" size={16} color="#10B981" />
+                            <Text flex={1} color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>To: {item.drop_address ?? 'Drop address'}</Text>
+                          </XStack>
                         </YStack>
                         <XStack gap={4} flexWrap="wrap" alignItems="center">
                           <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>User:</Text>
@@ -6372,6 +6363,7 @@ function AdminScreenInner() {
             void updateBookingStatus(targetId, 'cancelled');
           }}
         />
+        <EndOfResults theme={theme} onUp={() => adminScrollRef.current?.scrollTo({ y: 0, animated: true })} />
       </YStack>
       </ScrollView>
     </View>

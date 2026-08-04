@@ -926,12 +926,21 @@ export default function BookingWizardScreen() {
   const discountedSubtotal = useMemo(() => roundMoney(Math.max(subtotal - discountAmount, 0)), [subtotal, discountAmount]);
   const gst = useMemo(() => roundMoney(discountedSubtotal * 0.18), [discountedSubtotal]);
   const total = useMemo(() => roundMoney(discountedSubtotal + gst + boxCharge), [discountedSubtotal, gst, boxCharge]);
-  const { convenienceFee, finalPayable } = useMemo(() => calculateConvenienceFee(total), [total]);
-  const amountDueNow = useMemo(() => {
-    return paymentMode === 'full'
-      ? finalPayable
-      : Math.round(((form.advanceAmount ?? 0) + convenienceFee) * 100) / 100;
-  }, [convenienceFee, finalPayable, form.advanceAmount, paymentMode]);
+  const paymentBaseAmount = useMemo(
+    () => (paymentMode === 'full' ? total : Math.max(form.advanceAmount ?? 0, 0)),
+    [form.advanceAmount, paymentMode, total]
+  );
+  // Razorpay's convenience fee is based on the complete booking total.  Keep the
+  // selected payment amount in the dependencies so every preset/custom change
+  // immediately refreshes the payment summary without changing the fee formula.
+  const { convenienceFee, finalPayable } = useMemo(
+    () => calculateConvenienceFee(total),
+    [paymentBaseAmount, total]
+  );
+  const amountDueNow = useMemo(
+    () => Math.round((paymentBaseAmount + convenienceFee) * 100) / 100,
+    [convenienceFee, paymentBaseAmount]
+  );
 
   useEffect(() => {
     if (paymentMode !== 'full') return;
@@ -3035,9 +3044,13 @@ export default function BookingWizardScreen() {
                   </XStack>
 
                   <XStack justifyContent="space-between" marginTop={6}>
-                    <Text fontSize={t(14)} color={theme.textMuted}>Advance Payment</Text>
+                    <Text fontSize={t(14)} color={theme.textMuted}>{paymentMode === 'full' ? 'Selected Full Payment' : 'Selected Advance Payment'}</Text>
+                    <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(paymentBaseAmount)}</Text>
+                  </XStack>
+                  <XStack justifyContent="space-between" marginTop={6}>
+                    <Text fontSize={t(14)} color={theme.textMuted}>Amount Due Now</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.success}>
-                      - {currency(amountDueNow)}
+                      {currency(amountDueNow)}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">

@@ -154,7 +154,7 @@ export default function HouseholdShiftingScreen() {
         onLogout={handleLogout}
         onLoginPress={() => router.push('/auth/login')}
       />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 76 : 96 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: isSmallScreen ? 38 : 48 }]} showsVerticalScrollIndicator={false}>
 
         <ImageBackground source={require('../../assets/images/packers-movers-bg.jpg')} style={[styles.hero, { height: isSmallScreen ? 260 : 340, width: isSmallScreen ? screenWidth - 32 : '100%', alignSelf: 'center' }]} imageStyle={styles.heroImage}>
           <View style={styles.heroOverlay} />

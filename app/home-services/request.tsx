@@ -64,7 +64,7 @@ function MobileTimePicker({ value, onChange, open, onClose }: {
     </Modal>
   );
 }
-import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
+import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/mapbox';
 import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validation';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
@@ -511,7 +511,7 @@ export default function HomeServiceRequestScreen() {
             const { center } = await getCityCenter(city, state);
             if (center) proximity = center;
           }
-          const results = await searchPlaces(`${q}, ${city || ''} ${state || ''}`.trim(), { proximity });
+          const results = await searchIndianLocalities(`${q}, ${city || ''} ${state || ''}`.trim(), { proximity, limit: 10 });
           if (!active) return;
 
           const filtered = results

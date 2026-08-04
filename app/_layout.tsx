@@ -77,7 +77,6 @@ function AppLayoutInner() {
     ['(tabs)', 'home-service'],
     ['(tabs)', 'driver'],
     ['(tabs)', 'explore'],
-    ['(tabs)', 'admin-history'],
   ];
   const hideNav =
     !ROOT_NAV_SEGMENTS.some((s) => s.length === segments.length && s.every((seg, i) => seg === segments[i]));

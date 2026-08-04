@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { Alert, Linking, NativeModules, PermissionsAndroid, Platform, Share, ToastAndroid } from 'react-native';
 
 type PdfDownloadModule = {
-  saveToDownloads(sourceUri: string, fileName: string): Promise<string>;
+  saveToDownloads(sourceUri: string, fileName: string, mimeType?: string): Promise<string>;
   openPdf?(sourceUri: string, fileName: string): Promise<string>;
 };
 
@@ -80,7 +80,7 @@ export async function downloadPdf(uri: string, fileName: string): Promise<boolea
 
     if (Platform.OS === 'android' && nativePdfDownloader) {
       await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => undefined);
-      await nativePdfDownloader.saveToDownloads(uri, fileName);
+      await nativePdfDownloader.saveToDownloads(uri, fileName, 'application/pdf');
       notifyDownloadSuccess();
       return true;
     }

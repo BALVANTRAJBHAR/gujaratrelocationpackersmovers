@@ -14,6 +14,7 @@ import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import EndOfResults from '@/components/EndOfResults';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
@@ -201,6 +202,7 @@ export default function BookingsScreen() {
 
 function BookingsContent() {
   const router = useRouter();
+  const dashboardScrollRef = useRef<any>(null);
   const params = useLocalSearchParams<{ toastBookingId?: string }>();
   const downloadPdf = async (data: any): Promise<boolean> => {
     try {
@@ -523,7 +525,13 @@ function BookingsContent() {
     } else {
       try {
         await supabase.functions.invoke('send-booking-status-push', {
-          body: { booking_id: bookingId, status },
+          body: {
+            booking_id: bookingId,
+            status,
+            send_email: true,
+            new_date: status === 'rescheduled' ? String(payload.scheduled_date ?? '').slice(0, 10) || undefined : undefined,
+            new_time: status === 'rescheduled' ? (payload.scheduled_time as string) || undefined : undefined,
+          },
         });
       } catch {
         // ignore
@@ -562,7 +570,7 @@ function BookingsContent() {
           body: {
             request_id: requestId,
             status,
-            send_email: status === 'rescheduled',
+            send_email: true,
             new_date: overrides?.preferred_date ?? undefined,
             new_time: overrides?.preferred_time ?? undefined,
           },
@@ -769,12 +777,14 @@ function BookingsContent() {
         <H2 color={theme.text} textAlign="center">Your active moves</H2>
       </YStack>
       <FlatList
+        ref={dashboardScrollRef}
         data={filteredBookings}
         keyExtractor={(item) => item.id}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
-        contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+        contentContainerStyle={{ gap: 12, paddingBottom: 64 }}
+        ListFooterComponent={<EndOfResults theme={theme} onUp={() => dashboardScrollRef.current?.scrollToOffset?.({ offset: 0, animated: true })} />}
         ListHeaderComponent={
           <YStack gap="$2">
             <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -924,12 +934,14 @@ function BookingsContent() {
           <YStack backgroundColor={theme.bgCardSecondary} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
             <XStack justifyContent="space-between" alignItems="center">
               <YStack flex={1} gap={2} marginRight={8}>
-                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
-                  🔴 From: {item.pickup_address ?? 'Pickup'}
-                </Text>
-                <Text color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>
-                  🟢 To: {item.drop_address ?? 'Drop'}
-                </Text>
+                <XStack alignItems="flex-start" gap={8}>
+                  <FontAwesome5 name="map-marker-alt" size={16} color="#EF4444" />
+                  <Text flex={1} color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup'}</Text>
+                </XStack>
+                <XStack alignItems="flex-start" gap={8}>
+                  <FontAwesome5 name="map-marker-alt" size={16} color="#10B981" />
+                  <Text flex={1} color="#10B981" fontWeight="800" fontSize={t(14)} numberOfLines={2}>To: {item.drop_address ?? 'Drop'}</Text>
+                </XStack>
               </YStack>
               <Text color={STATUS_COLORS[item.status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase" fontWeight="700">
                 {item.status ?? 'pending'}
@@ -1157,7 +1169,7 @@ function BookingsContent() {
     });
     return (
       <>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={dashboardScrollRef} contentContainerStyle={{ paddingBottom: 64 }}>
         <YStack gap="$3">
           <H2 color={theme.text}>Home Service Requests</H2>
           <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -1423,6 +1435,7 @@ function BookingsContent() {
               </YStack>
             );
           })}
+          <EndOfResults theme={theme} onUp={() => dashboardScrollRef.current?.scrollTo({ y: 0, animated: true })} />
         </YStack>
       </ScrollView>
       <MobileDatePicker value={hsStartPickerValue} open={hsStartDatePickerOpen} onClose={() => setHsStartDatePickerOpen(false)} onChange={(d) => { setHsStartDate(formatDate(d)); }} />
@@ -1477,7 +1490,7 @@ const renderPropertiesSection = () => {
       } catch { /* ignore */ } finally { setPbBusyId(null); }
     };
     return (
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={dashboardScrollRef} contentContainerStyle={{ paddingBottom: 64 }}>
         <YStack gap="$3">
           <H2 color={theme.text}>Properties</H2>
           {canToggle && tabs.length > 1 ? (
@@ -1684,6 +1697,7 @@ const renderPropertiesSection = () => {
               })()}
             </>
           ) : null}
+          <EndOfResults theme={theme} onUp={() => dashboardScrollRef.current?.scrollTo({ y: 0, animated: true })} />
         </YStack>
       </ScrollView>
     );

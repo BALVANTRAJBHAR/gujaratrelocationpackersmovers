@@ -21,7 +21,7 @@ import {
   resolvePropertyFlowKey,
   type WizardStep,
 } from '@/lib/properties/wizard-flow';
-import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchPlaces } from '@/lib/mapbox';
+import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/mapbox';
 import { getMapboxToken } from '@/lib/public-config';
 import { hydratePropertyForm, loadPropertyForEdit } from '@/lib/load-property-for-edit';
 import { supabase } from '@/lib/supabase';
@@ -1011,7 +1011,7 @@ export default function PostPropertyScreen() {
             const { center } = await getCityCenter(selectedCityName, selectedStateName);
             if (center) proximity = center;
           }
-          const results = await searchPlaces(`${q}, ${suffix}`.trim(), { proximity });
+          const results = await searchIndianLocalities(`${q}, ${suffix}`.trim(), { proximity, limit: 10 });
           if (!active) return;
 
           const filtered = results

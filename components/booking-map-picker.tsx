@@ -12,6 +12,7 @@ type GeocodeFeature = {
   id: string;
   place_name: string;
   center: [number, number];
+  addressDetails?: { markerCoordinate?: [number, number] | null };
 };
 
 export default function BookingMapPicker(props: {
@@ -38,6 +39,7 @@ export default function BookingMapPicker(props: {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodeFeature[]>([]);
   const [searching, setSearching] = useState(false);
+  const [currentProximity, setCurrentProximity] = useState<[number, number] | undefined>();
 
   const setMapContainer = useCallback((node: any) => {
     mapContainerRef.current = (node as HTMLDivElement) ?? null;
@@ -51,6 +53,23 @@ export default function BookingMapPicker(props: {
     skipNextSearchRef.current = false;
     selectedPlaceRef.current = '';
   }, [props.open, props.resetKey]);
+
+  // Bias autocomplete toward the current device location whenever the browser
+  // already has permission. Map center remains a sensible fallback.
+  useEffect(() => {
+    if (!isWeb || !props.open || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    let active = true;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (active) setCurrentProximity([position.coords.longitude, position.coords.latitude]);
+      },
+      () => {},
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 5_000 },
+    );
+    return () => {
+      active = false;
+    };
+  }, [isWeb, props.open]);
 
   useEffect(() => {
     if (!isWeb) return;
@@ -75,7 +94,8 @@ export default function BookingMapPicker(props: {
         const center = map?.getCenter();
         const hasCoord = props.coord?.lat != null && props.coord?.lng != null;
         const results = await searchPlaces(searchQuery, {
-          proximity: center ? [center.lng, center.lat] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined,
+          proximity: currentProximity ?? (center ? [center.lng, center.lat] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined),
+          types: ['address', 'street', 'neighborhood', 'locality', 'place', 'district', 'poi'],
         });
         setSearchResults(results as GeocodeFeature[]);
       } catch {
@@ -85,11 +105,11 @@ export default function BookingMapPicker(props: {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [isWeb, searchQuery]);
+  }, [isWeb, searchQuery, currentProximity, props.coord?.lng, props.coord?.lat]);
 
   const handleSelectResult = useCallback(
     (result: GeocodeFeature) => {
-      const [lng, lat] = result.center;
+      const [lng, lat] = result.addressDetails?.markerCoordinate ?? result.center;
       props.onCoordChange({ lat, lng });
       selectedPlaceRef.current = result.place_name;
       skipNextSearchRef.current = true;

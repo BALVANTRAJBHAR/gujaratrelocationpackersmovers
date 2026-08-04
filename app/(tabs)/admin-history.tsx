@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Notifications from 'expo-notifications';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, NativeModules, Platform, Pressable, Share, ToastAndroid, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Linking, NativeModules, Platform, Pressable, ToastAndroid, View } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import MobileDatePicker from '@/components/MobileDatePicker';
@@ -13,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import EndOfResults from '@/components/EndOfResults';
 
 type ApprovalRecord = {
   id: string;
@@ -63,6 +63,7 @@ export default function AdminHistoryScreen() {
 }
 
 function AdminHistoryInner() {
+  const router = useRouter();
   const { profile } = useSession();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -88,6 +89,7 @@ function AdminHistoryInner() {
   const [logsStartPickerOpen, setLogsStartPickerOpen] = useState(false);
   const [logsEndPickerValue, setLogsEndPickerValue] = useState(new Date());
   const [logsEndPickerOpen, setLogsEndPickerOpen] = useState(false);
+  const historyListRef = useRef<FlatList<ApprovalRecord>>(null);
 
   const logsPageSize = 10;
 
@@ -250,24 +252,13 @@ function AdminHistoryInner() {
       const baseDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
       const tempUri = `${baseDir}${fileName}`;
       await FileSystem.writeAsStringAsync(tempUri, content, { encoding: 'utf8' as any });
-      const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string): Promise<string> } | undefined;
+      const nativePdfDownloader = NativeModules.PdfDownload as { saveToDownloads(src: string, name: string, type?: string): Promise<string> } | undefined;
       if (Platform.OS === 'android' && nativePdfDownloader) {
-        const savedPath = await nativePdfDownloader.saveToDownloads(tempUri, fileName);
-        // Schedule a local notification that opens the file on tap
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Download complete',
-            body: `${fileName} saved to Downloads`,
-            data: { fileUri: savedPath || tempUri },
-          },
-          trigger: null,
-        });
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(`Saved: ${fileName}`, ToastAndroid.LONG);
-        }
+        await nativePdfDownloader.saveToDownloads(tempUri, fileName, 'text/csv');
+        ToastAndroid.show('Downloaded successfully.', ToastAndroid.LONG);
       } else {
-        // iOS: share the file
-        await Share.share({ url: tempUri, title: fileName });
+        const destination = `${(FileSystem as any).documentDirectory || baseDir}${fileName}`;
+        if (destination !== tempUri) await FileSystem.copyAsync({ from: tempUri, to: destination });
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -342,9 +333,7 @@ function AdminHistoryInner() {
       ) : null}
       <XStack justifyContent="space-between" alignItems="center">
         <YStack gap="$1">
-          <Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">
-            Admin
-          </Text>
+          <XStack alignItems="center" gap="$2"><Button size="$2" chromeless onPress={() => router.back()} color={theme.text}>←</Button><Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">Admin</Text></XStack>
           <H2 color={theme.text}>Approval history</H2>
           <Paragraph color={theme.textMuted}>See who approved drivers and when.</Paragraph>
         </YStack>
@@ -400,9 +389,10 @@ function AdminHistoryInner() {
           {loading ? <Text color={theme.textMuted}>Loading...</Text> : null}
           {error ? <Text color="#FCA5A5">{error}</Text> : null}
           <FlatList
+            ref={historyListRef}
             data={records}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+            contentContainerStyle={{ gap: 12, paddingBottom: 64 }}
             ListFooterComponent={
               <YStack gap="$3" marginTop={12}>
                 <Text color={theme.text} fontWeight="700">Admin action logs</Text>
@@ -487,6 +477,7 @@ function AdminHistoryInner() {
                     Load more
                   </Button>
                 ) : null}
+                <EndOfResults theme={theme} onUp={() => historyListRef.current?.scrollToOffset({ offset: 0, animated: true })} />
               </YStack>
             }
             renderItem={({ item }) => (

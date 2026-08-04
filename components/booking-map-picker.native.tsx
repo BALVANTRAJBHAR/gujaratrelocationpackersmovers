@@ -36,6 +36,7 @@ type PlaceCandidate = {
   id: string;
   place_name: string;
   center: [number, number]; // [lng, lat]
+  addressDetails?: { coordinateAccuracy?: string; markerCoordinate?: [number, number] | null };
 };
 
 function getHtml(token: string, initialLat: number, initialLng: number) {
@@ -133,6 +134,7 @@ export default function BookingMapPicker(props: {
   const [searchResults, setSearchResults] = useState<PlaceCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
+  const [currentProximity, setCurrentProximity] = useState<[number, number] | undefined>();
   const selectedPlaceRef = useRef('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -158,6 +160,29 @@ export default function BookingMapPicker(props: {
         .finally(() => setReverseGeocoding(false));
     }
   }, [props.open, props.resetKey]);
+
+  // Search should be biased to the user's actual location, not the last pin.
+  // Do not prompt here: the explicit "my location" action owns permission UX.
+  useEffect(() => {
+    if (!props.open) return;
+    let active = true;
+    void Location.getForegroundPermissionsAsync()
+      .then(async ({ status }) => {
+        if (status !== 'granted') return null;
+        try {
+          return await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        } catch {
+          return Location.getLastKnownPositionAsync();
+        }
+      })
+      .then((position) => {
+        if (active && position) setCurrentProximity([position.coords.longitude, position.coords.latitude]);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [props.open]);
 
   // Sync external coordinates changes to WebView Map
   useEffect(() => {
@@ -186,7 +211,8 @@ export default function BookingMapPicker(props: {
     searchTimerRef.current = setTimeout(async () => {
       try {
         const results = await searchPlaces(searchQuery.trim(), {
-          proximity: props.coord ? [props.coord.lng, props.coord.lat] : undefined,
+          proximity: currentProximity ?? (props.coord ? [props.coord.lng, props.coord.lat] : undefined),
+          types: ['address', 'street', 'neighborhood', 'locality', 'place', 'district', 'poi'],
         });
         setSearchResults(results as PlaceCandidate[]);
       } catch {
@@ -199,7 +225,7 @@ export default function BookingMapPicker(props: {
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [searchQuery]);
+  }, [searchQuery, currentProximity, props.coord?.lng, props.coord?.lat]);
 
   const handleMessage = useCallback(
     async (event: any) => {
@@ -238,7 +264,7 @@ export default function BookingMapPicker(props: {
       selectedPlaceRef.current = place.place_name;
       setSearchQuery(place.place_name);
 
-      const [lng, lat] = place.center;
+      const [lng, lat] = place.addressDetails?.markerCoordinate ?? place.center;
       props.onCoordChange({ lat, lng });
 
       const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;

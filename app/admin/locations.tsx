@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Alert, NativeModules, ToastAndroid } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAuthGuard } from '@/lib/auth-guard';
@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
+import EndOfResults from '@/components/EndOfResults';
 
 type StateRow = { id: string; name: string };
 type CityRow = { id: string; state_id: string; name: string };
@@ -67,6 +68,7 @@ export default function AdminLocationsScreen() {
 
 function AdminLocationsInner() {
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
   const colorScheme = useColorScheme(); const theme = colorScheme === 'dark' ? themes.dark : themes.light;
 
   const [loading, setLoading] = useState(false);
@@ -268,20 +270,14 @@ function AdminLocationsInner() {
 
   // Helper: save file to Downloads or share
   const saveOrShare = async (uri: string, fileName: string, mimeType: string) => {
-    const nativeDl = NativeModules.PdfDownload as { saveToDownloads(s: string, n: string): Promise<string> } | undefined;
+    const nativeDl = NativeModules.PdfDownload as { saveToDownloads(s: string, n: string, type?: string): Promise<string> } | undefined;
     if (Platform.OS === 'android' && nativeDl) {
-      const saved = await nativeDl.saveToDownloads(uri, fileName);
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Download complete',
-          body: `${fileName} saved to Downloads. Tap to open.`,
-          data: { fileUri: saved || uri },
-        },
-        trigger: null,
-      });
-      ToastAndroid.show(`Saved to Downloads: ${fileName}`, ToastAndroid.LONG);
+      await nativeDl.saveToDownloads(uri, fileName, mimeType);
+      ToastAndroid.show('Downloaded successfully.', ToastAndroid.LONG);
     } else {
-      await Sharing.shareAsync(uri, { mimeType, dialogTitle: `Save ${fileName}` });
+      const destination = `${FileSystem.documentDirectory || FileSystem.cacheDirectory}${fileName}`;
+      if (destination !== uri) await FileSystem.copyAsync({ from: uri, to: destination });
+      Alert.alert('Download complete', 'File saved successfully.');
     }
   };
 
@@ -367,17 +363,16 @@ function AdminLocationsInner() {
   const panelBg = theme.bgSecondary;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 150 }}>
+    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
       <YStack gap="$4">
-        <YStack backgroundColor={theme.primary} padding={16} paddingTop={18} borderRadius={16}>
-          <XStack alignItems="center" justifyContent="center" position="relative">
-            <Button size="$3" chromeless color="#FFFFFF" position="absolute" left={0} onPress={() => router.back()}>
-              Back
+        <YStack backgroundColor={theme.primary} padding={16} paddingTop={18} borderRadius={16} gap="$2">
+            <Button alignSelf="flex-start" size="$3" chromeless color="#FFFFFF" onPress={() => router.back()}>
+              ← Back
             </Button>
-            <Text color="#FFFFFF" fontSize={t(20)} fontWeight="800">
-              Manage Locations
-            </Text>
-          </XStack>
+            <XStack alignItems="center" justifyContent="center" gap={8}>
+              <FontAwesome5 name="map-marker-alt" size={18} color="#FFFFFF" />
+              <Text color="#FFFFFF" fontSize={t(20)} fontWeight="800">Manage Locations</Text>
+            </XStack>
         </YStack>
 
         {error ? <Text color={theme.danger}>{error}</Text> : null}
@@ -561,6 +556,7 @@ function AdminLocationsInner() {
               );
             })
           )}
+          <EndOfResults theme={theme} onUp={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} />
         </YStack>
       </YStack>
     </ScrollView>

@@ -385,6 +385,7 @@ export default function MyHomeServiceRequestsScreen() {
             status: 'cancelled',
             cancelled_at: new Date().toISOString(),
             cancel_reason: 'Cancelled by customer',
+            updated_at: new Date().toISOString(),
           };
           if (!oneHourBefore && r.provider_id) {
             updates.payment_status = 'cancelled_with_charge';
@@ -392,6 +393,17 @@ export default function MyHomeServiceRequestsScreen() {
             updates.payment_status = 'cancelled_free';
           }
           await supabase.from('home_service_requests').update(updates).eq('id', r.id);
+          try {
+            await supabase.functions.invoke('send-home-service-notification', {
+              body: {
+                request_id: r.id,
+                status: 'cancelled',
+                send_email: true,
+              },
+            });
+          } catch {
+            // ignore
+          }
           Alert.alert('Cancelled', oneHourBefore ? 'Request cancelled successfully.' : 'Request cancelled. ₹150 will be charged.');
           await fetchRequests();
             },
@@ -422,6 +434,7 @@ export default function MyHomeServiceRequestsScreen() {
           body: {
             request_id: r.id,
             status: 'rescheduled',
+            send_email: true,
             new_date: day,
             new_time: timeLabel,
           },

@@ -83,6 +83,57 @@ async function sendRescheduleEmail(opts: { to: string; customerName: string; new
   });
 }
 
+async function sendCancelledEmail(opts: { to: string; customerName: string }) {
+  const to = String(opts.to ?? '').trim();
+  if (!to) return;
+  const smtpHost = Deno.env.get('SMTP_HOST') ?? '';
+  const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '587');
+  const smtpUser = Deno.env.get('SMTP_USER') ?? '';
+  const smtpPass = Deno.env.get('SMTP_PASS') ?? '';
+  const smtpSecure = String(Deno.env.get('SMTP_SECURE') ?? 'false').toLowerCase() === 'true';
+  const fromEmail = Deno.env.get('SMTP_FROM') ?? smtpUser;
+  const fromName = Deno.env.get('SMTP_FROM_NAME') ?? 'Packers & Movers';
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromEmail) return;
+
+  const subject = 'Your shifting booking has been cancelled';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8fafc; padding: 24px;">
+      <div style="background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);">
+        <div style="background: #0f172a; color: #ffffff; padding: 28px 24px;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.02em;">Booking Cancelled</h1>
+          <p style="margin: 10px 0 0 0; color: #cbd5e1; font-size: 14px;">Your shifting booking has been cancelled.</p>
+        </div>
+        <div style="padding: 24px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; background: #f8fafc;">
+            <p style="margin: 0; color: #334155; font-weight: 700;">Booking cancelled</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Customer:</b> ${escapeHtml(opts.customerName || 'Customer')}</p>
+            <p style="margin: 6px 0 0 0; color: #475569;">Your shifting booking has been cancelled. If this was not done by you or you have any questions, please contact our team.</p>
+          </div>
+        </div>
+        <div style="padding: 20px 24px 28px 24px; background: #f8fafc;">
+          <p style="margin: 0; color: #64748b; font-size: 13px;">This email was generated automatically by the app.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  await transport.sendMail({
+    from: `${fromName} <${fromEmail}>`,
+    to,
+    subject,
+    text: `Your shifting booking has been cancelled.`,
+    html,
+  });
+}
+
 function getStatusMessages(status: string) {
   const s = String(status ?? '').trim();
 
@@ -352,8 +403,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_PROJECT_URL') ??
       '';
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    let caller: { id: string; email?: string } | null = null;
     try {
-      await getAuthedUser(supabaseUrl, anonKey, jwt);
+      caller = await getAuthedUser(supabaseUrl, anonKey, jwt);
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid or expired session' }), {
         status: 401,
@@ -399,7 +451,7 @@ serve(async (req) => {
     );
 
     const admins = await getRest<UserRow[]>(
-      `${supabaseUrl}/rest/v1/users?select=id,expo_push_token,name,role&role=in.(admin,staff)`,
+      `${supabaseUrl}/rest/v1/users?select=id,expo_push_token,name,role,email&role=in.(admin,staff)`,
       serviceKey
     );
 
@@ -547,16 +599,36 @@ serve(async (req) => {
     const customerMessage = statusMessages.customer;
     const adminMessage = statusMessages.admin;
 
-    if (nextStatus === 'rescheduled' && sendEmail) {
-      try {
-        await sendRescheduleEmail({
-          to: customer?.email ?? '',
-          customerName: customer?.name ?? 'Customer',
-          newDate,
-          newTime,
-        });
-      } catch (e) {
-        console.error('Reschedule email failed:', e);
+    // Email recipients: if the customer performed the action, notify customer + admins;
+    // if an admin/staff performed it, notify the customer only.
+    const isCustomerInitiated = Boolean(caller?.id && customer?.id && caller.id === customer.id);
+    const emailTo: string[] = [];
+    if (customer?.email) emailTo.push(customer.email.trim());
+    if (isCustomerInitiated) {
+      for (const a of admins ?? []) {
+        if (a?.email) emailTo.push(a.email.trim());
+      }
+    }
+    const emailRecipients = [...new Set(emailTo.filter(Boolean))].join(',');
+
+    if (sendEmail && emailRecipients) {
+      if (nextStatus === 'rescheduled') {
+        try {
+          await sendRescheduleEmail({
+            to: emailRecipients,
+            customerName: customer?.name ?? 'Customer',
+            newDate,
+            newTime,
+          });
+        } catch (e) {
+          console.error('Reschedule email failed:', e);
+        }
+      } else if (nextStatus === 'cancelled') {
+        try {
+          await sendCancelledEmail({ to: emailRecipients, customerName: customer?.name ?? 'Customer' });
+        } catch (e) {
+          console.error('Cancel email failed:', e);
+        }
       }
     }
 

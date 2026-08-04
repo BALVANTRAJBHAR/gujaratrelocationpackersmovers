@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { Button, H2, Paragraph, Text, XStack, YStack } from 'tamagui';
 
@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
 import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import EndOfResults from '@/components/EndOfResults';
 
 type NotificationRow = {
   id: string;
@@ -124,6 +125,7 @@ function NotificationsScreenInner({ session }: { session: any }) {
   }, [fetchNotifications, userId]);
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read_at).length, [items]);
+  const listRef = useRef<FlatList<NotificationRow>>(null);
 
   const markRead = async (id: string) => {
     try {
@@ -165,25 +167,32 @@ function NotificationsScreenInner({ session }: { session: any }) {
 
   return (
     <YStack flex={1} backgroundColor={theme.bg} padding={16} gap="$3">
-      <XStack alignItems="center" justifyContent="space-between">
-        <XStack alignItems="center" gap="$2">
-          <IconSymbol name="bell.fill" size={24} color={theme.text} />
-          <H2 color={theme.text}>Notifications</H2>
-        </XStack>
-        <Button onPress={markAllRead} disabled={!unreadCount} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
-          <Text color={theme.text}>Mark all read</Text>
+      <YStack gap="$2">
+        <Button alignSelf="flex-start" size="$2" chromeless onPress={() => router.back()} color={theme.text}>
+          ← Back
         </Button>
-      </XStack>
+        <XStack alignItems="center" justifyContent="space-between" gap="$2">
+          <XStack alignItems="center" gap="$2" flexShrink={1}>
+          <IconSymbol name="bell.fill" size={24} color={theme.text} />
+          <H2 color={theme.text} numberOfLines={1}>Notifications</H2>
+          </XStack>
+          <Button size="$2" onPress={markAllRead} disabled={!unreadCount} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border} flexShrink={0}>
+            <Text color={theme.text}>Mark all read</Text>
+          </Button>
+        </XStack>
+      </YStack>
 
       <Paragraph color={theme.textMuted}>
         Unread: {unreadCount}
       </Paragraph>
 
       <FlatList
+        ref={listRef}
         data={items}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ paddingBottom: 120 } as any}
+        contentContainerStyle={{ paddingBottom: 64 } as any}
+        ListFooterComponent={<EndOfResults theme={theme} onUp={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} />}
         ListEmptyComponent={
           <YStack padding={16} borderRadius={12} backgroundColor={theme.bgSecondary} borderWidth={1} borderColor={theme.border}>
             <Text color={theme.textMuted}>{loading ? 'Loading…' : 'No notifications yet.'}</Text>
