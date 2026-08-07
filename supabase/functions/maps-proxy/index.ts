@@ -11,6 +11,8 @@ import { corsHeaders } from '../_shared/cors.ts';
  * Endpoint: POST /functions/v1/maps-proxy
  * Body:
  *   { action: 'search',      query, lat?, lng?, limit? }
+ *   { action: 'autocomplete', input, sessionToken, lat?, lng?, bbox? }
+ *   { action: 'place-details', placeId, sessionToken? }
  *   { action: 'geocode',     address }
  *   { action: 'reverse',     lat,  lng }
  *   { action: 'directions',  originLat, originLng, destLat, destLng }
@@ -50,6 +52,14 @@ function num(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function bbox(value: unknown): [number, number, number, number] | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  const parsed = value.map(Number);
+  if (parsed.some((item) => !Number.isFinite(item))) return null;
+  const [west, south, east, north] = parsed;
+  return west < east && south < north ? [west, south, east, north] : null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return fail('Method not allowed', 405);
@@ -67,6 +77,7 @@ serve(async (req) => {
       const pageSize = num(body.limit);
       const lat = num(body.lat);
       const lng = num(body.lng);
+      const bounds = bbox(body.bbox);
 
       const payload: Record<string, unknown> = {
         textQuery: query.slice(0, 256),
@@ -77,6 +88,17 @@ serve(async (req) => {
       if (lat !== null && lng !== null) {
         payload.locationBias = {
           circle: { center: { latitude: lat, longitude: lng }, radius: 50000 },
+        };
+      }
+      if (bounds) {
+        const [west, south, east, north] = bounds;
+        // A selected city is a hard boundary for locality/landmark discovery.
+        delete payload.locationBias;
+        payload.locationRestriction = {
+          rectangle: {
+            low: { latitude: south, longitude: west },
+            high: { latitude: north, longitude: east },
+          },
         };
       }
 
@@ -98,6 +120,74 @@ serve(async (req) => {
       }
       const data = await res.json();
       return json({ places: data?.places ?? [] });
+    }
+
+    if (action === 'autocomplete') {
+      const input = str(body.input);
+      const sessionToken = str(body.sessionToken);
+      const lat = num(body.lat);
+      const lng = num(body.lng);
+      const bounds = bbox(body.bbox);
+      if (!input) return fail('input is required');
+      if (!sessionToken) return fail('sessionToken is required');
+
+      const payload: Record<string, unknown> = {
+        input: input.slice(0, 256),
+        sessionToken,
+        includedRegionCodes: ['IN'],
+        regionCode: 'IN',
+        languageCode: str(body.language) || 'en',
+      };
+      if (bounds) {
+        const [west, south, east, north] = bounds;
+        payload.locationRestriction = {
+          rectangle: {
+            low: { latitude: south, longitude: west },
+            high: { latitude: north, longitude: east },
+          },
+        };
+      } else if (lat !== null && lng !== null) {
+        payload.locationBias = {
+          circle: { center: { latitude: lat, longitude: lng }, radius: 50000 },
+        };
+      }
+
+      const res = await fetch(`${PLACES_V1}/places:autocomplete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error(`[maps-proxy] autocomplete failed ${res.status}: ${text}`);
+        return fail(`Places Autocomplete API error (${res.status})`, 502);
+      }
+      const data = await res.json();
+      return json({ suggestions: data?.suggestions ?? [] });
+    }
+
+    if (action === 'place-details') {
+      const placeId = str(body.placeId);
+      const sessionToken = str(body.sessionToken);
+      if (!placeId) return fail('placeId is required');
+      const params = new URLSearchParams();
+      if (sessionToken) params.set('sessionToken', sessionToken);
+      const res = await fetch(`${PLACES_V1}/places/${encodeURIComponent(placeId)}?${params.toString()}`, {
+        headers: {
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,types,addressComponents,viewport',
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error(`[maps-proxy] place details failed ${res.status}: ${text}`);
+        return fail(`Place Details API error (${res.status})`, 502);
+      }
+      return json({ place: await res.json() });
     }
 
     if (action === 'geocode') {

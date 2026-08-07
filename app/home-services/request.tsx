@@ -1404,6 +1404,7 @@ export default function HomeServiceRequestScreen() {
                     const features = await reverseGeocodeFeatures(current.coords.longitude, current.coords.latitude, 8).catch(() => []);
                     const details = (features.find((f) => (f.place_type ?? []).includes('address')) ?? features[0] ?? (await reverseGeocodeDetails(current.coords.longitude, current.coords.latitude))) as any;
                     const placeName = String(details?.place_name ?? (await reverseGeocode(current.coords.longitude, current.coords.latitude)) ?? '').trim();
+                    const structured = details?.addressDetails ?? {};
 
                     if (__DEV__) {
                       console.log('[HomeServices] current coords:', current.coords.latitude, current.coords.longitude);
@@ -1425,15 +1426,18 @@ export default function HomeServiceRequestScreen() {
                         return false;
                       }) ?? null;
 
-                    const rawRegion = pickContextText(details?.context, 'region.');
-                    const rawPlace = pickContextText(details?.context, 'place.') || String(placeFeature?.text ?? '').trim();
-                    const rawNeighborhood = pickContextText(details?.context, 'neighborhood.');
-                    const rawLocality = pickContextText(details?.context, 'locality.');
+                    const rawRegion = String(structured.state ?? '').trim() || pickContextText(details?.context, 'region.');
+                    const rawPlace = String(structured.city ?? '').trim() || pickContextText(details?.context, 'place.') || String(placeFeature?.text ?? '').trim();
+                    const rawNeighborhood = String(structured.locality ?? '').trim() || pickContextText(details?.context, 'neighborhood.');
+                    const rawLocality = String(structured.locality ?? '').trim() || pickContextText(details?.context, 'locality.');
                     const rawPolice = String(poiPolice?.text ?? '').trim();
                     const rawLocalityValue = rawPolice || rawNeighborhood || rawLocality;
 
-                    const houseNumber = String(details?.address ?? '').trim();
-                    const streetText = String(details?.text ?? '').trim();
+                    const houseNumber = String(structured.houseNumber ?? '').trim() || String(details?.address ?? '').trim();
+                    const streetText = [structured.building, structured.street, details?.text]
+                      .map((value) => String(value ?? '').trim())
+                      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
+                      .join(', ');
 
                     const partsRaw = String(placeName)
                       .split(',')

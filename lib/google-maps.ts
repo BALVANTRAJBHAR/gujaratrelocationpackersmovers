@@ -67,6 +67,16 @@ export type GoogleGeocodeFeature = {
   addressDetails?: GoogleAddressDetails;
 };
 
+/** Lightweight Places Autocomplete result; resolve it only after selection. */
+export type GoogleAutocompleteSuggestion = {
+  id: string;
+  placeId: string;
+  place_name: string;
+  primaryText: string;
+  secondaryText: string;
+  sessionToken: string;
+};
+
 export type GoogleReverseGeocodeFeature = {
   id?: string;
   type?: string;
@@ -284,7 +294,58 @@ function toGeocodeFeature(place: any): GoogleGeocodeFeature | null {
 async function invokeProxy(action: string, payload: Record<string, unknown>): Promise<any> {
   const { data, error } = await supabase.functions.invoke('maps-proxy', { body: { action, ...payload } });
   if (error) throw new Error(String(error?.message ?? 'maps-proxy request failed'));
+  if (data?.error) throw new Error(String(data.error));
   return data;
+}
+
+export function createGooglePlacesSessionToken(): string {
+  const nativeCrypto = globalThis.crypto;
+  if (typeof nativeCrypto?.randomUUID === 'function') return nativeCrypto.randomUUID();
+  return `gplaces-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** Google Places Autocomplete (New), restricted to India. */
+export async function autocompletePlaces(
+  query: string,
+  options: Pick<SearchPlacesOptions, 'proximity' | 'bbox' | 'language'> & { sessionToken?: string } = {},
+): Promise<GoogleAutocompleteSuggestion[]> {
+  const input = query.trim();
+  if (!input) return [];
+  const data = await invokeProxy('autocomplete', {
+    input: input.slice(0, 256),
+    sessionToken: options.sessionToken || createGooglePlacesSessionToken(),
+    lat: validCoordinate(options.proximity) ? options.proximity[1] : undefined,
+    lng: validCoordinate(options.proximity) ? options.proximity[0] : undefined,
+    bbox: validBbox(options.bbox) ? options.bbox : undefined,
+    language: clean(options.language) || 'en',
+  });
+  return (Array.isArray(data?.suggestions) ? data.suggestions : [])
+    .map((item: any) => {
+      const prediction = item?.placePrediction;
+      const placeId = clean(prediction?.placeId);
+      const text = clean(prediction?.text?.text);
+      if (!placeId || !text) return null;
+      return {
+        id: placeId,
+        placeId,
+        place_name: text,
+        primaryText: clean(prediction?.structuredFormat?.mainText?.text) || text,
+        secondaryText: clean(prediction?.structuredFormat?.secondaryText?.text),
+        sessionToken: clean(options.sessionToken) || '',
+      } as GoogleAutocompleteSuggestion;
+    })
+    .filter((item: GoogleAutocompleteSuggestion | null): item is GoogleAutocompleteSuggestion => Boolean(item));
+}
+
+/** Resolves the selected prediction to its exact address, components and pin. */
+export async function resolveAutocompleteSuggestion(
+  suggestion: GoogleAutocompleteSuggestion,
+): Promise<GoogleGeocodeFeature | null> {
+  const data = await invokeProxy('place-details', {
+    placeId: suggestion.placeId,
+    sessionToken: suggestion.sessionToken,
+  });
+  return toGeocodeFeature(data?.place ?? data);
 }
 
 /**
@@ -302,6 +363,7 @@ export async function searchPlaces(query: string, options: SearchPlacesOptions =
     limit,
     lat: proximity ? proximity[1] : undefined,
     lng: proximity ? proximity[0] : undefined,
+    bbox: validBbox(options.bbox) ? options.bbox : undefined,
   });
 
   const features = (Array.isArray(data?.places) ? data.places : [])
@@ -380,7 +442,18 @@ async function reverseFeatures(lng: number, lat: number, limit: number): Promise
       if (!feature) return null;
       return feature as GoogleReverseGeocodeFeature;
     })
-    .filter((item: GoogleReverseGeocodeFeature | null): item is GoogleReverseGeocodeFeature => Boolean(item));
+    .filter((item: GoogleReverseGeocodeFeature | null): item is GoogleReverseGeocodeFeature => Boolean(item))
+    .sort((a, b) => {
+      const rank = (item: GoogleReverseGeocodeFeature) => {
+        const type = item.place_type?.[0] ?? '';
+        if (type === 'address') return 0;
+        if (type === 'street') return 1;
+        if (type === 'locality' || type === 'neighborhood') return 2;
+        if (type === 'district' || type === 'region') return 3;
+        return 10; // Plus codes and POIs are a last-resort fallback.
+      };
+      return rank(a) - rank(b);
+    });
 }
 
 /** Accurate coordinate-to-address conversion with structured context. */

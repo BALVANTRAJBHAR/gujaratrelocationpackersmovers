@@ -28,16 +28,17 @@ import {
 import { WebView } from 'react-native-webview';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
-import { searchPlaces, reverseGeocode } from '@/lib/google-maps';
+import {
+  autocompletePlaces,
+  createGooglePlacesSessionToken,
+  resolveAutocompleteSuggestion,
+  reverseGeocode,
+  type GoogleAutocompleteSuggestion,
+} from '@/lib/google-maps';
 
 type Coord = { lat: number; lng: number };
 
-type PlaceCandidate = {
-  id: string;
-  place_name: string;
-  center: [number, number]; // [lng, lat]
-  addressDetails?: { coordinateAccuracy?: string; markerCoordinate?: [number, number] | null };
-};
+type PlaceCandidate = GoogleAutocompleteSuggestion;
 
 function getHtml(apiKey: string, initialLat: number, initialLng: number) {
   return `
@@ -65,7 +66,8 @@ function getHtml(apiKey: string, initialLat: number, initialLng: number) {
         zoom: 14,
         fullscreenControl: false,
         streetViewControl: false,
-        mapTypeControl: false
+        mapTypeControl: true,
+        mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, mapTypeIds: ['roadmap', 'satellite', 'hybrid'] }
       });
 
       marker = new google.maps.Marker({
@@ -137,6 +139,8 @@ export default function BookingMapPicker(props: {
   const [currentProximity, setCurrentProximity] = useState<[number, number] | undefined>();
   const selectedPlaceRef = useRef('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placesSessionRef = useRef(createGooglePlacesSessionToken());
+  const searchRequestRef = useRef(0);
 
   // Reset state on open or target change
   useEffect(() => {
@@ -145,6 +149,8 @@ export default function BookingMapPicker(props: {
     setSearchResults([]);
     setSearching(false);
     selectedPlaceRef.current = '';
+    placesSessionRef.current = createGooglePlacesSessionToken();
+    searchRequestRef.current += 1;
 
     // If there is an existing address, set search query input to it
     if (props.coord) {
@@ -196,6 +202,7 @@ export default function BookingMapPicker(props: {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
     if (!searchQuery.trim()) {
+      searchRequestRef.current += 1;
       setSearchResults([]);
       setSearching(false);
       return;
@@ -207,18 +214,19 @@ export default function BookingMapPicker(props: {
       return;
     }
 
+    const requestId = ++searchRequestRef.current;
     setSearching(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const results = await searchPlaces(searchQuery.trim(), {
+        const results = await autocompletePlaces(searchQuery.trim(), {
           proximity: currentProximity ?? (props.coord ? [props.coord.lng, props.coord.lat] : undefined),
-          types: ['address', 'street', 'neighborhood', 'locality', 'place', 'district', 'poi'],
+          sessionToken: placesSessionRef.current,
         });
-        setSearchResults(results as PlaceCandidate[]);
+        if (requestId === searchRequestRef.current) setSearchResults(results);
       } catch {
-        setSearchResults([]);
+        if (requestId === searchRequestRef.current) setSearchResults([]);
       } finally {
-        setSearching(false);
+        if (requestId === searchRequestRef.current) setSearching(false);
       }
     }, 450);
 
@@ -257,18 +265,23 @@ export default function BookingMapPicker(props: {
   );
 
   const handleSelectResult = useCallback(
-    (place: PlaceCandidate) => {
+    async (place: PlaceCandidate) => {
       Keyboard.dismiss();
-      setSearchResults([]);
-      setSearching(false);
-      selectedPlaceRef.current = place.place_name;
-      setSearchQuery(place.place_name);
-
-      const [lng, lat] = place.addressDetails?.markerCoordinate ?? place.center;
-      props.onCoordChange({ lat, lng });
-
-      const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
-      webViewRef.current?.injectJavaScript(js);
+      setReverseGeocoding(true);
+      try {
+        const resolved = await resolveAutocompleteSuggestion({ ...place, sessionToken: placesSessionRef.current });
+        if (!resolved) return;
+        const [lng, lat] = resolved.addressDetails?.markerCoordinate ?? resolved.center;
+        setSearchResults([]);
+        setSearching(false);
+        selectedPlaceRef.current = resolved.place_name;
+        setSearchQuery(resolved.place_name);
+        props.onCoordChange({ lat, lng });
+        const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
+        webViewRef.current?.injectJavaScript(js);
+      } finally {
+        setReverseGeocoding(false);
+      }
     },
     [props.onCoordChange],
   );
@@ -425,12 +438,13 @@ export default function BookingMapPicker(props: {
                       {searchResults.map((place) => (
                         <Pressable
                           key={place.id}
-                          onPress={() => handleSelectResult(place)}
+                          onPress={() => void handleSelectResult(place)}
                           android_ripple={{ color: '#F1F5F9' }}>
                           <View style={styles.resultRow}>
                             <Text style={{ fontSize: 13, color: '#1E293B', fontWeight: '600' }}>
-                              {place.place_name}
+                              {place.primaryText}
                             </Text>
+                            {place.secondaryText ? <Text style={{ fontSize: 11, color: '#64748B' }}>{place.secondaryText}</Text> : null}
                           </View>
                         </Pressable>
                       ))}

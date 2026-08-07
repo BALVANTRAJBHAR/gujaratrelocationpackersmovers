@@ -4638,6 +4638,7 @@ export default function PostPropertyScreen() {
 
                 const fallbackPlace = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat).catch(() => '');
                 const placeName = String(details?.place_name ?? fallbackPlace ?? '').trim();
+                const structured = details?.addressDetails ?? {};
 
                 const ctx = Array.isArray(details?.context) ? details.context : [];
                 const ctxState = ctx.find((x: any) => String(x?.id ?? '').startsWith('region.'));
@@ -4645,11 +4646,14 @@ export default function PostPropertyScreen() {
                 const ctxLocality = ctx.find((x: any) => String(x?.id ?? '').startsWith('locality.')) ?? ctx.find((x: any) => String(x?.id ?? '').startsWith('neighborhood.'));
                 const ctxPostcode = ctx.find((x: any) => String(x?.id ?? '').startsWith('postcode.'));
 
-                const nextState = String(ctxState?.text ?? '').trim();
-                const nextCity = String(ctxCity?.text ?? '').trim();
-                const nextLocality = String(ctxLocality?.text ?? '').trim();
+                const nextState = String(structured.state ?? '').trim() || String(ctxState?.text ?? '').trim();
+                const nextCity = String(structured.city ?? '').trim() || String(ctxCity?.text ?? '').trim();
+                const nextLocality = String(structured.locality ?? '').trim() || String(ctxLocality?.text ?? '').trim();
                 const landmark = String(
-                  `${details?.address ? `${details.address} ` : ''}${details?.text ?? ''}`
+                  [structured.houseNumber, structured.building, structured.street, details?.text]
+                    .map((value: unknown) => String(value ?? '').trim())
+                    .filter((value: string, index: number, values: string[]) => Boolean(value) && values.indexOf(value) === index)
+                    .join(', ')
                 ).trim();
 
                 const pincodeFromLandmark = /\b([0-9]{6})\b/.exec(landmark)?.[1] ?? '';
@@ -4657,8 +4661,26 @@ export default function PostPropertyScreen() {
                 const pincodeFromText = /\b([0-9]{6})\b/.exec(placeName)?.[1] ?? '';
                 const nextPincode = (pincodeFromLandmark || pincodeFromContext || pincodeFromText).trim();
 
-                if (nextState) setStateValue(nextState);
-                if (nextCity) setCityValue(nextCity);
+                const stateRow = states.find((item) => item.name.trim().toLowerCase() === nextState.toLowerCase());
+                if (!stateRow || !nextCity) {
+                  setError('No service available at this selected location. Please choose a supported state and city.');
+                  return;
+                }
+                const { data: matchedCities, error: cityLookupError } = await supabase
+                  .from('cities')
+                  .select('id,name')
+                  .eq('state_id', stateRow.id)
+                  .ilike('name', nextCity)
+                  .limit(1);
+                const matchedCity = !cityLookupError ? ((matchedCities as any) ?? [])[0] as { id?: string; name?: string } | undefined : undefined;
+                if (!matchedCity?.name) {
+                  setError('No service available at this selected location. Please choose a supported city.');
+                  return;
+                }
+
+                // The selected pin is the source of truth; update prior state/city selections.
+                setStateValue(stateRow.name);
+                setCityValue(String(matchedCity.name));
                 if (nextLocality) {
                   setLocalityValue(nextLocality);
                   setLocalityTyped(false);

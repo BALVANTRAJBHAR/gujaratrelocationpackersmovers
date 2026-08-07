@@ -1,18 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Dialog, Input, Text, XStack, YStack } from 'tamagui';
 
-import { searchPlaces } from '@/lib/google-maps';
+import {
+  autocompletePlaces,
+  createGooglePlacesSessionToken,
+  resolveAutocompleteSuggestion,
+  type GoogleAutocompleteSuggestion,
+} from '@/lib/google-maps';
 import { loadGoogleMaps } from '@/lib/load-google-maps';
 
 type Coord = { lat: number; lng: number };
-
-type GeocodeFeature = {
-  id: string;
-  place_name: string;
-  center: [number, number];
-  addressDetails?: { markerCoordinate?: [number, number] | null };
-};
 
 export default function BookingMapPicker(props: {
   open: boolean;
@@ -35,10 +33,13 @@ export default function BookingMapPicker(props: {
   const googleMapsRef = useRef<any>(null);
   const skipNextSearchRef = useRef(false);
   const selectedPlaceRef = useRef('');
+  const placesSessionRef = useRef(createGooglePlacesSessionToken());
+  const searchRequestRef = useRef(0);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<GeocodeFeature[]>([]);
+  const [searchResults, setSearchResults] = useState<GoogleAutocompleteSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
+  const [resolvingPlace, setResolvingPlace] = useState(false);
   const [currentProximity, setCurrentProximity] = useState<[number, number] | undefined>();
 
   const setMapContainer = useCallback((node: any) => {
@@ -50,8 +51,11 @@ export default function BookingMapPicker(props: {
     setSearchQuery('');
     setSearchResults([]);
     setSearching(false);
+    setResolvingPlace(false);
     skipNextSearchRef.current = false;
     selectedPlaceRef.current = '';
+    placesSessionRef.current = createGooglePlacesSessionToken();
+    searchRequestRef.current += 1;
   }, [props.open, props.resetKey]);
 
   // Bias autocomplete toward the current device location whenever the browser
@@ -74,6 +78,7 @@ export default function BookingMapPicker(props: {
   useEffect(() => {
     if (!isWeb) return;
     if (!searchQuery.trim()) {
+      searchRequestRef.current += 1;
       setSearchResults([]);
       setSearching(false);
       return;
@@ -87,43 +92,66 @@ export default function BookingMapPicker(props: {
       setSearching(false);
       return;
     }
+    const requestId = ++searchRequestRef.current;
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
         const map = mapRef.current;
         const center = map?.getCenter?.();
         const hasCoord = props.coord?.lat != null && props.coord?.lng != null;
-        const results = await searchPlaces(searchQuery, {
+        const results = await autocompletePlaces(searchQuery, {
           proximity: currentProximity ?? (center ? [center.lng(), center.lat()] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined),
-          types: ['address', 'street', 'neighborhood', 'locality', 'place', 'district', 'poi'],
+          sessionToken: placesSessionRef.current,
         });
-        setSearchResults(results as GeocodeFeature[]);
+        if (requestId === searchRequestRef.current) setSearchResults(results);
       } catch {
-        setSearchResults([]);
+        if (requestId === searchRequestRef.current) setSearchResults([]);
       } finally {
-        setSearching(false);
+        if (requestId === searchRequestRef.current) setSearching(false);
       }
     }, 400);
     return () => clearTimeout(timer);
   }, [isWeb, searchQuery, currentProximity, props.coord?.lng, props.coord?.lat]);
 
   const handleSelectResult = useCallback(
-    (result: GeocodeFeature) => {
-      const [lng, lat] = result.addressDetails?.markerCoordinate ?? result.center;
-      props.onCoordChange({ lat, lng });
-      selectedPlaceRef.current = result.place_name;
-      skipNextSearchRef.current = true;
-      setSearchQuery(result.place_name);
-      setSearchResults([]);
-      setSearching(false);
-      const map = mapRef.current;
-      if (map) {
-        map.panTo({ lat, lng });
-        map.setZoom(14);
+    async (result: GoogleAutocompleteSuggestion) => {
+      setResolvingPlace(true);
+      try {
+        const place = await resolveAutocompleteSuggestion({ ...result, sessionToken: placesSessionRef.current });
+        if (!place) return;
+        const [lng, lat] = place.addressDetails?.markerCoordinate ?? place.center;
+        props.onCoordChange({ lat, lng });
+        selectedPlaceRef.current = place.place_name;
+        skipNextSearchRef.current = true;
+        setSearchQuery(place.place_name);
+        setSearchResults([]);
+        setSearching(false);
+        const map = mapRef.current;
+        if (map) {
+          map.panTo({ lat, lng });
+          map.setZoom(17);
+        }
+      } finally {
+        setResolvingPlace(false);
       }
     },
     [props.onCoordChange]
   );
+
+  const handleMyLocation = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        props.onCoordChange({ lat, lng });
+        mapRef.current?.panTo({ lat, lng });
+        mapRef.current?.setZoom(17);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12_000 },
+    );
+  }, [props.onCoordChange]);
 
   const showNoResults =
     Boolean(searchQuery.trim()) &&
@@ -153,7 +181,11 @@ export default function BookingMapPicker(props: {
           zoom: 11,
           fullscreenControl: false,
           streetViewControl: false,
-          mapTypeControl: false,
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            style: googleMaps.MapTypeControlStyle.HORIZONTAL_BAR,
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+          },
           zoomControl: true,
         });
         mapRef.current = map;
@@ -233,7 +265,7 @@ export default function BookingMapPicker(props: {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                {searching ? (
+                {searching || resolvingPlace ? (
                   <Text color="#64748B" fontSize={12}>Searching...</Text>
                 ) : searchResults.length > 0 ? (
                   <ScrollView
@@ -241,9 +273,10 @@ export default function BookingMapPicker(props: {
                     keyboardShouldPersistTaps="handled"
                     nestedScrollEnabled>
                     {searchResults.map((result) => (
-                      <Pressable key={result.id} onPress={() => handleSelectResult(result)}>
+                      <Pressable key={result.id} onPress={() => void handleSelectResult(result)}>
                         <YStack padding={10} borderBottomWidth={1} borderBottomColor="#F1F5F9">
-                          <Text color="#1E293B" fontSize={13}>{result.place_name}</Text>
+                          <Text color="#1E293B" fontSize={13}>{result.primaryText}</Text>
+                          {result.secondaryText ? <Text color="#64748B" fontSize={11}>{result.secondaryText}</Text> : null}
                         </YStack>
                       </Pressable>
                     ))}
@@ -254,6 +287,11 @@ export default function BookingMapPicker(props: {
                 ) : null}
                 <YStack height={280} borderRadius={12} overflow="hidden" borderWidth={1} borderColor="#E5E7EB" style={{ position: 'relative' } as any}>
                   <YStack ref={setMapContainer as any} width="100%" height="100%" />
+                  <Pressable
+                    onPress={handleMyLocation}
+                    style={{ position: 'absolute', right: 12, bottom: 12, width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 } as any}>
+                    <Text color="#1F4E79" fontSize={22}>◎</Text>
+                  </Pressable>
                 </YStack>
               </YStack>
             )}
