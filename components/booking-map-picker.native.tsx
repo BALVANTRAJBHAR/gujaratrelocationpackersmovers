@@ -46,76 +46,29 @@ function getHtml(apiKey: string, initialLat: number, initialLng: number) {
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <script src="https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&callback=initMap"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
-    body { margin: 0; padding: 0; background-color: #F8FAFC; width: 100%; height: 100%; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #F8FAFC;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
   </style>
-</head>
-<body>
-  <div id="map"></div>
   <script>
     var map;
     var marker;
-    var initialCoord = { lat: ${initialLat}, lng: ${initialLng} };
-
-    function initMap() {
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: initialCoord,
-        zoom: 14,
-        fullscreenControl: false,
-        streetViewControl: false,
-        mapTypeControl: true,
-        mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, mapTypeIds: ['roadmap', 'satellite', 'hybrid'] }
-      });
-
-      marker = new google.maps.Marker({
-        map: map,
-        position: initialCoord,
-        draggable: true
-      });
-
-      function sendToRN(type, data) {
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, data: data }));
-        }
-      }
-
-      // Report coordinate when marker drag ends
-      marker.addListener('dragend', function() {
-        var pos = marker.getPosition();
-        sendToRN('coord_change', { lat: pos.lat(), lng: pos.lng() });
-      });
-
-      // Map click moves marker and reports coordinate
-      map.addListener('click', function(e) {
-        marker.setPosition(e.latLng);
-        sendToRN('coord_change', { lat: e.latLng.lat(), lng: e.latLng.lng() });
-      });
-
-      // Handle incoming messages
-      window.addEventListener('message', function(event) {
-        try {
-          var msg = JSON.parse(event.data);
-          if (msg.type === 'set_coord') {
-            var ll = { lat: msg.data.lat, lng: msg.data.lng };
-            marker.setPosition(ll);
-            map.panTo(ll);
-            map.setZoom(15);
-          }
-        } catch (err) {
-          // ignore
-        }
-      });
-
-      google.maps.event.addListenerOnce(map, 'idle', function() {
-        sendToRN('loaded', {});
-      });
-    }
-  </script>
-</body>
-</html>
   `;
 }
 
@@ -474,10 +427,12 @@ export default function BookingMapPicker(props: {
                   <WebView
                     ref={webViewRef}
                     originWhitelist={['*']}
-                    source={{ html: htmlSource }}
+                    source={{ html: htmlSource, baseUrl: 'https://maps.googleapis.com' }}
                     style={styles.webview}
                     javaScriptEnabled={true}
                     domStorageEnabled={true}
+                    mixedContentMode="always"
+                    allowFileAccess={true}
                     onMessage={handleMessage}
                   />
 

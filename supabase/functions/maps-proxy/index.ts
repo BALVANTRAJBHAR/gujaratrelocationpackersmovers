@@ -134,7 +134,6 @@ serve(async (req) => {
       const payload: Record<string, unknown> = {
         input: input.slice(0, 256),
         sessionToken,
-        includedRegionCodes: ['IN'],
         regionCode: 'IN',
         languageCode: str(body.language) || 'en',
       };
