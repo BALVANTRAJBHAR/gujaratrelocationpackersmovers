@@ -202,9 +202,20 @@ serve(async (req) => {
       const lat = num(body.lat);
       const lng = num(body.lng);
       if (lat === null || lng === null) return fail('lat and lng are required');
-      const url = `${GEOCODING_V1}?key=${encodeURIComponent(key)}&latlng=${lat},${lng}&region=IN&language=en`;
-      const data = await (await fetch(url)).json();
-      return json(data);
+      // First try: precise result_type filter — matches what Google Maps shows for same coordinate
+      const preciseUrl = `${GEOCODING_V1}?key=${encodeURIComponent(key)}&latlng=${lat},${lng}&result_type=street_address|premise|subpremise|route&region=IN&language=en`;
+      const preciseData = await (await fetch(preciseUrl)).json();
+      const preciseResults = Array.isArray(preciseData?.results) ? preciseData.results : [];
+      // Always fetch full set (for address_components, context, etc.)
+      const fullUrl = `${GEOCODING_V1}?key=${encodeURIComponent(key)}&latlng=${lat},${lng}&region=IN&language=en`;
+      const fullData = await (await fetch(fullUrl)).json();
+      const fullResults = Array.isArray(fullData?.results) ? fullData.results : [];
+      if (preciseResults.length > 0) {
+        // Merge: precise results first (higher ranked), then remaining full results
+        const merged = [...preciseResults, ...fullResults.filter((r: any) => !preciseResults.some((p: any) => p.place_id === r.place_id))];
+        return json({ ...fullData, results: merged });
+      }
+      return json(fullData);
     }
 
     if (action === 'directions') {

@@ -28,10 +28,10 @@ import {
 import { WebView } from 'react-native-webview';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
+import { getGoogleMapsKey } from '@/lib/public-config';
 import {
   autocompletePlaces,
   createGooglePlacesSessionToken,
-  resolveAutocompleteSuggestion,
   reverseGeocode,
   type GoogleAutocompleteSuggestion,
 } from '@/lib/google-maps';
@@ -315,8 +315,25 @@ export default function BookingMapPicker(props: {
     await props.onConfirm(searchQuery.trim() || undefined);
   }, [props.onConfirm, searchQuery]);
 
+  const [internalToken, setInternalToken] = useState('');
+
+  useEffect(() => {
+    if (props.token || !props.open) return;
+    let active = true;
+    getGoogleMapsKey()
+      .then((key) => {
+        if (active && key) setInternalToken(key);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [props.token, props.open]);
+
+  const activeToken = props.token || internalToken;
+
   const htmlSource = getHtml(
-    props.token,
+    activeToken,
     props.coord?.lat ?? 19.076,
     props.coord?.lng ?? 72.8777,
   );
@@ -386,7 +403,7 @@ export default function BookingMapPicker(props: {
               {props.title}
             </Text>
 
-            {!props.token ? (
+            {!activeToken ? (
               <YStack
                 backgroundColor="#FEF2F2"
                 borderRadius={12}
@@ -399,7 +416,7 @@ export default function BookingMapPicker(props: {
                   Map Key Missing
                 </Text>
                 <Text color="#991B1B" fontSize={12} textAlign="center">
-                  Google Maps key is not configured. Please contact support.
+                  Google Maps key is loading or missing. Please try again.
                 </Text>
               </YStack>
             ) : (
@@ -503,7 +520,7 @@ export default function BookingMapPicker(props: {
                 backgroundColor="#F97316"
                 color="#0B0B12"
                 onPress={() => void handleConfirm()}
-                disabled={props.busy || !props.coord || !props.token}>
+                disabled={props.busy || !props.coord || !activeToken}>
                 {props.busy ? 'Saving…' : 'Confirm Location'}
               </Button>
             </XStack>

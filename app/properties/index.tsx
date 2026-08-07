@@ -597,12 +597,15 @@ export default function PropertiesIndexScreen() {
               const hasAllowedType = placeTypes.some((t) => allowedTypes.has(String(t)));
               if (!hasAllowedType) return false;
               const name = String((x as any)?.place_name ?? '').toLowerCase();
-              if (stateLower && !name.includes(stateLower)) return false;
+              const ctx = ((x as any)?.context ?? []) as { text?: string }[];
+              const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
+              const allText = [name, ...ctxText].join(' ');
+              // State must be somewhere in the result
+              if (stateLower && !allText.includes(stateLower)) return false;
+              // City: check name AND context (relaxed — proximity bias already restricts to city)
               if (cityLower) {
-                const ctx = ((x as any)?.context ?? []) as { text?: string }[];
-                const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
-                const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
-                if (!name.includes(cityLower) && !ctxHasCity) return false;
+                const cityMatches = name.includes(cityLower) || ctxText.some((t) => t.includes(cityLower));
+                if (!cityMatches) return false;
               }
               return true;
             })

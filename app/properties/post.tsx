@@ -988,6 +988,21 @@ export default function PostPropertyScreen() {
     return [] as string[];
   }, [localities]);
 
+  // Bug fix: When state changes, city is cleared (in the picker's onPress).
+  // This effect auto-selects the first available city for the new state,
+  // or keeps it blank if no cities are available.
+  const prevStateRef = React.useRef(stateValue);
+  React.useEffect(() => {
+    if (prevStateRef.current === stateValue) return;
+    prevStateRef.current = stateValue;
+    // cityOptions will recompute now that stateValue changed
+    const firstCity = (cityOptions ?? [])[0] ?? '';
+    setCityValue(firstCity);
+    setLocalityValue('');
+    setLocalityTyped(false);
+    setLocalitySuggestions([]);
+  }, [stateValue, cityOptions]);
+
   React.useEffect(() => {
     let active = true;
     const q = localityValue.trim();
@@ -1017,8 +1032,15 @@ export default function PostPropertyScreen() {
           const filtered = results
             .filter((x) => {
               const name = String((x as any)?.place_name ?? '').toLowerCase();
-              if (selectedStateName && !name.includes(selectedStateName.trim().toLowerCase())) return false;
-              if (selectedCityName && !name.includes(selectedCityName.trim().toLowerCase())) return false;
+              const ctx = ((x as any)?.context ?? []) as { text?: string }[];
+              const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
+              const allText = [name, ...ctxText].join(' ');
+              if (selectedStateName && !allText.includes(selectedStateName.trim().toLowerCase())) return false;
+              if (selectedCityName) {
+                const cityLower = selectedCityName.trim().toLowerCase();
+                const cityMatches = allText.includes(cityLower) || ctxText.some((t) => t.includes(cityLower));
+                if (!cityMatches) return false;
+              }
               return true;
             })
             .map((x) => {

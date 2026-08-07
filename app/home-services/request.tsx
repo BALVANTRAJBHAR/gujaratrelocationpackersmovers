@@ -1524,35 +1524,6 @@ export default function HomeServiceRequestScreen() {
 
                     let addressLine1Next = '';
                     let addressLine2Next = '';
-
-                    // Preferred: Mapbox structured fields
-                    if (houseNumber) addressLine1Next = houseNumber;
-                    if (streetText) {
-                      if (addressLine1Next) addressLine2Next = streetText;
-                      else addressLine2Next = streetText;
-                    }
-
-                    // Fallback: parse from place_name parts
-                    if (!addressLine1Next && !addressLine2Next) {
-                      if (addressPartsRaw.length >= 2) {
-                        const first = addressPartsRaw[0];
-                        const second = addressPartsRaw[1];
-                        if (!looksLikeHouse(first) && looksLikeHouse(second)) {
-                          addressLine1Next = second;
-                          addressLine2Next = [first, ...addressPartsRaw.slice(2)].filter(Boolean).join(', ');
-                        } else {
-                          addressLine1Next = first;
-                          addressLine2Next = addressPartsRaw.slice(1).join(', ');
-                        }
-                      } else if (addressPartsRaw.length === 1) {
-                        if (looksLikeHouse(addressPartsRaw[0])) addressLine1Next = addressPartsRaw[0];
-                        else addressLine2Next = addressPartsRaw[0];
-                      }
-                    }
-
-                    setAddressLine1(addressLine1Next || '');
-                    setAddressLine2(addressLine2Next || '');
-
                     if (nextState) {
                       setState(nextState);
                       setCity('');
