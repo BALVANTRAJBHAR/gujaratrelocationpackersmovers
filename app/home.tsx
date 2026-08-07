@@ -28,7 +28,7 @@ import ViewShot from 'react-native-view-shot';
 import { Button, H1, H2, Image, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
-import { searchPlaces, getCityCenter } from '@/lib/mapbox';
+import { searchPlaces, getCityCenter } from '@/lib/google-maps';
 import { getDashboardRoute } from '@/lib/role-routing';
 import { removeStaleRealtimeChannel, signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';

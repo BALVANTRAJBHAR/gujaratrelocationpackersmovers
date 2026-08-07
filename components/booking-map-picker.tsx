@@ -2,9 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView } from 'react-native';
 import { Button, Dialog, Input, Text, XStack, YStack } from 'tamagui';
 
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { searchPlaces } from '@/lib/mapbox';
+import { searchPlaces } from '@/lib/google-maps';
+import { loadGoogleMaps } from '@/lib/load-google-maps';
 
 type Coord = { lat: number; lng: number };
 
@@ -31,8 +30,9 @@ export default function BookingMapPicker(props: {
   const isWeb = Platform.OS === 'web';
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const googleMapsRef = useRef<any>(null);
   const skipNextSearchRef = useRef(false);
   const selectedPlaceRef = useRef('');
 
@@ -91,10 +91,10 @@ export default function BookingMapPicker(props: {
       setSearching(true);
       try {
         const map = mapRef.current;
-        const center = map?.getCenter();
+        const center = map?.getCenter?.();
         const hasCoord = props.coord?.lat != null && props.coord?.lng != null;
         const results = await searchPlaces(searchQuery, {
-          proximity: currentProximity ?? (center ? [center.lng, center.lat] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined),
+          proximity: currentProximity ?? (center ? [center.lng(), center.lat()] : hasCoord ? [props.coord!.lng, props.coord!.lat] : undefined),
           types: ['address', 'street', 'neighborhood', 'locality', 'place', 'district', 'poi'],
         });
         setSearchResults(results as GeocodeFeature[]);
@@ -118,7 +118,8 @@ export default function BookingMapPicker(props: {
       setSearching(false);
       const map = mapRef.current;
       if (map) {
-        map.flyTo({ center: [lng, lat], zoom: 14 });
+        map.panTo({ lat, lng });
+        map.setZoom(14);
       }
     },
     [props.onCoordChange]
@@ -130,67 +131,77 @@ export default function BookingMapPicker(props: {
     searchResults.length === 0 &&
     searchQuery.trim() !== selectedPlaceRef.current;
 
+  // Create the Google Map once the dialog opens and the key is available.
   React.useEffect(() => {
     if (!isWeb) return;
     if (!props.open) return;
     if (!props.token) return;
     if (!mapContainerRef.current) return;
 
-    mapboxgl.accessToken = props.token;
-
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: [props.coord?.lng ?? 72.8777, props.coord?.lat ?? 19.076],
-      zoom: 11,
-    });
-
-    try {
-      map.scrollZoom.setWheelZoomRate(1 / 120);
-      map.scrollZoom.setZoomRate(1 / 120);
-    } catch {
-      // ignore
-    }
-
-    mapRef.current = map;
-
-    const onClick = (e: mapboxgl.MapMouseEvent) => {
-      props.onCoordChange({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    let cancelled = false;
+    let map: any = null;
+    const onClick = (e: any) => {
+      props.onCoordChange({ lat: e.latLng.lat(), lng: e.latLng.lng() });
     };
 
-    map.on('click', onClick);
-
-    map.on('load', () => {
-      map.resize();
-      if (props.coord) {
-        markerRef.current?.remove();
-        markerRef.current = new mapboxgl.Marker().setLngLat([props.coord.lng, props.coord.lat]).addTo(map);
-      }
-    });
+    loadGoogleMaps(props.token)
+      .then((googleMaps) => {
+        if (cancelled || !mapContainerRef.current) return;
+        googleMapsRef.current = googleMaps;
+        map = new googleMaps.Map(mapContainerRef.current, {
+          center: { lat: props.coord?.lat ?? 19.076, lng: props.coord?.lng ?? 72.8777 },
+          zoom: 11,
+          fullscreenControl: false,
+          streetViewControl: false,
+          mapTypeControl: false,
+          zoomControl: true,
+        });
+        mapRef.current = map;
+        map.addListener('click', onClick);
+        googleMaps.event.addListenerOnce(map, 'idle', () => {
+          if (cancelled) return;
+          if (props.coord) {
+            markerRef.current?.setMap(null);
+            markerRef.current = new googleMaps.Marker({
+              map,
+              position: { lat: props.coord.lat, lng: props.coord.lng },
+              draggable: false,
+            });
+          }
+        });
+      })
+      .catch(() => {});
 
     return () => {
+      cancelled = true;
       try {
-        markerRef.current?.remove();
+        markerRef.current?.setMap(null);
         markerRef.current = null;
-        map.off('click', onClick);
-        map.remove();
+        if (map) {
+          googleMapsRef.current?.event.clearInstanceListeners(map);
+          map = null;
+        }
         mapRef.current = null;
       } catch {
+        // ignore
       }
     };
   }, [isWeb, props.open, props.token]);
 
+  // Keep the marker in sync with external coordinate changes.
   React.useEffect(() => {
     if (!isWeb) return;
     const map = mapRef.current;
-    if (!map) return;
-
+    const googleMaps = googleMapsRef.current;
+    if (!map || !googleMaps) return;
+    markerRef.current?.setMap(null);
+    markerRef.current = null;
     if (props.coord) {
-      markerRef.current?.remove();
-      markerRef.current = new mapboxgl.Marker().setLngLat([props.coord.lng, props.coord.lat]).addTo(map);
-    } else {
-      markerRef.current?.remove();
-      markerRef.current = null;
+      markerRef.current = new googleMaps.Marker({
+        map,
+        position: { lat: props.coord.lat, lng: props.coord.lng },
+        draggable: false,
+      });
     }
   }, [isWeb, props.coord?.lat, props.coord?.lng]);
 
@@ -207,7 +218,7 @@ export default function BookingMapPicker(props: {
             {!props.token ? (
               <YStack backgroundColor="#F8FAFC" borderRadius={12} padding={12} borderWidth={1} borderColor="#E5E7EB">
                 <Text color="#64748B" fontSize={12} textAlign="center">
-                  Mapbox token missing.
+                  Google Maps key missing.
                 </Text>
               </YStack>
             ) : (

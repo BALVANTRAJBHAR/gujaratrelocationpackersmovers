@@ -2,8 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { Text, YStack } from 'tamagui';
 
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { loadGoogleMaps } from '@/lib/load-google-maps';
 
 type TrackingMapProps = {
   token: string;
@@ -17,6 +16,14 @@ type TrackingMapProps = {
   pickupAddress?: string;
   dropAddress?: string;
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 export default function TrackingMap({
   token,
@@ -32,7 +39,8 @@ export default function TrackingMap({
 }: TrackingMapProps) {
   const isWeb = Platform.OS === 'web';
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<any>(null);
+  const googleMapsRef = useRef<any>(null);
 
   const setMapContainer = React.useCallback((node: any) => {
     mapContainerRef.current = (node as HTMLDivElement) ?? null;
@@ -43,50 +51,73 @@ export default function TrackingMap({
     if (!token) return;
     if (!mapContainerRef.current) return;
 
-    mapboxgl.accessToken = token;
+    let cancelled = false;
+    let map: any = null;
+    const markers: any[] = [];
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: [longitude, latitude],
-      zoom: 12,
-    });
+    loadGoogleMaps(token)
+      .then((googleMaps) => {
+        if (cancelled || !mapContainerRef.current) return;
+        googleMapsRef.current = googleMaps;
+        map = new googleMaps.Map(mapContainerRef.current, {
+          center: { lat: latitude, lng: longitude },
+          zoom: 12,
+          fullscreenControl: false,
+          streetViewControl: false,
+          mapTypeControl: false,
+          zoomControl: true,
+        });
+        mapRef.current = map;
 
-    try {
-      map.scrollZoom.setWheelZoomRate(1 / 120);
-      map.scrollZoom.setZoomRate(1 / 120);
-    } catch {
-    }
+        googleMaps.event.addListenerOnce(map, 'idle', () => {
+          if (cancelled) return;
+          const items = [
+            pickupLat != null && pickupLng != null ? { color: '#22C55E', lat: pickupLat, lng: pickupLng, label: pickupAddress || 'Pickup' } : null,
+            dropLat != null && dropLng != null ? { color: '#EF4444', lat: dropLat, lng: dropLng, label: dropAddress || 'Drop' } : null,
+            hasLiveLocation ? { color: '#F97316', lat: latitude, lng: longitude, label: 'Driver' } : null,
+          ].filter(Boolean) as { color: string; lat: number; lng: number; label: string }[];
 
-    mapRef.current = map;
+          const bounds = new googleMaps.LatLngBounds();
+          items.forEach((m) => {
+            const marker = new googleMaps.Marker({
+              map,
+              position: { lat: m.lat, lng: m.lng },
+              icon: {
+                path: googleMaps.SymbolPath.CIRCLE,
+                scale: 9,
+                fillColor: m.color,
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2.5,
+              },
+            });
+            const info = new googleMaps.InfoWindow({
+              content: `<div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; font-size: 12px; padding: 4px 2px;">${escapeHtml(m.label)}</div>`,
+            });
+            marker.addListener('click', () => info.open({ map, anchor: marker }));
+            markers.push(marker);
+            bounds.extend(marker.getPosition());
+          });
 
-    map.on('load', () => {
-      map.resize();
-      const markers = [
-        pickupLat != null && pickupLng != null ? { color: '#22C55E', lat: pickupLat, lng: pickupLng, label: pickupAddress || 'Pickup' } : null,
-        dropLat != null && dropLng != null ? { color: '#EF4444', lat: dropLat, lng: dropLng, label: dropAddress || 'Drop' } : null,
-        hasLiveLocation ? { color: '#F97316', lat: latitude, lng: longitude, label: 'Driver' } : null,
-      ].filter(Boolean) as { color: string; lat: number; lng: number; label: string }[];
-
-      markers.forEach((m) => {
-        new mapboxgl.Marker({ color: m.color })
-          .setLngLat([m.lng, m.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(m.label))
-          .addTo(map);
-      });
-
-      if (markers.length > 0) {
-        const b = new mapboxgl.LngLatBounds();
-        markers.forEach((m) => b.extend([m.lng, m.lat]));
-        map.fitBounds(b, { padding: 60 });
-      }
-    });
+          if (items.length > 0) {
+            map.fitBounds(bounds, 60);
+          }
+        });
+      })
+      .catch(() => {});
 
     return () => {
+      cancelled = true;
       try {
-        map.remove();
+        markers.forEach((marker) => marker.setMap(null));
+        markers.length = 0;
+        if (map) {
+          googleMapsRef.current?.event.clearInstanceListeners(map);
+          map = null;
+        }
         mapRef.current = null;
       } catch {
+        // ignore
       }
     };
   }, [isWeb, token, latitude, longitude, hasLiveLocation, pickupLat, pickupLng, dropLat, dropLng, pickupAddress, dropAddress]);
@@ -94,7 +125,7 @@ export default function TrackingMap({
   if (!token) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center">
-        <Text color="#94A3B8" fontSize={12}>Add Mapbox token to enable map.</Text>
+        <Text color="#94A3B8" fontSize={12}>Add Google Maps key to enable map.</Text>
       </YStack>
     );
   }

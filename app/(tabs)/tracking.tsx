@@ -8,7 +8,7 @@ import TrackingMap from '@/components/tracking-map';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
 import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
-import { getMapboxToken } from '@/lib/public-config';
+import { getGoogleMapsKey } from '@/lib/public-config';
 import { playSound } from '@/lib/sounds';
 import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -39,7 +39,7 @@ export default function TrackingScreen() {
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [googleMapsKey, setGoogleMapsKey] = useState<string>('');
   const [trackingId, setTrackingId] = useState('');
   const [pickupLat, setPickupLat] = useState<number | undefined>();
   const [pickupLng, setPickupLng] = useState<number | undefined>();
@@ -104,12 +104,12 @@ export default function TrackingScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    getMapboxToken()
+    getGoogleMapsKey()
       .then((tk) => {
-        if (!cancelled) setMapboxToken(tk);
+        if (!cancelled) setGoogleMapsKey(tk);
       })
       .catch(() => {
-        if (!cancelled) setMapboxToken('');
+        if (!cancelled) setGoogleMapsKey('');
       });
     return () => {
       cancelled = true;
@@ -287,7 +287,7 @@ export default function TrackingScreen() {
 
           <YStack height={260} borderRadius={18} overflow="hidden" backgroundColor={theme.bgCardSecondary} style={{ position: 'relative' } as any}>
             <TrackingMap
-              token={mapboxToken}
+              token={googleMapsKey}
               latitude={mapLat}
               longitude={mapLng}
               hasLiveLocation={Boolean(latestLocation?.lat && latestLocation?.lng)}

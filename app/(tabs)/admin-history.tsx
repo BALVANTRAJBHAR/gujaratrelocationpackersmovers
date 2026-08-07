@@ -102,6 +102,14 @@ function AdminHistoryInner() {
 
   const canManage = ['admin', 'staff'].includes(profile?.role ?? '');
 
+  const goBackToReports = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/admin?section=reports' as any);
+    }
+  };
+
   const fetchHistory = async () => {
     if (!canManage) return;
     setLoading(true);
@@ -333,7 +341,7 @@ function AdminHistoryInner() {
       ) : null}
       <XStack justifyContent="space-between" alignItems="center">
         <YStack gap="$1">
-          <XStack alignItems="center" gap="$2"><Button size="$2" chromeless onPress={() => router.back()} color={theme.text}>←</Button><Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">Admin</Text></XStack>
+          <XStack alignItems="center" gap="$2"><Button size="$2" chromeless onPress={goBackToReports} color={theme.text}>←</Button><Text color={theme.accent} fontSize={t(12)} letterSpacing={2} textTransform="uppercase">Admin</Text></XStack>
           <H2 color={theme.text}>Approval history</H2>
           <Paragraph color={theme.textMuted}>See who approved drivers and when.</Paragraph>
         </YStack>
@@ -477,7 +485,9 @@ function AdminHistoryInner() {
                     Load more
                   </Button>
                 ) : null}
-                <EndOfResults theme={theme} onUp={() => historyListRef.current?.scrollToOffset({ offset: 0, animated: true })} />
+                <YStack marginTop={48}>
+                  <EndOfResults theme={theme} onUp={() => historyListRef.current?.scrollToOffset({ offset: 0, animated: true })} onBack={goBackToReports} />
+                </YStack>
               </YStack>
             }
             renderItem={({ item }) => (
@@ -486,7 +496,7 @@ function AdminHistoryInner() {
                   {item.name ?? 'Driver'}
                 </Text>
                 <XStack gap={4} alignItems="center">
-                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(12)}>Phone:</Text>
+                  <Text color={theme.text} fontWeight="800" fontSize={t(12)}>Phone:</Text>
                   {item.phone ? (
                     <Pressable onPress={() => Linking.openURL(`tel:${item.phone}`)}>  
                       <Text color="#3B82F6" fontWeight="700" fontSize={t(12)} style={{ textDecorationLine: 'underline' }}>{item.phone}</Text>

@@ -14,8 +14,8 @@ import BookingMapPicker from '@/components/booking-map-picker';
 import PageHeader from '@/components/PageHeader';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/mapbox';
-import { getMapboxToken, getRazorpayKeyId } from '@/lib/public-config';
+import { getRouteDistance, reverseGeocode, searchPlaces } from '@/lib/google-maps';
+import { getGoogleMapsKey, getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
 import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { supabase } from '@/lib/supabase';
@@ -370,7 +370,7 @@ export default function BookingWizardScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsPdfUrl, setTermsPdfUrl] = useState<string | null>(null);
 
-  const [mapboxToken, setMapboxToken] = useState('');
+  const [googleMapsKey, setGoogleMapsKey] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapPickerTarget, setMapPickerTarget] = useState<'pickup' | 'drop'>('pickup');
   const [mapPickerCoord, setMapPickerCoord] = useState<{ lat: number; lng: number } | null>(null);
@@ -848,12 +848,12 @@ export default function BookingWizardScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    getMapboxToken()
+    getGoogleMapsKey()
       .then((t) => {
-        if (!cancelled) setMapboxToken(t);
+        if (!cancelled) setGoogleMapsKey(t);
       })
       .catch(() => {
-        if (!cancelled) setMapboxToken('');
+        if (!cancelled) setGoogleMapsKey('');
       });
     return () => {
       cancelled = true;
@@ -2258,7 +2258,7 @@ export default function BookingWizardScreen() {
             onOpenChange={setMapPickerOpen}
             resetKey={mapPickerTarget}
             title={`Select ${mapPickerTarget === 'pickup' ? 'Pickup' : 'Drop'} Location`}
-            token={mapboxToken}
+            token={googleMapsKey}
             coord={mapPickerCoord}
             onCoordChange={setMapPickerCoord}
             onConfirm={confirmMapPicker}

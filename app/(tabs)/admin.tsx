@@ -650,6 +650,7 @@ function AdminScreenInner() {
   const [quoteRequestRemarkDrafts, setQuoteRequestRemarkDrafts] = useState<Record<string, string>>({});
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeAdmin[]>([]);
   const [floorOptions, setFloorOptions] = useState<FloorOptionAdmin[]>([]);
+  const [floorCount, setFloorCount] = useState(0);
   const [coupons, setCoupons] = useState<CouponAdmin[]>([]);
 
   const [homeServiceRequests, setHomeServiceRequests] = useState<HomeServiceRequestAdmin[]>([]);
@@ -874,10 +875,14 @@ function AdminScreenInner() {
     is_active: true,
   });
 
+  const [couponValidFromPickerValue, setCouponValidFromPickerValue] = useState<Date>(new Date());
+  const [couponValidFromPickerOpen, setCouponValidFromPickerOpen] = useState(false);
+  const [couponValidUntilPickerValue, setCouponValidUntilPickerValue] = useState<Date>(new Date());
+  const [couponValidUntilPickerOpen, setCouponValidUntilPickerOpen] = useState(false);
+
   const nextFloorSortOrder = useMemo(() => {
-    const max = floorOptions.reduce((acc, item) => Math.max(acc, item.sort_order ?? 0), 0);
-    return String(max + 1);
-  }, [floorOptions]);
+    return String((floorCount ?? 0) + 1);
+  }, [floorCount]);
 
   const canManage = useMemo(() => {
     return ['admin', 'staff'].includes((profile?.role ?? '').toString().trim().toLowerCase());
@@ -1364,7 +1369,7 @@ function AdminScreenInner() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
     }
     // Native: write to temp location then save to public Downloads folder
@@ -1825,6 +1830,7 @@ function AdminScreenInner() {
   const exportReportsBookingsCsv = async () => {
     setReportsExportBookingsCsvLoading(true);
     try {
+      if (!reportsBookings.length) await fetchReportsBookings();
       const csv = await createReportsBookingsCsv();
       if (!csv) return;
       await downloadTextFile({
@@ -1895,6 +1901,7 @@ function AdminScreenInner() {
   const exportReportsPaymentsCsv = async () => {
     setReportsExportPaymentsCsvLoading(true);
     try {
+      if (!reportsPayments.length) await fetchReportsPayments();
       const csv = await createReportsPaymentsCsv();
       if (!csv) return;
       await downloadTextFile({
@@ -2186,6 +2193,8 @@ function AdminScreenInner() {
       usage_limit: '',
       is_active: true,
     });
+    setCouponValidFromPickerValue(new Date());
+    setCouponValidUntilPickerValue(new Date());
   };
 
   const fetchCoupons = async () => {
@@ -2545,17 +2554,26 @@ function AdminScreenInner() {
     if (!canManage) return;
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('floor_options')
-      .select('id, label, sort_order, charge_with_lift, charge_without_lift, is_active')
-      .order('sort_order', { ascending: true });
+    const [rowsResult, countResult] = await Promise.all([
+      supabase
+        .from('floor_options')
+        .select('id, label, sort_order, charge_with_lift, charge_without_lift, is_active')
+        .order('sort_order', { ascending: true }),
+      supabase.from('floor_options').select('id', { count: 'exact', head: true }),
+    ]);
 
+    const { data, error: fetchError } = rowsResult;
     if (fetchError) {
       if (!String(fetchError.message ?? '').includes('AbortError')) {
         setError(fetchError.message);
       }
     } else {
       setFloorOptions((data ?? []) as FloorOptionAdmin[]);
+    }
+
+    const { count, error: countError } = countResult;
+    if (!countError && typeof count === 'number') {
+      setFloorCount(count);
     }
     setLoading(false);
   };
@@ -3117,7 +3135,7 @@ function AdminScreenInner() {
                                 </YStack>
                               </XStack>
                               <XStack gap={4} alignItems="center">
-                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Phone:</Text>
+                                <Text color={theme.text} fontWeight="800" fontSize={t(14)}>Phone:</Text>
                                 {item.phone ? (
                                   <Pressable onPress={() => Linking.openURL(`tel:${item.phone}`)}>
                                     <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{item.phone}</Text>
@@ -3125,7 +3143,7 @@ function AdminScreenInner() {
                                 ) : <Text color={theme.textMuted} fontSize={t(14)}>—</Text>}
                               </XStack>
                               <XStack gap={4} alignItems="center">
-                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Email:</Text>
+                                <Text color={theme.text} fontWeight="800" fontSize={t(14)}>Email:</Text>
                                 {item.email ? (
                                   <Pressable onPress={() => Linking.openURL(`mailto:${item.email}`)}>
                                     <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{item.email}</Text>
@@ -3850,12 +3868,12 @@ function AdminScreenInner() {
                             <Text color={theme.textMuted} fontSize={t(14)}>{[prop?.locality, prop?.city].filter(Boolean).join(', ') || '—'}</Text>
                             {prop?.price != null ? <Text color={theme.success} fontWeight="600" fontSize={t(15)}>₹{Number(prop.price).toLocaleString('en-IN')}</Text> : null}
                             <XStack gap={4} alignItems="center">
-                              <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Customer:</Text>
+                              <Text color={theme.text} fontWeight="800" fontSize={t(14)}>Customer:</Text>
                               <Text color={theme.textMuted} fontSize={t(14)}>{pb.contact_name ?? pb.user_id ?? '—'}</Text>
                             </XStack>
                             {pb.contact_phone ? (
                               <XStack gap={4} alignItems="center">
-                                <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Phone:</Text>
+                                <Text color={theme.text} fontWeight="800" fontSize={t(14)}>Phone:</Text>
                                 <Pressable onPress={() => Linking.openURL(`tel:${pb.contact_phone}`)}>
                                   <Text color="#3B82F6" fontWeight="700" fontSize={t(14)} style={{ textDecorationLine: 'underline' }}>{pb.contact_phone}</Text>
                                 </Pressable>
@@ -4269,29 +4287,97 @@ function AdminScreenInner() {
                   </XStack>
 
                   <XStack gap="$2" flexWrap="wrap">
-                    <Input
-                      value={couponForm.valid_from}
-                      onChangeText={(v) => setCouponForm((p) => ({ ...p, valid_from: v }))}
-                      placeholder="Valid from (YYYY-MM-DD)"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={200}
-                      flexGrow={1}
-                      flexBasis={220}
-                    />
-                    <Input
-                      value={couponForm.valid_until}
-                      onChangeText={(v) => setCouponForm((p) => ({ ...p, valid_until: v }))}
-                      placeholder="Valid until (YYYY-MM-DD)"
-                      backgroundColor={theme.inputBg}
-                      borderColor={theme.border}
-                      color={theme.inputText}
-                      minWidth={200}
-                      flexGrow={1}
-                      flexBasis={220}
-                    />
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.inputBg}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={200}
+                        flexGrow={1}
+                        flexBasis={220}>
+                        <input
+                          value={couponForm.valid_from}
+                          onChange={(e) => setCouponForm((p) => ({ ...p, valid_from: (e.target as any).value }))}
+                          type="date"
+                          placeholder="Valid from"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setCouponValidFromPickerValue(couponForm.valid_from ? new Date(`${couponForm.valid_from}T00:00:00.000Z`) : new Date());
+                          setCouponValidFromPickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 220, minWidth: 200 } as any}>
+                        <Input
+                          value={couponForm.valid_from}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Valid from"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
+                    {Platform.OS === 'web' ? (
+                      <YStack
+                        backgroundColor={theme.inputBg}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        borderRadius={10}
+                        paddingHorizontal={12}
+                        paddingVertical={10}
+                        minWidth={200}
+                        flexGrow={1}
+                        flexBasis={220}>
+                        <input
+                          value={couponForm.valid_until}
+                          onChange={(e) => setCouponForm((p) => ({ ...p, valid_until: (e.target as any).value }))}
+                          type="date"
+                          placeholder="Valid until"
+                          className="admin-date-input"
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: theme.inputText,
+                            outline: 'none',
+                          }}
+                        />
+                      </YStack>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          setCouponValidUntilPickerValue(couponForm.valid_until ? new Date(`${couponForm.valid_until}T00:00:00.000Z`) : new Date());
+                          setCouponValidUntilPickerOpen(true);
+                        }}
+                        style={{ flexGrow: 1, flexBasis: 220, minWidth: 200 } as any}>
+                        <Input
+                          value={couponForm.valid_until}
+                          editable={false}
+                          pointerEvents="none"
+                          placeholder="Valid until"
+                          backgroundColor={theme.bgCardSecondary}
+                          borderColor={theme.border}
+                          color={theme.inputText}
+                        />
+                      </Pressable>
+                    )}
                   </XStack>
+                  <MobileDatePicker value={couponValidFromPickerValue} open={couponValidFromPickerOpen} onClose={() => setCouponValidFromPickerOpen(false)} onChange={(d) => { setCouponForm((p) => ({ ...p, valid_from: isoDay(d) })); }} />
+                  <MobileDatePicker value={couponValidUntilPickerValue} open={couponValidUntilPickerOpen} onClose={() => setCouponValidUntilPickerOpen(false)} onChange={(d) => { setCouponForm((p) => ({ ...p, valid_until: isoDay(d) })); }} />
 
                   <XStack gap="$2" flexWrap="wrap">
                     <Button
@@ -4574,7 +4660,7 @@ function AdminScreenInner() {
                   gap="$2"
                   borderWidth={1}
                   borderColor={theme.border}>
-                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(16)}>
+                  <Text color={theme.text} fontWeight="800" fontSize={t(16)}>
                     Filter and manage bookings.
                   </Text>
                   {Platform.OS === 'web' ? (
@@ -4754,7 +4840,7 @@ function AdminScreenInner() {
                         <YStack gap={2}>
                           <XStack alignItems="flex-start" gap={8}>
                             <FontAwesome5 name="map-marker-alt" size={16} color="#EF4444" />
-                            <Text flex={1} color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup address'}</Text>
+                            <Text flex={1} color={theme.text} fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup address'}</Text>
                           </XStack>
                           <XStack alignItems="flex-start" gap={8}>
                             <FontAwesome5 name="map-marker-alt" size={16} color="#10B981" />
@@ -4762,7 +4848,7 @@ function AdminScreenInner() {
                           </XStack>
                         </YStack>
                         <XStack gap={4} flexWrap="wrap" alignItems="center">
-                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>User:</Text>
+                          <Text color={theme.text} fontWeight="800" fontSize={t(13)}>User:</Text>
                           <Text color={theme.textMuted} fontSize={t(13)}>{user.name ?? '—'} • </Text>
                           {user.phone ? (
                             <Pressable onPress={() => Linking.openURL(`tel:${user.phone}`)}>
@@ -4783,11 +4869,11 @@ function AdminScreenInner() {
                           ) : <Text color={theme.textMuted} fontSize={t(13)}> • —</Text>}
                         </XStack>
                         <XStack gap={4} flexWrap="wrap">
-                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Driver:</Text>
+                          <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Driver:</Text>
                           <Text color={theme.textMuted} fontSize={t(13)}>{hasAssignedDriver ? driver.name ?? '—' : 'Unassigned'}</Text>
                         </XStack>
                         <XStack gap={4} flexWrap="wrap">
-                          <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>{item.status === 'rescheduled' || item.reschedule_date ? 'Rescheduled Shifting:' : 'Shifting Date:'}</Text>
+                          <Text color={theme.text} fontWeight="800" fontSize={t(13)}>{item.status === 'rescheduled' || item.reschedule_date ? 'Rescheduled Shifting:' : 'Shifting Date:'}</Text>
                           <Text color={theme.textMuted} fontSize={t(13)}>{item.scheduled_date ? `${formatDateDDMMYYYY(item.scheduled_date)}${item.scheduled_time ? `, ${item.scheduled_time}` : ''}` : '—'}</Text>
                         </XStack>
                       </YStack>
@@ -5255,7 +5341,7 @@ function AdminScreenInner() {
                               </Text>
                             </XStack>
                             <XStack gap={4} alignItems="center" flexWrap="wrap">
-                              <Text color="#FFFFFF" fontWeight="800" fontSize={t(14)}>Customer:</Text>
+                              <Text color={theme.text} fontWeight="800" fontSize={t(14)}>Customer:</Text>
                               <Text color={theme.textMuted} fontSize={t(14)}>{r.customer_name ?? '—'} • </Text>
                               {r.customer_phone ? (
                                 <Pressable onPress={() => Linking.openURL(`tel:${r.customer_phone}`)}>
@@ -5779,7 +5865,7 @@ function AdminScreenInner() {
                         color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsBookingsCsv}
-                        disabled={reportsLoading || !reportsBookings.length || reportsExportBookingsCsvLoading}>
+                        disabled={reportsLoading || reportsExportBookingsCsvLoading}>
                         {reportsExportBookingsCsvLoading ? 'Exporting...' : 'Export bookings CSV'}
                       </Button>
                       <Button
@@ -5788,7 +5874,7 @@ function AdminScreenInner() {
                         color={'#FFFFFF'}
                         borderRadius={10}
                         onPress={exportReportsPaymentsCsv}
-                        disabled={reportsLoading || !reportsPayments.length || reportsExportPaymentsCsvLoading}>
+                        disabled={reportsLoading || reportsExportPaymentsCsvLoading}>
                         {reportsExportPaymentsCsvLoading ? 'Exporting...' : 'Export payments CSV'}
                       </Button>
                       <Button

@@ -64,7 +64,7 @@ function MobileTimePicker({ value, onChange, open, onClose }: {
     </Modal>
   );
 }
-import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/mapbox';
+import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/google-maps';
 import { isAllowedPhotoUri, isAllowedVideoUri } from '@/lib/media-upload-validation';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';

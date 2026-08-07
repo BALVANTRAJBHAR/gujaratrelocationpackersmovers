@@ -15,7 +15,7 @@ import {
   resolveAdTypeQuery,
   routeParam,
 } from '@/lib/properties/search-params';
-import { searchPlaces, getCityCenter } from '@/lib/mapbox';
+import { searchPlaces, getCityCenter } from '@/lib/google-maps';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySubscription } from '@/lib/razorpay';
 import { supabase } from '@/lib/supabase';

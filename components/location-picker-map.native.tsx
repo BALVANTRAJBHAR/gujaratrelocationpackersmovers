@@ -17,7 +17,7 @@ export default function LocationPickerMap({ token, latitude, longitude, onSelect
     return (
       <YStack flex={1} alignItems="center" justifyContent="center" padding={16} backgroundColor="#0B1220">
         <Text color="#94A3B8" fontSize={12} textAlign="center">
-          Add Mapbox token to enable map selection.
+          Add Google Maps key to enable map selection.
         </Text>
       </YStack>
     );

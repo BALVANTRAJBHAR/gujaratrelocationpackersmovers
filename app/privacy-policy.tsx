@@ -142,7 +142,7 @@ export default function PrivacyPolicyScreen() {
               6. Third-Party Services
             </Text>
             <Text fontSize={t(14)} fontWeight="600" lineHeight={22} color={theme.textMuted} style={{ fontFamily: 'Times New Roman' }}>
-              We integrate with Supabase, Razorpay, Mapbox, and Expo. These services have their own privacy policies.
+              We integrate with Supabase, Razorpay, Google Maps, and Expo. These services have their own privacy policies.
             </Text>
           </YStack>
 

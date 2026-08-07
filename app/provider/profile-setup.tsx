@@ -6,7 +6,7 @@ import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { reverseGeocodeDetails, reverseGeocodeFeatures } from '@/lib/mapbox';
+import { reverseGeocodeDetails, reverseGeocodeFeatures } from '@/lib/google-maps';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';

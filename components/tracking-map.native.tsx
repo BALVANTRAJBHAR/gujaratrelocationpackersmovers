@@ -1,17 +1,16 @@
 /**
  * tracking-map.native.tsx
  *
- * MOBILE-ONLY (Android & iOS) — Mapbox GL JS map inside react-native-webview.
+ * MOBILE-ONLY (Android & iOS) — Google Maps JS API inside react-native-webview.
  * Used in the Tracking screen to show:
  *   - Green marker  → Pickup location
  *   - Red marker    → Drop location
- *   - Pulsing orange circle → Driver live position
+ *   - Orange marker → Driver live position
  *
  * Key design decisions:
- *  - 100% self-contained: Google Maps API key is NOT required anymore
- *  - Uses Mapbox GL JS rendered in WebView using the token prop (passed from tracking.tsx)
+ *  - Uses Google Maps JS API rendered in WebView using the key prop (passed from tracking.tsx)
  *  - Syncs coordinates (pickup, drop, live driver position) dynamically
- *  - Fits the map bounds automatically inside WebView Mapbox GL to show all active pins
+ *  - Fits the map bounds automatically inside the WebView to show all active pins
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -32,33 +31,17 @@ type TrackingMapProps = {
   dropAddress?: string;
 };
 
-function getHtml(token: string, defLat: number, defLng: number) {
+function getHtml(apiKey: string, defLat: number, defLng: number) {
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&callback=initMap"></script>
   <style>
     body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #F1F5F9; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
-    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
-    .driver-marker {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background-color: #F97316;
-      border: 2.5px solid #FFFFFF;
-      box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
-      animation: pulse 1.4s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
-    }
   </style>
 </head>
 <body>
@@ -68,84 +51,103 @@ function getHtml(token: string, defLat: number, defLng: number) {
     var pickupMarker;
     var dropMarker;
     var driverMarker;
-    var token = '${token}';
-    
-    mapboxgl.accessToken = token;
-    
-    map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: [${defLng}, ${defLat}],
-      zoom: 12
-    });
 
-    function updateMarkers(data) {
-      var bounds = new mapboxgl.LngLatBounds();
-      var hasCoords = false;
-
-      if (data.pickup && data.pickup.lat != null && data.pickup.lng != null) {
-        if (!pickupMarker) {
-          pickupMarker = new mapboxgl.Marker({ color: '#22C55E' });
-        }
-        pickupMarker.setLngLat([data.pickup.lng, data.pickup.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(data.pickup.addr || 'Pickup'))
-          .addTo(map);
-        bounds.extend([data.pickup.lng, data.pickup.lat]);
-        hasCoords = true;
-      } else if (pickupMarker) {
-        pickupMarker.remove();
-        pickupMarker = null;
-      }
-
-      if (data.drop && data.drop.lat != null && data.drop.lng != null) {
-        if (!dropMarker) {
-          dropMarker = new mapboxgl.Marker({ color: '#EF4444' });
-        }
-        dropMarker.setLngLat([data.drop.lng, data.drop.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(data.drop.addr || 'Drop'))
-          .addTo(map);
-        bounds.extend([data.drop.lng, data.drop.lat]);
-        hasCoords = true;
-      } else if (dropMarker) {
-        dropMarker.remove();
-        dropMarker = null;
-      }
-
-      if (data.driver && data.driver.lat != null && data.driver.lng != null) {
-        if (!driverMarker) {
-          var el = document.createElement('div');
-          el.className = 'driver-marker';
-          driverMarker = new mapboxgl.Marker(el);
-        }
-        driverMarker.setLngLat([data.driver.lng, data.driver.lat]).addTo(map);
-        bounds.extend([data.driver.lng, data.driver.lat]);
-        hasCoords = true;
-      } else if (driverMarker) {
-        driverMarker.remove();
-        driverMarker = null;
-      }
-
-      if (hasCoords) {
-        map.fitBounds(bounds, { padding: 60, maxZoom: 15 });
-      }
+    function circleIcon(color) {
+      return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 9,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#FFFFFF',
+        strokeWeight: 2.5
+      };
     }
 
-    window.addEventListener('message', function(event) {
-      try {
-        var msg = JSON.parse(event.data);
-        if (msg.type === 'update') {
-          updateMarkers(msg.data);
-        }
-      } catch (err) {
-        // ignore
-      }
-    });
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: ${defLat}, lng: ${defLng} },
+        zoom: 12,
+        fullscreenControl: false,
+        streetViewControl: false,
+        mapTypeControl: false
+      });
 
-    map.on('load', function() {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+      function updateMarkers(data) {
+        var bounds = new google.maps.LatLngBounds();
+        var hasCoords = false;
+
+        if (data.pickup && data.pickup.lat != null && data.pickup.lng != null) {
+          var p = { lat: data.pickup.lat, lng: data.pickup.lng };
+          if (!pickupMarker) {
+            pickupMarker = new google.maps.Marker({ map: map, position: p, icon: circleIcon('#22C55E') });
+          } else {
+            pickupMarker.setPosition(p);
+          }
+          var puInfo = new google.maps.InfoWindow({
+            content: '<div style="font-family: sans-serif; font-size: 12px; padding: 4px 2px;">' + (data.pickup.addr || 'Pickup') + '</div>'
+          });
+          pickupMarker.addListener('click', function() { puInfo.open(map, pickupMarker); });
+          bounds.extend(p);
+          hasCoords = true;
+        } else if (pickupMarker) {
+          pickupMarker.setMap(null);
+          pickupMarker = null;
+        }
+
+        if (data.drop && data.drop.lat != null && data.drop.lng != null) {
+          var dp = { lat: data.drop.lat, lng: data.drop.lng };
+          if (!dropMarker) {
+            dropMarker = new google.maps.Marker({ map: map, position: dp, icon: circleIcon('#EF4444') });
+          } else {
+            dropMarker.setPosition(dp);
+          }
+          var drInfo = new google.maps.InfoWindow({
+            content: '<div style="font-family: sans-serif; font-size: 12px; padding: 4px 2px;">' + (data.drop.addr || 'Drop') + '</div>'
+          });
+          dropMarker.addListener('click', function() { drInfo.open(map, dropMarker); });
+          bounds.extend(dp);
+          hasCoords = true;
+        } else if (dropMarker) {
+          dropMarker.setMap(null);
+          dropMarker = null;
+        }
+
+        if (data.driver && data.driver.lat != null && data.driver.lng != null) {
+          var dPos = { lat: data.driver.lat, lng: data.driver.lng };
+          if (!driverMarker) {
+            driverMarker = new google.maps.Marker({ map: map, position: dPos, icon: circleIcon('#F97316') });
+          } else {
+            driverMarker.setPosition(dPos);
+          }
+          bounds.extend(dPos);
+          hasCoords = true;
+        } else if (driverMarker) {
+          driverMarker.setMap(null);
+          driverMarker = null;
+        }
+
+        if (hasCoords) {
+          map.fitBounds(bounds, 60);
+        }
       }
-    });
+
+      window.addEventListener('message', function(event) {
+        try {
+          var msg = JSON.parse(event.data);
+          if (msg.type === 'update') {
+            updateMarkers(msg.data);
+          }
+        } catch (err) {
+          // ignore
+        }
+      });
+
+      google.maps.event.addListenerOnce(map, 'idle', function() {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+        }
+      });
+    }
   </script>
 </body>
 </html>
@@ -265,7 +267,6 @@ export default function TrackingMap({
         javaScriptEnabled={true}
         domStorageEnabled={true}
         onMessage={handleMessage}
-        androidHardwareAccelerationDisabled={true}
       />
 
       {/* Loading Overlay */}

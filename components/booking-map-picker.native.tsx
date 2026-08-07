@@ -1,14 +1,14 @@
 /**
  * booking-map-picker.native.tsx
  *
- * MOBILE-ONLY (Android & iOS) — Mapbox GL JS map inside react-native-webview.
+ * MOBILE-ONLY (Android & iOS) — Google Maps JS API inside react-native-webview.
  * Used in the Shifting Booking wizard for pickup / drop location selection.
  *
  * Key design decisions:
- *  - 100% self-contained webview: loads Mapbox GL JS from CDN
- *  - Uses props.token (which contains Mapbox token from book/index.tsx)
- *  - Search: Mapbox Geocoding API via searchPlaces helper in @/lib/mapbox
- *  - Reverse geocode: Mapbox Geocoding API via reverseGeocode helper in @/lib/mapbox
+ *  - 100% self-contained webview: loads Google Maps JS API from CDN
+ *  - Uses props.token (which contains the Google Maps key from book/index.tsx)
+ *  - Search: Google Places API via searchPlaces helper in @/lib/google-maps
+ *  - Reverse geocode: Google Geocoding API via reverseGeocode helper in @/lib/google-maps
  *  - WebView messages handled via window.ReactNativeWebView.postMessage
  *  - Supports manual tapping on map and marker dragging to adjust coordinates
  */
@@ -28,7 +28,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Button, Dialog, Text, XStack, YStack } from 'tamagui';
 
-import { searchPlaces, reverseGeocode } from '@/lib/mapbox';
+import { searchPlaces, reverseGeocode } from '@/lib/google-maps';
 
 type Coord = { lat: number; lng: number };
 
@@ -39,19 +39,17 @@ type PlaceCandidate = {
   addressDetails?: { coordinateAccuracy?: string; markerCoordinate?: [number, number] | null };
 };
 
-function getHtml(token: string, initialLat: number, initialLng: number) {
+function getHtml(apiKey: string, initialLat: number, initialLng: number) {
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&callback=initMap"></script>
   <style>
     body { margin: 0; padding: 0; background-color: #F8FAFC; width: 100%; height: 100%; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
-    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
   </style>
 </head>
 <body>
@@ -59,58 +57,60 @@ function getHtml(token: string, initialLat: number, initialLng: number) {
   <script>
     var map;
     var marker;
-    var token = '${token}';
-    var initialCoord = [${initialLng}, ${initialLat}];
-    
-    mapboxgl.accessToken = token;
-    
-    map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: initialCoord,
-      zoom: 14
-    });
+    var initialCoord = { lat: ${initialLat}, lng: ${initialLng} };
 
-    // Create draggable marker
-    marker = new mapboxgl.Marker({ draggable: true })
-      .setLngLat(initialCoord)
-      .addTo(map);
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: initialCoord,
+        zoom: 14,
+        fullscreenControl: false,
+        streetViewControl: false,
+        mapTypeControl: false
+      });
 
-    function sendToRN(type, data) {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, data: data }));
-      }
-    }
+      marker = new google.maps.Marker({
+        map: map,
+        position: initialCoord,
+        draggable: true
+      });
 
-    // Report coordinate when marker drag ends
-    marker.on('dragend', function() {
-      var lngLat = marker.getLngLat();
-      sendToRN('coord_change', { lat: lngLat.lat, lng: lngLat.lng });
-    });
-
-    // Map click moves marker and reports coordinate
-    map.on('click', function(e) {
-      marker.setLngLat(e.lngLat);
-      sendToRN('coord_change', { lat: e.lngLat.lat, lng: e.lngLat.lng });
-    });
-
-    // Handle incoming messages
-    window.addEventListener('message', function(event) {
-      try {
-        var msg = JSON.parse(event.data);
-        if (msg.type === 'set_coord') {
-          var lngLat = [msg.data.lng, msg.data.lat];
-          marker.setLngLat(lngLat);
-          map.flyTo({ center: lngLat, zoom: 15 });
+      function sendToRN(type, data) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, data: data }));
         }
-      } catch (err) {
-        // ignore
       }
-    });
 
-    map.on('load', function() {
-      sendToRN('loaded', {});
-    });
+      // Report coordinate when marker drag ends
+      marker.addListener('dragend', function() {
+        var pos = marker.getPosition();
+        sendToRN('coord_change', { lat: pos.lat(), lng: pos.lng() });
+      });
+
+      // Map click moves marker and reports coordinate
+      map.addListener('click', function(e) {
+        marker.setPosition(e.latLng);
+        sendToRN('coord_change', { lat: e.latLng.lat(), lng: e.latLng.lng() });
+      });
+
+      // Handle incoming messages
+      window.addEventListener('message', function(event) {
+        try {
+          var msg = JSON.parse(event.data);
+          if (msg.type === 'set_coord') {
+            var ll = { lat: msg.data.lat, lng: msg.data.lng };
+            marker.setPosition(ll);
+            map.panTo(ll);
+            map.setZoom(15);
+          }
+        } catch (err) {
+          // ignore
+        }
+      });
+
+      google.maps.event.addListenerOnce(map, 'idle', function() {
+        sendToRN('loaded', {});
+      });
+    }
   </script>
 </body>
 </html>
@@ -383,10 +383,10 @@ export default function BookingMapPicker(props: {
                 alignItems="center"
                 justifyContent="center">
                 <Text color="#DC2626" fontSize={13} fontWeight="700" marginBottom={4}>
-                  Map Token Missing
+                  Map Key Missing
                 </Text>
                 <Text color="#991B1B" fontSize={12} textAlign="center">
-                  Mapbox token is not configured. Please contact support.
+                  Google Maps key is not configured. Please contact support.
                 </Text>
               </YStack>
             ) : (
@@ -448,7 +448,6 @@ export default function BookingMapPicker(props: {
                     javaScriptEnabled={true}
                     domStorageEnabled={true}
                     onMessage={handleMessage}
-                    androidHardwareAccelerationDisabled={true}
                   />
 
                   {/* My Location button */}

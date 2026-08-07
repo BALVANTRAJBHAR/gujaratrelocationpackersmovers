@@ -936,7 +936,7 @@ function BookingsContent() {
               <YStack flex={1} gap={2} marginRight={8}>
                 <XStack alignItems="flex-start" gap={8}>
                   <FontAwesome5 name="map-marker-alt" size={16} color="#EF4444" />
-                  <Text flex={1} color="#FFFFFF" fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup'}</Text>
+                  <Text flex={1} color={theme.text} fontWeight="800" fontSize={t(14)} numberOfLines={2}>From: {item.pickup_address ?? 'Pickup'}</Text>
                 </XStack>
                 <XStack alignItems="flex-start" gap={8}>
                   <FontAwesome5 name="map-marker-alt" size={16} color="#10B981" />
@@ -949,31 +949,31 @@ function BookingsContent() {
             </XStack>
             {renderStatusStepper(item.status)}
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Shifting</Text>
+              <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Shifting</Text>
               <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">
                 {item.scheduled_date ? formatDateDDMMYYYY(item.scheduled_date) : '—'}
                 {item.scheduled_time ? `, ${item.scheduled_time}` : ''}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Payment</Text>
+              <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Payment</Text>
               <Text color={PAYMENT_COLORS[item.payment_status ?? 'pending'] ?? theme.accent} fontSize={t(13)} textTransform="uppercase">
                 {item.payment_status ?? 'pending'}
               </Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Paid</Text>
+              <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Paid</Text>
               <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
             </XStack>
             <XStack justifyContent="space-between" alignItems="center">
-              <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Updated</Text>
+              <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Updated</Text>
               <Text color={theme.inputText} fontSize={t(13)}>
                 {formatDateTimeDDMMYYYY(item.updated_at ?? item.created_at)}
               </Text>
             </XStack>
             {item.driver_id ? (
               <XStack justifyContent="space-between" alignItems="center">
-                <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Driver</Text>
+                <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Driver</Text>
                 <Text color={theme.inputText} fontSize={t(13)}>{item.driver?.[0]?.name ?? 'Assigned'}</Text>
               </XStack>
             ) : null}
@@ -1323,28 +1323,28 @@ function BookingsContent() {
                   <Text color={statusColor} fontSize={t(13)} fontWeight="700" textTransform="uppercase">{r.status ?? 'pending'}</Text>
                 </XStack>
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Location</Text>
+                  <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Location</Text>
                   <Text color={theme.inputText} fontSize={t(13)} numberOfLines={1}>{loc}</Text>
                 </XStack>
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Slot</Text>
+                  <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Slot</Text>
                   <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">{slot}</Text>
                 </XStack>
                 {r.notes ? (
                   <XStack justifyContent="space-between" alignItems="center">
-                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Notes</Text>
+                    <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Notes</Text>
                     <Text color={theme.inputText} fontSize={t(13)} numberOfLines={1}>{r.notes}</Text>
                   </XStack>
                 ) : null}
                 {r.provider_name ? (
                   <XStack justifyContent="space-between" alignItems="center">
-                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Provider</Text>
+                    <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Provider</Text>
                     <Text color={theme.inputText} fontSize={t(13)}>{r.provider_name}</Text>
                   </XStack>
                 ) : null}
                 {r.payment_option ? (
                   <XStack justifyContent="space-between" alignItems="center">
-                    <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Payment</Text>
+<Text color={theme.text} fontWeight="800" fontSize={t(13)}>Payment</Text>
                     <Text color={theme.inputText} fontSize={t(13)} textTransform="uppercase">{r.payment_option}</Text>
                   </XStack>
                 ) : null}
@@ -1585,7 +1585,7 @@ const renderPropertiesSection = () => {
                               ) : null}
                               {isOwner && (pb.contact_name || pb.contact_phone) ? (
                                 <XStack gap={4} alignItems="center" flexWrap="wrap" marginTop={4}>
-                                  <Text color="#FFFFFF" fontWeight="800" fontSize={t(13)}>Contact:</Text>
+                                  <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Contact:</Text>
                                   <Text color={theme.text} fontSize={t(13)}>{pb.contact_name ?? '—'}</Text>
                                   {pb.contact_phone ? (
                                     <>

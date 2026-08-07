@@ -21,8 +21,8 @@ import {
   resolvePropertyFlowKey,
   type WizardStep,
 } from '@/lib/properties/wizard-flow';
-import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/mapbox';
-import { getMapboxToken } from '@/lib/public-config';
+import { getCityCenter, reverseGeocode, reverseGeocodeDetails, reverseGeocodeFeatures, searchIndianLocalities } from '@/lib/google-maps';
+import { getGoogleMapsKey } from '@/lib/public-config';
 import { hydratePropertyForm, loadPropertyForEdit } from '@/lib/load-property-for-edit';
 import { supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -210,7 +210,7 @@ export default function PostPropertyScreen() {
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapPickerBusy, setMapPickerBusy] = useState(false);
   const [mapPickerCoord, setMapPickerCoord] = useState<{ lat: number; lng: number } | null>(null);
-  const [mapboxToken, setMapboxToken] = useState('');
+  const [googleMapsKey, setGoogleMapsKey] = useState('');
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUri, setPreviewUri] = useState('');
@@ -959,12 +959,12 @@ export default function PostPropertyScreen() {
     let active = true;
     const load = async () => {
       try {
-        const token = await getMapboxToken();
+        const token = await getGoogleMapsKey();
         if (!active) return;
-        setMapboxToken(String(token ?? '').trim());
+        setGoogleMapsKey(String(token ?? '').trim());
       } catch {
         if (!active) return;
-        setMapboxToken('');
+        setGoogleMapsKey('');
       }
     };
     void load();
@@ -4621,7 +4621,7 @@ export default function PostPropertyScreen() {
             open={mapPickerOpen}
             onOpenChange={(nextVal) => setMapPickerOpen(nextVal)}
             title="Select Location"
-            token={mapboxToken}
+            token={googleMapsKey}
             coord={mapPickerCoord}
             onCoordChange={setMapPickerCoord}
             busy={mapPickerBusy}
