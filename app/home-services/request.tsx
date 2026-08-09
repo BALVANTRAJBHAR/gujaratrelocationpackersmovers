@@ -35,29 +35,29 @@ function MobileTimePicker({ value, onChange, open, onClose }: {
   const pick = () => { const d = new Date(value); d.setHours(h, m, 0, 0); onChange(d); onClose(); };
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
-        <YStack bg="#FFF" br={16} p={24} ai="center" w="80%" maw={300}>
-          <Text fontWeight="800" fontSize={18} color="#000" mb={20}>Select Time</Text>
-          <XStack ai="center" gap={4} mb={24}>
-            <YStack ai="center">
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)">
+        <YStack backgroundColor="#FFF" borderRadius={16} padding={24} alignItems="center" width="80%" maxWidth={300}>
+          <Text fontWeight="800" fontSize={18} color="#000" marginBottom={20}>Select Time</Text>
+          <XStack alignItems="center" gap={4} marginBottom={24}>
+            <YStack alignItems="center">
               <Pressable onPress={() => setH(h => h === 23 ? 0 : h + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
-              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+              <YStack width={60} height={50} backgroundColor="#F0F0F0" borderRadius={8} alignItems="center" justifyContent="center" marginHorizontal={4}>
                 <Text fontWeight="800" fontSize={24} color="#000">{String(h).padStart(2, '0')}</Text>
               </YStack>
               <Pressable onPress={() => setH(h => h === 0 ? 23 : h - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
             </YStack>
             <Text fontWeight="800" fontSize={24} color="#000">:</Text>
-            <YStack ai="center">
+            <YStack alignItems="center">
               <Pressable onPress={() => setM(m => m === 59 ? 0 : m + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
-              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+              <YStack width={60} height={50} backgroundColor="#F0F0F0" borderRadius={8} alignItems="center" justifyContent="center" marginHorizontal={4}>
                 <Text fontWeight="800" fontSize={24} color="#000">{String(m).padStart(2, '0')}</Text>
               </YStack>
               <Pressable onPress={() => setM(m => m === 0 ? 59 : m - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
             </YStack>
           </XStack>
           <XStack gap={16}>
-            <Pressable onPress={onClose}><YStack bg="#E0E0E0" br={8} px={24} py={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
-            <Pressable onPress={pick}><YStack bg="#1F4E79" br={8} px={24} py={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
+            <Pressable onPress={onClose}><YStack backgroundColor="#E0E0E0" borderRadius={8} paddingHorizontal={24} paddingVertical={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
+            <Pressable onPress={pick}><YStack backgroundColor="#1F4E79" borderRadius={8} paddingHorizontal={24} paddingVertical={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
           </XStack>
         </YStack>
       </YStack>
@@ -100,7 +100,8 @@ const getFileSizeAsync = async (uri: string): Promise<number | null> => {
   if (Platform.OS === 'web') return null;
   try {
     const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-    return typeof info?.size === 'number' ? info.size : null;
+    const { size } = info as { size?: number };
+    return typeof size === 'number' ? size : null;
   } catch {
     return null;
   }
@@ -1030,7 +1031,7 @@ export default function HomeServiceRequestScreen() {
             await debitWallet({
               userId: session!.user.id,
               amount: walletUsed,
-              referenceType: 'booking',
+              referenceType: 'home_service_payment',
               referenceId: requestId,
               description: `Used ₹${walletUsed} from wallet for home service advance`,
             });
@@ -1408,7 +1409,7 @@ export default function HomeServiceRequestScreen() {
 
                     if (__DEV__) {
                       console.log('[HomeServices] current coords:', current.coords.latitude, current.coords.longitude);
-                      console.log('[HomeServices] mapbox place:', placeName);
+                      console.log('[HomeServices] place:', placeName);
                     }
 
                     const placeFeature = features.find((f) => (f.place_type ?? []).includes('place')) ?? null;
@@ -1522,8 +1523,40 @@ export default function HomeServiceRequestScreen() {
                     })();
                     const addressPartsRaw = (stopIndex > 0 ? partsNoCountry.slice(0, stopIndex) : partsNoCountry.slice(0, 2)).filter(Boolean);
 
-                    let addressLine1Next = '';
-                    let addressLine2Next = '';
+                     // Helper: detect if a string is a Google Plus Code (e.g. P52H+9VJ)
+                     const isPlusCode = (s: string) => /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,}/i.test(s.trim());
+
+                     // Scan ALL features (not just details) for best sublocality/neighborhood
+                     let bestLocality = '';
+                     for (const feat of features) {
+                       const ad = (feat as any)?.addressDetails ?? {};
+                       const loc = String(ad?.locality ?? '').trim();
+                       if (loc && !isPlusCode(loc)) { bestLocality = loc; break; }
+                     }
+                     if (!bestLocality) bestLocality = String(structured.locality ?? '').trim();
+                     if (!bestLocality) bestLocality = pickContextText(details?.context, 'locality.');
+                     if (!bestLocality) bestLocality = pickContextText(details?.context, 'neighborhood.');
+
+                     // Address Line 1 = house number only (NOT Plus Code, NOT full street)
+                     const rawHouseNum = String(structured.houseNumber ?? '').trim();
+                     const rawBuilding = String(structured.building ?? '').trim();
+                     let addressLine1Next = [rawHouseNum, rawBuilding]
+                       .filter((v) => Boolean(v) && !isPlusCode(v))
+                       .join(', ');
+                     // Fallback: first addressPart that is NOT a Plus Code and NOT locality/city/state
+                     if (!addressLine1Next) {
+                       const candidate = addressPartsRaw.find((p) => !isPlusCode(p));
+                       if (candidate) addressLine1Next = candidate;
+                     }
+
+                     // Address Line 2 = street/route name ONLY (short, clean)
+                     let addressLine2Next = String(structured.street ?? '').trim();
+                     // If street is empty, try second addressPart (skip Plus Codes)
+                     if (!addressLine2Next) {
+                       const candidate = addressPartsRaw.filter((p) => !isPlusCode(p)).slice(1, 2)[0] ?? '';
+                       if (candidate) addressLine2Next = candidate;
+                     }
+
                     if (nextState) {
                       setState(nextState);
                       setCity('');
@@ -1533,13 +1566,19 @@ export default function HomeServiceRequestScreen() {
                     const finalCity = nextCity || rawPlace;
                     if (finalCity) setCity(finalCity);
 
-                    // IMPORTANT: programmatic fill should NOT trigger Mapbox suggestions
+                    // IMPORTANT: programmatic fill should NOT trigger location suggestions
                     setLocalityTyped(false);
                     setLocalitySuggestions([]);
 
-                    // Preferred: Mapbox neighborhood/locality token, then DB/local fallback logic
-                    const localityCandidate = rawPolice || rawNeighborhood || rawLocality || nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
-                    if (localityCandidate) setLocality(localityCandidate);
+                     // Preferred: bestLocality (scanned from all features) → rawPolice → rawNeighborhood → rawLocality → nextLocality → options match
+                     const localityCandidate = bestLocality || rawPolice || rawNeighborhood || rawLocality || nextLocality || matchFromOptions(rawLocalityValue, localityOptions);
+                     // Don't set locality if it's same as city or state (avoids confusion)
+                     const localityFinal = localityCandidate && normalizeMatchKey(localityCandidate) !== normalizeMatchKey(finalCity) && normalizeMatchKey(localityCandidate) !== normalizeMatchKey(nextState) ? localityCandidate : '';
+                     if (localityFinal) setLocality(localityFinal);
+
+                     // Fill address lines
+                     if (addressLine1Next) setAddressLine1(addressLine1Next);
+                     if (addressLine2Next) setAddressLine2(addressLine2Next);
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Failed to detect current location.');
                   }

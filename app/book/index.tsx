@@ -470,13 +470,13 @@ export default function BookingWizardScreen() {
     [form.vehicleId, vehicleTypes]
   );
 
-  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> => {
     let timer: any;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
     });
     try {
-      return await Promise.race([promise, timeout]);
+      return await Promise.race([Promise.resolve(promise), timeout]);
     } finally {
       clearTimeout(timer);
     }
@@ -501,10 +501,10 @@ export default function BookingWizardScreen() {
    *
    * On mobile (native): the picker component performs Google reverse geocode
    * internally and passes the resolved address as `nativeResolvedAddress`.
-   * We use that directly — no Mapbox API call needed on mobile.
+   * We use that directly — no geocoding call needed on mobile.
    *
    * On web: nativeResolvedAddress is undefined, so we fall back to the
-   * existing Mapbox reverseGeocode() call (behaviour unchanged).
+   * existing reverseGeocode() call (behaviour unchanged).
    */
   const confirmMapPicker = async (nativeResolvedAddress?: string) => {
     if (!mapPickerCoord) return;
@@ -513,7 +513,7 @@ export default function BookingWizardScreen() {
       const coords: [number, number] = [mapPickerCoord.lng, mapPickerCoord.lat];
       let address = nativeResolvedAddress ?? '';
 
-      // Web fallback: use Mapbox reverse geocode if native didn't supply address
+      // Web fallback: use reverse geocode if native didn't supply address
       if (!address && Platform.OS === 'web') {
         try {
           address = await reverseGeocode(mapPickerCoord.lng, mapPickerCoord.lat);
@@ -732,7 +732,7 @@ export default function BookingWizardScreen() {
     if (!items.length) return;
 
     for (const it of items) {
-      const fileInfo = await FileSystem.getInfoAsync(it.uri, { size: true });
+      const fileInfo = await FileSystem.getInfoAsync(it.uri, { size: true } as any);
       const fileSize = typeof (fileInfo as any)?.size === 'number' ? Number((fileInfo as any).size) : null;
       if (it.kind === 'photo') {
         if (!isAllowedJpeg(it.uri)) throw new Error('Only JPG/JPEG images are allowed.');
@@ -1717,7 +1717,7 @@ export default function BookingWizardScreen() {
       }
 
       const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
-      const info = size === null ? await FileSystem.getInfoAsync(uri, { size: true }) : null;
+      const info = size === null ? await FileSystem.getInfoAsync(uri, { size: true } as any) : null;
       const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
       if (finalSize !== null && finalSize > MAX_IMAGE_UPLOAD_BYTES) {
         setError(`Image too large (${formatBytes(finalSize)}). Max ${formatBytes(MAX_IMAGE_UPLOAD_BYTES)}.`);
@@ -1758,7 +1758,7 @@ export default function BookingWizardScreen() {
     }
 
     const size = typeof asset?.fileSize === 'number' ? asset.fileSize : null;
-    const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true }) : null;
+    const info = size === null ? await FileSystem.getInfoAsync(asset.uri, { size: true } as any) : null;
     const finalSize = size ?? (typeof (info as any)?.size === 'number' ? Number((info as any).size) : null);
     if (finalSize !== null && finalSize > MAX_VIDEO_BYTES) {
       setError(`Video too large (${formatBytes(finalSize)}). Max ${formatBytes(MAX_VIDEO_BYTES)}.`);

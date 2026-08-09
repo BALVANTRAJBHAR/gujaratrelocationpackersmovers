@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { getRazorpayKeyId } from '@/lib/public-config';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import RescheduleDialog from '@/components/RescheduleDialog';
+import FeedbackPopup from '@/components/FeedbackPopup';
 import { timeLabelTo24h } from '@/lib/reschedule-options';
 
 
@@ -42,6 +43,8 @@ type HomeServiceRequestRow = {
   cancelled_at: string | null;
   provider_id: string | null;
   provider_name: string | null;
+  complete_otp: string | null;
+  complete_otp_verified_at: string | null;
 };
 
 const HOME_SERVICE_PAYMENT = calculateConvenienceFee(150);
@@ -70,13 +73,13 @@ const labelForService = (key: string) => {
 };
 
 const homeServiceRequestSelect =
-  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, payment_option, payment_status, advance_payment, after_service_payment_method, cash_paid_at, cancelled_at, provider_id, provider_name, complete_otp, complete_otp_verified_at';
 
 const homeServiceRequestBaseSelect =
-  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, provider_id, provider_name, complete_otp, complete_otp_verified_at';
 
 const homeServiceRequestMinimalSelect =
-  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at';
+  'id, booking_number, service_key, customer_name, customer_phone, address_line1, address_line2, state, city, locality, notes, preferred_date, preferred_time, status, created_at, complete_otp, complete_otp_verified_at';
 
 const isMissingColumnError = (error: unknown, column: string) => {
   const message = String((error as any)?.message ?? error ?? '').toLowerCase();
@@ -93,6 +96,8 @@ const withDefaults = (rows: unknown) =>
     cancelled_at: null,
     provider_id: null,
     provider_name: null,
+    complete_otp: null,
+    complete_otp_verified_at: null,
     ...row,
   })) as HomeServiceRequestRow[];
 
@@ -129,6 +134,28 @@ export default function MyHomeServiceRequestsScreen() {
 
   const [searchText, setSearchText] = useState('');
   const [rescheduleDialogId, setRescheduleDialogId] = useState<string | null>(null);
+  const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
+
+  const feedbackTarget = useMemo(
+    () => items.find((r) => r.id === feedbackTargetId) ?? null,
+    [items, feedbackTargetId]
+  );
+
+  useEffect(() => {
+    const check = async () => {
+      if (!session?.user?.id || !items.length || feedbackTargetId) return;
+      const candidate = items.find((r) => r.status === 'completed' && r.provider_id);
+      if (!candidate) return;
+      const { data } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('from_user_id', session.user.id)
+        .eq('home_service_request_id', candidate.id)
+        .maybeSingle();
+      if (!data) setFeedbackTargetId(candidate.id);
+    };
+    void check();
+  }, [items, feedbackTargetId, session?.user?.id]);
 
   const fetchSeqRef = useRef(0);
 
@@ -607,6 +634,26 @@ export default function MyHomeServiceRequestsScreen() {
                   </YStack>
                 </XStack>
 
+                {!!r.complete_otp && r.status !== 'completed' ? (
+                  <YStack
+                    backgroundColor="#FEF3C7"
+                    borderRadius={12}
+                    padding={12}
+                    borderWidth={1}
+                    borderColor="#FDE68A"
+                    gap={4}>
+                    <Text color="#92400E" fontSize={t(13)} fontWeight="800">
+                      Service work done — share your OTP
+                    </Text>
+                    <Text color="#92400E" fontSize={t(18)} fontWeight="900" letterSpacing={8} textAlign="center">
+                      {String(r.complete_otp).split('').join(' ')}
+                    </Text>
+                    <Text color="#92400E" fontSize={t(11)}>
+                      Share this OTP with your service provider so they can mark the service as completed.
+                    </Text>
+                  </YStack>
+                ) : null}
+
                 {isOpen ? (
                   <YStack backgroundColor={panelBg} borderRadius={14} padding={12} gap={10} borderWidth={1} borderColor={border}>
                     <YStack gap={6}>
@@ -817,6 +864,16 @@ export default function MyHomeServiceRequestsScreen() {
           if (!request) return;
           void handleReschedule(request, day, timeLabel);
         }}
+      />
+
+      <FeedbackPopup
+        open={!!feedbackTarget}
+        title="Rate your service provider"
+        subtitle={`How was the service from ${feedbackTarget?.provider_name ?? 'your provider'}?`}
+        toUserId={feedbackTarget?.provider_id ?? null}
+        homeServiceRequestId={feedbackTarget?.id ?? null}
+        tags={['Good service', 'Bad service', 'On time', 'Late arrival', 'Professional']}
+        onClose={() => setFeedbackTargetId(null)}
       />
     </View>
   );

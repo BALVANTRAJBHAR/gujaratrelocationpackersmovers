@@ -24,16 +24,16 @@ export default function RescheduleDialog({ open, title, confirmLabel, onClose, o
   return (
     <>
       <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-        <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)" padding={16}>
-          <YStack bg="#FFF" br={16} p={20} w="100%" maw={400}>
+        <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)" padding={16}>
+          <YStack backgroundColor="#FFF" borderRadius={16} padding={20} width="100%" maxWidth={400}>
             <Text fontWeight="800" fontSize={17} color="#111827">
               {title ?? 'Reschedule'}
             </Text>
-            <Text fontSize={12} color="#6B7280" mt={4}>
+            <Text fontSize={12} color="#6B7280" marginTop={4}>
               Select the new date and time slot for this {confirmLabel?.toLowerCase() === 'reschedule service' ? 'service' : 'booking'}.
             </Text>
 
-            <Text fontSize={13} fontWeight="700" color="#374151" mt={16} mb={6}>
+            <Text fontSize={13} fontWeight="700" color="#374151" marginTop={16} marginBottom={6}>
               Date
             </Text>
             {Platform.OS === 'web' ? (
@@ -75,7 +75,7 @@ export default function RescheduleDialog({ open, title, confirmLabel, onClose, o
               </Pressable>
             )}
 
-            <Text fontSize={13} fontWeight="700" color="#374151" mt={16} mb={6}>
+            <Text fontSize={13} fontWeight="700" color="#374151" marginTop={16} marginBottom={6}>
               Time
             </Text>
             <XStack flexWrap="wrap" gap={8}>
@@ -94,7 +94,7 @@ export default function RescheduleDialog({ open, title, confirmLabel, onClose, o
               ))}
             </XStack>
 
-            <XStack gap={10} mt={22} jc="flex-end">
+            <XStack gap={10} marginTop={22} justifyContent="flex-end">
               <Button
                 size="$3"
                 backgroundColor="#E5E7EB"

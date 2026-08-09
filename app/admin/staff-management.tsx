@@ -315,7 +315,7 @@ function StaffManagementInner() {
       let documentImageUrl: string | null = null;
       if (formData.documentImage) {
         setSubmitInfo('Uploading document image…');
-        documentImageUrl = await uploadDocumentImageAndGetPublicUrl(effectiveUserId);
+        documentImageUrl = await uploadDocumentImageAndGetPublicUrl(effectiveUserId as string);
       }
 
       const { error: updateError } = await supabase

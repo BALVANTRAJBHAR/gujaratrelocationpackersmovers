@@ -7,7 +7,7 @@
  * Key design decisions:
  *  - 100% self-contained webview: loads Google Maps JS API from CDN
  *  - Uses props.token (which contains the Google Maps key from book/index.tsx)
- *  - Search: Google Places API via searchPlaces helper in @/lib/google-maps
+ *  - Search: Google Places API via autocompletePlaces helper in @/lib/google-maps
  *  - Reverse geocode: Google Geocoding API via reverseGeocode helper in @/lib/google-maps
  *  - WebView messages handled via window.ReactNativeWebView.postMessage
  *  - Supports manual tapping on map and marker dragging to adjust coordinates
@@ -32,6 +32,7 @@ import { getGoogleMapsKey } from '@/lib/public-config';
 import {
   autocompletePlaces,
   createGooglePlacesSessionToken,
+  resolveAutocompleteSuggestion,
   reverseGeocode,
   type GoogleAutocompleteSuggestion,
 } from '@/lib/google-maps';
@@ -40,37 +41,142 @@ type Coord = { lat: number; lng: number };
 
 type PlaceCandidate = GoogleAutocompleteSuggestion;
 
-function getHtml(apiKey: string, initialLat: number, initialLng: number) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #F8FAFC;
-    }
-    #map {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-    }
-  </style>
-  <script>
-    var map;
-    var marker;
-  `;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a complete standalone HTML page that renders Google Maps inside a WebView.
+ * We use an array-join approach to avoid template-literal escaping issues.
+ */
+function getHtml(apiKey: string, initialLat: number, initialLng: number): string {
+  const lat = Number.isFinite(initialLat) ? initialLat : 20.5937;
+  const lng = Number.isFinite(initialLng) ? initialLng : 78.9629;
+
+  const lines = [
+    '<!DOCTYPE html>',
+    '<html>',
+    '<head>',
+    '<meta charset="utf-8"/>',
+    '<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>',
+    '<style>',
+    'html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#e0e0e0;}',
+    '#map{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;}',
+    '.view-bar{position:absolute;top:10px;left:10px;z-index:9999;display:flex;gap:4px;background:rgba(255,255,255,0.95);border-radius:20px;padding:3px;box-shadow:0 2px 6px rgba(0,0,0,0.25);font-family:-apple-system,sans-serif;}',
+    '.v-btn{border:none;background:transparent;padding:6px 11px;border-radius:16px;font-size:11px;font-weight:700;color:#334155;cursor:pointer;outline:none;}',
+    '.v-btn.active{background:#0F172A;color:#FFFFFF;}',
+    '.v-btn.t-active{background:#2563EB;color:#FFFFFF;}',
+    '</style>',
+    '<script>',
+    'var map,marker,transitLayer;',
+    'var isTransit=false;',
+    'var INIT_LAT=' + lat + ';',
+    'var INIT_LNG=' + lng + ';',
+
+    'function setMapMode(type){',
+    '  if(map) map.setMapTypeId(type);',
+    '  var bM=document.getElementById("btnMap");',
+    '  var bS=document.getElementById("btnSat");',
+    '  if(bM) bM.className="v-btn"+(type==="roadmap"?" active":"");',
+    '  if(bS) bS.className="v-btn"+(type!=="roadmap"?" active":"");',
+    '}',
+
+    'function toggleTransit(){',
+    '  if(!map) return;',
+    '  if(!transitLayer){transitLayer=new google.maps.TransitLayer();}',
+    '  isTransit=!isTransit;',
+    '  transitLayer.setMap(isTransit?map:null);',
+    '  var bT=document.getElementById("btnTransit");',
+    '  if(bT) bT.className="v-btn"+(isTransit?" t-active":"");',
+    '}',
+
+    // Post a message back to React Native
+    'function postRN(type,data){',
+    '  try{',
+    '    if(window.ReactNativeWebView){',
+    '      window.ReactNativeWebView.postMessage(JSON.stringify({type:type,data:data}));',
+    '    }',
+    '  }catch(e){}',
+    '}',
+
+    // Called by Google Maps SDK after loading
+    'function initMap(){',
+    '  try{',
+    '    var el=document.getElementById("map");',
+    '    if(!el){postRN("error",{message:"no #map element"});return;}',
+    '    map=new google.maps.Map(el,{',
+    '      center:{lat:INIT_LAT,lng:INIT_LNG},',
+    '      zoom:15,',
+    '      fullscreenControl:false,',
+    '      streetViewControl:false,',
+    '      mapTypeControl:true,',
+    '      mapTypeControlOptions:{',
+    '        style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR,',
+    '        position:google.maps.ControlPosition.TOP_RIGHT',
+    '      },',
+    '      zoomControl:true',
+    '    });',
+    '    marker=new google.maps.Marker({',
+    '      map:map,',
+    '      position:{lat:INIT_LAT,lng:INIT_LNG},',
+    '      draggable:true',
+    '    });',
+    '    marker.addListener("dragend",function(){',
+    '      var p=marker.getPosition();',
+    '      postRN("coord_change",{lat:p.lat(),lng:p.lng()});',
+    '    });',
+    '    map.addListener("click",function(e){',
+    '      marker.setPosition(e.latLng);',
+    '      postRN("coord_change",{lat:e.latLng.lat(),lng:e.latLng.lng()});',
+    '    });',
+    '    google.maps.event.addListenerOnce(map,"idle",function(){',
+    '      postRN("loaded",{});',
+    '    });',
+    '  }catch(err){',
+    '    postRN("error",{message:String(err&&err.message?err.message:err)});',
+    '  }',
+    '}',
+
+    // Receive set_coord messages from React Native
+    'function handleRNMsg(dataStr){',
+    '  try{',
+    '    var msg=typeof dataStr==="string"?JSON.parse(dataStr):dataStr;',
+    '    if(msg&&msg.type==="set_coord"&&map&&marker){',
+    '      var ll={lat:Number(msg.data.lat),lng:Number(msg.data.lng)};',
+    '      marker.setPosition(ll);',
+    '      map.panTo(ll);',
+    '      map.setZoom(16);',
+    '    }',
+    '  }catch(e){}',
+    '}',
+    'window.addEventListener("message",function(ev){handleRNMsg(ev.data);});',
+    'document.addEventListener("message",function(ev){handleRNMsg(ev.data);});',
+
+    'window.onerror=function(m,s,l,c,err){',
+    '  postRN("error",{message:String(m)+" "+(err?err.message:"")});',
+    '};',
+
+    '</script>',
+    // Google Maps SDK loaded async; callback=initMap
+    '<script src="https://maps.googleapis.com/maps/api/js?key=' + apiKey + '&v=weekly&callback=initMap" async defer></script>',
+    '</head>',
+    '<body>',
+    '<div class="view-bar">',
+    '  <button id="btnMap" class="v-btn active" onclick="setMapMode(\'roadmap\')">🗺 Map</button>',
+    '  <button id="btnSat" class="v-btn" onclick="setMapMode(\'hybrid\')">🛰 Satellite</button>',
+    '  <button id="btnTransit" class="v-btn" onclick="toggleTransit()">🚌 Public Transport</button>',
+    '</div>',
+    '<div id="map"></div>',
+    '</body>',
+    '</html>',
+  ];
+
+  return lines.join('\n');
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function BookingMapPicker(props: {
   open: boolean;
@@ -105,7 +211,7 @@ export default function BookingMapPicker(props: {
     placesSessionRef.current = createGooglePlacesSessionToken();
     searchRequestRef.current += 1;
 
-    // If there is an existing address, set search query input to it
+    // If there is an existing coord, reverse geocode to get address
     if (props.coord) {
       setReverseGeocoding(true);
       reverseGeocode(props.coord.lng, props.coord.lat)
@@ -120,8 +226,7 @@ export default function BookingMapPicker(props: {
     }
   }, [props.open, props.resetKey]);
 
-  // Search should be biased to the user's actual location, not the last pin.
-  // Do not prompt here: the explicit "my location" action owns permission UX.
+  // Obtain user location to bias search (without prompting)
   useEffect(() => {
     if (!props.open) return;
     let active = true;
@@ -135,7 +240,8 @@ export default function BookingMapPicker(props: {
         }
       })
       .then((position) => {
-        if (active && position) setCurrentProximity([position.coords.longitude, position.coords.latitude]);
+        if (active && position)
+          setCurrentProximity([position.coords.longitude, position.coords.latitude]);
       })
       .catch(() => {});
     return () => {
@@ -143,14 +249,14 @@ export default function BookingMapPicker(props: {
     };
   }, [props.open]);
 
-  // Sync external coordinates changes to WebView Map
+  // Sync external coordinate changes to the WebView map
   useEffect(() => {
     if (!props.coord || !props.open) return;
     const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${props.coord.lat}, lng: ${props.coord.lng} } }), "*"); true;`;
     webViewRef.current?.injectJavaScript(js);
   }, [props.coord?.lat, props.coord?.lng, props.open]);
 
-  // Search debounce
+  // Debounced address search
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
@@ -172,7 +278,8 @@ export default function BookingMapPicker(props: {
     searchTimerRef.current = setTimeout(async () => {
       try {
         const results = await autocompletePlaces(searchQuery.trim(), {
-          proximity: currentProximity ?? (props.coord ? [props.coord.lng, props.coord.lat] : undefined),
+          proximity:
+            currentProximity ?? (props.coord ? [props.coord.lng, props.coord.lat] : undefined),
           sessionToken: placesSessionRef.current,
         });
         if (requestId === searchRequestRef.current) setSearchResults(results);
@@ -188,6 +295,7 @@ export default function BookingMapPicker(props: {
     };
   }, [searchQuery, currentProximity, props.coord?.lng, props.coord?.lat]);
 
+  // Handle messages from the WebView (coord changes, errors, loaded)
   const handleMessage = useCallback(
     async (event: any) => {
       try {
@@ -195,8 +303,6 @@ export default function BookingMapPicker(props: {
         if (msg.type === 'coord_change') {
           const { lat, lng } = msg.data;
           props.onCoordChange({ lat, lng });
-
-          // Update address query input dynamically
           setReverseGeocoding(true);
           try {
             const addr = await reverseGeocode(lng, lat);
@@ -209,20 +315,26 @@ export default function BookingMapPicker(props: {
           } finally {
             setReverseGeocoding(false);
           }
+        } else if (msg.type === 'error') {
+          console.error('[BookingMapPicker] WebView JS error:', msg.data?.message);
         }
       } catch (e) {
-        // ignore
+        // ignore parse errors
       }
     },
     [props.onCoordChange],
   );
 
+  // Handle selecting a place from search results
   const handleSelectResult = useCallback(
     async (place: PlaceCandidate) => {
       Keyboard.dismiss();
       setReverseGeocoding(true);
       try {
-        const resolved = await resolveAutocompleteSuggestion({ ...place, sessionToken: placesSessionRef.current });
+        const resolved = await resolveAutocompleteSuggestion({
+          ...place,
+          sessionToken: placesSessionRef.current,
+        });
         if (!resolved) return;
         const [lng, lat] = resolved.addressDetails?.markerCoordinate ?? resolved.center;
         setSearchResults([]);
@@ -230,7 +342,8 @@ export default function BookingMapPicker(props: {
         selectedPlaceRef.current = resolved.place_name;
         setSearchQuery(resolved.place_name);
         props.onCoordChange({ lat, lng });
-        const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
+        const payload = JSON.stringify({ type: 'set_coord', data: { lat, lng } });
+        const js = `(function(){ var p = ${payload}; if(window.handleRNMsg) window.handleRNMsg(p); window.postMessage(JSON.stringify(p), '*'); })(); true;`;
         webViewRef.current?.injectJavaScript(js);
       } finally {
         setReverseGeocoding(false);
@@ -239,19 +352,17 @@ export default function BookingMapPicker(props: {
     [props.onCoordChange],
   );
 
+  // Handle "My Location" button
   const handleMyLocation = useCallback(async () => {
     Keyboard.dismiss();
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude: lat, longitude: lng } = loc.coords;
       props.onCoordChange({ lat, lng });
-
       const js = `window.postMessage(JSON.stringify({ type: "set_coord", data: { lat: ${lat}, lng: ${lng} } }), "*"); true;`;
       webViewRef.current?.injectJavaScript(js);
-
       setReverseGeocoding(true);
       const addr = await reverseGeocode(lng, lat);
       setReverseGeocoding(false);
@@ -268,8 +379,8 @@ export default function BookingMapPicker(props: {
     await props.onConfirm(searchQuery.trim() || undefined);
   }, [props.onConfirm, searchQuery]);
 
+  // Fallback: fetch maps key if not provided via props
   const [internalToken, setInternalToken] = useState('');
-
   useEffect(() => {
     if (props.token || !props.open) return;
     let active = true;
@@ -303,7 +414,7 @@ export default function BookingMapPicker(props: {
     },
     webview: {
       flex: 1,
-      backgroundColor: '#F8FAFC',
+      backgroundColor: '#E8E8E8',
     },
     searchInput: {
       height: 44,
@@ -314,7 +425,7 @@ export default function BookingMapPicker(props: {
       fontSize: 14,
       backgroundColor: '#FFFFFF',
       color: '#111827',
-      fontFamily: Platform.OS === 'ios' ? 'Times New Roman' : 'serif',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     },
     myLocationBtn: {
       position: 'absolute',
@@ -414,7 +525,11 @@ export default function BookingMapPicker(props: {
                             <Text style={{ fontSize: 13, color: '#1E293B', fontWeight: '600' }}>
                               {place.primaryText}
                             </Text>
-                            {place.secondaryText ? <Text style={{ fontSize: 11, color: '#64748B' }}>{place.secondaryText}</Text> : null}
+                            {place.secondaryText ? (
+                              <Text style={{ fontSize: 11, color: '#64748B' }}>
+                                {place.secondaryText}
+                              </Text>
+                            ) : null}
                           </View>
                         </Pressable>
                       ))}
@@ -445,7 +560,7 @@ export default function BookingMapPicker(props: {
                   </Pressable>
                 </View>
 
-                {/* Info Text */}
+                {/* Coordinates */}
                 {props.coord ? (
                   <Text color="#94A3B8" fontSize={11} textAlign="center">
                     {props.coord.lat.toFixed(6)}, {props.coord.lng.toFixed(6)}

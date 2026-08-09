@@ -37,6 +37,41 @@ export default function PropertiesTabScreen() {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  type MeetingRow = {
+    id: string;
+    property_id: string;
+    user_id: string;
+    status: string;
+    meeting_date: string;
+    meeting_time: string;
+    message: string | null;
+    contact_name: string | null;
+    contact_phone: string | null;
+    properties: { title: string | null; city: string | null; locality: string | null } | null;
+  };
+
+  const [meetings, setMeetings] = useState<MeetingRow[]>([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
+
+  const fetchMeetings = async () => {
+    if (!session?.user?.id) return;
+    setMeetingsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('property_meetings')
+        .select('id, property_id, user_id, status, meeting_date, meeting_time, message, contact_name, contact_phone, properties(title, city, locality)')
+        .eq('owner_user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      setMeetings(((data as any) ?? []) as MeetingRow[]);
+    } catch { /* ignore */ } finally { setMeetingsLoading(false); }
+  };
+
+  useEffect(() => {
+    if (!canUse) return;
+    void fetchMeetings();
+  }, [canUse]);
+
   const fetchBookings = async () => {
     if (!session?.user?.id) return;
     setBookingsLoading(true);
@@ -76,6 +111,37 @@ export default function PropertiesTabScreen() {
         });
       } catch { /* ignore notification failures */ }
       await fetchBookings();
+    } catch { /* ignore */ } finally { setBusyId(null); }
+  };
+
+  const handleMeetingStatus = async (m: MeetingRow, status: string) => {
+    if (!session?.user?.id) return;
+    setBusyId(`meet-${m.id}`);
+    try {
+      await supabase
+        .from('property_meetings')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', m.id);
+      try {
+        await supabase.functions.invoke('send-property-notification', {
+          body: {
+            event_type: 'meeting_status_changed',
+            property_id: m.property_id,
+            property_title: m.properties?.title ?? 'Property',
+            meeting_id: m.id,
+            status,
+            owner_user_id: session.user.id,
+            user_id: m.user_id,
+            contact_name: m.contact_name ?? 'Customer',
+            changed_by: 'owner',
+            meeting_date: m.meeting_date,
+            meeting_time: String(m.meeting_time ?? '').slice(0, 5),
+            send_email: true,
+          },
+        });
+      } catch { /* ignore notification failures */ }
+      await fetchBookings();
+      await fetchMeetings();
     } catch { /* ignore */ } finally { setBusyId(null); }
   };
 
@@ -149,6 +215,46 @@ export default function PropertiesTabScreen() {
                     <Button size="$1" backgroundColor={theme.bgCardSecondary} color={theme.text} borderRadius={999}
                       onPress={() => router.push({ pathname: '/properties/[id]', params: { id: pb.property_id } } as any)}>View</Button>
                   </XStack>
+                </YStack>
+              );
+            })}
+          </YStack>
+
+          <YStack backgroundColor={panelBg} borderRadius={16} padding={14} borderWidth={1} borderColor={border} gap="$2">
+            <XStack justifyContent="space-between" alignItems="center">
+              <Text color={titleColor} fontWeight="900" fontSize={t(14)}>Visit Meetings</Text>
+              <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
+                onPress={fetchMeetings} disabled={meetingsLoading}>
+                {meetingsLoading ? 'Loading...' : 'Refresh'}
+              </Button>
+            </XStack>
+            {!meetings.length && !meetingsLoading ? (
+              <Text color={muted} fontSize={t(12)}>No meeting requests yet.</Text>
+            ) : null}
+            {(meetings ?? []).map((m) => {
+              const statusColor = m.status === 'confirmed' ? theme.success : m.status === 'rejected' || m.status === 'cancelled' ? theme.danger : m.status === 'rescheduled' ? theme.warning : theme.accent;
+              return (
+                <YStack key={m.id} backgroundColor={theme.bgCardSecondary} borderRadius={14} padding={12} gap="$2" borderWidth={1} borderColor={border}>
+                  <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                    <YStack flex={1} gap={4}>
+                      <Text color={titleColor} fontWeight="700" fontSize={t(13)}>{m.properties?.title ?? 'Property'}</Text>
+                      <Text color={muted} fontSize={t(11)}>
+                        {m.meeting_date} at {String(m.meeting_time ?? '').slice(0, 5)} • {m.contact_name ?? 'Customer'}{m.contact_phone ? ` (${m.contact_phone})` : ''}
+                      </Text>
+                      {m.message ? <Text color={muted} fontSize={t(11)}>{m.message}</Text> : null}
+                    </YStack>
+                    <Text color={statusColor} fontSize={t(11)} fontWeight="700" textTransform="uppercase">{m.status}</Text>
+                  </XStack>
+                  {m.status === 'pending' ? (
+                    <XStack gap="$2" flexWrap="wrap">
+                      <Button size="$1" backgroundColor={theme.success} color="#FFFFFF" borderRadius={999}
+                        disabled={busyId === `meet-${m.id}`}
+                        onPress={() => handleMeetingStatus(m, 'confirmed')}>Confirm</Button>
+                      <Button size="$1" backgroundColor={theme.danger} color="#FFFFFF" borderRadius={999}
+                        disabled={busyId === `meet-${m.id}`}
+                        onPress={() => handleMeetingStatus(m, 'rejected')}>Reject</Button>
+                    </XStack>
+                  ) : null}
                 </YStack>
               );
             })}

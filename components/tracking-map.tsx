@@ -64,7 +64,11 @@ export default function TrackingMap({
           zoom: 12,
           fullscreenControl: false,
           streetViewControl: false,
-          mapTypeControl: false,
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            style: googleMaps.MapTypeControlStyle.HORIZONTAL_BAR,
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+          },
           zoomControl: true,
         });
         mapRef.current = map;

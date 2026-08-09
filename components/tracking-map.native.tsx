@@ -42,15 +42,42 @@ function getHtml(apiKey: string, defLat: number, defLng: number) {
   <style>
     body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #F1F5F9; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+    .view-bar { position: absolute; top: 10px; left: 10px; z-index: 9999; display: flex; gap: 4px; background: rgba(255,255,255,0.95); border-radius: 20px; padding: 3px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); font-family: -apple-system, sans-serif; }
+    .v-btn { border: none; background: transparent; padding: 6px 11px; border-radius: 16px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; outline: none; }
+    .v-btn.active { background: #0F172A; color: #FFFFFF; }
+    .v-btn.t-active { background: #2563EB; color: #FFFFFF; }
   </style>
 </head>
 <body>
+  <div class="view-bar">
+    <button id="btnMap" class="v-btn active" onclick="setMapMode('roadmap')">🗺 Map</button>
+    <button id="btnSat" class="v-btn" onclick="setMapMode('hybrid')">🛰 Satellite</button>
+    <button id="btnTransit" class="v-btn" onclick="toggleTransit()">🚌 Public Transport</button>
+  </div>
   <div id="map"></div>
   <script>
-    var map;
+    var map, transitLayer;
+    var isTransit = false;
     var pickupMarker;
     var dropMarker;
     var driverMarker;
+
+    function setMapMode(type) {
+      if (map) map.setMapTypeId(type);
+      var bM = document.getElementById('btnMap');
+      var bS = document.getElementById('btnSat');
+      if (bM) bM.className = 'v-btn' + (type === 'roadmap' ? ' active' : '');
+      if (bS) bS.className = 'v-btn' + (type !== 'roadmap' ? ' active' : '');
+    }
+
+    function toggleTransit() {
+      if (!map) return;
+      if (!transitLayer) { transitLayer = new google.maps.TransitLayer(); }
+      isTransit = !isTransit;
+      transitLayer.setMap(isTransit ? map : null);
+      var bT = document.getElementById('btnTransit');
+      if (bT) bT.className = 'v-btn' + (isTransit ? ' t-active' : '');
+    }
 
     function circleIcon(color) {
       return {
@@ -69,7 +96,11 @@ function getHtml(apiKey: string, defLat: number, defLng: number) {
         zoom: 12,
         fullscreenControl: false,
         streetViewControl: false,
-        mapTypeControl: false
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+          style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+          position: google.maps.ControlPosition.TOP_RIGHT
+        }
       });
 
       function updateMarkers(data) {

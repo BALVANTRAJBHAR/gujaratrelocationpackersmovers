@@ -768,11 +768,11 @@ export default function PropertiesIndexScreen() {
     return await RazorpayCheckout.open(options);
   }
 
-  const stableStringify = (obj: any) => {
+  const stableStringify = (obj: unknown): string => {
     if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
-    if (Array.isArray(obj)) return `[${obj.map((x) => stableStringify(x)).join(',')}]`;
+    if (Array.isArray(obj)) return `[${obj.map((x: unknown) => stableStringify(x)).join(',')}]`;
     const keys = Object.keys(obj).sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify((obj as Record<string, unknown>)[k])}`).join(',')}}`;
   };
 
   const getBaseSearchToken = () => {
@@ -1668,9 +1668,11 @@ export default function PropertiesIndexScreen() {
                   onPress={() => {
                     const userId = session?.user?.id ?? null;
                     if (userId) {
-                      supabase
-                        .from('user_seen_properties')
-                        .upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any)
+                      Promise.resolve(
+                        supabase
+                          .from('user_seen_properties')
+                          .upsert({ user_id: userId, property_id: p.id }, { onConflict: 'user_id,property_id' } as any)
+                      )
                         .then(() => {})
                         .catch(() => {});
                     }

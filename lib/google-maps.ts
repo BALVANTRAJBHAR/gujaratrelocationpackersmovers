@@ -3,13 +3,12 @@ import { supabase } from '@/lib/supabase';
 /**
  * lib/google-maps.ts
  * ------------------
- * Drop-in replacement for lib/mapbox.ts backed by the Google Maps APIs
- * (Places API new, Geocoding API, Directions API) routed through the
- * `maps-proxy` Supabase edge function so the API key never ships to the
- * client and browser CORS is not an issue.
+ * Google Maps API wrapper (Places API new, Geocoding API, Directions API)
+ * routed through the `maps-proxy` Supabase edge function so the API key
+ * never ships to the client and browser CORS is not an issue.
  *
  * Exports keep the exact same names and shapes the screens already use:
- *   searchPlaces, searchIndianLocalities, getCityCenter, getRouteDistance,
+ *   searchPlaces, searchIndianLocalities, getCityCenter, getDistance,
  *   reverseGeocode, reverseGeocodeAddress, reverseGeocodeFeatures,
  *   reverseGeocodeDetails  + the feature/detail/option types.
  */
@@ -292,16 +291,30 @@ function toGeocodeFeature(place: any): GoogleGeocodeFeature | null {
 }
 
 async function invokeProxy(action: string, payload: Record<string, unknown>): Promise<any> {
+  console.log(`[maps-proxy] → action=${action}`, JSON.stringify(payload).slice(0, 200));
   const { data, error } = await supabase.functions.invoke('maps-proxy', { body: { action, ...payload } });
-  if (error) throw new Error(String(error?.message ?? 'maps-proxy request failed'));
-  if (data?.error) throw new Error(String(data.error));
+  if (error) {
+    console.error(`[maps-proxy] ← error:`, error?.message, error);
+    throw new Error(String(error?.message ?? 'maps-proxy request failed'));
+  }
+  if (data?.error) {
+    console.error(`[maps-proxy] ← data.error:`, data.error);
+    throw new Error(String(data.error));
+  }
+  console.log(`[maps-proxy] ← ok, keys:`, Object.keys(data ?? {}));
   return data;
 }
 
 export function createGooglePlacesSessionToken(): string {
+  // Must be a valid UUID for Google Places API (New) session billing
   const nativeCrypto = globalThis.crypto;
   if (typeof nativeCrypto?.randomUUID === 'function') return nativeCrypto.randomUUID();
-  return `gplaces-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  // RFC 4122 v4 UUID fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /** Google Places Autocomplete (New), restricted to India, with fallback to text search. */
@@ -314,32 +327,43 @@ export async function autocompletePlaces(
 
   // Try Places Autocomplete API first
   try {
+    const sessionToken = options.sessionToken || createGooglePlacesSessionToken();
     const data = await invokeProxy('autocomplete', {
       input: input.slice(0, 256),
-      sessionToken: options.sessionToken || createGooglePlacesSessionToken(),
+      sessionToken,
       lat: validCoordinate(options.proximity) ? options.proximity[1] : undefined,
       lng: validCoordinate(options.proximity) ? options.proximity[0] : undefined,
       bbox: validBbox(options.bbox) ? options.bbox : undefined,
       language: clean(options.language) || 'en',
     });
+    console.log('[google-maps] autocomplete raw suggestions count:', data?.suggestions?.length ?? 0);
+    // If edge fn returned an _error (non-ok HTTP from Google), log it and fall through to searchPlaces
+    if (data?._error) {
+      console.warn('[google-maps] autocomplete API returned error code', data._error, data._detail);
+    }
     const suggestions = (Array.isArray(data?.suggestions) ? data.suggestions : [])
       .map((item: any) => {
         const prediction = item?.placePrediction;
         const placeId = clean(prediction?.placeId);
         const text = clean(prediction?.text?.text);
-        if (!placeId || !text) return null;
+        if (!placeId || !text) {
+          console.warn('[google-maps] skipping suggestion - missing placeId or text:', item);
+          return null;
+        }
         return {
           id: placeId,
           placeId,
           place_name: text,
           primaryText: clean(prediction?.structuredFormat?.mainText?.text) || text,
-          secondaryText: clean(prediction?.structuredFormat?.secondaryText?.text),
-          sessionToken: clean(options.sessionToken) || '',
+          secondaryText: clean(prediction?.structuredFormat?.secondaryText?.text) || '',
+          sessionToken,
         } as GoogleAutocompleteSuggestion;
       })
       .filter((item: GoogleAutocompleteSuggestion | null): item is GoogleAutocompleteSuggestion => Boolean(item));
 
+    console.log('[google-maps] autocomplete parsed suggestions:', suggestions.length);
     if (suggestions.length > 0) return suggestions;
+    console.warn('[google-maps] autocomplete returned 0 suggestions, trying searchPlaces fallback');
   } catch (err) {
     console.warn('[google-maps] autocomplete API failed, using searchPlaces fallback:', err);
   }
@@ -393,7 +417,7 @@ export async function resolveAutocompleteSuggestion(
 
 /**
  * Autocomplete search for India backed by Google Places API (new).
- * Kept compatible with the old Mapbox shape: id/place_name/center/context.
+ * Kept compatible with the legacy shape: id/place_name/center/context.
  */
 export async function searchPlaces(query: string, options: SearchPlacesOptions = {}): Promise<GoogleGeocodeFeature[]> {
   const text = query.trim();
@@ -486,7 +510,7 @@ async function reverseFeatures(lng: number, lat: number, limit: number): Promise
       return feature as GoogleReverseGeocodeFeature;
     })
     .filter((item: GoogleReverseGeocodeFeature | null): item is GoogleReverseGeocodeFeature => Boolean(item))
-    .sort((a, b) => {
+    .sort((a: GoogleReverseGeocodeFeature, b: GoogleReverseGeocodeFeature) => {
       const rank = (item: GoogleReverseGeocodeFeature) => {
         const type = item.place_type?.[0] ?? '';
         if (type === 'address') return 0;

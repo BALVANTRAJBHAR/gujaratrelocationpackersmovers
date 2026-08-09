@@ -629,7 +629,7 @@ function AdminScreenInner() {
   }, [session?.user?.id]);
 
   const [activeSection, setActiveSection] = useState<
-    'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports' | 'home_services' | 'properties' | 'quote_requests'
+    'users' | 'vehicles' | 'floors' | 'coupons' | 'bookings' | 'reports' | 'home_services' | 'properties' | 'quote_requests' | 'feedback'
   >('bookings');
 
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
@@ -686,6 +686,16 @@ function AdminScreenInner() {
 
   const [propBookings, setPropBookings] = useState<any[]>([]);
   const [propBookingBusyId, setPropBookingBusyId] = useState<string | null>(null);
+
+  const [feedbackRows, setFeedbackRows] = useState<any[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'rated' | 'skipped'>('all');
+  const [feedbackStartDate, setFeedbackStartDate] = useState('');
+  const [feedbackEndDate, setFeedbackEndDate] = useState('');
+  const [feedbackStartDatePickerOpen, setFeedbackStartDatePickerOpen] = useState(false);
+  const [feedbackStartPickerValue, setFeedbackStartPickerValue] = useState<Date>(new Date());
+  const [feedbackEndDatePickerOpen, setFeedbackEndDatePickerOpen] = useState(false);
+  const [feedbackEndPickerValue, setFeedbackEndPickerValue] = useState<Date>(new Date());
 
   const [propBookingSearch, setPropBookingSearch] = useState('');
   const [propBookingStatusFilter, setPropBookingStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
@@ -1204,6 +1214,57 @@ function AdminScreenInner() {
     }
   };
 
+  const fetchFeedback = async () => {
+    if (!canManage) return;
+    setFeedbackLoading(true);
+    try {
+      let query = supabase
+        .from('feedback')
+        .select('id, from_user_id, to_user_id, rating, comment, tags, skipped, booking_id, home_service_request_id, created_at, from:users!feedback_from_user_id_fkey(name), to:users!feedback_to_user_id_fkey(name)')
+        .order('created_at', { ascending: false })
+        .limit(300);
+
+      if (feedbackFilter === 'rated') query = query.eq('skipped', false);
+      if (feedbackFilter === 'skipped') query = query.eq('skipped', true);
+
+      const { data, error: fetchError } = await query;
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+      setFeedbackRows(((data as any) ?? []) as any[]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || 'Failed to fetch feedback.');
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const exportFeedbackCsv = async () => {
+    if (!feedbackRows.length) return;
+    const header = ['date', 'from', 'to', 'rating', 'comment', 'tags', 'skipped', 'booking_id', 'home_service_request_id', 'created_at'];
+    const rows = feedbackRows.map((f) => [
+      new Date(f.created_at ?? '').toLocaleString('en-IN'),
+      (f.from as any)?.name ?? '—',
+      (f.to as any)?.name ?? '—',
+      f.rating ?? (f.skipped ? 'skipped' : '—'),
+      f.comment ?? '',
+      Array.isArray(f.tags) ? f.tags.join(', ') : '',
+      f.booking_id ?? f.home_service_request_id ?? '',
+    ]);
+    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    try {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'feedback.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
   const updatePropBookingStatus = async (bookingId: string, status: string) => {
     if (!canManage) return;
     if (!bookingId) return;
@@ -1291,7 +1352,7 @@ function AdminScreenInner() {
           .select(homeServiceAdminBaseSelect)
           .order('created_at', { ascending: false })
           .limit(100);
-        data = fallback.data;
+        data = fallback.data as typeof data;
         fetchError = fallback.error;
       }
       if (fetchError) {
@@ -1342,7 +1403,7 @@ function AdminScreenInner() {
           .select('id,name,phone,email,service,message,source,created_at')
           .order('created_at', { ascending: false })
           .limit(200);
-        data = fallback.data;
+        data = fallback.data as typeof data;
         fetchError = fallback.error;
       }
       if (fetchError) {
@@ -1591,7 +1652,7 @@ function AdminScreenInner() {
           body: {
             request_id: requestId,
             status,
-            send_email: status === 'rescheduled' || status === 'cancelled',
+            send_email: true,
             new_date: overrides?.preferred_date ?? undefined,
             new_time: overrides?.preferred_time ?? undefined,
           },
@@ -2105,7 +2166,7 @@ function AdminScreenInner() {
   const normalizeBookingStepperStatus = (status: string | null) => {
     const s = String(status ?? '').trim();
     if (!s) return null;
-    if (s === 'pending' || s === 'assigned' || s === 'confirmed') return 'not_started';
+    if (s === 'pending' || s === 'assigned' || s === 'accepted' || s === 'confirmed') return 'not_started';
     return s;
   };
 
@@ -2754,7 +2815,7 @@ function AdminScreenInner() {
 
       if (statusFilter !== 'all') {
         if (statusFilter === 'not_started') {
-          query = query.in('status', ['confirmed', 'pending', 'assigned', 'not_started']);
+          query = query.in('status', ['confirmed', 'pending', 'assigned', 'accepted', 'not_started']);
         } else {
           query = query.eq('status', statusFilter);
         }
@@ -2905,6 +2966,7 @@ function AdminScreenInner() {
     if (activeSection === 'home_services') fetchHomeServiceRequests();
     if (activeSection === 'quote_requests') fetchQuoteRequests();
     if (activeSection === 'properties') { fetchProperties(); void fetchPropBookings(); }
+    if (activeSection === 'feedback') void fetchFeedback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, canManage]);
 
@@ -3007,6 +3069,7 @@ function AdminScreenInner() {
               { label: 'Vehicles', value: 'vehicles', icon: 'car' },
               { label: 'Floors', value: 'floors', icon: 'layer-group' },
               { label: 'Coupons', value: 'coupons', icon: 'ticket-alt' },
+              { label: 'Feedback', value: 'feedback', icon: 'star' },
             ].map((tab) => (
               <Button
                 key={tab.value}
@@ -3408,6 +3471,114 @@ function AdminScreenInner() {
                     </YStack>
                   );
                 })}
+              </YStack>
+            ) : null}
+
+            {activeSection === 'feedback' ? (
+              <YStack gap="$3">
+                <YStack backgroundColor={theme.bgCard} borderRadius={18} padding={16} gap="$2" borderWidth={1} borderColor={theme.border}>
+                  <YStack gap="$1">
+                    <Text color={theme.text} fontWeight="900" fontSize={t(16)}>Feedback & Ratings</Text>
+                    <Text color={theme.textMuted} fontSize={t(12)}>All ratings given by customers, drivers, and service providers.</Text>
+                  </YStack>
+
+                  <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                    <Button
+                      size="$2"
+                      backgroundColor={feedbackFilter === 'all' ? theme.accent : theme.bgCardSecondary}
+                      color={feedbackFilter === 'all' ? '#FFFFFF' : theme.text}
+                      borderRadius={999}
+                      onPress={() => { setFeedbackFilter('all'); void fetchFeedback(); }}>
+                      All
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={feedbackFilter === 'rated' ? theme.accent : theme.bgCardSecondary}
+                      color={feedbackFilter === 'rated' ? '#FFFFFF' : theme.text}
+                      borderRadius={999}
+                      onPress={() => { setFeedbackFilter('rated'); void fetchFeedback(); }}>
+                      Rated
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={feedbackFilter === 'skipped' ? theme.accent : theme.bgCardSecondary}
+                      color={feedbackFilter === 'skipped' ? '#FFFFFF' : theme.text}
+                      borderRadius={999}
+                      onPress={() => { setFeedbackFilter('skipped'); void fetchFeedback(); }}>
+                      Skipped
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={theme.bgCardSecondary}
+                      color={theme.text}
+                      borderRadius={999}
+                      disabled={!feedbackRows.length}
+                      onPress={exportFeedbackCsv}>
+                      Export CSV
+                    </Button>
+                    <Button
+                      size="$2"
+                      backgroundColor={theme.accent}
+                      color="#FFFFFF"
+                      borderRadius={999}
+                      onPress={fetchFeedback}
+                      disabled={feedbackLoading}>
+                      {feedbackLoading ? 'Loading...' : 'Refresh'}
+                    </Button>
+                  </XStack>
+
+                  {feedbackRows.length ? (
+                    <YStack gap="$1">
+                      <Text color={theme.textMuted} fontSize={t(12)}>{feedbackRows.length} records</Text>
+                      {(() => {
+                        const rated = feedbackRows.filter((f) => !f.skipped);
+                        const avg = rated.length
+                          ? (rated.reduce((s, f) => s + Number(f.rating ?? 0), 0) / rated.length).toFixed(1)
+                          : '—';
+                        const dist: Record<number, number> = {};
+                        for (const f of rated) {
+                          const r = Number(f.rating ?? 0);
+                          dist[r] = (dist[r] ?? 0) + 1;
+                        }
+                        return (
+                          <Text color={theme.text} fontSize={t(13)} fontWeight="700">
+                            Average rating: {avg} / 5{Object.keys(dist).length ? ` • ${Object.keys(dist).sort((a, b) => Number(b) - Number(a)).map((r) => `${dist[Number(r)]}×${r}★`).join(' ')}` : ''}
+                          </Text>
+                        );
+                      })()}
+                    </YStack>
+                  ) : null}
+
+                  {!feedbackRows.length && !feedbackLoading ? (
+                    <Text color={theme.textMuted} fontSize={t(13)}>No feedback found.</Text>
+                  ) : null}
+
+                  {feedbackRows.map((f) => {
+                    const rated = f.skipped !== true;
+                    return (
+                      <YStack key={String(f.id)} backgroundColor={theme.bgCardSecondary} borderRadius={14} padding={12} gap="$1" borderWidth={1} borderColor={theme.border}>
+                        <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2">
+                          <YStack flex={1} gap={1}>
+                            <Text color={theme.text} fontWeight="700" fontSize={t(13)}>
+                              {(f.from as any)?.name ?? 'User'} → {(f.to as any)?.name ?? 'User'}
+                            </Text>
+                            <Text color={theme.textMuted} fontSize={t(11)}>
+                              {new Date(f.created_at ?? '').toLocaleString('en-IN')}{f.booking_id ? ' • Shifting' : f.home_service_request_id ? ' • Home Service' : ' • Property'}
+                            </Text>
+                          </YStack>
+                          <Text color={theme.success} fontWeight="800" fontSize={t(13)}>
+                            {rated ? `${f.rating ?? 0} / 5` : 'Skipped'}
+                          </Text>
+                        </XStack>
+                        {Array.isArray(f.tags) && f.tags.length ? (
+                          <Text color={theme.textMuted} fontSize={t(11)}>Tags: {f.tags.join(', ')}</Text>
+                        ) : null}
+                        {f.skipped === true ? <Text color={theme.textMuted} fontSize={t(11)}>[Feedback skipped]</Text> : null}
+                        {f.comment ? <Text color={theme.text} fontSize={t(12)}>{f.comment}</Text> : null}
+                      </YStack>
+                    );
+                  })}
+                </YStack>
               </YStack>
             ) : null}
 

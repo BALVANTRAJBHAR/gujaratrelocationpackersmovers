@@ -41,29 +41,29 @@ function MobileTimePicker({ value, onChange, open, onClose }: {
   const pick = () => { const d = new Date(value); d.setHours(h, m, 0, 0); onChange(d); onClose(); };
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
-        <YStack bg="#FFF" br={16} p={24} ai="center" w="80%" maw={300}>
-          <Text fontWeight="800" fontSize={18} color="#000" mb={20}>Select Time</Text>
-          <XStack ai="center" gap={4} mb={24}>
-            <YStack ai="center">
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)">
+        <YStack backgroundColor="#FFF" borderRadius={16} padding={24} alignItems="center" width="80%" maxWidth={300}>
+          <Text fontWeight="800" fontSize={18} color="#000" marginBottom={20}>Select Time</Text>
+          <XStack alignItems="center" gap={4} marginBottom={24}>
+            <YStack alignItems="center">
               <Pressable onPress={() => setH(h => h === 23 ? 0 : h + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
-              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+              <YStack width={60} height={50} backgroundColor="#F0F0F0" borderRadius={8} alignItems="center" justifyContent="center" marginHorizontal={4}>
                 <Text fontWeight="800" fontSize={24} color="#000">{String(h).padStart(2, '0')}</Text>
               </YStack>
               <Pressable onPress={() => setH(h => h === 0 ? 23 : h - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
             </YStack>
             <Text fontWeight="800" fontSize={24} color="#000">:</Text>
-            <YStack ai="center">
+            <YStack alignItems="center">
               <Pressable onPress={() => setM(m => m === 59 ? 0 : m + 1)}><Text fontSize={22} color="#1F4E79">▲</Text></Pressable>
-              <YStack w={60} h={50} bg="#F0F0F0" br={8} ai="center" jc="center" mx={4}>
+              <YStack width={60} height={50} backgroundColor="#F0F0F0" borderRadius={8} alignItems="center" justifyContent="center" marginHorizontal={4}>
                 <Text fontWeight="800" fontSize={24} color="#000">{String(m).padStart(2, '0')}</Text>
               </YStack>
               <Pressable onPress={() => setM(m => m === 0 ? 59 : m - 1)}><Text fontSize={22} color="#1F4E79">▼</Text></Pressable>
             </YStack>
           </XStack>
           <XStack gap={16}>
-            <Pressable onPress={onClose}><YStack bg="#E0E0E0" br={8} px={24} py={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
-            <Pressable onPress={pick}><YStack bg="#1F4E79" br={8} px={24} py={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
+            <Pressable onPress={onClose}><YStack backgroundColor="#E0E0E0" borderRadius={8} paddingHorizontal={24} paddingVertical={10}><Text fontWeight="700" color="#333">Cancel</Text></YStack></Pressable>
+            <Pressable onPress={pick}><YStack backgroundColor="#1F4E79" borderRadius={8} paddingHorizontal={24} paddingVertical={10}><Text fontWeight="700" color="#FFF">Set</Text></YStack></Pressable>
           </XStack>
         </YStack>
       </YStack>
@@ -4683,52 +4683,75 @@ export default function PostPropertyScreen() {
                 const pincodeFromText = /\b([0-9]{6})\b/.exec(placeName)?.[1] ?? '';
                 const nextPincode = (pincodeFromLandmark || pincodeFromContext || pincodeFromText).trim();
 
-                const stateRow = states.find((item) => item.name.trim().toLowerCase() === nextState.toLowerCase());
-                if (!stateRow || !nextCity) {
-                  setError('No service available at this selected location. Please choose a supported state and city.');
-                  return;
+                setError(null);
+
+                // Match State with DB states list if available; otherwise use geocoded nextState directly
+                let matchedStateName = nextState;
+                let stateRow = states.find((item) => item.name.trim().toLowerCase() === nextState.toLowerCase());
+                if (!stateRow && nextState) {
+                  stateRow = states.find(
+                    (item) =>
+                      item.name.trim().toLowerCase().includes(nextState.toLowerCase()) ||
+                      nextState.toLowerCase().includes(item.name.trim().toLowerCase())
+                  );
                 }
-                const { data: matchedCities, error: cityLookupError } = await supabase
-                  .from('cities')
-                  .select('id,name')
-                  .eq('state_id', stateRow.id)
-                  .ilike('name', nextCity)
-                  .limit(1);
-                const matchedCity = !cityLookupError ? ((matchedCities as any) ?? [])[0] as { id?: string; name?: string } | undefined : undefined;
-                if (!matchedCity?.name) {
-                  setError('No service available at this selected location. Please choose a supported city.');
-                  return;
+                if (stateRow) {
+                  matchedStateName = stateRow.name;
                 }
 
-                // The selected pin is the source of truth; update prior state/city selections.
-                setStateValue(stateRow.name);
-                setCityValue(String(matchedCity.name));
-                if (nextLocality) {
-                  setLocalityValue(nextLocality);
-                  setLocalityTyped(false);
-                  setLocalitySuggestions([]);
-                } else if (placeName) {
-                  const first = placeName.split(',')[0]?.trim();
-                  if (first) {
-                    setLocalityValue(first);
-                    setLocalityTyped(false);
-                    setLocalitySuggestions([]);
+                // Match City with DB cities list if stateRow is matched; otherwise use geocoded nextCity directly
+                let matchedCityName = nextCity;
+                if (stateRow?.id && nextCity) {
+                  try {
+                    const { data: matchedCities } = await supabase
+                      .from('cities')
+                      .select('id,name')
+                      .eq('state_id', stateRow.id)
+                      .ilike('name', `%${nextCity}%`)
+                      .limit(1);
+                    const hit = ((matchedCities as any) ?? [])[0] as { id?: string; name?: string } | undefined;
+                    if (hit?.name) {
+                      matchedCityName = hit.name;
+                    }
+                  } catch {
+                    // Fallback to nextCity directly
                   }
                 }
 
-                if (landmark) {
-                  setAddress1(landmark);
-                } else if (placeName) {
-                  setAddress1(placeName.split(',')[0]?.trim() || placeName);
+                // Always update State and City from selected pin (no error blocking!)
+                if (matchedStateName) setStateValue(matchedStateName);
+                if (matchedCityName) setCityValue(matchedCityName);
+
+                // Update Locality
+                const localityCandidate = nextLocality || (placeName ? placeName.split(',')[0]?.trim() : '');
+                if (localityCandidate) {
+                  setLocalityValue(localityCandidate);
+                  setLocalityTyped(false);
+                  setLocalitySuggestions([]);
                 }
 
+                // Update Landmark / Street (address1)
+                const address1Candidate = landmark || (placeName ? placeName.split(',')[0]?.trim() : '');
+                if (address1Candidate) {
+                  setAddress1(address1Candidate);
+                }
+
+                // Update Address Line 2 (address2) if available
+                if (structured.street) {
+                  setAddress2(structured.street);
+                } else if (placeName) {
+                  const parts = placeName.split(',').map((p: string) => p.trim()).filter(Boolean);
+                  if (parts.length > 1) {
+                    setAddress2(parts.slice(1, 3).join(', '));
+                  }
+                }
+
+                // Update Pincode
                 if (nextPincode) {
                   setPincode(String(nextPincode).replace(/[^0-9]/g, '').slice(0, 6));
                 }
 
                 setMapPickerOpen(false);
-              } catch {
-                setError('Failed to fetch location details. Please try again or fill address manually.');
               } finally {
                 setMapPickerBusy(false);
               }

@@ -10,11 +10,19 @@ alter table public.vehicle_types
   add column if not exists updated_at timestamptz default now();
 
 -- Keep legacy columns (base_fare/per_km_rate/capacity) as-is. Backfill new price columns if missing.
-update public.vehicle_types
-set
-  base_price = coalesce(base_price, base_fare),
-  per_km_price = coalesce(per_km_price, per_km_rate)
-where base_price is null or per_km_price is null;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'vehicle_types' and column_name = 'base_fare'
+  ) then
+    update public.vehicle_types
+    set
+      base_price = coalesce(base_price, base_fare),
+      per_km_price = coalesce(per_km_price, per_km_rate)
+    where base_price is null or per_km_price is null;
+  end if;
+end $$;
 
 -- Bookings: add schedule, vehicle selection, floors/lift, items & payment details
 alter table public.bookings

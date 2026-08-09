@@ -74,6 +74,14 @@ function getStatusMessages(status: string) {
     };
   }
 
+  if (s === 'completed') {
+    return {
+      title: 'Home service completed',
+      customer: 'Your home service request has been completed.',
+      admin: 'A home service request was completed.',
+    };
+  }
+
   const human = s.replaceAll('_', ' ');
   return {
     title: 'Home service updated',
@@ -244,6 +252,63 @@ async function sendCancelledEmail(opts: { to: string; serviceLabel: string }) {
     to,
     subject,
     text: `Your ${serviceText} request has been cancelled.`,
+    html,
+  });
+}
+
+async function sendCompletedEmail(opts: { to: string; customerName: string; serviceLabel: string; date: string; time: string }) {
+  const to = String(opts.to ?? '').trim();
+  if (!to) return;
+  const smtpHost = Deno.env.get('SMTP_HOST') ?? '';
+  const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '587');
+  const smtpUser = Deno.env.get('SMTP_USER') ?? '';
+  const smtpPass = Deno.env.get('SMTP_PASS') ?? '';
+  const smtpSecure = String(Deno.env.get('SMTP_SECURE') ?? 'false').toLowerCase() === 'true';
+  const fromEmail = Deno.env.get('SMTP_FROM') ?? smtpUser;
+  const fromName = Deno.env.get('SMTP_FROM_NAME') ?? 'Packers & Movers';
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromEmail) return;
+
+  const serviceText = String(opts.serviceLabel ?? 'service').trim();
+  const dateText = String(opts.date ?? '').trim();
+  const timeText = String(opts.time ?? '').trim();
+
+  const subject = `Your ${serviceText} service request is completed`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8fafc; padding: 24px;">
+      <div style="background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);">
+        <div style="background: #0f172a; color: #ffffff; padding: 28px 24px;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.02em;">Service Completed</h1>
+          <p style="margin: 10px 0 0 0; color: #cbd5e1; font-size: 14px;">Your ${escapeHtml(serviceText)} service request has been completed.</p>
+        </div>
+        <div style="padding: 24px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; background: #f8fafc;">
+            <p style="margin: 0; color: #334155; font-weight: 700;">Service</p>
+            <p style="margin: 6px 0 0 0; color: #475569;">${escapeHtml(serviceText)}</p>
+            <p style="margin: 14px 0 0 0; color: #334155; font-weight: 700;">Schedule</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Date:</b> ${escapeHtml(dateText || '-')}</p>
+            <p style="margin: 6px 0 0 0; color: #475569;"><b>Time:</b> ${escapeHtml(timeText || '-')}</p>
+            <p style="margin: 14px 0 0 0; color: #64748b; font-size: 13px;">Thank you for choosing us! If you have any feedback, please share it with our team.</p>
+          </div>
+        </div>
+        <div style="padding: 20px 24px 28px 24px; background: #f8fafc;">
+          <p style="margin: 0; color: #64748b; font-size: 13px;">This email was generated automatically by the app.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  await transport.sendMail({
+    from: `${fromName} <${fromEmail}>`,
+    to,
+    subject,
+    text: `Your ${serviceText} service request has been completed.\nDate: ${dateText || '-'}\nTime: ${timeText || '-'}`,
     html,
   });
 }
@@ -456,6 +521,61 @@ serve(async (req) => {
 
     if (!homeServiceRequest) return jsonResponse({ error: 'Home service request not found' }, 404);
 
+    const requestType = String(body.type ?? '').trim();
+
+    if (requestType === 'otp') {
+      const otp = String(body.otp ?? '').trim();
+      if (!otp) return jsonResponse({ error: 'otp required' }, 400);
+
+      const serviceLabel = getServiceLabel(String(homeServiceRequest.service_key ?? '').trim());
+      const title = 'Work completed — OTP required';
+      const customerBody = `Your ${serviceLabel} service is done. Share this OTP with your service provider to complete: ${otp}`;
+
+      const rows: Array<{ user_id: string; title: string; body: string; type?: string; data?: Record<string, unknown> }> = [];
+
+      if (homeServiceRequest.user_id) {
+        try {
+          const [customer] = await getRest<UserRow[]>(
+            `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.user_id}&select=id,expo_push_token,name,email`,
+            serviceKey
+          );
+
+          if (customer?.id) {
+            rows.push({
+              user_id: customer.id,
+              title,
+              body: customerBody,
+              type: 'home_service_otp',
+              data: { request_id: requestId, type: 'otp', otp },
+            });
+          }
+          if (customer?.expo_push_token) {
+            try {
+              await sendExpoPush(customer.expo_push_token, title, customerBody, {
+                request_id: requestId,
+                type: 'home_service_otp',
+              });
+            } catch (e) {
+              console.error('Home service OTP push failed:', e);
+            }
+          }
+          if (customer?.id) {
+            await sendWebPushForUser(supabaseUrl, serviceKey, customer.id, title, customerBody, `/home-services/${requestId}`);
+          }
+        } catch (e) {
+          console.error('Home service OTP notification failed:', e);
+        }
+      }
+
+      try {
+        await insertNotifications(supabaseUrl, serviceKey, rows);
+      } catch (e) {
+        console.error('Home service OTP inbox insert failed:', e);
+      }
+
+      return jsonResponse({ sent: true, otp_sent: true });
+    }
+
     if (nextStatus) {
       try {
         const [customer] = await getRest<UserRow[]>(
@@ -473,16 +593,10 @@ serve(async (req) => {
         const customerMessage = statusMessages.customer;
         const adminMessage = statusMessages.admin;
 
-        // Email recipients: if the customer performed the action, notify customer + admins;
-        // if an admin/staff performed it, notify the customer only.
-        const isCustomerInitiated = Boolean(caller?.id && customer?.id && caller.id === customer.id);
+        // Emails go to the customer only. Admins are notified via push + in-app
+        // inbox (they deliberately do not receive email).
         const emailTo: string[] = [];
         if (customer?.email) emailTo.push(customer.email.trim());
-        if (isCustomerInitiated) {
-          for (const a of admins ?? []) {
-            if (a?.email) emailTo.push(a.email.trim());
-          }
-        }
         const emailRecipients = [...new Set(emailTo.filter(Boolean))].join(',');
 
         if (sendEmail && emailRecipients) {
@@ -503,6 +617,18 @@ serve(async (req) => {
               await sendCancelledEmail({ to: emailRecipients, serviceLabel });
             } catch (e) {
               console.error('Home service cancel email failed:', e);
+            }
+          } else if (nextStatus === 'completed') {
+            try {
+              await sendCompletedEmail({
+                to: emailRecipients,
+                customerName: customer?.name ?? 'Customer',
+                serviceLabel,
+                date: String(homeServiceRequest.preferred_date ?? '').trim(),
+                time: String(homeServiceRequest.preferred_time ?? '').trim(),
+              });
+            } catch (e) {
+              console.error('Home service completed email failed:', e);
             }
           }
         }
@@ -571,6 +697,67 @@ serve(async (req) => {
       return jsonResponse({ error: 'Request missing service_key, state, or city' }, 400);
     }
 
+    const serviceLabel = getServiceLabel(requestServiceKey);
+    const customerName = String(homeServiceRequest.customer_name ?? 'Customer').trim();
+    const preferredDate = String(homeServiceRequest.preferred_date ?? '').trim();
+    const preferredTime = String(homeServiceRequest.preferred_time ?? '').trim();
+
+    // Confirm to the customer: email + expo push + web push + in-app inbox
+    if (homeServiceRequest.user_id) {
+      try {
+        const [customerUser] = await getRest<UserRow[]>(
+          `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.user_id}&select=id,email,name,expo_push_token`,
+          serviceKey
+        );
+        const customerTitle = 'Request Confirmed';
+        const customerBody = `Your ${serviceLabel} request for ${preferredDate} at ${preferredTime} is confirmed.`;
+
+        if (customerUser?.id) {
+          try {
+            await insertNotifications(supabaseUrl, serviceKey, [
+              {
+                user_id: customerUser.id,
+                title: customerTitle,
+                body: customerBody,
+                type: 'home_service_status',
+                data: { request_id: requestId, status: 'confirmed' },
+              },
+            ]);
+          } catch {
+            // ignore inbox failures
+          }
+          await sendWebPushForUser(supabaseUrl, serviceKey, customerUser.id, customerTitle, customerBody, `/home-services/${requestId}`);
+        }
+
+        if (customerUser?.expo_push_token) {
+          try {
+            await sendExpoPush(customerUser.expo_push_token, customerTitle, customerBody, {
+              request_id: requestId,
+              status: 'confirmed',
+            });
+          } catch (e) {
+            console.error('Home service customer push failed:', e);
+          }
+        }
+
+        if (customerUser?.email) {
+          try {
+            await sendBookingCreatedEmail({
+              to: customerUser.email,
+              customerName: customerUser.name ?? customerName,
+              serviceLabel,
+              date: preferredDate,
+              time: preferredTime,
+            });
+          } catch (e) {
+            console.error('Home service booking-created email failed:', e);
+          }
+        }
+      } catch {
+        // ignore customer fetch failures
+      }
+    }
+
     // Fetch relevant service providers for this service + state + city combo
     const encodedServiceKey = encodeURIComponent(requestServiceKey);
     const encodedState = encodeURIComponent(requestState);
@@ -592,36 +779,6 @@ serve(async (req) => {
       `${supabaseUrl}/rest/v1/users?id=in.(${quotedIds})&select=id,expo_push_token,name,role`,
       serviceKey
     );
-
-    const serviceLabel = getServiceLabel(requestServiceKey);
-    const customerName = String(homeServiceRequest.customer_name ?? 'Customer').trim();
-    const preferredDate = String(homeServiceRequest.preferred_date ?? '').trim();
-    const preferredTime = String(homeServiceRequest.preferred_time ?? '').trim();
-
-    // Confirm to the customer by email that their booking has been created
-    if (homeServiceRequest.user_id) {
-      try {
-        const [customerUser] = await getRest<UserRow[]>(
-          `${supabaseUrl}/rest/v1/users?id=eq.${homeServiceRequest.user_id}&select=id,email,name`,
-          serviceKey
-        );
-        if (customerUser?.email) {
-          try {
-            await sendBookingCreatedEmail({
-              to: customerUser.email,
-              customerName: customerUser.name ?? customerName,
-              serviceLabel,
-              date: preferredDate,
-              time: preferredTime,
-            });
-          } catch (e) {
-            console.error('Home service booking-created email failed:', e);
-          }
-        }
-      } catch {
-        // ignore customer fetch failures
-      }
-    }
 
     // Send notifications to all available providers
     const notifications: Array<{ to: string; body: string }> = [];

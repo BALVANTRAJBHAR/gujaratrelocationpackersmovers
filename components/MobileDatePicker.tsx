@@ -41,20 +41,20 @@ export default function MobileDatePicker({ value, onChange, minDate, maxDate, op
   }, [currentYear]);
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <YStack flex={1} jc="center" ai="center" bg="rgba(0,0,0,0.5)">
-        <YStack bg="#FFF" br={16} p={20} w="90%" maw={360}>
-          <XStack jc="space-between" ai="center" mb={12}>
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)">
+        <YStack backgroundColor="#FFF" borderRadius={16} padding={20} width="90%" maxWidth={360}>
+          <XStack justifyContent="space-between" alignItems="center" marginBottom={12}>
             <Pressable onPress={prevM} disabled={showYearSelect}>
               <Text fontSize={22} color={showYearSelect ? '#CCC' : '#1F4E79'} fontWeight="700">{'◀'}</Text>
             </Pressable>
-            <XStack ai="center" gap={8}>
+            <XStack alignItems="center" gap={8}>
               <Text fontWeight="800" fontSize={18} color="#000">{monNames[vm]}</Text>
-              <XStack ai="center" gap={2}>
+              <XStack alignItems="center" gap={2}>
                 <Pressable onPress={prevY} disabled={showYearSelect}>
                   <Text fontSize={14} color={showYearSelect ? '#CCC' : '#1F4E79'} fontWeight="700">◀</Text>
                 </Pressable>
                 <Pressable onPress={() => setShowYearSelect(!showYearSelect)}>
-                  <XStack ai="center" gap={4} bg="#F0F4F8" px={8} py={3} br={6}>
+                  <XStack alignItems="center" gap={4} backgroundColor="#F0F4F8" paddingHorizontal={8} paddingVertical={3} borderRadius={6}>
                     <Text fontWeight="800" fontSize={16} color="#1F4E79">{vy}</Text>
                     <Text fontSize={9} color="#1F4E79">▼</Text>
                   </XStack>
@@ -70,7 +70,7 @@ export default function MobileDatePicker({ value, onChange, minDate, maxDate, op
           </XStack>
           {showYearSelect ? (
             <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
-              <XStack flexWrap="wrap" jc="center" gap={8} py={10}>
+              <XStack flexWrap="wrap" justifyContent="center" gap={8} paddingVertical={10}>
                 {yearRange.map(year => (
                   <Pressable
                     key={year}
@@ -90,24 +90,24 @@ export default function MobileDatePicker({ value, onChange, minDate, maxDate, op
           ) : (
             <>
               <XStack flexWrap="wrap">
-                {dayNames.map(d => <YStack key={d} w="14.28%" ai="center" py={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
+                {dayNames.map(d => <YStack key={d} width="14.28%" alignItems="center" paddingVertical={6}><Text fontSize={12} color="#666">{d}</Text></YStack>)}
               </XStack>
               <XStack flexWrap="wrap">
                 {days.map((d, i) => (
-                  <YStack key={i} w="14.28%" ai="center" py={2}>
+                  <YStack key={i} width="14.28%" alignItems="center" paddingVertical={2}>
                     {d ? (
                       <Pressable onPress={() => pick(d)} disabled={dis(d)}>
-                        <YStack w={36} h={36} br={18} ai="center" jc="center" bg={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
+                        <YStack width={36} height={36} borderRadius={18} alignItems="center" justifyContent="center" backgroundColor={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#1F4E79' : 'transparent'} opacity={dis(d) ? 0.25 : 1}>
                           <Text fontSize={14} fontWeight="600" color={value.getDate() === d && value.getMonth() === vm && value.getFullYear() === vy ? '#FFF' : '#000'}>{d}</Text>
                         </YStack>
                       </Pressable>
-                    ) : <YStack w={36} h={36} />}
+                    ) : <YStack width={36} height={36} />}
                   </YStack>
                 ))}
               </XStack>
             </>
           )}
-          <Pressable onPress={onClose}><YStack ai="center" py={10} mt={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
+          <Pressable onPress={onClose}><YStack alignItems="center" paddingVertical={10} marginTop={4}><Text color="#1F4E79" fontWeight="700">Cancel</Text></YStack></Pressable>
         </YStack>
       </YStack>
     </Modal>

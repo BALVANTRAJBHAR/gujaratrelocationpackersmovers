@@ -28,8 +28,8 @@
 - Storage bucket setup (uploads)
 
 ### E) Maps / Location
-- Map provider (Mapbox) account
-- Mapbox access token(s)
+- Map provider (Google Maps Platform) account
+- Google Maps API key + Maps SDK key (Android)
 - Billing enabled (Map APIs ke liye)
 
 ### F) Notifications (optional but recommended)
@@ -82,7 +82,7 @@ npm run web
 
 Project me keys/URLs generally code ya config files me aate hain. Deployment se pehle:
 - Supabase URL + anon key update
-- Mapbox token update
+- Google Maps API key update (web + Android)
 - Razorpay key id update (web + native)
 
 **Security rule:**

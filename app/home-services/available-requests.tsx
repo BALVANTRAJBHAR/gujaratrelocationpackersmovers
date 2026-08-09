@@ -10,9 +10,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { themes } from '@/constants/theme';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY } from '@/lib/date-format';
+import FeedbackPopup from '@/components/FeedbackPopup';
 
 type AvailableRequest = {
   id: string;
+  user_id: string | null;
   service_key: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -32,6 +34,8 @@ type AvailableRequest = {
   payment_option: string | null;
   after_service_payment_method: string | null;
   cash_paid_at: string | null;
+  complete_otp: string | null;
+  complete_otp_verified_at: string | null;
 };
 
 const labelForService = (key: string) => {
@@ -80,6 +84,10 @@ function AvailableRequestsInner({ session }: { session: any }) {
   const [items, setItems] = useState<AvailableRequest[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'accepted'>('pending');
+  const [workDoneBusyId, setWorkDoneBusyId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [otpDrafts, setOtpDrafts] = useState<Record<string, string>>({});
+  const [feedbackTarget, setFeedbackTarget] = useState<AvailableRequest | null>(null);
 
   const providerId = session?.user?.id ?? '';
 
@@ -163,34 +171,70 @@ function AvailableRequestsInner({ session }: { session: any }) {
     setRefreshing(false);
   };
 
-  const confirmCashPayment = async (requestId: string) => {
-    Alert.alert(
-      'Confirm Cash Payment',
-      'Have you received the cash payment from the customer?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Payment Received',
-          onPress: async () => {
-            try {
-              await supabase
-                .from('home_service_requests')
-                .update({
-                  cash_paid_at: new Date().toISOString(),
-                  cash_paid_by_provider_id: providerId,
-                  payment_status: 'paid',
-                  status: 'completed',
-                })
-                .eq('id', requestId);
-              Alert.alert('Confirmed', 'Cash payment recorded.');
-              void fetchRequests();
-            } catch (e: any) {
-              setError(e?.message ?? 'Failed to confirm payment.');
-            }
-          },
-        },
-      ]
-    );
+  const generateOtp = () => String(Math.floor(1000 + Math.random() * 9000));
+
+  const sendCompletionOtp = async (req: AvailableRequest) => {
+    if (req.complete_otp) return;
+    setError(null);
+    setWorkDoneBusyId(req.id);
+    try {
+      const res = await supabase.functions.invoke('complete-home-service', {
+        body: { request_id: req.id, action: 'work_done' },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: { request_id: req.id, type: 'otp', otp: String(data?.otp ?? generateOtp()) },
+        });
+      } catch {
+        // ignore notification failures
+      }
+      Alert.alert('Work done', 'Completion OTP has been sent to the customer. Ask them to share the OTP, then verify to complete the service.');
+      void fetchRequests();
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to mark work done.');
+    } finally {
+      setWorkDoneBusyId(null);
+    }
+  };
+
+  const verifyAndComplete = async (req: AvailableRequest) => {
+    setError(null);
+    const entered = String(otpDrafts[req.id] ?? '').trim();
+    if (entered.length !== 4) {
+      setError('Enter the 4-digit OTP given by the customer.');
+      return;
+    }
+    setCompletingId(req.id);
+    try {
+      const res = await supabase.functions.invoke('complete-home-service', {
+        body: { request_id: req.id, action: 'verify_complete', otp: entered },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error ?? 'Incorrect OTP. Please ask the customer for the correct code.'));
+        return;
+      }
+
+      try {
+        await supabase.functions.invoke('send-home-service-notification', {
+          body: { request_id: req.id, status: 'completed', send_email: true },
+        });
+      } catch {
+        // ignore notification failures
+      }
+
+      setFeedbackTarget(req);
+      void fetchRequests();
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to complete service.');
+    } finally {
+      setCompletingId(null);
+    }
   };
 
   const pageBg = theme.bg;
@@ -280,17 +324,63 @@ function AvailableRequestsInner({ session }: { session: any }) {
 
               {statusFilter === 'accepted' && req.provider_name ? (
                 <YStack gap="$2">
-                  <Text color={theme.success} fontSize={t(12)} fontWeight="700">Accepted by you</Text>
-                  {req.after_service_payment_method === 'cash' && !req.cash_paid_at ? (
-                    <Button
-                      backgroundColor="#22C55E"
-                      color="#FFFFFF"
-                      onPress={() => void confirmCashPayment(req.id)}>
-                      Confirm Cash Payment
-                    </Button>
-                  ) : null}
-                  {req.cash_paid_at ? (
-                    <Text color={theme.success} fontSize={t(12)} fontWeight="700">✓ Cash received</Text>
+                  <Text color={theme.success} fontSize={t(12)} fontWeight="700">
+                    Accepted by {req.provider_id === providerId ? 'you' : (req.provider_name ?? 'provider')}
+                  </Text>
+
+                  {req.provider_id === providerId ? (
+                    req.status === 'completed' ? (
+                      <>
+                        <Text color={theme.success} fontSize={t(13)} fontWeight="800">✓ Service completed</Text>
+                        {req.cash_paid_at ? (
+                          <Text color={theme.success} fontSize={t(12)} fontWeight="700">✓ Cash received</Text>
+                        ) : null}
+                      </>
+                    ) : !req.complete_otp ? (
+                      <>
+                        {req.after_service_payment_method === 'cash' && !req.cash_paid_at ? (
+                          <Text color={muted} fontSize={t(11)}>
+                            Customer will pay in cash after service. Mark work done to generate the completion OTP.
+                          </Text>
+                        ) : null}
+                        <Button
+                          backgroundColor="#1F4E79"
+                          color="#FFFFFF"
+                          disabled={workDoneBusyId === req.id}
+                          onPress={() => void sendCompletionOtp(req)}>
+                          {workDoneBusyId === req.id ? 'Sending OTP...' : 'Mark Work Done'}
+                        </Button>
+                      </>
+                    ) : !req.complete_otp_verified_at ? (
+                      <>
+                        <Text color={theme.warning} fontSize={t(12)} fontWeight="700">
+                          Ask the customer for the completion OTP, then verify below.
+                        </Text>
+                        <Input
+                          value={otpDrafts[req.id] ?? ''}
+                          onChangeText={(v) =>
+                            setOtpDrafts((prev) => ({ ...prev, [req.id]: v.replace(/\D/g, '').slice(0, 4) }))
+                          }
+                          placeholder="Enter 4-digit OTP"
+                          keyboardType="number-pad"
+                          backgroundColor={theme.inputBg}
+                          borderColor={theme.inputBorder}
+                          color={theme.inputText}
+                          textAlign="center"
+                          fontSize={t(16)}
+                          fontWeight="800"
+                        />
+                        <Button
+                          backgroundColor="#22C55E"
+                          color="#FFFFFF"
+                          disabled={completingId === req.id}
+                          onPress={() => void verifyAndComplete(req)}>
+                          {completingId === req.id ? 'Completing...' : 'Verify OTP & Complete Service'}
+                        </Button>
+                      </>
+                    ) : (
+                      <Text color={theme.success} fontSize={t(13)} fontWeight="800">✓ Service completed</Text>
+                    )
                   ) : null}
                 </YStack>
               ) : null}
@@ -308,6 +398,16 @@ function AvailableRequestsInner({ session }: { session: any }) {
           ))}
         </YStack>
       </ScrollView>
+
+      <FeedbackPopup
+        open={!!feedbackTarget}
+        title="Rate the customer"
+        subtitle={`How was your experience with ${feedbackTarget?.customer_name ?? 'the customer'}?`}
+        toUserId={feedbackTarget?.user_id ?? null}
+        homeServiceRequestId={feedbackTarget?.id ?? null}
+        tags={['Good customer', 'Bad customer', 'Asked for water', 'On time', 'Rude']}
+        onClose={() => setFeedbackTarget(null)}
+      />
     </View>
   );
 }

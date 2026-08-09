@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, ScrollView, Pressable } from 'react-native';
-import { Button, H2, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui';
+import { Alert, FlatList, Linking, Modal, Platform, ScrollView, Pressable } from 'react-native';
+import { Button, H2, Input, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui';
 
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -10,6 +10,7 @@ import { useSession } from '@/providers/session-provider';
 import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
+import FeedbackPopup from '@/components/FeedbackPopup';
 
 function DriverGuard() {
   const router = useRouter();
@@ -44,6 +45,31 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
   const [busyBookingId, setBusyBookingId] = useState<string | null>(null);
   const [trackingBookingId, setTrackingBookingId] = useState<string | null>(null);
   const [trackingEnabled, setTrackingEnabled] = useState(false);
+  const [otpVerifyTarget, setOtpVerifyTarget] = useState<{ bookingId: string; kind: 'pickup' | 'delivery' } | null>(null);
+  const [otpDraft, setOtpDraft] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
+
+  const feedbackTarget = useMemo(
+    () => bookings.find((b) => String(b.id) === feedbackTargetId) ?? null,
+    [bookings, feedbackTargetId]
+  );
+
+  useEffect(() => {
+    const check = async () => {
+      if (!session?.user?.id || !bookings.length || feedbackTargetId) return;
+      const candidate = bookings.find((b) => b.status === 'delivered' && (b as any)?.user_id);
+      if (!candidate) return;
+      const { data } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('from_user_id', session.user.id)
+        .eq('booking_id', String(candidate.id))
+        .maybeSingle();
+      if (!data) setFeedbackTargetId(String(candidate.id));
+    };
+    void check();
+  }, [bookings, feedbackTargetId, session?.user?.id]);
 
   const fetchSeqRef = useRef(0);
 
@@ -60,7 +86,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
       const { data, error: fetchError } = await supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, user:users!user_id(name, phone)'
+          'id, user_id, booking_number, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, user:users!user_id(name, phone)'
         )
         .eq('driver_id', userId)
         .order('created_at', { ascending: false })
@@ -165,7 +191,14 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
 
   const canSetPickupReached = (status: string | null) => {
     const s = String(status ?? '').trim();
-    return s === 'assigned' || s === 'pending' || s === 'confirmed' || s === 'not_started' || s === '';
+    return (
+      s === 'assigned' ||
+      s === 'accepted' ||
+      s === 'pending' ||
+      s === 'confirmed' ||
+      s === 'not_started' ||
+      s === ''
+    );
   };
 
   const canSetInTransit = (status: string | null) => {
@@ -196,19 +229,15 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
     });
   };
 
-  const updateStatus = async (bookingId: string, status: 'pickup_reached' | 'in_transit' | 'delivered') => {
+  const updateStatus = async (bookingId: string, status: 'accepted' | 'in_transit') => {
     if (!session?.user?.id) return;
     if (!isDriver) return;
     setError(null);
     setBusyBookingId(bookingId);
     try {
-      const payload: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-      if (status === 'pickup_reached') payload.pickup_verified_at = new Date().toISOString();
-      if (status === 'delivered') payload.delivered_verified_at = new Date().toISOString();
-
       const { error: updateError } = await supabase
         .from('bookings')
-        .update(payload)
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', bookingId)
         .eq('driver_id', session.user.id);
 
@@ -217,19 +246,9 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
         return;
       }
 
-      if (status === 'delivered') {
-        try {
-          await stopDriverLiveLocation();
-          setTrackingEnabled(false);
-          setTrackingBookingId(null);
-        } catch {
-          // ignore
-        }
-      }
-
       try {
         await supabase.functions.invoke('send-booking-status-push', {
-          body: { booking_id: bookingId, status },
+          body: { booking_id: bookingId, status, send_email: false },
         });
       } catch {
         // ignore
@@ -270,13 +289,23 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
     }
   };
 
-  const onPressPickupReached = async (booking: any) => {
+  const canAcceptBooking = (status: string | null) => {
+    const s = String(status ?? '').trim();
+    return s === 'assigned';
+  };
+
+  const onPressAccept = async (booking: any) => {
     const ok = await confirmOtpIfNeeded(
-      'Confirm pickup reached',
-      'Make sure you have verified the pickup OTP with customer, then continue to update status.'
+      'Accept booking',
+      'Are you sure you want to accept this booking? You will be responsible for the pickup and delivery.'
     );
     if (!ok) return;
-    await updateStatus(String(booking.id), 'pickup_reached');
+    await updateStatus(String(booking.id), 'accepted');
+  };
+
+  const onPressPickupReached = async (booking: any) => {
+    setOtpVerifyTarget({ bookingId: String(booking.id), kind: 'pickup' });
+    setOtpDraft('');
   };
 
   const onPressInTransit = async (booking: any) => {
@@ -284,12 +313,68 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
   };
 
   const onPressDelivered = async (booking: any) => {
-    const ok = await confirmOtpIfNeeded(
-      'Confirm delivered',
-      'Make sure you have verified the delivery OTP with customer, then continue to update status.'
-    );
-    if (!ok) return;
-    await updateStatus(String(booking.id), 'delivered');
+    setOtpVerifyTarget({ bookingId: String(booking.id), kind: 'delivery' });
+    setOtpDraft('');
+  };
+
+  const submitOtpVerify = async () => {
+    const target = otpVerifyTarget;
+    if (!target) return;
+    setError(null);
+    const code = otpDraft.replace(/\D/g, '').slice(0, 4);
+    if (code.length !== 4) {
+      setError(`Enter the 4-digit ${target.kind === 'pickup' ? 'pickup' : 'delivery'} OTP given by the customer.`);
+      return;
+    }
+    setOtpBusy(true);
+    setBusyBookingId(target.bookingId);
+    try {
+      const res = await supabase.functions.invoke('driver-verify-booking-otp', {
+        body: { booking_id: target.bookingId, otp_kind: target.kind, otp: code },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+
+      const succeeded = data?.ok === true;
+      if (!succeeded) {
+        setError('OTP verification failed.');
+        return;
+      }
+
+      if (target.kind === 'delivery') {
+        try {
+          await stopDriverLiveLocation();
+          setTrackingEnabled(false);
+          setTrackingBookingId(null);
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        await supabase.functions.invoke('send-booking-status-push', {
+          body: {
+            booking_id: target.bookingId,
+            status: target.kind === 'pickup' ? 'pickup_reached' : 'delivered',
+            send_email: target.kind === 'delivery',
+          },
+        });
+      } catch {
+        // ignore
+      }
+
+      setOtpVerifyTarget(null);
+      setOtpDraft('');
+      await fetchDriverBookings();
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to verify OTP.');
+    } finally {
+      setOtpBusy(false);
+      setBusyBookingId(null);
+    }
   };
 
   return (
@@ -513,6 +598,19 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                     </XStack>
 
                     <XStack gap="$2" flexWrap="wrap" alignItems="center">
+                      {canAcceptBooking(status) ? (
+                        <Button
+                          size="$3"
+                          backgroundColor={theme.accent}
+                          color="#FFFFFF"
+                          borderColor={theme.border}
+                          borderWidth={1}
+                          disabled={isBusy}
+                          onPress={() => void onPressAccept(item)}>
+                          {isBusy ? 'Updating…' : 'Accept booking'}
+                        </Button>
+                      ) : null}
+
                       <Button
                         size="$3"
                         backgroundColor={canSetPickupReached(status) ? theme.accent : theme.bgCardSecondary}
@@ -553,6 +651,63 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
           </YStack>
         )}
       </ScrollView>
+
+      <Modal visible={!!otpVerifyTarget} transparent animationType="fade" onRequestClose={() => setOtpVerifyTarget(null)}>
+        <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)" padding={16}>
+          <YStack backgroundColor={colorScheme === 'dark' ? theme.bgCard : '#FFFFFF'} borderRadius={16} padding={20} width="100%" maxWidth={400} gap={4}>
+            <Text color={theme.text} fontWeight="900" fontSize={17} textAlign="center">
+              {otpVerifyTarget?.kind === 'pickup' ? 'Verify pickup OTP' : 'Verify delivery OTP'}
+            </Text>
+            <Text color={theme.textMuted} fontSize={12.5} textAlign="center">
+              Ask the customer for the 4-digit {otpVerifyTarget?.kind === 'pickup' ? 'pickup' : 'delivery'} OTP shown on their booking, then enter it here.
+            </Text>
+            <Input
+              value={otpDraft}
+              onChangeText={(v) => setOtpDraft(v.replace(/\D/g, '').slice(0, 4))}
+              placeholder="Enter 4-digit OTP"
+              keyboardType="number-pad"
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
+              textAlign="center"
+              fontSize={t(18)}
+              fontWeight="800"
+              marginTop={14}
+            />
+            <YStack gap={8} marginTop={14}>
+              <Button
+                backgroundColor={theme.accent}
+                color="#FFFFFF"
+                disabled={otpBusy || otpDraft.length !== 4}
+                opacity={otpBusy || otpDraft.length !== 4 ? 0.5 : 1}
+                onPress={() => void submitOtpVerify()}>
+                <Text color="#FFFFFF" fontWeight="800">{otpBusy ? 'Verifying...' : otpVerifyTarget?.kind === 'pickup' ? 'Verify & Mark Pickup Reached' : 'Verify & Mark Delivered'}</Text>
+              </Button>
+              <Button
+                backgroundColor={theme.bgCardSecondary}
+                color={theme.text}
+                disabled={otpBusy}
+                onPress={() => setOtpVerifyTarget(null)}>
+                <Text color={theme.text} fontWeight="700">Cancel</Text>
+              </Button>
+            </YStack>
+          </YStack>
+        </YStack>
+      </Modal>
+
+      <FeedbackPopup
+        open={!!feedbackTarget}
+        title="Rate the customer"
+        subtitle={`How was the experience with ${(() => {
+          const tgt = feedbackTarget;
+          const user = tgt?.user?.[0] ?? tgt?.user ?? null;
+          return (user as any)?.name ?? 'the customer';
+        })()}?`}
+        toUserId={feedbackTarget ? String((feedbackTarget as any)?.user_id ?? '') : null}
+        bookingId={feedbackTarget ? String(feedbackTarget.id) : null}
+        tags={['Good customer', 'Bad customer', 'Asked for water', 'On time', 'Rude']}
+        onClose={() => setFeedbackTargetId(null)}
+      />
     </YStack>
   );
 }

@@ -421,9 +421,9 @@ export default function LoginScreen() {
   const commonInputProps = {
     backgroundColor: 'transparent' as const,
     borderWidth: 1 as const,
-    borderColor: theme.border as const,
-    color: theme.inputText as const,
-    placeholderTextColor: theme.textMuted as const,
+    borderColor: theme.border,
+    color: theme.inputText,
+    placeholderTextColor: theme.textMuted,
     fontFamily: 'Times New Roman' as const,
     fontSize: 16,
     borderRadius: 9 as const,

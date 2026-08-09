@@ -18,12 +18,15 @@ import EndOfResults from '@/components/EndOfResults';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
 import RescheduleDialog from '@/components/RescheduleDialog';
+import FeedbackPopup from '@/components/FeedbackPopup';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import { timeLabelTo24h } from '@/lib/reschedule-options';
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: '#F97316',
+  assigned: '#3B82F6',
+  accepted: '#6366F1',
   not_started: '#94A3B8',
   pickup_reached: '#FACC15',
   in_transit: '#22C55E',
@@ -47,12 +50,13 @@ const STATUS_STEPS: { key: string; label: string }[] = [
 const normalizeStepperStatus = (status: string | null) => {
   const s = String(status ?? '').trim();
   if (!s) return null;
-  if (s === 'pending' || s === 'assigned' || s === 'confirmed') return 'not_started';
+  if (s === 'pending' || s === 'assigned' || s === 'accepted' || s === 'confirmed') return 'not_started';
   return s;
 };
 
 type Booking = {
   id: string;
+  booking_number?: number | null;
   pickup_address: string | null;
   drop_address: string | null;
   distance_km: number | null;
@@ -266,6 +270,28 @@ function BookingsContent() {
   const [hsRescheduleDialogId, setHsRescheduleDialogId] = useState<string | null>(null);
   const [hsStatusBusyId, setHsStatusBusyId] = useState<string | null>(null);
   const [cancelDialog, setCancelDialog] = useState<{ kind: 'shifting' | 'home_service'; id: string } | null>(null);
+  const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
+
+  const feedbackTarget = useMemo(
+    () => bookings.find((b) => String(b.id) === feedbackTargetId) ?? null,
+    [bookings, feedbackTargetId]
+  );
+
+  useEffect(() => {
+    const check = async () => {
+      if (!session?.user?.id || !bookings.length || feedbackTargetId) return;
+      const candidate = bookings.find((b) => b.status === 'delivered' && b.driver_id);
+      if (!candidate) return;
+      const { data } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('from_user_id', session.user.id)
+        .eq('booking_id', String(candidate.id))
+        .maybeSingle();
+      if (!data) setFeedbackTargetId(String(candidate.id));
+    };
+    void check();
+  }, [bookings, feedbackTargetId, session?.user?.id]);
   const [propertyBookings, setPropertyBookings] = useState<PropertyBookingRow[]>([]);
   const [myProperties, setMyProperties] = useState<PropertyRow[]>([]);
   const [propertySection, setPropertySection] = useState<'booked' | 'my_listings'>('booked');
@@ -362,7 +388,7 @@ function BookingsContent() {
       await supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description'
+          'id, booking_number, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description, driver:users!driver_id(name)'
         )
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -408,7 +434,7 @@ function BookingsContent() {
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false })
           .limit(60);
-        data = fallback.data;
+        data = fallback.data as typeof data;
         fetchError = fallback.error;
       }
       if (fetchError) return;
@@ -1761,6 +1787,20 @@ const renderPropertiesSection = () => {
               void updateBookingStatus(target.id, 'cancelled');
             }
           }}
+        />
+
+        <FeedbackPopup
+          open={!!feedbackTarget}
+          title="Rate your driver"
+          subtitle={`How was the service from your driver ${(() => {
+            const d = feedbackTarget?.driver;
+            const name = Array.isArray(d) ? d[0]?.name : null;
+            return name ?? '';
+          })()}?`}
+          toUserId={feedbackTarget?.driver_id ?? null}
+          bookingId={feedbackTarget ? String(feedbackTarget.id) : null}
+          tags={['Good service', 'Bad service', 'On time', 'Late arrival', 'Professional']}
+          onClose={() => setFeedbackTargetId(null)}
         />
       </YStack>
     </View>

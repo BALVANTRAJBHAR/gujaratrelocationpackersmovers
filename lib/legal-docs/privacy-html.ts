@@ -137,7 +137,7 @@ export async function getPrivacyPolicyHtml(): Promise<string> {
       <ul>
         <li><strong>Supabase</strong> — Database and authentication.</li>
         <li><strong>Razorpay</strong> — Payment processing.</li>
-        <li><strong>Mapbox</strong> — Location and mapping services.</li>
+        <li><strong>Google Maps</strong> — Location and mapping services.</li>
         <li><strong>Expo</strong> — App development and distribution.</li>
       </ul>
       <p>These services have their own privacy policies governing data handling.</p>

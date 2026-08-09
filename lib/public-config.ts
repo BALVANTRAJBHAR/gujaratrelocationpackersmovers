@@ -2,16 +2,14 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 type PublicConfigResponse = {
-  mapbox_token?: string;
   razorpay_key_id?: string;
   vapid_public_key?: string;
   google_maps_api_key?: string;
   error?: string;
-  missing?: { mapbox?: boolean; razorpayKeyId?: boolean };
+  missing?: { razorpayKeyId?: boolean };
 };
 
 type PublicConfig = {
-  mapboxToken: string;
   razorpayKeyId: string;
   vapidPublicKey: string;
   googleMapsKey: string;
@@ -68,12 +66,11 @@ export async function getPublicConfig(forceRefresh = false): Promise<PublicConfi
       throw new Error(msg);
     }
 
-    const mapboxToken = String(parsed?.mapbox_token ?? '').trim();
     const razorpayKeyId = String(parsed?.razorpay_key_id ?? '').trim();
     const vapidPublicKey = String(parsed?.vapid_public_key ?? '').trim();
     const googleMapsKey = String(parsed?.google_maps_api_key ?? '').trim();
 
-    cached = { mapboxToken, razorpayKeyId, vapidPublicKey, googleMapsKey };
+    cached = { razorpayKeyId, vapidPublicKey, googleMapsKey };
     return cached;
   };
 
@@ -82,11 +79,6 @@ export async function getPublicConfig(forceRefresh = false): Promise<PublicConfi
   });
 
   return inflight;
-}
-
-export async function getMapboxToken(): Promise<string> {
-  const cfg = await getPublicConfig();
-  return cfg.mapboxToken;
 }
 
 export async function getRazorpayKeyId(): Promise<string> {

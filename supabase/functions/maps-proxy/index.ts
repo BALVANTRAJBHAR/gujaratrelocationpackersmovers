@@ -108,7 +108,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': key,
           'X-Goog-FieldMask':
-            'places.id,places.formattedAddress,places.displayName,places.location,places.types,places.addressComponents,places.placeType',
+            'places.id,places.formattedAddress,places.displayName,places.location,places.types,places.addressComponents,places.viewport',
         },
         body: JSON.stringify(payload),
       });
@@ -151,21 +151,24 @@ serve(async (req) => {
         };
       }
 
+      console.log('[maps-proxy] autocomplete payload:', JSON.stringify(payload).slice(0, 300));
       const res = await fetch(`${PLACES_V1}/places:autocomplete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': key,
-          'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types',
+          'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat',
         },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         console.error(`[maps-proxy] autocomplete failed ${res.status}: ${text}`);
-        return fail(`Places Autocomplete API error (${res.status})`, 502);
+        // Fall through with empty suggestions rather than hard error so client can use searchText fallback
+        return json({ suggestions: [], _error: `${res.status}`, _detail: text.slice(0, 200) });
       }
       const data = await res.json();
+      console.log('[maps-proxy] autocomplete suggestions count:', data?.suggestions?.length ?? 0);
       return json({ suggestions: data?.suggestions ?? [] });
     }
 
