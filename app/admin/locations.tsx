@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Alert, NativeModules, ToastAndroid } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, NativeModules, ToastAndroid } from 'react-native';
 import { Button, Input, Text, XStack, YStack } from 'tamagui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -79,22 +79,31 @@ function AdminLocationsInner() {
 
   const [states, setStates] = useState<StateRow[]>([]);
   const [cities, setCities] = useState<CityRow[]>([]);
+  const [localities, setLocalities] = useState<{ id: string; city_id: string; name: string }[]>([]);
   const [newState, setNewState] = useState('');
   const [selectedStateId, setSelectedStateId] = useState('');
   const [newCity, setNewCity] = useState('');
   const [chooseOpen, setChooseOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ type: 'state'; id: string; name: string } | { type: 'city'; id: string; name: string; state_id: string } | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [editCityStateId, setEditCityStateId] = useState('');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [mutationBusy, setMutationBusy] = useState<string | null>(null);
 
   // Fetch states + cities on mount
   const loadData = async () => {
     try {
-      const [statesRes, citiesRes] = await Promise.all([
+      const [statesRes, citiesRes, localitiesRes] = await Promise.all([
         supabase.from('states').select('id,name').order('name'),
         supabase.from('cities').select('id,state_id,name').order('name'),
+        supabase.from('localities').select('id,city_id,name').order('name'),
       ]);
       if (statesRes.error) throw new Error(statesRes.error.message);
       if (citiesRes.error) throw new Error(citiesRes.error.message);
+      if (localitiesRes.error) throw new Error(localitiesRes.error.message);
       setStates((statesRes.data ?? []) as StateRow[]);
       setCities((citiesRes.data ?? []) as CityRow[]);
+      setLocalities((localitiesRes.data ?? []) as { id: string; city_id: string; name: string }[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load locations.');
     }
@@ -107,6 +116,9 @@ function AdminLocationsInner() {
     });
     supabase.from('cities').select('id,state_id,name').order('name').then(({ data }) => {
       if (active) setCities((data ?? []) as CityRow[]);
+    });
+    supabase.from('localities').select('id,city_id,name').order('name').then(({ data }) => {
+      if (active) setLocalities((data ?? []) as { id: string; city_id: string; name: string }[]);
     });
     return () => { active = false; };
   }, []);
@@ -165,6 +177,133 @@ function AdminLocationsInner() {
       setError(e instanceof Error ? e.message : 'Failed to add city.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEdit = (target: { type: 'state'; id: string; name: string } | { type: 'city'; id: string; name: string; state_id: string }) => {
+    setError(null);
+    setSuccess(null);
+    setEditTarget(target);
+    setEditDraft(target.name);
+    setEditCityStateId(target.type === 'city' ? target.state_id : '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    const trimmed = editDraft.trim();
+    if (!trimmed) {
+      setError('Name required.');
+      return;
+    }
+    setSaveBusy(true);
+    setError(null);
+    try {
+      if (editTarget.type === 'state') {
+        const { data: duplicate } = await supabase
+          .from('states')
+          .select('id')
+          .ilike('name', trimmed)
+          .neq('id', editTarget.id)
+          .maybeSingle();
+        if (duplicate?.id) {
+          setError(`State "${trimmed}" already exists.`);
+          return;
+        }
+        const { error } = await supabase.from('states').update({ name: trimmed }).eq('id', editTarget.id);
+        if (error) throw new Error(error.message);
+        setSuccess('State renamed.');
+      } else {
+        const { data: duplicate } = await supabase
+          .from('cities')
+          .select('id')
+          .eq('state_id', editCityStateId)
+          .ilike('name', trimmed)
+          .neq('id', editTarget.id)
+          .maybeSingle();
+        if (duplicate?.id) {
+          setError(`City "${trimmed}" already exists in this state.`);
+          return;
+        }
+        const { error } = await supabase
+          .from('cities')
+          .update({ name: trimmed, state_id: editCityStateId })
+          .eq('id', editTarget.id);
+        if (error) throw new Error(error.message);
+        setSuccess('City updated.');
+      }
+      setEditTarget(null);
+      setEditDraft('');
+      setEditCityStateId('');
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save changes.');
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const handleDeleteState = (s: StateRow) => {
+    const stateCities = cities.filter((c) => c.state_id === s.id);
+    const cityCount = stateCities.length;
+    const localityCount = localities.filter((l) => stateCities.some((c) => c.id === l.city_id)).length;
+    Alert.alert(
+      `Delete state "${s.name}"?`,
+      `This will permanently delete ${cityCount} cities${localityCount ? ` and ${localityCount} localities` : ''} under it. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void runDeleteState(s),
+        },
+      ]
+    );
+  };
+
+  const runDeleteState = async (s: StateRow) => {
+    setMutationBusy(`state-${s.id}`);
+    setError(null);
+    try {
+      const { error } = await supabase.from('states').delete().eq('id', s.id);
+      if (error) throw new Error(error.message);
+      setSuccess(`State "${s.name}" deleted.`);
+      if (selectedStateId === s.id) setSelectedStateId('');
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete state.');
+    } finally {
+      setMutationBusy(null);
+    }
+  };
+
+  const handleDeleteCity = (c: CityRow) => {
+    const cityLocalities = localities.filter((l) => l.city_id === c.id).length;
+    Alert.alert(
+      `Delete city "${c.name}"?`,
+      `This will permanently delete ${cityLocalities} localit${cityLocalities === 1 ? 'y' : 'ies'} under it. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void runDeleteCity(c),
+        },
+      ]
+    );
+  };
+
+  const runDeleteCity = async (c: CityRow) => {
+    setMutationBusy(`city-${c.id}`);
+    setError(null);
+    try {
+      const { error } = await supabase.from('cities').delete().eq('id', c.id);
+      if (error) throw new Error(error.message);
+      setSuccess(`City "${c.name}" deleted.`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete city.');
+    } finally {
+      setMutationBusy(null);
     }
   };
 
@@ -537,6 +676,7 @@ function AdminLocationsInner() {
           ) : (
             states.map((s) => {
               const stateCities = cities.filter((c) => c.state_id === s.id);
+              const stateBusy = mutationBusy === `state-${s.id}`;
               return (
                 <YStack
                   key={s.id}
@@ -544,21 +684,135 @@ function AdminLocationsInner() {
                   borderBottomColor={border}
                   paddingVertical={10}
                   gap="$1">
-                  <Text color={titleColor} fontWeight="800" fontSize={t(15)}>
-                    📍 {s.name}
-                  </Text>
-                  <Text color={muted} fontSize={t(13)} flexShrink={1}>
-                    {stateCities.length > 0
-                      ? stateCities.map((c) => c.name).join(', ')
-                      : 'No cities added yet'}
-                  </Text>
+                  <XStack alignItems="center" justifyContent="space-between" gap="$2">
+                    <Text color={titleColor} fontWeight="800" fontSize={t(15)} flexShrink={1}>
+                      📍 {s.name}
+                    </Text>
+                    <XStack gap={6}>
+                      <Button
+                        size="$1"
+                        chromeless
+                        paddingHorizontal={8}
+                        disabled={!!mutationBusy}
+                        onPress={() => openEdit({ type: 'state', id: s.id, name: s.name })}>
+                        <FontAwesome5 name="pen" size={13} color={theme.info} />
+                      </Button>
+                      <Button
+                        size="$1"
+                        chromeless
+                        backgroundColor={theme.bgCardSecondary}
+                        paddingHorizontal={8}
+                        disabled={!!mutationBusy}
+                        onPress={() => handleDeleteState(s)}>
+                        <FontAwesome5 name="trash" size={13} color={stateBusy ? muted : theme.danger} />
+                      </Button>
+                    </XStack>
+                  </XStack>
+                  {stateCities.length > 0 ? (
+                    <YStack gap={4}>
+                      {stateCities.map((c) => {
+                        const cityLocalities = localities.filter((l) => l.city_id === c.id);
+                        const cityBusy = mutationBusy === `city-${c.id}`;
+                        return (
+                          <XStack key={c.id} alignItems="center" justifyContent="space-between" gap="$2" backgroundColor={theme.inputBg} borderRadius={8} paddingLeft={10} paddingVertical={6} paddingRight={4}>
+                            <YStack flexShrink={1} gap={1}>
+                              <Text color={titleColor} fontSize={t(13)} fontWeight="600">
+                                {c.name}
+                              </Text>
+                              <Text color={muted} fontSize={t(11)}>
+                                {cityLocalities.length > 0 ? `${cityLocalities.length} localit${cityLocalities.length === 1 ? 'y' : 'ies'}` : 'No localities'}
+                              </Text>
+                            </YStack>
+                            <XStack gap={6}>
+                              <Button
+                                size="$1"
+                                chromeless
+                                paddingHorizontal={8}
+                                disabled={!!mutationBusy}
+                                onPress={() => openEdit({ type: 'city', id: c.id, name: c.name, state_id: c.state_id })}>
+                                <FontAwesome5 name="pen" size={12} color={theme.info} />
+                              </Button>
+                              <Button
+                                size="$1"
+                                chromeless
+                                backgroundColor={theme.bgCardSecondary}
+                                paddingHorizontal={8}
+                                disabled={!!mutationBusy}
+                                onPress={() => handleDeleteCity(c)}>
+                                <FontAwesome5 name="trash" size={12} color={cityBusy ? muted : theme.danger} />
+                              </Button>
+                            </XStack>
+                          </XStack>
+                        );
+                      })}
+                    </YStack>
+                  ) : (
+                    <Text color={muted} fontSize={t(13)} flexShrink={1}>
+                      No cities added yet
+                    </Text>
+                  )}
                 </YStack>
               );
             })
           )}
-          <EndOfResults theme={theme} onUp={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} />
+<EndOfResults theme={theme} onUp={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} />
         </YStack>
       </YStack>
+
+      <Modal visible={!!editTarget} transparent animationType="fade" onRequestClose={() => setEditTarget(null)}>
+        <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="rgba(0,0,0,0.5)" padding={16}>
+          <YStack backgroundColor={theme.bgCard} borderRadius={16} padding={20} width="100%" maxWidth={400} gap="$3">
+            <Text color={titleColor} fontWeight="900" fontSize={t(16)}>
+              {editTarget?.type === 'state' ? `Edit state: ${editTarget.name}` : `Edit city: ${editTarget?.name ?? ''}`}
+            </Text>
+            {editTarget?.type === 'city' ? (
+              <YStack gap="$1">
+                <Text color={muted} fontSize={t(12)}>Move to state</Text>
+                <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                  <YStack borderWidth={1} borderColor={border} borderRadius={10} overflow="hidden">
+                    {states.map((s) => {
+                      const selected = s.id === editCityStateId;
+                      return (
+                        <Pressable
+                          key={s.id}
+                          onPress={() => setEditCityStateId(s.id)}>
+                          <YStack
+                            backgroundColor={selected ? theme.info : theme.inputBg}
+                            paddingVertical={9}
+                            paddingHorizontal={12}
+                            borderBottomWidth={1}
+                            borderBottomColor={border}>
+                            <Text color={selected ? '#FFFFFF' : theme.text} fontWeight={selected ? '700' : '400'} fontSize={t(13)}>
+                              {s.name} {selected ? '✓' : ''}
+                            </Text>
+                          </YStack>
+                        </Pressable>
+                      );
+                    })}
+                  </YStack>
+                </ScrollView>
+              </YStack>
+            ) : null}
+            <Input
+              value={editDraft}
+              onChangeText={setEditDraft}
+              placeholder={editTarget?.type === 'state' ? 'State name' : 'City name'}
+              backgroundColor={theme.inputBg}
+              borderColor={theme.inputBorder}
+              color={theme.inputText}
+              autoFocus
+            />
+            <XStack gap="$2">
+              <Button flex={1} backgroundColor={theme.accent} color="#FFFFFF" disabled={saveBusy} onPress={handleSaveEdit}>
+                <Text color="#FFFFFF" fontWeight="800">{saveBusy ? 'Saving...' : 'Save'}</Text>
+              </Button>
+              <Button flex={1} backgroundColor={theme.bgCardSecondary} color={theme.text} disabled={saveBusy} onPress={() => setEditTarget(null)}>
+                <Text color={theme.text} fontWeight="700">Cancel</Text>
+              </Button>
+            </XStack>
+          </YStack>
+        </YStack>
+      </Modal>
     </ScrollView>
   );
 }

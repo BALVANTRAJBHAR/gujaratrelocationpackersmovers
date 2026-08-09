@@ -138,6 +138,7 @@ function AppLayoutInner() {
         <Stack.Screen name="wallet/add" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Payment History' }} />
         <Stack.Screen name="unauthorized" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/index" options={{ headerShown: false }} />
         <Stack.Screen name="admin/locations" options={{ headerShown: false }} />
         <Stack.Screen name="admin/staff-management" options={{ headerShown: false }} />
         <Stack.Screen name="ref/[code]" options={{ headerShown: false }} />
