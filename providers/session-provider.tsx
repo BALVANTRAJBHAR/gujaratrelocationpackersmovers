@@ -48,6 +48,57 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const activeProfileUserIdRef = useRef<string | null>(null);
   const profileLoadPromiseRef = useRef<Promise<void> | null>(null);
   const ensuredUserRowIdsRef = useRef<Set<string>>(new Set());
+  const lastUserIdRef = useRef<string | null>(null);
+
+  const getDeviceInfo = () => {
+    const isWeb = Platform.OS === 'web';
+    const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent ?? '') : '';
+    let deviceType: string = 'unknown';
+    if (!isWeb) {
+      deviceType = 'mobile_app';
+    } else if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) {
+      deviceType = 'mobile_web';
+    } else {
+      deviceType = 'desktop_web';
+    }
+    let browser: string = 'unknown';
+    if (/Edg\//i.test(ua)) browser = 'Edge';
+    else if (/OPR\//i.test(ua)) browser = 'Opera';
+    else if (/Chrome\//i.test(ua)) browser = 'Chrome';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Safari\//i.test(ua)) browser = 'Safari';
+    let os: string = 'unknown';
+    if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Windows/i.test(ua)) os = 'Windows';
+    else if (/Mac OS/i.test(ua)) os = 'macOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+    return {
+      device_type: deviceType,
+      platform: isWeb ? 'web' : Platform.OS,
+      os,
+      browser,
+      user_agent: ua || null,
+      app_version: (Constants as any)?.expoConfig?.version ?? null,
+    };
+  };
+
+  const logAuthActivity = async (action: 'login' | 'logout', userId: string | null) => {
+    if (!userId) return;
+    const device = getDeviceInfo();
+    const row = { user_id: userId, action, ...device };
+    try {
+      const { error } = await supabase.from('auth_activity_logs').insert(row);
+      if (error) throw error;
+      return;
+    } catch {
+      try {
+        await supabase.functions.invoke('log-auth-activity', { body: row });
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   const ensureUserRow = async (s: Session) => {
     const userId = s?.user?.id;
@@ -205,10 +256,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return;
         setSession(nextSession);
         if (nextSession?.user?.id) {
+          lastUserIdRef.current = nextSession.user.id;
+          if (_event === 'SIGNED_IN') {
+            void logAuthActivity('login', nextSession.user.id);
+          }
           void ensureUserRow(nextSession);
           void loadProfile(nextSession.user.id);
           void registerPushToken(nextSession.user.id);
         } else {
+          if (_event === 'SIGNED_OUT') {
+            void logAuthActivity('logout', lastUserIdRef.current);
+          }
+          lastUserIdRef.current = null;
           setProfile(null);
         }
         setLoading(false);

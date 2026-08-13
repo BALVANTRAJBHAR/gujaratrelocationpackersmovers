@@ -37,6 +37,7 @@ export default function DriverScreen() {
 function DriverScreenInner({ profile, session }: { profile: any; session: any }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -568,6 +569,16 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                         disabled={isBusy}
                         onPress={() => void openDirections(navigateToDropUrl)}>
                         Navigate drop
+                      </Button>
+                      <Button
+                        size="$3"
+                        backgroundColor={theme.bgCardSecondary}
+                        color={theme.text}
+                        borderColor={theme.border}
+                        borderWidth={1}
+                        disabled={isBusy}
+                        onPress={() => router.push({ pathname: '/(tabs)/tracking', params: { bookingId } } as any)}>
+                        Live map
                       </Button>
                     </XStack>
 

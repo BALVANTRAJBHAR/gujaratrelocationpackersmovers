@@ -25,6 +25,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import MobileDatePicker from '@/components/MobileDatePicker';
 import PageHeader from '@/components/PageHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function MobileTimePicker({ value, onChange, open, onClose }: {
   value: Date; onChange: (d: Date) => void; open: boolean; onClose: () => void;
@@ -274,6 +275,7 @@ export default function HomeServiceRequestScreen() {
   const params = useLocalSearchParams<{ service?: string }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? themes.dark : themes.light;
+  const insets = useSafeAreaInsets();
   const { session, profile, refreshProfile } = useSession();
 
   const serviceOptions = useMemo(
@@ -2153,7 +2155,7 @@ export default function HomeServiceRequestScreen() {
         </YStack>
       </ScrollView>
 
-      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.bgCard} padding={14} borderTopWidth={1} borderTopColor={theme.border}>
+      <YStack position="absolute" bottom={0} left={0} right={0} backgroundColor={theme.bgCard} padding={14} paddingBottom={14 + insets.bottom} borderTopWidth={1} borderTopColor={theme.border}>
         <XStack gap="$2" justifyContent="space-between" alignItems="center" flexWrap="wrap">
           <Button
             disabled={saving}

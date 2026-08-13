@@ -915,7 +915,7 @@ export default function BookingWizardScreen() {
   }, [distanceKm, dropFloorCharge, form.laborers, pickupFloorCharge, vehiclePricing]);
 
   const boxCharge = useMemo(() => {
-    return roundMoney(Math.max(form.boxCount - 10, 0) * 55);
+    return roundMoney(form.boxCount * 55);
   }, [form.boxCount]);
 
   const discountAmount = useMemo(() => {
@@ -2562,14 +2562,13 @@ export default function BookingWizardScreen() {
                     Select Number of Boxes
                   </Text>
                   <Text fontSize={t(13)} color={theme.textMuted}>
-                    First 10 boxes free · ₹55 per additional box
+                    ₹55 per box · GST included below
                   </Text>
                   <ScrollView style={{ maxHeight: 400 }}>
                     <YStack gap="$1">
                       {Array.from({ length: 100 }, (_, idx) => idx + 1).map((n) => {
                         const selected = form.boxCount === n;
-                        const extra = Math.max(n - 10, 0);
-                        const charge = extra * 55;
+                        const charge = n * 55;
                         return (
                           <Button
                             key={n}
@@ -2753,7 +2752,7 @@ export default function BookingWizardScreen() {
                     Number of Boxes
                   </Text>
                   <Text fontSize={t(12)} color={theme.textMuted}>
-                    First 10 boxes free · ₹55 per additional box
+                    ₹55 per box
                   </Text>
                   <Button
                     backgroundColor={theme.bgSecondary}
@@ -2768,7 +2767,7 @@ export default function BookingWizardScreen() {
                       {form.boxCount > 0 ? `${form.boxCount} Box${form.boxCount > 1 ? 'es' : ''}` : 'Select boxes'}
                     </Text>
                     <Text color={theme.textMuted} fontSize={t(12)}>
-                      {boxCharge > 0 ? `+₹${boxCharge.toLocaleString('en-IN')}` : form.boxCount > 0 ? 'Free' : ''}
+                      {form.boxCount > 0 ? `+₹${boxCharge.toLocaleString('en-IN')}` : ''}
                     </Text>
                   </Button>
                 </YStack>
@@ -3012,9 +3011,9 @@ export default function BookingWizardScreen() {
                     <Text fontSize={t(14)} color={theme.textMuted}>Labor ({form.laborers} Worker)</Text>
                     <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(form.laborers * (vehiclePricing?.laborUnit ?? 0))}</Text>
                   </XStack>
-                  {boxCharge > 0 ? (
+                  {form.boxCount > 0 ? (
                     <XStack justifyContent="space-between">
-                      <Text fontSize={t(14)} color={theme.textMuted}>Boxes ({form.boxCount})</Text>
+                      <Text fontSize={t(14)} color={theme.textMuted}>Boxes ({form.boxCount} × ₹55)</Text>
                       <Text fontSize={t(14)} fontWeight="800" color={theme.text}>{currency(boxCharge)}</Text>
                     </XStack>
                   ) : null}

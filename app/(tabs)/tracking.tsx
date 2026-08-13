@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView } from 'react-native';
+import { FlatList, Linking, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import PageHeader from '@/components/PageHeader';
@@ -62,6 +62,21 @@ export default function TrackingScreen() {
 
   const mapLat = latestLocation?.lat ?? 19.076;
   const mapLng = latestLocation?.lng ?? 72.877;
+
+  const hasLiveLocation = latestLocation?.lat != null && latestLocation?.lng != null;
+
+  const openInGoogleMaps = () => {
+    if (!hasLiveLocation) return;
+    const lat = Number(latestLocation.lat);
+    const lng = Number(latestLocation.lng);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    Linking.openURL(url).catch(() => {
+      const fallback = `https://www.google.com/maps?q=${lat},${lng}`;
+      void Linking.openURL(fallback).catch(() => {
+        // ignore
+      });
+    });
+  };
 
   useEffect(() => {
     if (!params.bookingId) return;
@@ -299,6 +314,22 @@ export default function TrackingScreen() {
               dropAddress={dropAddress}
             />
           </YStack>
+
+          {hasLiveLocation ? (
+            <Button
+              backgroundColor={theme.accent}
+              color="#FFFFFF"
+              borderColor={theme.border}
+              borderWidth={1}
+              borderRadius={12}
+              onPress={openInGoogleMaps}>
+              <Text color="#FFFFFF" fontWeight="800">Open in Google Maps</Text>
+            </Button>
+          ) : (
+            <Text color={theme.textMuted} fontSize={t(11)}>
+              "Open in Google Maps" gets enabled here once the driver starts sharing the live location.
+            </Text>
+          )}
 
           <FlatList
             data={displayedLocations}
