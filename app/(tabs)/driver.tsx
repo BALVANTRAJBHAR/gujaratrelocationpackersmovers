@@ -87,7 +87,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
       const { data, error: fetchError } = await supabase
         .from('bookings')
         .select(
-          'id, user_id, booking_number, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, user:users!user_id(name, phone)'
+          'id, user_id, booking_number, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng, distance_km, status, payment_status, driver_id, pickup_verified_at, delivered_verified_at, scheduled_at, created_at, updated_at, advance_amount, remaining_amount, remaining_paid_at, remaining_paid_method, user:users!user_id(name, phone)'
         )
         .eq('driver_id', userId)
         .order('created_at', { ascending: false })
@@ -316,6 +316,34 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
   const onPressDelivered = async (booking: any) => {
     setOtpVerifyTarget({ bookingId: String(booking.id), kind: 'delivery' });
     setOtpDraft('');
+  };
+
+  const onPressMarkRemainingCash = async (booking: any) => {
+    const remaining = Number(booking.remaining_amount ?? 0);
+    if (remaining <= 0) return;
+    const ok = await confirmOtpIfNeeded(
+      'Mark remaining as cash received',
+      `Have you received ₹${remaining.toFixed(2)} in cash from the customer? This will mark the remaining amount as paid.`
+    );
+    if (!ok) return;
+    setError(null);
+    setBusyBookingId(String(booking.id));
+    try {
+      const res = await supabase.functions.invoke('mark-remaining-cash', {
+        body: { booking_id: String(booking.id) },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+      Alert.alert('Cash received', `₹${remaining.toFixed(2)} remaining amount marked as paid in cash.`);
+      await fetchDriverBookings();
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to mark cash received.');
+    } finally {
+      setBusyBookingId(null);
+    }
   };
 
   const submitOtpVerify = async () => {
@@ -655,6 +683,42 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                         {isBusy && canSetDelivered(status) ? 'Updating…' : 'Delivered'}
                       </Button>
                     </XStack>
+
+                    {(() => {
+                      const remaining = Number(item.remaining_amount ?? 0);
+                      const remainingPaidAt = item.remaining_paid_at;
+                      const remainingMethod = item.remaining_paid_method;
+                      if (status !== 'delivered' || remaining <= 0) return null;
+                      if (remainingPaidAt) {
+                        return (
+                          <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                            <XStack justifyContent="space-between">
+                              <Text color={theme.textMuted} fontSize={t(13)}>Remaining</Text>
+                              <Text color={theme.success} fontSize={t(13)} fontWeight="700">₹{remaining.toFixed(2)} • {remainingMethod === 'cash' ? 'Cash received' : 'Paid online'}</Text>
+                            </XStack>
+                          </YStack>
+                        );
+                      }
+                      return (
+                        <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                          <XStack justifyContent="space-between">
+                            <Text color={theme.textMuted} fontSize={t(13)}>Remaining due</Text>
+                            <Text color={theme.warning} fontSize={t(13)} fontWeight="700">₹{remaining.toFixed(2)}</Text>
+                          </XStack>
+                          <Text color={theme.textMuted} fontSize={t(11)}>
+                            Collect this amount in cash from the customer after delivery, then mark it below.
+                          </Text>
+                          <Button
+                            size="$2"
+                            backgroundColor={theme.success}
+                            color="#FFFFFF"
+                            disabled={isBusy}
+                            onPress={() => void onPressMarkRemainingCash(item)}>
+                            {isBusy ? 'Marking…' : 'Mark remaining as cash received'}
+                          </Button>
+                        </YStack>
+                      );
+                    })()}
                   </YStack>
                 );
               }}

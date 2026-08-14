@@ -34,6 +34,7 @@ type AvailableRequest = {
   payment_option: string | null;
   after_service_payment_method: string | null;
   cash_paid_at: string | null;
+  payment_status: string | null;
   complete_otp: string | null;
   complete_otp_verified_at: string | null;
 };
@@ -86,6 +87,7 @@ function AvailableRequestsInner({ session }: { session: any }) {
   const [statusFilter, setStatusFilter] = useState<'pending' | 'accepted'>('pending');
   const [workDoneBusyId, setWorkDoneBusyId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [cashPaidBusyId, setCashPaidBusyId] = useState<string | null>(null);
   const [otpDrafts, setOtpDrafts] = useState<Record<string, string>>({});
   const [feedbackTarget, setFeedbackTarget] = useState<AvailableRequest | null>(null);
 
@@ -237,6 +239,28 @@ function AvailableRequestsInner({ session }: { session: any }) {
     }
   };
 
+  const markCashReceived = async (req: AvailableRequest) => {
+    setError(null);
+    setCashPaidBusyId(req.id);
+    try {
+      const res = await supabase.functions.invoke('mark-remaining-cash', {
+        body: { request_id: req.id },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+      Alert.alert('Cash received', 'Service payment marked as received in cash.', [
+        { text: 'OK', onPress: () => void fetchRequests() },
+      ]);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to mark cash received.');
+    } finally {
+      setCashPaidBusyId(null);
+    }
+  };
+
   const pageBg = theme.bg;
   const border = theme.border;
   const titleColor = theme.text;
@@ -334,6 +358,20 @@ function AvailableRequestsInner({ session }: { session: any }) {
                         <Text color={theme.success} fontSize={t(13)} fontWeight="800">✓ Service completed</Text>
                         {req.cash_paid_at ? (
                           <Text color={theme.success} fontSize={t(12)} fontWeight="700">✓ Cash received</Text>
+                        ) : null}
+                        {!req.cash_paid_at && req.payment_status !== 'paid' ? (
+                          <>
+                            <Text color={muted} fontSize={t(11)}>
+                              Customer still needs to pay. If the customer paid you in cash, mark it received below.
+                            </Text>
+                            <Button
+                              backgroundColor="#22C55E"
+                              color="#FFFFFF"
+                              disabled={cashPaidBusyId === req.id}
+                              onPress={() => void markCashReceived(req)}>
+                              {cashPaidBusyId === req.id ? 'Marking...' : 'Mark cash as received'}
+                            </Button>
+                          </>
                         ) : null}
                       </>
                     ) : !req.complete_otp ? (

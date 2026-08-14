@@ -330,6 +330,9 @@ type BookingAdmin = {
   driver_id?: string | null;
   advance_amount?: number | null;
   remaining_amount?: number | null;
+  remaining_paid_at?: string | null;
+  remaining_paid_method?: string | null;
+  remaining_paid_by?: string | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
   reschedule_date?: string | null;
@@ -445,13 +448,14 @@ type HomeServiceRequestAdmin = {
   advance_payment: number | null;
   after_service_payment_method: string | null;
   cash_paid_at: string | null;
+  cash_paid_by_provider_id?: string | null;
   cancelled_at: string | null;
   provider_id: string | null;
   provider_name: string | null;
 };
 
 const homeServiceAdminSelect =
-  'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,payment_option,payment_status,advance_payment,after_service_payment_method,cash_paid_at,cancelled_at,provider_id,provider_name';
+  'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,payment_option,payment_status,advance_payment,after_service_payment_method,cash_paid_at,cancelled_at,provider_id,provider_name,cash_paid_by_provider_id';
 
 const homeServiceAdminBaseSelect =
   'id,user_id,service_key,customer_name,customer_phone,address_line1,address_line2,state,city,locality,notes,preferred_date,preferred_time,status,created_at,updated_at,provider_id,provider_name';
@@ -1669,6 +1673,50 @@ function AdminScreenInner() {
     }
   };
 
+  const markBookingRemainingCash = async (bookingId: string) => {
+    if (!canManage || !bookingId) return;
+    setHomeServiceStatusBusyId(bookingId);
+    try {
+      setError(null);
+      const res = await supabase.functions.invoke('mark-remaining-cash', {
+        body: { booking_id: bookingId },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+      Alert.alert('Cash received', 'Remaining amount marked as paid in cash.');
+      await fetchBookings();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setHomeServiceStatusBusyId(null);
+    }
+  };
+
+  const markHomeServiceCashReceived = async (requestId: string) => {
+    if (!canManage || !requestId) return;
+    setHomeServiceStatusBusyId(requestId);
+    try {
+      setError(null);
+      const res = await supabase.functions.invoke('mark-remaining-cash', {
+        body: { request_id: requestId },
+      });
+      const data = res as any;
+      if (data?.error) {
+        setError(String(data.error));
+        return;
+      }
+      Alert.alert('Cash received', 'Home service payment marked as received in cash.');
+      await fetchHomeServiceRequests();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setHomeServiceStatusBusyId(null);
+    }
+  };
+
   const isoDay = (d: Date) => {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -2809,7 +2857,7 @@ function AdminScreenInner() {
       let query = supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, scheduled_date, scheduled_time, reschedule_date, scheduled_at, created_at, updated_at, user:users!user_id!inner(name, phone, email), driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, status, payment_status, driver_id, advance_amount, remaining_amount, remaining_paid_at, remaining_paid_method, remaining_paid_by, scheduled_date, scheduled_time, reschedule_date, scheduled_at, created_at, updated_at, user:users!user_id!inner(name, phone, email), driver:users!driver_id(name)'
         )
         .order('created_at', { ascending: false });
 
@@ -5246,6 +5294,37 @@ function AdminScreenInner() {
                           Updated: {formatDateTimeDDMMYYYY(item.updated_at)}
                         </Text>
                       </XStack>
+                      {(() => {
+                        const rem = Number(item.remaining_amount ?? 0);
+                        const remPaidAt = item.remaining_paid_at;
+                        const remPaidMethod = item.remaining_paid_method;
+                        if (rem <= 0) return null;
+                        return (
+                          <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                            <XStack justifyContent="space-between" flexWrap="wrap" gap="$2">
+                              <Text color={theme.textMuted} fontSize={t(14)}>Remaining: ₹{rem.toFixed(2)}</Text>
+                              {remPaidAt ? (
+                                <Text color={theme.success} fontSize={t(13)} fontWeight="700">
+                                  {remPaidMethod === 'cash' ? 'Cash received' : 'Paid online'} • {formatDateTimeDDMMYYYY(remPaidAt)}
+                                </Text>
+                              ) : (
+                                <Text color={theme.warning} fontSize={t(13)} fontWeight="700">Not collected</Text>
+                              )}
+                            </XStack>
+                            {!remPaidAt && item.status === 'delivered' ? (
+                              <Button
+                                size="$2"
+                                backgroundColor={theme.success}
+                                color="#FFFFFF"
+                                borderRadius={10}
+                                disabled={homeServiceStatusBusyId === item.id}
+                                onPress={() => void markBookingRemainingCash(item.id)}>
+                                {homeServiceStatusBusyId === item.id ? 'Marking…' : 'Mark remaining as cash received'}
+                              </Button>
+                            ) : null}
+                          </YStack>
+                        );
+                      })()}
                       {item.status === 'assigned' ? (
                         <Button
                           size="$2"
@@ -5590,6 +5669,38 @@ function AdminScreenInner() {
                           Reschedule
                         </Button>
                       </XStack>
+
+                      {(() => {
+                        const hsPaid = r.payment_status === 'paid';
+                        const hsCashPaidAt = r.cash_paid_at;
+                        const hsCashMethod = r.after_service_payment_method === 'cash';
+                        if (r.status !== 'completed' || hsPaid) return null;
+                        return (
+                          <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                            <XStack justifyContent="space-between" flexWrap="wrap" gap="$2">
+                              <Text color={theme.textMuted} fontSize={t(14)}>Payment: {String(r.payment_status ?? 'pending')}</Text>
+                              {hsCashPaidAt ? (
+                                <Text color={theme.success} fontSize={t(13)} fontWeight="700">
+                                  Cash received • {formatDateTimeDDMMYYYY(hsCashPaidAt)}
+                                </Text>
+                              ) : hsCashMethod ? (
+                                <Text color={theme.warning} fontSize={t(13)} fontWeight="700">Cash pending</Text>
+                              ) : null}
+                            </XStack>
+                            {!hsCashPaidAt ? (
+                              <Button
+                                size="$2"
+                                backgroundColor={theme.success}
+                                color="#FFFFFF"
+                                borderRadius={10}
+                                disabled={homeServiceStatusBusyId === r.id}
+                                onPress={() => void markHomeServiceCashReceived(r.id)}>
+                                {homeServiceStatusBusyId === r.id ? 'Marking…' : 'Mark cash as received'}
+                              </Button>
+                            ) : null}
+                          </YStack>
+                        );
+                      })()}
 
                       {open ? (
                         <YStack

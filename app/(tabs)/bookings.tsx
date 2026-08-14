@@ -9,6 +9,7 @@ import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRazorpayKeyId } from '@/lib/public-config';
 import { createRazorpayOrder, verifyRazorpaySignature } from '@/lib/razorpay';
+import { calculateConvenienceFee } from '@/lib/payment-convenience-fee';
 import { removeStaleRealtimeChannel, supabase } from '@/lib/supabase';
 
 import { useSession } from '@/providers/session-provider';
@@ -71,6 +72,8 @@ type Booking = {
   estimated_price: number | null;
   advance_amount: number | null;
   remaining_amount: number | null;
+  remaining_paid_at?: string | null;
+  remaining_paid_method?: string | null;
   created_at: string;
   updated_at?: string | null;
   scheduled_date?: string | null;
@@ -248,6 +251,7 @@ function BookingsContent() {
   const [loading, setLoading] = useState(true);
   const [errorBookings, setErrorBookings] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<Record<string, string>>({});
+  const [remainingPayBusy, setRemainingPayBusy] = useState<Record<string, boolean>>({});
   const [paymentHistory, setPaymentHistory] = useState<Record<string, Payment[]>>({});
   const [statusFilter, setStatusFilter] = useState<'all' | 'not_started' | 'pickup_reached' | 'in_transit' | 'delivered' | 'rescheduled'>('all');
   const [startDate, setStartDate] = useState('');
@@ -388,7 +392,7 @@ function BookingsContent() {
       await supabase
         .from('bookings')
         .select(
-          'id, booking_number, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description, driver:users!driver_id(name)'
+          'id, booking_number, pickup_address, drop_address, distance_km, status, payment_status, driver_id, pickup_otp, delivery_otp, pickup_verified_at, delivered_verified_at, estimated_price, advance_amount, remaining_amount, remaining_paid_at, remaining_paid_method, created_at, updated_at, scheduled_date, scheduled_time, labor_count, fare_breakdown, pickup_floor, drop_floor, pickup_lift_available, drop_lift_available, items_description, driver:users!driver_id(name)'
         )
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -745,6 +749,109 @@ function BookingsContent() {
     }
   };
 
+  const handlePayRemaining = async (bookingId: string, remainingAmount: number) => {
+    try {
+      const fee = calculateConvenienceFee(remainingAmount);
+      const base = fee.bookingTotal;
+      const totalPay = fee.finalPayable;
+      setRemainingPayBusy((prev) => ({ ...prev, [bookingId]: true }));
+      setErrorBookings(null);
+
+      const order = await createRazorpayOrder({
+        amount: Math.round(totalPay * 100),
+        currency: 'INR',
+        booking_id: bookingId,
+      });
+
+      const razorpayKeyId = await getRazorpayKeyId();
+      if (!razorpayKeyId) throw new Error('Payment gateway not configured.');
+
+      const options = {
+        key: razorpayKeyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Gujarat Relocation PackersMovers',
+        description: 'Remaining payment',
+        order_id: order.id,
+        prefill: { name: 'Customer' },
+        theme: { color: theme.accent },
+      };
+
+      let paymentData: any;
+      if (Platform.OS === 'web') {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        await new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Razorpay'));
+          document.body.appendChild(script);
+        });
+        const Razorpay = (window as any).Razorpay;
+        paymentData = await new Promise((resolve, reject) => {
+          const rz = new Razorpay({
+            key: razorpayKeyId,
+            amount: order.amount,
+            currency: order.currency,
+            name: 'Gujarat Relocation PackersMovers',
+            description: 'Remaining payment',
+            order_id: order.id,
+            prefill: { name: 'Customer' },
+            theme: { color: theme.accent },
+            handler: (resp: any) => resolve(resp),
+            modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
+          });
+          rz.open();
+        });
+      } else {
+        const RazorpayCheckout = (await import('react-native-razorpay')).default;
+        paymentData = await RazorpayCheckout.open(options);
+      }
+
+      const valid = await verifyRazorpaySignature({
+        order_id: order.id,
+        payment_id: paymentData.razorpay_payment_id,
+        signature: paymentData.razorpay_signature,
+      });
+
+      if (!valid) throw new Error('Payment verification failed.');
+
+      await supabase.from('payments').insert({
+        booking_id: bookingId,
+        user_id: session?.user?.id,
+        amount: totalPay,
+        status: 'paid',
+        razorpay_order_id: order.id,
+        razorpay_payment_id: paymentData.razorpay_payment_id,
+        error: null,
+        metadata: {
+          purpose: 'remaining_payment',
+          method: 'online',
+          remaining_amount: base,
+          convenience_fee: fee.convenienceFee,
+          razorpay_signature: paymentData.razorpay_signature,
+        },
+      });
+
+      await supabase
+        .from('bookings')
+        .update({
+          payment_status: 'paid',
+          remaining_paid_at: new Date().toISOString(),
+          remaining_paid_method: 'online',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId);
+
+      setPaymentInfo((prev) => ({ ...prev, [bookingId]: `Remaining paid ${paymentData.razorpay_payment_id}` }));
+      await fetchBookings();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Payment cancelled/failed';
+      setPaymentInfo((prev) => ({ ...prev, [bookingId]: msg.toLowerCase().includes('cancel') ? 'Payment cancelled' : msg }));
+    } finally {
+      setRemainingPayBusy((prev) => ({ ...prev, [bookingId]: false }));
+    }
+  };
+
   useEffect(() => {
     if (!session?.user?.id) return;
     const channelName = `bookings-user-${session.user.id}`;
@@ -991,6 +1098,20 @@ function BookingsContent() {
               <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Paid</Text>
               <Text color={theme.inputText} fontSize={t(13)} fontWeight="700">₹{Number(item.advance_amount ?? 0).toFixed(2)}</Text>
             </XStack>
+            {Number(item.remaining_amount ?? 0) > 0 ? (
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Remaining</Text>
+                <Text color={theme.warning} fontSize={t(13)} fontWeight="700">₹{Number(item.remaining_amount ?? 0).toFixed(2)}</Text>
+              </XStack>
+            ) : null}
+            {item.remaining_paid_at ? (
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Remaining paid</Text>
+                <Text color={theme.success} fontSize={t(13)} fontWeight="700">
+                  {item.remaining_paid_method === 'cash' ? 'Cash' : 'Online'} • {formatDateTimeDDMMYYYY(item.remaining_paid_at)}
+                </Text>
+              </XStack>
+            ) : null}
             <XStack justifyContent="space-between" alignItems="center">
               <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Updated</Text>
               <Text color={theme.inputText} fontSize={t(13)}>
@@ -1135,7 +1256,7 @@ function BookingsContent() {
               const targetFull = Number(item.estimated_price ?? item.remaining_amount ?? 500);
               const advanceEnabled = paid < targetAdvance;
               const fullEnabled = paid < targetFull;
-              return item.status !== 'cancelled' && item.status !== 'rescheduled' ? (
+              return item.status !== 'cancelled' && item.status !== 'rescheduled' && item.status !== 'delivered' ? (
                 <XStack gap="$2" flexWrap="wrap">
                   <Button size="$2"
                     backgroundColor={advanceEnabled ? theme.accent : theme.bgCardSecondary}
@@ -1157,6 +1278,40 @@ function BookingsContent() {
                     onPress={() => fullEnabled && handleCreateOrder(item.id, targetFull)}>Pay Full</Button>
                 </XStack>
               ) : null;
+            })()}
+            {(() => {
+              const remaining = Number(item.remaining_amount ?? 0);
+              const alreadyPaid = Boolean(item.remaining_paid_at);
+              if (item.status !== 'delivered' || remaining <= 0 || alreadyPaid) return null;
+              const fee = calculateConvenienceFee(remaining);
+              return (
+                <YStack gap="$2" backgroundColor={theme.bgCardSecondary} borderRadius={12} padding={12} borderWidth={1} borderColor={theme.border}>
+                  <Text color={theme.text} fontWeight="800" fontSize={t(13)}>Remaining payment due</Text>
+                  <XStack justifyContent="space-between">
+                    <Text color={theme.textMuted} fontSize={t(12)}>Remaining amount</Text>
+                    <Text color={theme.text} fontSize={t(12)} fontWeight="700">₹{remaining.toFixed(2)}</Text>
+                  </XStack>
+                  <XStack justifyContent="space-between">
+                    <Text color={theme.textMuted} fontSize={t(12)}>Convenience fee (2.36%)</Text>
+                    <Text color={theme.text} fontSize={t(12)} fontWeight="700">₹{fee.convenienceFee.toFixed(2)}</Text>
+                  </XStack>
+                  <XStack justifyContent="space-between">
+                    <Text color={theme.textMuted} fontSize={t(12)}>Total payable now</Text>
+                    <Text color={theme.text} fontSize={t(12)} fontWeight="800">₹{fee.finalPayable.toFixed(2)}</Text>
+                  </XStack>
+                  <Button size="$2"
+                    backgroundColor={theme.success}
+                    color="#FFFFFF"
+                    borderRadius={10}
+                    disabled={remainingPayBusy[item.id]}
+                    onPress={() => void handlePayRemaining(item.id, remaining)}>
+                    {remainingPayBusy[item.id] ? <ActivityIndicator size="small" color="#FFFFFF" /> : 'Pay Remaining Online'}
+                  </Button>
+                  <Text color={theme.textMuted} fontSize={t(11)}>
+                    Or pay cash to the driver at delivery — the driver marks it as received.
+                  </Text>
+                </YStack>
+              );
             })()}
           </YStack>
         )}

@@ -87,6 +87,12 @@ App खोलते ही **Book Shifting** बटन दिखता है।
 - **Cancel** — confirm करके cancel → email+push
 - **Bill** (email) — कुल राशि, Advance Paid, Remaining — एक बटन से भेजें
 
+### 💰 Remaining payment (डिलीवरी के बाद)
+- Advance mode में **Delivered** के बाद भी **Remaining राशि बाकी** रहती है — कुल में GST पहले ही जुड़ा होता है
+- **Online:** ग्राहक "Pay Remaining Online" से Razorpay से चुका सकता है — इस पर **2.36% convenience fee** तभी लगती है (असली payment-Gateway शुल्क) — अपने आप database में paid mark हो जाता है
+- **Cash:** डिलीवरी पर driver को cash दें — **Driver या Admin "Mark as cash received"** करता है → payments record बनता है और amount settled
+- Cash पर कोई convenience fee नहीं लगती (यह fee सिर्फ ऑनलाइन payment पर है)
+
 ### ⭐ Feedback (रेटिंग)
 Delivered होते ही **ग्राहक को** ड्राइवर की रेटिंग का popup आता है:
 - **1–5 stars** + tags (जैसे "Mera経験") + optional comment — या **Skip** (Skip करने पर दोबारा नहीं पूछा जाता)
@@ -113,6 +119,7 @@ Delivered होते ही **ग्राहक को** ड्राइव�
    - ग्राहक के app में OTP तुरंत दिखता है
    - ग्राहक OTP बताता है → Provider उसे dalake **Verify** → **Service Completed** + email/push
    - अगर "after service cash" था तो cash **PAID मार्क** भी अपने-आप होता है
+   - ऑनलाइन payment में **2.36% convenience fee** — Service के बाद भी ग्राहक Pay Online कर सकता है; **Provider या Admin "Mark cash as received"** से cash PAID मार्क करता है (वही fee rule — online पर ही fee)
 6. **फिर दो तरफ के Feedback** खुलते हैं — ग्राहक provider को रेट करता है, provider ग्राहक को
 
 > Admin भी status बदल सकता है (pending → assigned → completed/cancelled) और reschedule कर सकता है — देरी हो तो admin हस्तक्षेप करता है।

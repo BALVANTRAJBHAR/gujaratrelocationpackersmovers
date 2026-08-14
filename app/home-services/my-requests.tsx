@@ -775,7 +775,14 @@ export default function MyHomeServiceRequestsScreen() {
                       </Button>
                     ) : null}
 
-                    {r.status === 'pending' && r.payment_option === 'after_service' ? (
+                    {r.status === 'completed' && r.payment_status === 'paid' && r.cash_paid_at ? (
+                      <XStack gap="$2" alignItems="center">
+                        <Text color={theme.success} fontSize={t(13)} fontWeight="800">✓ Paid in cash</Text>
+                        <Text color={muted} fontSize={t(11)}>({formatDateTimeDDMMYYYY(r.cash_paid_at)})</Text>
+                      </XStack>
+                    ) : null}
+
+                    {((r.status === 'pending' || r.status === 'completed') && r.payment_option === 'after_service' && r.payment_status !== 'paid') ? (
                       <YStack gap={6}>
                         <Text color={titleColor} fontWeight="800" fontSize={t(12)}>
                           Payment
