@@ -4096,7 +4096,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             </Text>
           </YStack>
 
-          <YStack style={[styles.footerWrap, { borderColor: theme.border, marginBottom: isSmallScreen ? 0 : 8 }]} marginTop={sectionGap}>
+          <YStack style={[styles.footerWrap, { backgroundColor: theme.footerBg, borderColor: 'rgba(255,255,255,0.1)', marginBottom: isSmallScreen ? 0 : 8 }]} marginTop={sectionGap}>
             <XStack
               flexWrap={isSmallScreen ? 'wrap' : 'nowrap'}
               justifyContent="space-between"
@@ -4114,13 +4114,13 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 ]}
                 gap="$2.5">
                 <YStack style={styles.footerHeaderWrap}>
-                  <Text color="#D97706" fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
+                  <Text color={theme.footerHeading} fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Gujarat Relocation Packers
                   </Text>
                 </YStack>
                 <YStack style={styles.footerBodyWrap}>
                   <Text
-                    color={theme.textSecondary}
+                    color={theme.footerText}
                     fontSize={t(14)}
                     lineHeight={21}
                     fontWeight="700"
@@ -4129,7 +4129,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     pricing across India.
                   </Text>
                   <Text
-                    color={theme.textMuted}
+                    color={theme.footerTextMuted}
                     fontSize={t(14)}
                     fontWeight="900"
                     marginTop={8}
@@ -4200,11 +4200,11 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                     onPress={() => router.push(s.route as any)}>
                     <XStack alignItems="center" gap="$2.5" paddingVertical={5}>
-                      <Text color="#D97706" fontWeight="900">
+                      <Text color={theme.footerHeading} fontWeight="900">
                         ›
                       </Text>
                       <Text
-                        color={footerHovered === 'svc_' + s.label ? '#D97706' : theme.textSecondary}
+                        color={footerHovered === 'svc_' + s.label ? theme.footerHeading : theme.footerText}
                         fontSize={t(14)}
                         fontWeight="800"
                         style={{ fontFamily: APP_SERIF_FONT }}>
@@ -4229,7 +4229,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       ]}
                       gap="$2.5">
                       <YStack style={styles.footerHeaderWrap}>
-                        <Text color="#D97706" fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
+                        <Text color={theme.footerHeading} fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                           Services We Provide
                         </Text>
                       </YStack>
@@ -4269,7 +4269,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 ]}
                 gap="$2.5">
                 <YStack style={styles.footerHeaderWrap}>
-                  <Text color="#D97706" fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
+                  <Text color={theme.footerHeading} fontSize={t(16)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                     Quick Links
                   </Text>
                 </YStack>
@@ -4295,7 +4295,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                       onPress={l.action}>
                       <Text
-                        color={footerHovered === 'ql_' + l.label ? '#D97706' : theme.textSecondary}
+                        color={footerHovered === 'ql_' + l.label ? theme.footerHeading : theme.footerText}
                         fontSize={t(14)}
                         fontWeight="800"
                         paddingVertical={7}
@@ -4308,29 +4308,38 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
               </YStack>
             </XStack>
 
-            <XStack justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="$2.5" marginTop={20}>
+            <XStack justifyContent="space-between" alignItems="center" flexWrap={isSmallScreen ? 'wrap' : 'nowrap'} gap="$2.5" marginTop={20}>
               <YStack gap="$1">
                 <Text
-                  color={theme.textMuted}
+                  color={theme.footerTextMuted}
                   fontSize={t(13)}
                   fontWeight="800"
                   style={{ fontFamily: APP_SERIF_FONT }}>
-                  © 2026 Gujarat Relocation Packers.
+                  © 2026 Gujarat Relocation Packers. All Rights Reserved.
                 </Text>
-                <Text
-                  color={theme.textMuted}
-                  fontSize={t(13)}
-                  fontWeight="800"
-                  style={{ fontFamily: APP_SERIF_FONT }}>
-                  All Rights Reserved.
-                </Text>
+                <Pressable
+                  onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('devby') : undefined}
+                  onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
+                  onPress={() => Linking.openURL('https://share.google/8xlA7wGvFBm57Vc2o')}
+                  hitSlop={6}>
+                  <Text
+                    color={footerHovered === 'devby' ? '#F59E0B' : theme.footerTextMuted}
+                    fontSize={t(13)}
+                    fontWeight="800"
+                    style={{
+                      fontFamily: APP_SERIF_FONT,
+                      textDecorationLine: footerHovered === 'devby' ? 'underline' : 'none',
+                    }}>
+                    Developed By BTSOFTECH
+                  </Text>
+                </Pressable>
               </YStack>
               <XStack gap="$3.5" alignItems="center">
                 <Pressable
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('privacy') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                   onPress={() => router.push('/privacy-policy')}>
-                  <Text color={footerHovered === 'privacy' ? '#D97706' : theme.textMuted} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
+                  <Text color={footerHovered === 'privacy' ? theme.footerHeading : theme.footerTextMuted} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                     Privacy Policy
                   </Text>
                 </Pressable>
@@ -4338,7 +4347,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onHoverIn={Platform.OS === 'web' ? () => setFooterHovered('terms') : undefined}
                   onHoverOut={Platform.OS === 'web' ? () => setFooterHovered(null) : undefined}
                   onPress={() => router.push('/terms-and-conditions')}>
-                  <Text color={footerHovered === 'terms' ? '#D97706' : theme.textMuted} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
+                  <Text color={footerHovered === 'terms' ? theme.footerHeading : theme.footerTextMuted} fontSize={t(13)} fontWeight="800" style={{ fontFamily: APP_SERIF_FONT }}>
                     Terms & Conditions
                   </Text>
                 </Pressable>
@@ -4358,11 +4367,18 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
           width: 42,
           height: 42,
           borderRadius: 21,
-          backgroundColor: 'transparent',
+          backgroundColor: theme.scrollArrowBg,
+          borderWidth: 1,
+          borderColor: theme.border,
           alignItems: 'center',
           justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: isDarkMode ? 0.4 : 0.12,
+          shadowRadius: 6,
+          elevation: 4,
         }}>
-        <FontAwesome name={homeScrollY > 120 ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF" />
+        <FontAwesome name={homeScrollY > 120 ? 'chevron-up' : 'chevron-down'} size={18} color={theme.scrollArrowColor} />
       </Pressable>
     </View>
     </>

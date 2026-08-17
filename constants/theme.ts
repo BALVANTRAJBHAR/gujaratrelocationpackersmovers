@@ -6,7 +6,7 @@ const tintColorDark = '#fff';
 export const Colors = {
   light: {
     text: '#0B0D10',
-    background: '#fff',
+    background: '#F5F6F8',
     tint: tintColorLight,
     icon: '#3D454E',
     tabIconDefault: '#3D454E',
@@ -24,10 +24,10 @@ export const Colors = {
 
 export const themes = {
   light: {
-    bg: '#FFFFFF',
-    bgSecondary: '#F8F9FA',
+    bg: '#F5F6F8',
+    bgSecondary: '#EDEFF3',
     bgCard: '#FFFFFF',
-    bgCardSecondary: '#F3F4F6',
+    bgCardSecondary: '#E9ECF1',
     text: '#0B0D10',
     textSecondary: '#2D3748',
     textMuted: '#4A5568',
@@ -35,7 +35,7 @@ export const themes = {
     primaryHover: '#4338CA',
     accent: '#F59E0B',
     accentHover: '#D97706',
-    border: '#D9E0EB',
+    border: '#D3DAE4',
     shadow: 'rgba(0, 0, 0, 0.05)',
     couponBg: '#DCFCE7',
     couponBorder: '#22C55E',
@@ -46,12 +46,18 @@ export const themes = {
     gradient2: '#E0E7FF',
     headerBg: '#FFFFFF',
     inputBg: '#FFFFFF',
-    inputBorder: '#D9E0EB',
+    inputBorder: '#D3DAE4',
     inputText: '#0B0D10',
     danger: '#EF4444',
     success: '#22C55E',
     warning: '#F59E0B',
     info: '#3B82F6',
+    footerBg: '#0B1B2B',
+    footerText: 'rgba(255,255,255,0.88)',
+    footerTextMuted: 'rgba(255,255,255,0.72)',
+    footerHeading: '#F59E0B',
+    scrollArrowBg: 'rgba(255,255,255,0.94)',
+    scrollArrowColor: '#1F3B63',
   },
   dark: {
     bg: '#0F172A',
@@ -82,6 +88,12 @@ export const themes = {
     success: '#22C55E',
     warning: '#F59E0B',
     info: '#3B82F6',
+    footerBg: '#0B1B2B',
+    footerText: 'rgba(241,245,249,0.9)',
+    footerTextMuted: 'rgba(241,245,249,0.72)',
+    footerHeading: '#F59E0B',
+    scrollArrowBg: 'rgba(30,41,59,0.85)',
+    scrollArrowColor: '#F1F5F9',
   },
 };
 
