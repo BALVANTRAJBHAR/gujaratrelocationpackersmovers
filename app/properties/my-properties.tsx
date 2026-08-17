@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import { FontAwesome5 } from '@expo/vector-icons';
 import { PropertyMediaGrid, uploadsToMediaItems, type PropertyMediaItem } from '@/components/property-media-grid';
 import { formatPropertyListingTitle } from '@/lib/properties/property-listing-label';
 import { supabase } from '@/lib/supabase';
@@ -177,7 +178,7 @@ export default function MyPropertiesScreen() {
 
           <XStack gap="$2" flexWrap="wrap" justifyContent="space-between" alignItems="center">
             <Button backgroundColor={theme.success} color="#FFFFFF" onPress={() => void load()} disabled={loading}>
-              {loading ? 'Refreshing…' : 'Refresh'}
+              {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <FontAwesome5 name="sync" size={14} color="#FFFFFF" />}
             </Button>
             <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => router.push('/properties/post' as any)}>
               Post New

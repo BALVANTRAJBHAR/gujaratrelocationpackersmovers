@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   confirmed: '#F97316',
   assigned: '#3B82F6',
   accepted: '#6366F1',
-  not_started: '#94A3B8',
+  not_started: '#64748B',
   pickup_reached: '#FACC15',
   in_transit: '#22C55E',
   delivered: '#10B981',
@@ -897,7 +897,7 @@ function BookingsContent() {
     fetchPayments(bookingIds);
   }, [bookings]);
 
-  const placeholderColor = colorScheme === 'dark' ? '#9CA3AF' : '#9CA3AF';
+  const placeholderColor = colorScheme === 'dark' ? '#6B7280' : '#6B7280';
 
   const renderShiftingSection = () => (
     <>
@@ -1013,7 +1013,7 @@ function BookingsContent() {
             value={searchText}
             onChangeText={setSearchText}
             placeholder="Search pickup/drop"
-            placeholderTextColor={theme.textMuted ?? '#9CA3AF'}
+            placeholderTextColor={theme.textMuted ?? '#6B7280'}
             backgroundColor={theme.bgCardSecondary}
             borderColor={theme.border}
             color={theme.inputText}

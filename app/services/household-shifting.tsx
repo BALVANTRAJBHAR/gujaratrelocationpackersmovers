@@ -169,7 +169,7 @@ export default function HouseholdShiftingScreen() {
         </ImageBackground>
 
         <YStack paddingHorizontal={16} marginTop={14} gap="$3">
-          <YStack backgroundColor="#1F3B63" borderRadius={16} padding={16} gap="$2" shadowColor="rgba(0,0,0,0.2)" shadowOffset={{ width: 0, height: 8 }} shadowOpacity={0.2} shadowRadius={16} elevation={6}>
+          <YStack backgroundColor="#1F3B63" borderRadius={16} padding={16} gap="$2" shadowColor="rgba(0,0,0,0.2)" shadowOffset={{ width: 0, height: 8 }} shadowOpacity={0.14} shadowRadius={12} elevation={4}>
             <YStack>
               <Text color={theme.textMuted} fontSize={isSmallScreen ? 13 : 15} fontWeight="700">Starting from</Text>
               <Text color="#FFFFFF" fontSize={isSmallScreen ? 26 : 32} fontWeight="900">₹3,000</Text>
@@ -180,7 +180,7 @@ export default function HouseholdShiftingScreen() {
                 onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('callback') : undefined}
                 onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                 onPress={() => setQuoteModalOpen(true)}>
-                <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent, borderWidth: 1, borderColor: headerHovered === 'callback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'callback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.accent, borderWidth: 1, borderColor: headerHovered === 'callback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'callback' ? '0 0 6px 2px rgba(251, 191, 36, 0.3)' : undefined } as any]}>
                   <Text color={theme.text} fontWeight="900" fontSize={t(14)}>Request Callback</Text>
                 </YStack>
               </Pressable>
@@ -188,7 +188,7 @@ export default function HouseholdShiftingScreen() {
                 onHoverIn={Platform.OS === 'web' ? () => setHeaderHovered('booknow') : undefined}
                 onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                 onPress={handleBook}>
-                <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary, borderWidth: 1, borderColor: headerHovered === 'booknow' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'booknow' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
+                <YStack style={[styles.ctaBtn, { backgroundColor: theme.bgSecondary, borderWidth: 1, borderColor: headerHovered === 'booknow' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'booknow' ? '0 0 6px 2px rgba(251, 191, 36, 0.3)' : undefined } as any]}>
                   <Text color={theme.text} fontWeight="900" fontSize={t(14)}>Book Now</Text>
                 </YStack>
               </Pressable>

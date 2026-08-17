@@ -492,7 +492,7 @@ export default function BookingMapPicker(props: {
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder="Search address or area..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#6B7280"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="search"
@@ -562,11 +562,11 @@ export default function BookingMapPicker(props: {
 
                 {/* Coordinates */}
                 {props.coord ? (
-                  <Text color="#94A3B8" fontSize={11} textAlign="center">
+                  <Text color="#64748B" fontSize={11} textAlign="center">
                     {props.coord.lat.toFixed(6)}, {props.coord.lng.toFixed(6)}
                   </Text>
                 ) : (
-                  <Text color="#94A3B8" fontSize={11} textAlign="center">
+                  <Text color="#64748B" fontSize={11} textAlign="center">
                     Tap on the map or search an address to select location
                   </Text>
                 )}

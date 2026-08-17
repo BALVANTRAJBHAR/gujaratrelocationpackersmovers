@@ -3101,7 +3101,7 @@ function AdminScreenInner() {
               fetchReportsBookings();
               fetchReportsPayments();
             }}>
-            Refresh
+            <FontAwesome5 name="sync" size={14} color={theme.text} />
           </Button>
         </ScrollView>
 
@@ -3571,7 +3571,7 @@ function AdminScreenInner() {
                       borderRadius={999}
                       onPress={fetchFeedback}
                       disabled={feedbackLoading}>
-                      {feedbackLoading ? 'Loading...' : 'Refresh'}
+                      {feedbackLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <FontAwesome5 name="sync" size={14} color="#FFFFFF" />}
                     </Button>
                   </XStack>
 
@@ -3770,7 +3770,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchProperties}
                       disabled={loading}>
-                      Refresh
+                      <FontAwesome5 name="sync" size={14} color={'#FFFFFF'} />
                     </Button>
                   </ScrollView>
                   <MobileDatePicker value={propStartPickerValue} open={propStartDatePickerOpen} onClose={() => setPropStartDatePickerOpen(false)} onChange={(d) => { setPropStartDate(isoDay(d)); }} />
@@ -4070,7 +4070,7 @@ function AdminScreenInner() {
                       </Button>
                     ))}
                     <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
-                      onPress={fetchPropBookings} disabled={loading}>Refresh</Button>
+                      onPress={fetchPropBookings} disabled={loading}><FontAwesome5 name="sync" size={14} color="#FFFFFF" /></Button>
                   </ScrollView>
                   <MobileDatePicker value={propBookingStartPickerValue} open={propBookingStartDatePickerOpen} onClose={() => setPropBookingStartDatePickerOpen(false)} onChange={(d) => { setPropBookingStartDate(isoDay(d)); }} />
                   <MobileDatePicker value={propBookingEndPickerValue} open={propBookingEndDatePickerOpen} onClose={() => setPropBookingEndDatePickerOpen(false)} onChange={(d) => { setPropBookingEndDate(isoDay(d)); }} />
@@ -4309,7 +4309,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchVehicleTypes}
                       disabled={loading}>
-                      Refresh list
+                      <FontAwesome5 name="sync" size={14} color={theme.inputText} />
                     </Button>
                   </XStack>
                 </YStack>
@@ -4632,7 +4632,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchCoupons}
                       disabled={loading}>
-                      Refresh list
+                      <FontAwesome5 name="sync" size={14} color={theme.inputText} />
                     </Button>
                   </XStack>
                 </YStack>
@@ -4812,7 +4812,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchFloorOptions}
                       disabled={loading}>
-                      Refresh list
+                      <FontAwesome5 name="sync" size={14} color={theme.inputText} />
                     </Button>
                   </XStack>
                 </YStack>
@@ -4884,7 +4884,7 @@ function AdminScreenInner() {
                   </Text>
                   {Platform.OS === 'web' ? (
                     <style>{`
-                      .admin-date-input::placeholder { color: #9CA3AF; opacity: 1; }
+                      .admin-date-input::placeholder { color: #6B7280; opacity: 1; }
                     `}</style>
                   ) : null}
                   <XStack gap="$2" flexWrap="wrap" alignItems="center">
@@ -5554,7 +5554,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchHomeServiceRequests}
                       disabled={loading}>
-                      Refresh
+                      <FontAwesome5 name="sync" size={14} color={theme.text} />
                     </Button>
                   </ScrollView>
                 </YStack>
@@ -5960,7 +5960,7 @@ function AdminScreenInner() {
                       borderRadius={10}
                       onPress={fetchQuoteRequests}
                       disabled={loading}>
-                      Refresh
+                      <FontAwesome5 name="sync" size={14} color="#FFFFFF" />
                     </Button>
                     <Button
                       size="$2"
@@ -6139,7 +6139,7 @@ function AdminScreenInner() {
                           fetchReportsBookings();
                           fetchReportsPayments();
                         }}>
-                        Refresh
+                        <FontAwesome5 name="sync" size={14} color={theme.text} />
                       </Button>
                       <Button
                         size="$2"

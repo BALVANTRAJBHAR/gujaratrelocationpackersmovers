@@ -273,7 +273,7 @@ export default function TrackingMap({
     return (
       <YStack flex={1} alignItems="center" justifyContent="center" padding={12}>
         <ActivityIndicator size="small" color="#F97316" />
-        <Text color="#94A3B8" fontSize={12} marginTop={8}>
+        <Text color="#64748B" fontSize={12} marginTop={8}>
           Loading configuration...
         </Text>
       </YStack>

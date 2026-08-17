@@ -17,6 +17,7 @@ import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import RescheduleDialog from '@/components/RescheduleDialog';
 import FeedbackPopup from '@/components/FeedbackPopup';
 import { timeLabelTo24h } from '@/lib/reschedule-options';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 
 type HomeServiceRequestRow = {
@@ -707,7 +708,7 @@ export default function MyHomeServiceRequestsScreen() {
                           borderRadius={10}
                           disabled={uploadsBusyId === r.id}
                           onPress={() => void fetchUploads(r.id)}>
-                          Refresh
+                          <FontAwesome5 name="sync" size={14} color={theme.text} />
                         </Button>
                       </XStack>
 

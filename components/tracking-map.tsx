@@ -129,7 +129,7 @@ export default function TrackingMap({
   if (!token) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center">
-        <Text color="#94A3B8" fontSize={12}>Add Google Maps key to enable map.</Text>
+        <Text color="#64748B" fontSize={12}>Add Google Maps key to enable map.</Text>
       </YStack>
     );
   }

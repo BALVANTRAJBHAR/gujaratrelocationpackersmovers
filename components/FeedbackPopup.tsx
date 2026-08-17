@@ -83,7 +83,7 @@ export default function FeedbackPopup({
           <Text fontWeight="900" fontSize={17} color="#111827" textAlign="center">
             {title}
           </Text>
-          <Text fontSize={12.5} color="#6B7280" textAlign="center">
+          <Text fontSize={12.5} color="#374151" textAlign="center">
             {subtitle}
           </Text>
 
@@ -99,7 +99,7 @@ export default function FeedbackPopup({
               {rating === 1 ? 'Very bad' : rating === 2 ? 'Bad' : rating === 3 ? 'Average' : rating === 4 ? 'Good' : 'Excellent'}
             </Text>
           ) : (
-            <Text fontSize={11.5} color="#9CA3AF" textAlign="center" marginTop={4}>
+            <Text fontSize={11.5} color="#6B7280" textAlign="center" marginTop={4}>
               Tap a star to rate
             </Text>
           )}
@@ -131,7 +131,7 @@ export default function FeedbackPopup({
             value={comment}
             onChangeText={setComment}
             placeholder="Add a comment (optional)"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#6B7280"
             backgroundColor="#F9FAFB"
             borderColor="#E5E7EB"
             color="#111827"
@@ -151,10 +151,10 @@ export default function FeedbackPopup({
             </Button>
             <Button
               backgroundColor="#F3F4F6"
-              color="#6B7280"
+              color="#374151"
               disabled={saving}
               onPress={() => void persist(true)}>
-              <Text color="#6B7280" fontWeight="700">Skip</Text>
+              <Text color="#374151" fontWeight="700">Skip</Text>
             </Button>
           </YStack>
         </YStack>

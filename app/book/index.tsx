@@ -3237,7 +3237,7 @@ export default function BookingWizardScreen() {
                 Your shifting booking has been created successfully.
               </Text>
               <YStack backgroundColor="#FFFFFF" borderRadius={10} padding={12} width="100%">
-                <Text color="#6B7280" fontSize={t(12)}>Booking ID</Text>
+                <Text color="#374151" fontSize={t(12)}>Booking ID</Text>
                 <Text color="#111827" fontSize={t(14)} fontWeight="700" selectable>{bookingId}</Text>
               </YStack>
               <XStack gap="$3" width="100%">

@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
 import FeedbackPopup from '@/components/FeedbackPopup';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 function DriverGuard() {
   const router = useRouter();
@@ -468,7 +469,7 @@ function DriverScreenInner({ profile, session }: { profile: any; session: any })
                 borderWidth={1}
                 onPress={() => void fetchDriverBookings()}
                 disabled={loading}>
-                Refresh
+                <FontAwesome5 name="sync" size={14} color={theme.text} />
               </Button>
             </XStack>
 

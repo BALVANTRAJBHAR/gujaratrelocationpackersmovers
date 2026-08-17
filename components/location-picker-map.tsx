@@ -13,7 +13,7 @@ export default function LocationPickerMap({ token, latitude, longitude }: Locati
   if (!token) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center" padding={16} backgroundColor="#0B1220">
-        <Text color="#94A3B8" fontSize={12} textAlign="center">
+        <Text color="#64748B" fontSize={12} textAlign="center">
           Add Google Maps key to enable map preview.
         </Text>
       </YStack>

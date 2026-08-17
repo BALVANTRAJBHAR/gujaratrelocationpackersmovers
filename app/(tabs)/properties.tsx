@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Button, Text, XStack, YStack } from 'tamagui';
 
+import { FontAwesome5 } from '@expo/vector-icons';
 import { themes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
@@ -182,7 +183,7 @@ export default function PropertiesTabScreen() {
               <Text color={titleColor} fontWeight="900" fontSize={t(14)}>Customer Bookings</Text>
               <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                 onPress={fetchBookings} disabled={bookingsLoading}>
-                {bookingsLoading ? 'Loading...' : 'Refresh'}
+                {bookingsLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <FontAwesome5 name="sync" size={13} color="#FFFFFF" />}
               </Button>
             </XStack>
             {!bookings.length && !bookingsLoading ? (
@@ -225,7 +226,7 @@ export default function PropertiesTabScreen() {
               <Text color={titleColor} fontWeight="900" fontSize={t(14)}>Visit Meetings</Text>
               <Button size="$2" backgroundColor={theme.accent} color="#FFFFFF" borderRadius={10}
                 onPress={fetchMeetings} disabled={meetingsLoading}>
-                {meetingsLoading ? 'Loading...' : 'Refresh'}
+                {meetingsLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <FontAwesome5 name="sync" size={13} color="#FFFFFF" />}
               </Button>
             </XStack>
             {!meetings.length && !meetingsLoading ? (

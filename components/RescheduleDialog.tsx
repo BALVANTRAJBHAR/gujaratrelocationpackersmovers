@@ -29,7 +29,7 @@ export default function RescheduleDialog({ open, title, confirmLabel, onClose, o
             <Text fontWeight="800" fontSize={17} color="#111827">
               {title ?? 'Reschedule'}
             </Text>
-            <Text fontSize={12} color="#6B7280" marginTop={4}>
+            <Text fontSize={12} color="#374151" marginTop={4}>
               Select the new date and time slot for this {confirmLabel?.toLowerCase() === 'reschedule service' ? 'service' : 'booking'}.
             </Text>
 

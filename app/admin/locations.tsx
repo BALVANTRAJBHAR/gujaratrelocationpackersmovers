@@ -464,7 +464,7 @@ function AdminLocationsInner() {
     try {
       const rows = states.map((s) => {
         const stateCities = cities.filter((c) => c.state_id === s.id).map((c) => c.name).join(', ') || '—';
-        return `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;">${s.name}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#4b5563;">${stateCities}</td></tr>`;
+        return `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;">${s.name}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#1F2937;">${stateCities}</td></tr>`;
       }).join('');
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>body{font-family:sans-serif;padding:20px;color:#111827}h1{font-size:22px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#3b82f6;color:#fff;padding:10px 12px;text-align:left}tr:nth-child(even){background:#f9fafb}</style></head><body><h1>Locations Report</h1><p>Generated: ${new Date().toLocaleDateString('en-IN')}</p><table><thead><tr><th>State</th><th>Cities</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
       if (Platform.OS === 'web') {

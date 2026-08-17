@@ -202,9 +202,9 @@ const BusinessCard = ({ theme, viewShotRef }: any) => {
       borderColor={theme.primary}
       shadowColor={theme.shadow}
       shadowOffset={{ width: 0, height: 12 }}
-      shadowOpacity={0.15}
-      shadowRadius={24}
-      elevation={10}
+      shadowOpacity={0.1}
+      shadowRadius={18}
+      elevation={7}
       width="100%"
       maxWidth={640}
       alignSelf="center"
@@ -2017,9 +2017,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   borderColor={theme.border}
                   shadowColor="#000"
                   shadowOffset={{ width: 0, height: 4 }}
-                  shadowOpacity={0.08}
-                  shadowRadius={12}
-                  elevation={4}
+                  shadowOpacity={0.06}
+                  shadowRadius={10}
+                  elevation={3}
                   gap="$2.5">
                   <Text
                     color={theme.text}
@@ -2044,10 +2044,10 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                                 backgroundColor: selected ? theme.primary : theme.bgCardSecondary,
                                 borderColor: selected ? '#FBBF24' : theme.border,
                                 shadowColor: selected ? theme.primary : 'rgba(0,0,0,0.12)',
-                                shadowOpacity: selected ? 0.35 : 0.1,
-                                shadowRadius: selected ? 14 : 8,
-                                shadowOffset: { width: 0, height: selected ? 8 : 3 },
-                                elevation: selected ? 10 : 4,
+                                shadowOpacity: selected ? 0.22 : 0.08,
+                                shadowRadius: selected ? 10 : 6,
+                                shadowOffset: { width: 0, height: selected ? 6 : 3 },
+                                elevation: selected ? 7 : 3,
                                 paddingVertical: isSmallScreen ? 20 : 22,
                                 minHeight: isSmallScreen ? 96 : 106,
                               },
@@ -2103,7 +2103,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       color={propertyMode === 'buy' ? '#FFFFFF' : theme.text}
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setPropertyMode('buy')}>
@@ -2116,7 +2116,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       color={propertyMode === 'rent' ? '#FFFFFF' : theme.text}
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setPropertyMode('rent')}>
@@ -2129,7 +2129,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                       color={propertyMode === 'commercial' ? '#FFFFFF' : theme.text}
                       borderWidth={1}
                       borderColor={theme.border}
-                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                      hoverStyle={{ backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any}
                       pressStyle={{ backgroundColor: '#16A34A', borderColor: '#16A34A', color: '#FFFFFF' } as any}
                       focusStyle={{ backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#FFFFFF' } as any}
                       onPress={() => setPropertyMode('commercial')}>
@@ -2451,7 +2451,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         }}
                         editable={propertySelectedLocalities.length < 3}
                         placeholder={propertySelectedLocalities.length >= 3 ? 'Maximum 3 localities selected' : 'Search upto 3 localities or landmarks'}
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor="#6B7280"
                         style={{
                           flex: 1,
                           height: 44,
@@ -2470,7 +2470,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         paddingHorizontal={20}
                         height={50}
                         color="#FFFFFF"
-                        hoverStyle={{ backgroundColor: '#4338CA', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any}
+                        hoverStyle={{ backgroundColor: '#4338CA', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any}
                         pressStyle={{ backgroundColor: '#3730A3', color: '#FFFFFF' } as any}
                         focusStyle={{ backgroundColor: '#4338CA', color: '#FFFFFF' } as any}
                         onPress={handleTopSearch}>
@@ -2782,8 +2782,8 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     borderColor="transparent"
                     hoverStyle={
                       (activeService === 'property'
-                        ? { backgroundColor: '#16A34A', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' }
-                        : { backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' }) as any
+                        ? { backgroundColor: '#16A34A', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' }
+                        : { backgroundColor: '#22C55E', borderColor: '#FBBF24', color: '#FFFFFF', boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' }) as any
                     }
                     pressStyle={
                       (activeService === 'property'
@@ -2827,7 +2827,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   value={quoteName}
                   onChangeText={setQuoteName}
                   placeholder="Your Name *"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   editable={!quoteNameReadOnly}
                   style={[styles.modalInput, { borderColor: theme.border, color: theme.text, fontFamily: APP_SERIF_FONT }]}
                 />
@@ -2839,7 +2839,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     setQuotePhone(digits);
                   }}
                   placeholder="Phone Number *"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
                   maxLength={10}
                   editable={!quotePhoneReadOnly}
@@ -2857,7 +2857,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   value={quoteEmail}
                   onChangeText={setQuoteEmail}
                   placeholder="Email (Optional)"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!quoteEmailReadOnly}
@@ -2874,7 +2874,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                     ]}>
                     <XStack alignItems="center" justifyContent="space-between">
                       <Text
-                        color={quoteService ? theme.text : '#9CA3AF'}
+                        color={quoteService ? theme.text : '#6B7280'}
                         fontSize={t(14)}
                         fontWeight="700"
                         style={{ fontFamily: APP_SERIF_FONT }}>
@@ -2941,7 +2941,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   value={quoteMessage}
                   onChangeText={setQuoteMessage}
                   placeholder="Your Message (Optional)"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   multiline
                   style={[styles.modalTextarea, { borderColor: theme.border, color: theme.text, fontFamily: APP_SERIF_FONT }]}
                 />
@@ -2952,7 +2952,7 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                   onHoverOut={Platform.OS === 'web' ? () => setHeaderHovered(null) : undefined}
                   onPress={submitQuoteRequest}>
                   <YStack
-                    style={[styles.modalSubmit, { backgroundColor: theme.primary, opacity: quoteSubmitting ? 0.7 : 1, borderWidth: 1, borderColor: headerHovered === 'qcallback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'qcallback' ? '0 0 10px 3px rgba(251, 191, 36, 0.5)' : undefined } as any]}>
+                    style={[styles.modalSubmit, { backgroundColor: theme.primary, opacity: quoteSubmitting ? 0.7 : 1, borderWidth: 1, borderColor: headerHovered === 'qcallback' ? '#FBBF24' : 'transparent', boxShadow: headerHovered === 'qcallback' ? '0 0 6px 2px rgba(251, 191, 36, 0.3)' : undefined } as any]}>
                     <Text color="#FFFFFF" fontSize={t(20)} fontWeight="900" style={{ fontFamily: APP_SERIF_FONT }}>
                       {quoteSubmitting ? 'Submitting…' : 'Request Callback'}
                     </Text>
@@ -3774,9 +3774,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             borderColor={theme.border}
             shadowColor={theme.shadow}
             shadowOffset={{ width: 0, height: 10 }}
-            shadowOpacity={0.14}
-            shadowRadius={20}
-            elevation={8}>
+            shadowOpacity={0.09}
+            shadowRadius={14}
+            elevation={5}>
             <YStack
               backgroundColor={theme.bgSecondary}
               paddingHorizontal={26}
@@ -3869,9 +3869,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             borderColor={theme.border}
             shadowColor={theme.shadow}
             shadowOffset={{ width: 0, height: 10 }}
-            shadowOpacity={0.14}
-            shadowRadius={20}
-            elevation={8}>
+            shadowOpacity={0.09}
+            shadowRadius={14}
+            elevation={5}>
               <YStack
                 backgroundColor={theme.bgSecondary}
                 paddingHorizontal={26}
@@ -3915,9 +3915,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                         borderRadius: 700,
                         shadowColor: 'rgba(0,0,0,0.55)',
                         shadowOffset: { width: 0, height: 14 },
-                        shadowOpacity: 0.28,
-                        shadowRadius: 22,
-                        elevation: 12,
+                        shadowOpacity: 0.16,
+                        shadowRadius: 14,
+                        elevation: 8,
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexDirection: 'row',
@@ -3979,9 +3979,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
             borderColor={theme.border}
             shadowColor={theme.shadow}
             shadowOffset={{ width: 0, height: 10 }}
-            shadowOpacity={0.14}
-            shadowRadius={20}
-            elevation={8}>
+            shadowOpacity={0.09}
+            shadowRadius={14}
+            elevation={5}>
             <YStack
               backgroundColor={theme.bgSecondary}
               paddingHorizontal={26}
@@ -4066,9 +4066,9 @@ export default function HomeLandingScreen({ embeddedInTabs = false }: { embedded
                 borderRadius: 14,
                 shadowColor: 'rgba(0,0,0,0.25)',
                 shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.18,
-                shadowRadius: 16,
-                elevation: 8,
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                elevation: 6,
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexDirection: 'row',
@@ -4385,9 +4385,9 @@ const styles = StyleSheet.create({
     bottom: -2,
     borderRadius: 18,
     backgroundImage:
-      'linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000)',
+      'linear-gradient(45deg, #fbbf24, #f97316, #f472b6, #60a5fa, #fbbf24)',
     backgroundSize: '400% 400%',
-    filter: 'blur(5px)',
+    filter: 'blur(2px)',
     transitionDuration: '300ms',
     transitionProperty: 'opacity',
     animationDuration: '20s',
@@ -4405,27 +4405,27 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
   },
   headerPillIcon: {
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
   },
   headerPillIconMobile: {
     paddingHorizontal: 16,
     paddingVertical: 11,
     borderRadius: 12,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
   },
   stickyHeader: {
     position: 'absolute',
@@ -4498,9 +4498,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: 'rgba(0,0,0,0.3)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 6,
   },
   heroCtaMobile: {
     paddingHorizontal: 10,
@@ -4508,9 +4508,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     minWidth: 96,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   heroCtaMobileWide: {
     paddingHorizontal: 10,
@@ -4518,9 +4518,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     minWidth: 118,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   heroDot: {
     width: 11,
@@ -4626,9 +4626,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: 'rgba(0,0,0,0.28)',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 10,
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 7,
   },
   statItem: {
     paddingVertical: 18,
@@ -4659,9 +4659,9 @@ const styles = StyleSheet.create({
     minHeight: 190,
     shadowColor: 'rgba(0,0,0,0.26)',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 22,
-    elevation: 10,
+    shadowOpacity: 0.13,
+    shadowRadius: 16,
+    elevation: 7,
   },
   bookBannerButton: {
     backgroundColor: '#1F3B63',
@@ -4673,9 +4673,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: 'rgba(0,0,0,0.26)',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 9,
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 6,
   },
   stepBadge: {
     width: 26,
@@ -4754,9 +4754,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: 'rgba(0,0,0,0.22)',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   transparentPricingActionButtonLight: {
     backgroundColor: '#FFFFFF',

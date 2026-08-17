@@ -79,13 +79,13 @@ function ActionIconBtn({
         borderColor={isHovered ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
         shadowColor={theme.shadow}
         shadowOffset={{ width: 0, height: 3 }}
-        shadowOpacity={0.12}
-        shadowRadius={6}
-        elevation={3}
+        shadowOpacity={0.08}
+        shadowRadius={5}
+        elevation={2}
         alignItems="center"
         justifyContent="center"
         paddingHorizontal={0}
-        style={isHovered ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+        style={isHovered ? { boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any : undefined}>
         {children}
       </YStack>
     </Pressable>
@@ -123,13 +123,13 @@ function MenuBtn({
         borderColor={hovered === id ? '#FBBF24' : 'rgba(255,255,255,0.12)'}
         shadowColor={theme.shadow}
         shadowOffset={{ width: 0, height: 3 }}
-        shadowOpacity={0.12}
-        shadowRadius={6}
-        elevation={3}
+        shadowOpacity={0.08}
+        shadowRadius={5}
+        elevation={2}
         flexDirection="row"
         alignItems="center"
         gap={6}
-        style={hovered === id ? { boxShadow: '0 0 10px 3px rgba(251, 191, 36, 0.5)' } as any : undefined}>
+        style={hovered === id ? { boxShadow: '0 0 6px 2px rgba(251, 191, 36, 0.3)' } as any : undefined}>
         {children}
       </YStack>
     </Pressable>
@@ -527,9 +527,9 @@ const styles = StyleSheet.create({
     padding: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 9,
   },
   logo: {
     width: 42,

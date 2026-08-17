@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { t } from '@/constants/typography';
 import { formatDateTimeDDMMYYYY } from '@/lib/date-format';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 type ConversationRow = {
   id: string;
@@ -284,7 +285,7 @@ export default function SupportChatScreen() {
                 color={theme.text}
                 disabled={loading}
                 onPress={() => void fetchMessages()}>
-                Refresh
+                <FontAwesome5 name="sync" size={14} color={theme.text} />
               </Button>
             </XStack>
 

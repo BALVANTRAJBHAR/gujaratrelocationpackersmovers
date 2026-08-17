@@ -16,7 +16,7 @@ export default function LocationPickerMap({ token, latitude, longitude, onSelect
   if (!token) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center" padding={16} backgroundColor="#0B1220">
-        <Text color="#94A3B8" fontSize={12} textAlign="center">
+        <Text color="#64748B" fontSize={12} textAlign="center">
           Add Google Maps key to enable map selection.
         </Text>
       </YStack>
@@ -26,7 +26,7 @@ export default function LocationPickerMap({ token, latitude, longitude, onSelect
   if (Platform.OS === 'android' && !googleMapsKey) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center" padding={16} backgroundColor="#0B1220">
-        <Text color="#94A3B8" fontSize={12} textAlign="center">
+        <Text color="#64748B" fontSize={12} textAlign="center">
           Map is disabled on Android until Google Maps API key is configured.
         </Text>
       </YStack>

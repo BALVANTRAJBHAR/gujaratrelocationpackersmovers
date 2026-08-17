@@ -114,9 +114,9 @@ export default function SplashScreen() {
           borderColor="#E2E8F0"
           shadowColor="#0B1F3A"
           shadowOffset={{ width: 0, height: 16 }}
-          shadowOpacity={0.16}
-          shadowRadius={28}
-          elevation={10}
+          shadowOpacity={0.1}
+          shadowRadius={18}
+          elevation={7}
           gap="$3">
           <View
             style={{

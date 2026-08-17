@@ -13,6 +13,7 @@ import { useAuthGuard } from '@/lib/auth-guard';
 import { t } from '@/constants/typography';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '@/lib/date-format';
 import EndOfResults from '@/components/EndOfResults';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 type ApprovalRecord = {
   id: string;
@@ -336,7 +337,7 @@ function AdminHistoryInner() {
     <YStack flex={1} backgroundColor={theme.bg} padding={24} gap="$4">
       {Platform.OS === 'web' ? (
         <style>{`
-          .admin-date-input::placeholder { color: #9CA3AF; opacity: 1; }
+          .admin-date-input::placeholder { color: #6B7280; opacity: 1; }
         `}</style>
       ) : null}
       <XStack justifyContent="space-between" alignItems="center">
@@ -354,7 +355,7 @@ function AdminHistoryInner() {
             fetchHistory();
             fetchActionLogs({ reset: true });
           }}>
-          Refresh
+          <FontAwesome5 name="sync" size={14} color={theme.textSecondary} />
         </Button>
       </XStack>
 

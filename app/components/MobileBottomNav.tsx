@@ -136,7 +136,7 @@ export default function MobileBottomNav({
   const sheetBg = theme.bgCard || theme.bgSecondary || '#FFFFFF';
   const overlayBg = 'rgba(0,0,0,0.4)';
   const activeColor = theme.primary || '#1F4E79';
-  const inactiveColor = theme.textMuted || '#94A3B8';
+  const inactiveColor = theme.textMuted || '#4A5568';
 
   return (
     <>
@@ -162,9 +162,9 @@ export default function MobileBottomNav({
           paddingBottom={8}
           shadowColor="#000"
           shadowOffset={{ width: 0, height: -4 }}
-          shadowOpacity={0.15}
-          shadowRadius={12}
-          elevation={12}
+          shadowOpacity={0.1}
+          shadowRadius={8}
+          elevation={8}
           zIndex={1001}>
           <Text color={theme.text} fontWeight="900" fontSize={t(16)} marginBottom={8} style={{ fontFamily: APP_SERIF_FONT }}>
             Our Services
@@ -199,9 +199,9 @@ export default function MobileBottomNav({
           paddingBottom={8}
           shadowColor="#000"
           shadowOffset={{ width: 0, height: -4 }}
-          shadowOpacity={0.15}
-          shadowRadius={12}
-          elevation={12}
+          shadowOpacity={0.1}
+          shadowRadius={8}
+          elevation={8}
           zIndex={1001}>
           {session ? (
             <>
