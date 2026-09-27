@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Linking, Modal, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -331,11 +331,22 @@ export default function BookingWizardScreen() {
   const [step, setStep] = useState<StepKey>('info');
   const stepIndex = stepMeta[step].index;
 
+  const params = useLocalSearchParams<{ moveType?: string; type?: string; service?: string }>();
   const [form, setForm] = useState<BookingFormState>({
     fullName: profile?.name ?? '',
     mobile: String(profile?.phone ?? '').trim(),
     email: profile?.email ?? '',
-    moveType: '',
+    moveType: (() => {
+      const mType = String(params.moveType || params.type || params.service || '').toLowerCase().trim();
+      if (!mType) return '';
+      if (mType === 'home' || mType.includes('house') || mType.includes('home')) return 'home';
+      if (mType === 'office' || mType.includes('office') || mType.includes('corporate')) return 'office';
+      if (mType === 'vehicle' || mType.includes('car') || mType.includes('bike') || mType.includes('vehicle')) return 'vehicle';
+      if (mType === 'storage' || mType.includes('warehouse') || mType.includes('storage')) return 'storage';
+      if (mType === 'local' || mType.includes('pack') || mType.includes('local')) return 'local';
+      if (mType === 'domestic' || mType.includes('inter') || mType.includes('domestic')) return 'domestic';
+      return '';
+    })(),
 
     pickupAddress: '',
     pickupCoords: null,
@@ -395,6 +406,21 @@ export default function BookingWizardScreen() {
   const maxDate = useMemo(() => { const t = new Date(); t.setFullYear(t.getFullYear() + 2); t.setHours(23, 59, 59, 999); return t; }, []);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletAmount, setWalletAmount] = useState(0);
+
+  useEffect(() => {
+    const mType = String(params.moveType || params.type || params.service || '').toLowerCase().trim();
+    if (!mType) return;
+    let resolved: BookingFormState['moveType'] = '';
+    if (mType === 'home' || mType.includes('house') || mType.includes('home')) resolved = 'home';
+    else if (mType === 'office' || mType.includes('office') || mType.includes('corporate')) resolved = 'office';
+    else if (mType === 'vehicle' || mType.includes('car') || mType.includes('bike') || mType.includes('vehicle')) resolved = 'vehicle';
+    else if (mType === 'storage' || mType.includes('warehouse') || mType.includes('storage')) resolved = 'storage';
+    else if (mType === 'local' || mType.includes('pack') || mType.includes('local')) resolved = 'local';
+    else if (mType === 'domestic' || mType.includes('inter') || mType.includes('domestic')) resolved = 'domestic';
+    if (resolved) {
+      setForm((p) => ({ ...p, moveType: resolved }));
+    }
+  }, [params.moveType, params.type, params.service]);
 
   useEffect(() => {
     if (step !== 'info') return;

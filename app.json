@@ -67,7 +67,7 @@
           "backgroundColor": "#F8FAFC",
           "dark": {
             "backgroundColor": "#F8FAFC"
-          }
+          }  
         }
       ],
       "./plugins/with-text-recognition-sdk",

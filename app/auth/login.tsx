@@ -1,9 +1,9 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { AntDesign, MaterialIcons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView } from 'react-native';
 import { Button, H2, Input, Paragraph, Text, XStack, YStack } from 'tamagui';
 
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -721,338 +721,413 @@ export default function LoginScreen() {
     }
   };
 
+  // ─── New UI matching reference design ────────────────────────────────────────
   return initialProcessing ? (
-    <YStack flex={1} backgroundColor={theme.bg} alignItems="center" justifyContent="center">
-      <ActivityIndicator size="large" color={theme.primary} />
+    <YStack flex={1} backgroundColor="#EEF2F7" alignItems="center" justifyContent="center">
+      <ActivityIndicator size="large" color="#0B1F3A" />
     </YStack>
   ) : (
     <ScrollView
-      style={{ flex: 1, backgroundColor: theme.bg } as any}
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 } as any}
+      style={{ flex: 1, backgroundColor: '#EEF2F7' } as any}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 } as any}
       keyboardShouldPersistTaps="handled">
+
+      {/* Card */}
       <YStack
         width="100%"
-        maxWidth={420}
-        backgroundColor={theme.bgCard}
+        maxWidth={440}
+        backgroundColor="#FFFFFF"
         borderRadius={20}
-        padding={24}
-        gap="$4"
-        borderWidth={1}
-        borderColor={theme.border}>
-        <YStack gap="$2" alignItems="center">
-          <H2 color={theme.text} textAlign="center">
-            {title}
-          </H2>
-          <Paragraph color={theme.textMuted} textAlign="center">
-            {subtitle}
-          </Paragraph>
-        </YStack>
+        paddingHorizontal={32}
+        paddingVertical={36}
+        gap="$0"
+        shadowColor="#000"
+        shadowOffset={{ width: 0, height: 4 } as any}
+        shadowOpacity={0.08 as any}
+        shadowRadius={24 as any}
+        elevation={6}>
 
-        <XStack gap="$2" justifyContent="center" flexWrap="wrap">
-          <Button
-            size="$3"
-            backgroundColor={mode === 'login' ? activeBtnBg : idleBtnBg}
-            color={mode === 'login' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'login' ? activeBtnHoverBg : idleBtnHoverBg }}
-            pressStyle={{ backgroundColor: mode === 'login' ? activeBtnPressBg : idleBtnPressBg }}
-            onPress={() => {
-              setMode('login');
-              setShowEmailSignup(false);
-              setPendingOAuthUser(null);
-              setError(null);
-              setInfo(null);
-            }}
-            fontFamily="Times New Roman">
-            Sign In
-          </Button>
-          <Button
-            size="$3"
-            backgroundColor={mode === 'signup' ? activeBtnBg : idleBtnBg}
-            color={mode === 'signup' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'signup' ? activeBtnHoverBg : idleBtnHoverBg }}
-            pressStyle={{ backgroundColor: mode === 'signup' ? activeBtnPressBg : idleBtnPressBg }}
-            onPress={() => {
-              setMode('signup');
-              setForgotStep('request');
-              setShowEmailSignup(false);
-              setPendingOAuthUser(null);
-              setError(null);
-              setInfo(null);
-            }}
-            fontFamily="Times New Roman">
-            Sign Up
-          </Button>
-          <Button
-            size="$3"
-            backgroundColor={mode === 'forgot' ? activeBtnBg : idleBtnBg}
-            color={mode === 'forgot' ? activeBtnText : idleBtnText}
-            hoverStyle={{ backgroundColor: mode === 'forgot' ? activeBtnHoverBg : idleBtnHoverBg }}
-            pressStyle={{ backgroundColor: mode === 'forgot' ? activeBtnPressBg : idleBtnPressBg }}
-            onPress={() => {
-              setMode('forgot');
-              setShowEmailSignup(false);
-              setPendingOAuthUser(null);
-              setForgotStep('request');
-              setError(null);
-              setInfo(null);
-              setPassword('');
-              setNewPassword('');
-            }}
-            fontFamily="Times New Roman">
-            Forgot password
-          </Button>
-        </XStack>
-
-        {mode !== 'forgot' ? (
-          <YStack gap="$2">
-            <Button
-              backgroundColor={theme.bgCard}
-              color={theme.text}
-              borderWidth={1}
-              borderColor={theme.border}
-              hoverStyle={{ backgroundColor: theme.bgCardSecondary }}
-              pressStyle={{ backgroundColor: theme.border }}
-              onPress={() => handleOAuth('google')}
-              disabled={loading || oauthLoading !== null}>
-              <XStack alignItems="center" gap={8} justifyContent="center">
-                {oauthLoading === 'google' ? (
-                  <ActivityIndicator size="small" color={theme.text} />
-                ) : null}
-                <Text color={theme.text} fontFamily="Times New Roman" fontSize={16}>
-                  Continue with Google
+        {/* ── SIGN IN ── */}
+        {mode === 'login' ? (
+          <>
+            {/* Logo + Title */}
+            <YStack alignItems="center" gap="$3" marginBottom={24}>
+              <YStack
+                width={80} height={80} borderRadius={40}
+                backgroundColor="#F8FAFC"
+                borderWidth={1} borderColor="#E2E8F0"
+                alignItems="center" justifyContent="center"
+                overflow="hidden"
+                shadowColor="#000"
+                shadowOffset={{ width: 0, height: 2 } as any}
+                shadowOpacity={0.06 as any}
+                shadowRadius={8 as any}
+                elevation={2}>
+                <Image
+                  source={require('@/assets/images/GR-New-Icon.png')}
+                  style={{ width: 68, height: 68, borderRadius: 34 }}
+                  resizeMode="contain"
+                />
+              </YStack>
+              <YStack alignItems="center" gap="$1">
+                <Text style={{ fontSize: 20, fontWeight: '900', color: '#0B1F3A', textAlign: 'center', fontFamily: 'Times New Roman', lineHeight: 26 } as any}>
+                  Welcome to Gujarat{'\n'}Relocation Packers &{'\n'}Movers
                 </Text>
-              </XStack>
-            </Button>
+                <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: 4, fontFamily: 'Times New Roman' } as any}>
+                  Sign in to continue
+                </Text>
+              </YStack>
+            </YStack>
 
-            {mode === 'signup' && !showEmailSignup ? (
-              <Button
-                backgroundColor={activeBtnBg}
-                color={activeBtnText}
-                hoverStyle={{ backgroundColor: activeBtnHoverBg }}
-                pressStyle={{ backgroundColor: activeBtnPressBg }}
-                onPress={() => setShowEmailSignup(true)}
-                disabled={loading || oauthLoading !== null}>
-                Continue with Email
-              </Button>
-            ) : null}
-          </YStack>
+            {/* Google Button */}
+            <Pressable
+              onPress={() => handleOAuth('google')}
+              disabled={loading || oauthLoading !== null}
+              style={({ pressed }) => ({
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10,
+                paddingVertical: 13, paddingHorizontal: 16, gap: 10,
+                backgroundColor: pressed ? '#F9FAFB' : '#FFFFFF',
+                marginBottom: 20,
+              }) as any}>
+              {oauthLoading === 'google' ? (
+                <ActivityIndicator size="small" color="#0B1F3A" />
+              ) : (
+                <AntDesign name="google" size={19} color="#EA4335" />
+              )}
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#0B1F3A', fontFamily: 'Times New Roman' } as any}>
+                Continue with Google
+              </Text>
+            </Pressable>
+
+            {/* OR divider */}
+            <XStack alignItems="center" gap="$3" marginBottom={20}>
+              <YStack flex={1} height={1} backgroundColor="#E5E7EB" />
+              <Text style={{ fontSize: 13, color: '#6B7280', fontWeight: '600' } as any}>OR</Text>
+              <YStack flex={1} height={1} backgroundColor="#E5E7EB" />
+            </XStack>
+
+            {/* Email */}
+            <YStack gap="$1" marginBottom={16}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Email</Text>
+              <XStack
+                alignItems="center" borderWidth={1} borderColor="#D1D5DB"
+                borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                <MaterialIcons name="mail-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                <Input
+                  {...commonInputProps}
+                  flex={1} borderWidth={0} value={email} onChangeText={setEmail}
+                  autoCapitalize="none" keyboardType="email-address"
+                  placeholder="you@example.com"
+                  style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                />
+              </XStack>
+            </YStack>
+
+            {/* Password */}
+            <YStack gap="$1" marginBottom={24}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Password</Text>
+              <XStack
+                alignItems="center" borderWidth={1} borderColor="#D1D5DB"
+                borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                <MaterialIcons name="lock-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                <Input
+                  {...commonInputProps}
+                  flex={1} borderWidth={0} value={password} onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  placeholder="••••••••"
+                  style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 } as any}>
+                  <MaterialIcons name={showPassword ? 'visibility-off' : 'visibility'} size={20} color="#9CA3AF" />
+                </Pressable>
+              </XStack>
+            </YStack>
+
+            {error ? <Text style={{ color: '#DC2626', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{error}</Text> : null}
+            {info  ? <Text style={{ color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{info}</Text>  : null}
+
+            {/* Sign In button */}
+            <Pressable
+              onPress={handleSubmit}
+              disabled={loading || oauthLoading !== null}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? '#1a2f4e' : '#0B1F3A',
+                borderRadius: 10, paddingVertical: 15, alignItems: 'center', marginBottom: 20,
+              }) as any}>
+              {loading
+                ? <ActivityIndicator size="small" color="#FFFFFF" />
+                : <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', fontFamily: 'Times New Roman' } as any}>Sign in</Text>}
+            </Pressable>
+
+            {/* Footer links */}
+            <XStack justifyContent="space-between" alignItems="center">
+              <Pressable onPress={() => { setMode('forgot'); setForgotStep('request'); setError(null); setInfo(null); }}>
+                <Text style={{ fontSize: 13, color: '#6B7280' } as any}>Forgot password?</Text>
+              </Pressable>
+              <XStack gap="$1">
+                <Text style={{ fontSize: 13, color: '#6B7280' } as any}>Need an account?</Text>
+                <Pressable onPress={() => { setMode('signup'); setShowEmailSignup(false); setError(null); setInfo(null); }}>
+                  <Text style={{ fontSize: 13, color: '#0B1F3A', fontWeight: '800' } as any}> Sign up</Text>
+                </Pressable>
+              </XStack>
+            </XStack>
+          </>
         ) : null}
 
-        <YStack gap="$3">
-          {mode === 'signup' && showEmailSignup ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary} fontSize={15}>Name (optional)</Text>
-              <Input
-                {...commonInputProps}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
-                editable={!pendingOAuthUser}
-              />
-            </YStack>
-          ) : null}
+        {/* ── SIGN UP ── */}
+        {mode === 'signup' ? (
+          <>
+            {/* Back link */}
+            <Pressable
+              onPress={() => { setMode('login'); setShowEmailSignup(false); setPendingOAuthUser(null); setError(null); setInfo(null); }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 20 } as any}>
+              <MaterialIcons name="arrow-back" size={18} color="#374151" />
+              <Text style={{ fontSize: 14, color: '#374151', fontWeight: '600' } as any}>Back to sign in</Text>
+            </Pressable>
 
-          {mode === 'signup' && showEmailSignup ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary} fontSize={15}>You are a</Text>
-              <XStack gap="$2">
-                <Button
-                  flex={1}
-                  backgroundColor={signupRole === 'customer' ? activeBtnBg : idleBtnBg}
-                  color={signupRole === 'customer' ? activeBtnText : idleBtnText}
-                  borderWidth={1}
-                  borderColor={signupRole === 'customer' ? activeBtnBg : theme.border}
-                  hoverStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnHoverBg : idleBtnHoverBg }}
-                  pressStyle={{ backgroundColor: signupRole === 'customer' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => {
-                    setSignupRole('customer');
-                    setSignupProviderSubtype('home_service');
-                  }}
-                  disabled={loading || oauthLoading !== null}>
-                  Customer
-                </Button>
-                <Button
-                  flex={1}
-                  backgroundColor={signupRole === 'provider' ? activeBtnBg : idleBtnBg}
-                  color={signupRole === 'provider' ? activeBtnText : idleBtnText}
-                  borderWidth={1}
-                  borderColor={signupRole === 'provider' ? activeBtnBg : theme.border}
-                  hoverStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnHoverBg : idleBtnHoverBg }}
-                  pressStyle={{ backgroundColor: signupRole === 'provider' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => {
-                    setSignupRole('provider');
-                    setSignupProviderSubtype('home_service');
-                  }}
-                  disabled={loading || oauthLoading !== null}>
-                  Provider
-                </Button>
-              </XStack>
-            </YStack>
-          ) : null}
+            <Text style={{ fontSize: 22, fontWeight: '900', color: '#0B1F3A', textAlign: 'center', fontFamily: 'Times New Roman', marginBottom: 24 } as any}>
+              Create your account
+            </Text>
 
-          {mode === 'signup' && showEmailSignup && signupRole === 'provider' ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary} fontSize={15}>Provider type</Text>
-              <XStack gap="$2" flexWrap="wrap">
-                <Button
-                  flex={1}
-                  backgroundColor={signupProviderSubtype === 'home_service' ? activeBtnBg : idleBtnBg}
-                  color={signupProviderSubtype === 'home_service' ? activeBtnText : idleBtnText}
-                  borderWidth={1}
-                  borderColor={signupProviderSubtype === 'home_service' ? activeBtnBg : theme.border}
-                  hoverStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnHoverBg : idleBtnHoverBg }}
-                  pressStyle={{ backgroundColor: signupProviderSubtype === 'home_service' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => {
-                    setSignupProviderSubtype('home_service');
-                  }}
+            {/* Google button (only when not email-signup flow yet) */}
+            {!showEmailSignup && !pendingOAuthUser ? (
+              <>
+                <Pressable
+                  onPress={() => handleOAuth('google')}
                   disabled={loading || oauthLoading !== null}
-                  fontFamily="Times New Roman">
-                  Home Service Provider
-                </Button>
-                <Button
-                  flex={1}
-                  backgroundColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : idleBtnBg}
-                  color={signupProviderSubtype === 'property_owner' ? activeBtnText : idleBtnText}
-                  borderWidth={1}
-                  borderColor={signupProviderSubtype === 'property_owner' ? activeBtnBg : theme.border}
-                  hoverStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnHoverBg : idleBtnHoverBg }}
-                  pressStyle={{ backgroundColor: signupProviderSubtype === 'property_owner' ? activeBtnPressBg : idleBtnPressBg }}
-                  onPress={() => {
-                    setSignupProviderSubtype('property_owner');
-                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10,
+                    paddingVertical: 13, paddingHorizontal: 16, gap: 10,
+                    backgroundColor: pressed ? '#F9FAFB' : '#FFFFFF',
+                    marginBottom: 16,
+                  }) as any}>
+                  {oauthLoading === 'google'
+                    ? <ActivityIndicator size="small" color="#0B1F3A" />
+                    : <AntDesign name="google" size={19} color="#EA4335" />}
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#0B1F3A', fontFamily: 'Times New Roman' } as any}>
+                    Continue with Google
+                  </Text>
+                </Pressable>
+
+                <XStack alignItems="center" gap="$3" marginBottom={16}>
+                  <YStack flex={1} height={1} backgroundColor="#E5E7EB" />
+                  <Text style={{ fontSize: 13, color: '#6B7280', fontWeight: '600' } as any}>OR</Text>
+                  <YStack flex={1} height={1} backgroundColor="#E5E7EB" />
+                </XStack>
+
+                <Pressable
+                  onPress={() => setShowEmailSignup(true)}
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? '#1a2f4e' : '#0B1F3A',
+                    borderRadius: 10, paddingVertical: 15, alignItems: 'center', marginBottom: 16,
+                  }) as any}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', fontFamily: 'Times New Roman' } as any}>
+                    Continue with Email
+                  </Text>
+                </Pressable>
+              </>
+            ) : null}
+
+            {/* Email signup form */}
+            {showEmailSignup || pendingOAuthUser ? (
+              <>
+                {/* Name (optional) */}
+                {!pendingOAuthUser ? (
+                  <YStack gap="$1" marginBottom={16}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Name (optional)</Text>
+                    <XStack alignItems="center" borderWidth={1} borderColor="#D1D5DB" borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                      <MaterialIcons name="person-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                      <Input
+                        {...commonInputProps}
+                        flex={1} borderWidth={0} value={name} onChangeText={setName}
+                        placeholder="Your name"
+                        style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                      />
+                    </XStack>
+                  </YStack>
+                ) : null}
+
+                {/* Role selection */}
+                <YStack gap="$1" marginBottom={16}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>You are a</Text>
+                  <XStack gap="$2">
+                    {(['customer', 'provider'] as const).map((r) => (
+                      <Pressable
+                        key={r}
+                        onPress={() => { setSignupRole(r); setSignupProviderSubtype('home_service'); }}
+                        style={{
+                          flex: 1, borderRadius: 10, paddingVertical: 12,
+                          alignItems: 'center', borderWidth: 1,
+                          backgroundColor: signupRole === r ? '#0B1F3A' : '#FFFFFF',
+                          borderColor: signupRole === r ? '#0B1F3A' : '#D1D5DB',
+                        } as any}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: signupRole === r ? '#FFFFFF' : '#374151', fontFamily: 'Times New Roman' } as any}>
+                          {r === 'customer' ? 'Customer' : 'Provider'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </XStack>
+                </YStack>
+
+                {/* Provider subtype */}
+                {signupRole === 'provider' ? (
+                  <YStack gap="$1" marginBottom={16}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Provider type</Text>
+                    <XStack gap="$2" flexWrap="wrap">
+                      {(['home_service', 'property_owner'] as const).map((sub) => (
+                        <Pressable
+                          key={sub}
+                          onPress={() => setSignupProviderSubtype(sub)}
+                          style={{
+                            flex: 1, borderRadius: 10, paddingVertical: 12,
+                            alignItems: 'center', borderWidth: 1, minWidth: 120,
+                            backgroundColor: signupProviderSubtype === sub ? '#0B1F3A' : '#FFFFFF',
+                            borderColor: signupProviderSubtype === sub ? '#0B1F3A' : '#D1D5DB',
+                          } as any}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: signupProviderSubtype === sub ? '#FFFFFF' : '#374151', textAlign: 'center', fontFamily: 'Times New Roman' } as any}>
+                            {sub === 'home_service' ? 'Home Service' : 'Property Owner'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </XStack>
+                  </YStack>
+                ) : null}
+
+                {/* Email */}
+                {!pendingOAuthUser ? (
+                  <YStack gap="$1" marginBottom={16}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Email</Text>
+                    <XStack alignItems="center" borderWidth={1} borderColor="#D1D5DB" borderRadius={10} paddingHorizontal={12} backgroundColor="#F5F7FF">
+                      <MaterialIcons name="mail-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                      <Input
+                        {...commonInputProps}
+                        flex={1} borderWidth={0} value={email} onChangeText={setEmail}
+                        autoCapitalize="none" keyboardType="email-address"
+                        placeholder="you@example.com"
+                        style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                      />
+                    </XStack>
+                  </YStack>
+                ) : null}
+
+                {/* Password */}
+                {!pendingOAuthUser ? (
+                  <YStack gap="$1" marginBottom={16}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Password</Text>
+                    <XStack alignItems="center" borderWidth={1} borderColor="#D1D5DB" borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                      <MaterialIcons name="lock-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                      <Input
+                        {...commonInputProps}
+                        flex={1} borderWidth={0} value={password} onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        placeholder="Min. 8 characters"
+                        style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                      />
+                      <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 } as any}>
+                        <MaterialIcons name={showPassword ? 'visibility-off' : 'visibility'} size={20} color="#9CA3AF" />
+                      </Pressable>
+                    </XStack>
+                  </YStack>
+                ) : null}
+
+                {error ? <Text style={{ color: '#DC2626', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{error}</Text> : null}
+                {info  ? <Text style={{ color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{info}</Text>  : null}
+
+                <Pressable
+                  onPress={handleSubmit}
                   disabled={loading || oauthLoading !== null}
-                  fontFamily="Times New Roman">
-                  Property Owner
-                </Button>
-              </XStack>
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? '#1a2f4e' : '#0B1F3A',
+                    borderRadius: 10, paddingVertical: 15, alignItems: 'center',
+                  }) as any}>
+                  {loading
+                    ? <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', fontFamily: 'Times New Roman' } as any}>
+                        {pendingOAuthUser ? 'Complete Google Sign‑up' : 'Create account'}
+                      </Text>}
+                </Pressable>
+              </>
+            ) : null}
 
-            </YStack>
-          ) : null}
+            {error && !showEmailSignup && !pendingOAuthUser ? <Text style={{ color: '#DC2626', fontSize: 13, marginTop: 12, textAlign: 'center' } as any}>{error}</Text> : null}
+            {info  && !showEmailSignup && !pendingOAuthUser ? <Text style={{ color: '#059669', fontSize: 13, marginTop: 12, textAlign: 'center' } as any}>{info}</Text>  : null}
+          </>
+        ) : null}
 
-          {mode === 'signup' && showEmailSignup && !pendingOAuthUser ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary}>Email</Text>
-              <Input
-                {...commonInputProps}
-                value={email}
-                onChangeText={setEmail}
-                editable={forgotStep !== 'set_password'}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="you@example.com"
-              />
-            </YStack>
-          ) : null}
-          {mode !== 'signup' ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary} fontSize={15}>Email</Text>
-              <Input
-                {...commonInputProps}
-                value={email}
-                onChangeText={setEmail}
-                editable={forgotStep !== 'set_password'}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="you@example.com"
-              />
-            </YStack>
-          ) : null}
+        {/* ── FORGOT PASSWORD ── */}
+        {mode === 'forgot' ? (
+          <>
+            {/* Back link */}
+            <Pressable
+              onPress={() => { setMode('login'); setForgotStep('request'); setError(null); setInfo(null); setPassword(''); setNewPassword(''); }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 20 } as any}>
+              <MaterialIcons name="arrow-back" size={18} color="#374151" />
+              <Text style={{ fontSize: 14, color: '#374151', fontWeight: '600' } as any}>Back to sign in</Text>
+            </Pressable>
 
-          {mode !== 'forgot' && (mode !== 'signup' || showEmailSignup) && !pendingOAuthUser ? (
-            <XStack width="100%" alignItems="center" borderWidth={1} borderColor={theme.border} borderRadius={9} paddingRight={4} overflow="hidden">
-              <Input
-                {...commonInputProps}
-                flex={1}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                placeholder="Password"
-                borderWidth={0}
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={{ padding: 8, borderRadius: 9, justifyContent: 'center', alignItems: 'center' } as any}>                <MaterialIcons
-                  name={showPassword ? 'visibility-off' : 'visibility'}
-                  size={22}
-                  color={theme.text}
-                />
-              </Pressable>
-            </XStack>
-          ) : null}
+            <Text style={{ fontSize: 22, fontWeight: '900', color: '#0B1F3A', textAlign: 'center', fontFamily: 'Times New Roman', marginBottom: 8 } as any}>
+              {forgotStep === 'request' ? 'Reset your password' : 'Set new password'}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 28, lineHeight: 22 } as any}>
+              {forgotStep === 'request'
+                ? "Enter your email and we'll send you a link to reset your password"
+                : 'Set a new password for your account.'}
+            </Text>
 
-          {mode === 'forgot' && forgotStep === 'set_password' ? (
-            <YStack gap="$2">
-              <Text color={theme.textSecondary} fontSize={15}>New Password</Text>
-              <Input
-                {...commonInputProps}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-                placeholder="Enter new password"
-                borderWidth={1}
-                borderColor={theme.border}
-                borderRadius={9}
-                paddingHorizontal={12}
-              />
-            </YStack>
-          ) : null}
+            {/* Email field */}
+            {forgotStep === 'request' ? (
+              <YStack gap="$1" marginBottom={24}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>Email</Text>
+                <XStack alignItems="center" borderWidth={1} borderColor="#D1D5DB" borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                  <MaterialIcons name="mail-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                  <Input
+                    {...commonInputProps}
+                    flex={1} borderWidth={0} value={email} onChangeText={setEmail}
+                    autoCapitalize="none" keyboardType="email-address"
+                    placeholder="you@example.com"
+                    style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                  />
+                </XStack>
+              </YStack>
+            ) : (
+              <YStack gap="$1" marginBottom={24}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6 } as any}>New Password</Text>
+                <XStack alignItems="center" borderWidth={1} borderColor="#D1D5DB" borderRadius={10} paddingHorizontal={12} backgroundColor="#FFFFFF">
+                  <MaterialIcons name="lock-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 } as any} />
+                  <Input
+                    {...commonInputProps}
+                    flex={1} borderWidth={0} value={newPassword} onChangeText={setNewPassword}
+                    secureTextEntry
+                    placeholder="Enter new password"
+                    style={{ height: 46, fontFamily: 'Times New Roman', fontSize: 15, color: '#0B1F3A' } as any}
+                  />
+                </XStack>
+              </YStack>
+            )}
 
-          {error ? <Paragraph color={theme.danger}>{error}</Paragraph> : null}
-          {info ? <Paragraph color={theme.success}>{info}</Paragraph> : null}
+            {error ? <Text style={{ color: '#DC2626', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{error}</Text> : null}
+            {info  ? <Text style={{ color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' } as any}>{info}</Text>  : null}
 
-          {mode !== 'signup' || showEmailSignup ? (
-            <Button
-              backgroundColor={activeBtnBg}
-              color={activeBtnText}
-              hoverStyle={{ backgroundColor: activeBtnHoverBg }}
-              pressStyle={{ backgroundColor: activeBtnPressBg }}
+            <Pressable
               onPress={handleSubmit}
-              disabled={
-                loading ||
-                (mode === 'signup' &&
-                  showEmailSignup &&
-                  !name.trim())
-              }
-              fontFamily="Times New Roman"
-              fontWeight="bold">
+              disabled={loading}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? '#1a2f4e' : '#0B1F3A',
+                borderRadius: 10, paddingVertical: 15, alignItems: 'center',
+              }) as any}>
               {loading
-                ? 'Please wait…'
-                : mode === 'login'
-                  ? 'Sign In'
-                  : mode === 'signup'
-                    ? pendingOAuthUser ? 'Complete Google Sign‑up' : 'Create account'
-                    : forgotStep === 'request'
-                      ? 'Send reset link'
-                      : 'Update Password'}
-            </Button>
-          ) : null}
+                ? <ActivityIndicator size="small" color="#FFFFFF" />
+                : <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', fontFamily: 'Times New Roman' } as any}>
+                    {forgotStep === 'request' ? 'Send reset link' : 'Update password'}
+                  </Text>}
+            </Pressable>
+          </>
+        ) : null}
 
-          {mode === 'forgot' && forgotStep !== 'request' ? (
-            <Button
-              chromeless
-              color={theme.textMuted}
-              onPress={() => {
-                setForgotStep('request');
-                setNewPassword('');
-                setError(null);
-                setInfo(null);
-              }}>
-              Change email
-            </Button>
-          ) : null}
-
-          <Button
-            chromeless
-            color={theme.textMuted}
-            onPress={() => {
-              setPendingOAuthUser(null);
-              router.back();
-            }}>
-            Back
-          </Button>
-        </YStack>
       </YStack>
-
     </ScrollView>
   );
 }
+

@@ -79,8 +79,90 @@ const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_DURATION_SEC = 30;
 const TEMP_BYPASS_OTP = false; // OTP verification enabled on submit
-const HOME_SERVICE_BOOKING_TOTAL = 150;
-const HOME_SERVICE_PAYMENT = calculateConvenienceFee(HOME_SERVICE_BOOKING_TOTAL);
+
+export const SERVICE_BASE_PRICES: Record<string, number> = {
+  ac: 299,
+  electrician: 149,
+  carpenter: 199,
+  pest: 499,
+  cleaning: 999,
+  plumber: 149,
+  painting: 499,
+  ro: 299,
+};
+
+export const SERVICE_ISSUES: Record<string, string[]> = {
+  ac: [
+    'AC not cooling',
+    'AC not turning on',
+    'AC leaking water',
+    'AC making noise',
+    'Gas refill',
+    'New installation',
+    'Regular service/cleaning',
+  ],
+  carpenter: [
+    'Furniture repair',
+    'Door/window repair',
+    'New furniture assembly',
+    'Wardrobe fitting',
+    'False ceiling',
+    'Wooden flooring',
+    'Custom woodwork',
+  ],
+  electrician: [
+    'Switch / socket repair',
+    'Fan installation',
+    'Light fitting',
+    'MCB tripping',
+    'Geyser installation',
+    'Inverter/UPS work',
+    'Full wiring',
+  ],
+  pest: [
+    'Cockroach treatment',
+    'Termite treatment',
+    'Mosquito control',
+    'Bed bug treatment',
+    'Rat/rodent control',
+    'Ants treatment',
+    'General pest control',
+  ],
+  cleaning: [
+    '1 BHK cleaning',
+    '2 BHK cleaning',
+    '3 BHK cleaning',
+    'Kitchen deep clean',
+    'Bathroom deep clean',
+    'Sofa/carpet cleaning',
+    'Full home cleaning',
+  ],
+  plumber: [
+    'Pipe leakage repair',
+    'Tap / shower repair & replacement',
+    'Toilet / cistern repair',
+    'Water tank cleaning',
+    'Blocked drain clearing',
+    'Basin / sink installation',
+    'Motor pump repair',
+  ],
+  painting: [
+    'Full home interior painting',
+    'Exterior painting',
+    'Single room painting',
+    'Wall putty & primer',
+    'Waterproofing & damp repair',
+    'Texture / stencil design',
+  ],
+  ro: [
+    'RO filter replacement',
+    'Water leakage',
+    'Low water flow / taste issue',
+    'RO not turning on',
+    'New RO installation',
+    'Annual Maintenance (AMC)',
+  ],
+};
 
 class UploadError extends Error {}
 
@@ -318,10 +400,17 @@ export default function HomeServiceRequestScreen() {
   const [preferredDate, setPreferredDate] = useState<string>('');
   const [preferredTime, setPreferredTime] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [selectedIssue, setSelectedIssue] = useState<string>('');
+  const [urgency, setUrgency] = useState<'normal' | 'urgent'>('normal');
   const [paymentOption, setPaymentOption] = useState<'online_now' | 'after_service'>('after_service');
   const [paying, setPaying] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
+
+  const currentBasePrice = useMemo(() => SERVICE_BASE_PRICES[serviceKey] ?? 150, [serviceKey]);
+  const urgencyExtraCharge = useMemo(() => (urgency === 'urgent' ? 100 : 0), [urgency]);
+  const dynamicBookingTotal = useMemo(() => currentBasePrice + urgencyExtraCharge, [currentBasePrice, urgencyExtraCharge]);
+  const paymentDetails = useMemo(() => calculateConvenienceFee(dynamicBookingTotal), [dynamicBookingTotal]);
 
   const todayDate = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const lastPickTimeRef = useRef(0);
@@ -915,6 +1004,11 @@ export default function HomeServiceRequestScreen() {
     if (!userId) return null;
 
     const phone = `${countryCode}${normalizePhoneDigits(customerPhone)}`;
+    const combinedNotes = [
+      selectedIssue ? `Issue: ${selectedIssue}` : null,
+      urgency ? `Urgency: ${urgency === 'urgent' ? 'Urgent (Within 2-4 hrs, +₹100)' : 'Normal (Within 24 hrs)'}` : null,
+      notes.trim() ? `Notes: ${notes.trim()}` : null,
+    ].filter(Boolean).join('\n');
 
     const { data, error: insertError } = await supabase
       .from('home_service_requests')
@@ -930,7 +1024,7 @@ export default function HomeServiceRequestScreen() {
         locality: locality.trim() || null,
         preferred_date: preferredDate.trim() ? toISODateFromDDMMYYYY(preferredDate) : null,
         preferred_time: preferredTime.trim() || null,
-        notes: notes.trim() || null,
+        notes: combinedNotes || null,
       })
       .select('id, booking_number')
       .maybeSingle();
@@ -1024,7 +1118,7 @@ export default function HomeServiceRequestScreen() {
       if (paymentOpt === 'online_now') {
         setPaying(true);
         try {
-          const advanceAmount = HOME_SERVICE_PAYMENT.finalPayable;
+          const advanceAmount = paymentDetails.finalPayable;
           const walletUsed = useWallet ? Math.min(walletBalance, advanceAmount) : 0;
           const payViaRazorpay = advanceAmount - walletUsed;
 
@@ -1047,9 +1141,9 @@ export default function HomeServiceRequestScreen() {
               notes: {
                 request_id: requestId,
                 purpose: 'home_service_advance',
-                booking_total: HOME_SERVICE_PAYMENT.bookingTotal,
-                convenience_fee: HOME_SERVICE_PAYMENT.convenienceFee,
-                final_payable: HOME_SERVICE_PAYMENT.finalPayable,
+                booking_total: paymentDetails.bookingTotal,
+                convenience_fee: paymentDetails.convenienceFee,
+                final_payable: paymentDetails.finalPayable,
               },
             });
 
@@ -1093,9 +1187,9 @@ export default function HomeServiceRequestScreen() {
               metadata: {
                 request_id: requestId,
                 purpose: 'home_service_advance',
-                booking_total: HOME_SERVICE_PAYMENT.bookingTotal,
-                convenience_fee: HOME_SERVICE_PAYMENT.convenienceFee,
-                final_payable: HOME_SERVICE_PAYMENT.finalPayable,
+                booking_total: paymentDetails.bookingTotal,
+                convenience_fee: paymentDetails.convenienceFee,
+                final_payable: paymentDetails.finalPayable,
               },
             });
 
@@ -1142,11 +1236,11 @@ export default function HomeServiceRequestScreen() {
 
       // Credit excess payment to wallet (if user paid more than ₹150)
       if (paymentOpt === 'online_now') {
-        const walletUsed = useWallet ? Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable) : 0;
-        const paidViaRazorpay = Math.max(HOME_SERVICE_PAYMENT.finalPayable - walletUsed, 0);
+        const walletUsed = useWallet ? Math.min(walletBalance, paymentDetails.finalPayable) : 0;
+        const paidViaRazorpay = Math.max(paymentDetails.finalPayable - walletUsed, 0);
         const totalPaid = walletUsed + paidViaRazorpay;
-        if (totalPaid > HOME_SERVICE_PAYMENT.finalPayable) {
-          const excess = totalPaid - HOME_SERVICE_PAYMENT.finalPayable;
+        if (totalPaid > paymentDetails.finalPayable) {
+          const excess = totalPaid - paymentDetails.finalPayable;
           try {
             await creditWallet({
               userId: session!.user.id,
@@ -1857,95 +1951,249 @@ export default function HomeServiceRequestScreen() {
           ) : null}
 
           {step === 'uploads' ? (
-            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$3">
-              <Text fontSize={t(18)} fontWeight="800" color="#1F4E79">
-                Upload Photos / Videos
-              </Text>
-              <Paragraph color={theme.textMuted}>
-                JPG/JPEG only. Videos: MP4 only (max 30s, 10MB). Images max 10MB upload; will be compressed server-side.
-              </Paragraph>
-
-              <XStack gap="$2" flexWrap="wrap">
-                <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => void pickPhotos()}>
-                  Add Photos ({photos.length}/10)
-                </Button>
-                <Button backgroundColor={theme.info} color="#FFFFFF" onPress={() => void pickVideo()}>
-                  Add Video ({videos.length}/2)
-                </Button>
-              </XStack>
-
-              {photos.length || videos.length ? (
-                <YStack gap="$2">
-                  <Text fontWeight="800" color={theme.text}>
-                    Selected
+            <YStack backgroundColor={theme.bgCard} borderRadius={14} padding={16} borderWidth={1} borderColor={theme.border} gap="$4">
+              {/* ── What's the issue? ── */}
+              {SERVICE_ISSUES[serviceKey] && SERVICE_ISSUES[serviceKey].length > 0 ? (
+                <YStack gap="$2.5">
+                  <Text fontSize={t(18)} fontWeight="900" color={theme.text} style={{ fontFamily: 'Times New Roman' }}>
+                    What's the issue?
                   </Text>
-                  {photos.map((u) => (
-                    <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
-                      <Pressable
-                        onPress={() => {
-                          setMediaViewerKind('photo');
-                          setMediaViewerIndex(Math.max(0, photos.findIndex((x) => x === u)));
-                          setMediaViewerOpen(true);
-                        }}
-                        style={{ flex: 1 } as any}>
-                        <XStack flex={1} alignItems="center" gap="$2">
-                          <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: theme.bgCardSecondary }}>
-                            <Image source={{ uri: u }} style={{ width: 44, height: 34 }} resizeMode="cover" />
-                          </View>
-                          <Text numberOfLines={1} color={theme.textMuted}>
-                            Photo
-                          </Text>
-                        </XStack>
-                      </Pressable>
-                      <Button
-                        size="$2"
-                        backgroundColor={theme.danger}
-                        color="#FFFFFF"
-                        onPress={() => setPhotos((p) => p.filter((x) => x !== u))}>
-                        Remove
-                      </Button>
-                    </XStack>
-                  ))}
-                  {videos.map((u) => (
-                    <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
-                      <Pressable
-                        onPress={() => {
-                          setMediaViewerKind('video');
-                          setMediaViewerIndex(Math.max(0, videos.findIndex((x) => x === u)));
-                          setMediaViewerOpen(true);
-                        }}
-                        style={{ flex: 1 } as any}>
-                        <XStack flex={1} alignItems="center" gap="$2">
-                          <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: theme.bg }}>
-                            <Video
-                              source={{ uri: u }}
-                              style={{ width: 44, height: 34 }}
-                              resizeMode={ResizeMode.COVER}
-                              isMuted
-                              shouldPlay={false}
+                  <YStack gap="$2">
+                    {SERVICE_ISSUES[serviceKey].map((issue) => {
+                      const isSelected = selectedIssue === issue;
+                      return (
+                        <Pressable
+                          key={issue}
+                          onPress={() => setSelectedIssue(isSelected ? '' : issue)}
+                          style={({ pressed }: any) => [
+                            {
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              paddingVertical: 12,
+                              paddingHorizontal: 14,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: isSelected ? '#1F4E79' : theme.border,
+                              backgroundColor: isSelected
+                                ? (colorScheme === 'dark' ? '#1E3A5F' : '#EFF6FF')
+                                : theme.bgCardSecondary,
+                              opacity: pressed ? 0.85 : 1,
+                            } as any,
+                          ]}>
+                          <View
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: 17,
+                              backgroundColor: isSelected ? '#DBEAFE' : '#F1F5F9',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: 12,
+                            }}>
+                            <FontAwesome5
+                              name={(SERVICE_ICONS[serviceKey] ?? 'tools') as any}
+                              size={15}
+                              color={isSelected ? '#1F4E79' : '#64748B'}
                             />
                           </View>
-                          <Text numberOfLines={1} color={theme.textMuted}>
-                            Video
+                          <Text
+                            flex={1}
+                            color={theme.text}
+                            fontWeight={isSelected ? '800' : '600'}
+                            fontSize={t(15)}
+                            style={{ fontFamily: 'Times New Roman' }}>
+                            {issue}
                           </Text>
-                        </XStack>
-                      </Pressable>
-                      <Button
-                        size="$2"
-                        backgroundColor={theme.danger}
-                        color="#FFFFFF"
-                        onPress={() => setVideos((p) => p.filter((x) => x !== u))}>
-                        Remove
-                      </Button>
+                          {isSelected ? (
+                            <FontAwesome5 name="check-circle" size={18} color="#1F4E79" solid />
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </YStack>
+                </YStack>
+              ) : null}
+
+              {/* ── Photos / Videos ── */}
+              <YStack gap="$2" marginTop={4}>
+                <Text fontSize={t(18)} fontWeight="900" color={theme.text} style={{ fontFamily: 'Times New Roman' }}>
+                  Upload Photos / Videos (Optional)
+                </Text>
+                <Paragraph color={theme.textMuted}>
+                  JPG/JPEG only. Videos: MP4 only (max 30s, 10MB). Images max 10MB upload; will be compressed server-side.
+                </Paragraph>
+
+                <XStack gap="$2" flexWrap="wrap">
+                  <Button backgroundColor="#1F4E79" color="#FFFFFF" hoverStyle={{ backgroundColor: '#1F4E79' }} pressStyle={{ backgroundColor: '#1F4E79' }} onPress={() => void pickPhotos()}>
+                    Add Photos ({photos.length}/10)
+                  </Button>
+                  <Button backgroundColor={theme.info} color="#FFFFFF" onPress={() => void pickVideo()}>
+                    Add Video ({videos.length}/2)
+                  </Button>
+                </XStack>
+
+                {photos.length || videos.length ? (
+                  <YStack gap="$2" marginTop={6}>
+                    <Text fontWeight="800" color={theme.text}>
+                      Selected Files
+                    </Text>
+                    {photos.map((u) => (
+                      <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
+                        <Pressable
+                          onPress={() => {
+                            setMediaViewerKind('photo');
+                            setMediaViewerIndex(Math.max(0, photos.findIndex((x) => x === u)));
+                            setMediaViewerOpen(true);
+                          }}
+                          style={{ flex: 1 } as any}>
+                          <XStack flex={1} alignItems="center" gap="$2">
+                            <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: theme.bgCardSecondary }}>
+                              <Image source={{ uri: u }} style={{ width: 44, height: 34 }} resizeMode="cover" />
+                            </View>
+                            <Text numberOfLines={1} color={theme.textMuted}>
+                              Photo
+                            </Text>
+                          </XStack>
+                        </Pressable>
+                        <Button
+                          size="$2"
+                          backgroundColor={theme.danger}
+                          color="#FFFFFF"
+                          onPress={() => setPhotos((p) => p.filter((x) => x !== u))}>
+                          Remove
+                        </Button>
+                      </XStack>
+                    ))}
+                    {videos.map((u) => (
+                      <XStack key={u} alignItems="center" justifyContent="space-between" gap="$2">
+                        <Pressable
+                          onPress={() => {
+                            setMediaViewerKind('video');
+                            setMediaViewerIndex(Math.max(0, videos.findIndex((x) => x === u)));
+                            setMediaViewerOpen(true);
+                          }}
+                          style={{ flex: 1 } as any}>
+                          <XStack flex={1} alignItems="center" gap="$2">
+                            <View style={{ width: 44, height: 34, borderRadius: 8, overflow: 'hidden', backgroundColor: theme.bg }}>
+                              <Video
+                                source={{ uri: u }}
+                                style={{ width: 44, height: 34 }}
+                                resizeMode={ResizeMode.COVER}
+                                isMuted
+                                shouldPlay={false}
+                              />
+                            </View>
+                            <Text numberOfLines={1} color={theme.textMuted}>
+                              Video
+                            </Text>
+                          </XStack>
+                        </Pressable>
+                        <Button
+                          size="$2"
+                          backgroundColor={theme.danger}
+                          color="#FFFFFF"
+                          onPress={() => setVideos((p) => p.filter((x) => x !== u))}>
+                          Remove
+                        </Button>
+                      </XStack>
+                    ))}
+                  </YStack>
+                ) : null}
+                {uploadError ? (
+                  <YStack backgroundColor={theme.danger} borderRadius={12} padding={10} borderWidth={0} marginTop={12}>
+                    <Text color="#FFFFFF" fontWeight="800">{uploadError}</Text>
+                  </YStack>
+                ) : null}
+              </YStack>
+
+              {/* ── Urgency Selector (Image 5) ── */}
+              <YStack gap="$2" marginTop={8}>
+                <Text fontSize={t(18)} fontWeight="900" color={theme.text} style={{ fontFamily: 'Times New Roman' }}>
+                  Urgency
+                </Text>
+                <XStack gap="$3" flexWrap="nowrap">
+                  {/* Normal */}
+                  <Pressable
+                    onPress={() => setUrgency('normal')}
+                    style={({ pressed }: any) => [
+                      {
+                        flex: 1,
+                        paddingVertical: 14,
+                        paddingHorizontal: 12,
+                        borderRadius: 14,
+                        borderWidth: 2,
+                        borderColor: urgency === 'normal' ? '#0B1F3A' : theme.border,
+                        backgroundColor: urgency === 'normal'
+                          ? (colorScheme === 'dark' ? '#1E293B' : '#F0F5FA')
+                          : theme.bgCardSecondary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.85 : 1,
+                      } as any,
+                    ]}>
+                    <Text
+                      fontWeight="900"
+                      fontSize={t(16)}
+                      color={urgency === 'normal' ? '#0B1F3A' : theme.text}
+                      style={{ fontFamily: 'Times New Roman' }}>
+                      Normal
+                    </Text>
+                    <Text
+                      fontSize={t(13)}
+                      color={theme.textMuted}
+                      marginTop={3}
+                      style={{ fontFamily: 'Times New Roman' }}>
+                      Within 24 hrs
+                    </Text>
+                  </Pressable>
+
+                  {/* Urgent */}
+                  <Pressable
+                    onPress={() => setUrgency('urgent')}
+                    style={({ pressed }: any) => [
+                      {
+                        flex: 1,
+                        paddingVertical: 14,
+                        paddingHorizontal: 12,
+                        borderRadius: 14,
+                        borderWidth: 2,
+                        borderColor: urgency === 'urgent' ? '#0B1F3A' : theme.border,
+                        backgroundColor: urgency === 'urgent'
+                          ? (colorScheme === 'dark' ? '#1E293B' : '#F0F5FA')
+                          : theme.bgCardSecondary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.85 : 1,
+                      } as any,
+                    ]}>
+                    <XStack alignItems="center" gap="$1">
+                      <FontAwesome5 name="bolt" size={13} color="#F59E0B" />
+                      <Text
+                        fontWeight="900"
+                        fontSize={t(16)}
+                        color={urgency === 'urgent' ? '#0B1F3A' : theme.text}
+                        style={{ fontFamily: 'Times New Roman' }}>
+                        Urgent
+                      </Text>
                     </XStack>
-                  ))}
-                </YStack>
-              ) : null}
-              {uploadError ? (
-                <YStack backgroundColor={theme.danger} borderRadius={12} padding={10} borderWidth={0} marginTop={12}>
-                  <Text color="#FFFFFF" fontWeight="800">{uploadError}</Text>
-                </YStack>
-              ) : null}
+                    <Text
+                      fontSize={t(13)}
+                      color={theme.textMuted}
+                      marginTop={3}
+                      style={{ fontFamily: 'Times New Roman' }}>
+                      Within 2-4 hrs
+                    </Text>
+                    <Text
+                      fontSize={t(13)}
+                      fontWeight="900"
+                      color="#D97706"
+                      marginTop={2}
+                      style={{ fontFamily: 'Times New Roman' }}>
+                      + ₹100
+                    </Text>
+                  </Pressable>
+                </XStack>
+              </YStack>
             </YStack>
           ) : null}
 
@@ -1959,9 +2207,28 @@ export default function HomeServiceRequestScreen() {
               </Paragraph>
 
               <YStack gap="$1" backgroundColor={theme.bgCardSecondary} borderRadius={10} padding={12}>
-                <XStack justifyContent="space-between"><Text color={theme.textMuted}>Booking Total</Text><Text color={theme.text}>₹{HOME_SERVICE_PAYMENT.bookingTotal.toFixed(2)}</Text></XStack>
-                <XStack justifyContent="space-between"><Text color={theme.textMuted}>Convenience Fee</Text><Text color={theme.text}>₹{HOME_SERVICE_PAYMENT.convenienceFee.toFixed(2)}</Text></XStack>
-                <XStack justifyContent="space-between"><Text color={theme.text} fontWeight="900">Final Payable</Text><Text color={theme.text} fontWeight="900">₹{HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)}</Text></XStack>
+                <XStack justifyContent="space-between">
+                  <Text color={theme.textMuted}>Service Base Price</Text>
+                  <Text color={theme.text}>₹{currentBasePrice.toFixed(2)}</Text>
+                </XStack>
+                {urgency === 'urgent' ? (
+                  <XStack justifyContent="space-between">
+                    <Text color="#D97706" fontWeight="700">Urgent Charge (2-4 hrs)</Text>
+                    <Text color="#D97706" fontWeight="700">+ ₹100.00</Text>
+                  </XStack>
+                ) : null}
+                <XStack justifyContent="space-between">
+                  <Text color={theme.textMuted}>Booking Total</Text>
+                  <Text color={theme.text}>₹{paymentDetails.bookingTotal.toFixed(2)}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text color={theme.textMuted}>Convenience Fee</Text>
+                  <Text color={theme.text}>₹{paymentDetails.convenienceFee.toFixed(2)}</Text>
+                </XStack>
+                <XStack justifyContent="space-between" borderTopWidth={1} borderTopColor={theme.border} paddingTop={6} marginTop={4}>
+                  <Text color={theme.text} fontWeight="900">Final Payable</Text>
+                  <Text color={theme.text} fontWeight="900">₹{paymentDetails.finalPayable.toFixed(2)}</Text>
+                </XStack>
               </YStack>
 
               <Pressable
@@ -1979,7 +2246,7 @@ export default function HomeServiceRequestScreen() {
                     Pay Online Now
                   </Text>
                   <Text color={paymentOption === 'online_now' ? '#86EFAC' : theme.textMuted} fontSize={t(14)}>
-                    Pay ₹{HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)} now via card/UPI/net banking. Review summary then pay.
+                    Pay ₹{paymentDetails.finalPayable.toFixed(2)} now via card/UPI/net banking. Review summary then pay.
                   </Text>
                 </YStack>
               </Pressable>
@@ -2020,8 +2287,8 @@ export default function HomeServiceRequestScreen() {
                         Use Wallet Balance
                       </Text>
                       <Text color={useWallet ? '#86EFAC' : theme.textMuted} fontSize={t(13)}>
-                        Pay ₹{Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable)} from wallet
-                        {walletBalance >= HOME_SERVICE_PAYMENT.finalPayable ? ' (covers full payable)' : `, then pay ₹${(HOME_SERVICE_PAYMENT.finalPayable - walletBalance).toFixed(2)} via card/UPI`}
+                        Pay ₹{Math.min(walletBalance, paymentDetails.finalPayable)} from wallet
+                        {walletBalance >= paymentDetails.finalPayable ? ' (covers full payable)' : `, then pay ₹${(paymentDetails.finalPayable - walletBalance).toFixed(2)} via card/UPI`}
                       </Text>
                     </YStack>
                     <Text color="#22C55E" fontWeight="900" fontSize={t(15)}>
@@ -2057,6 +2324,26 @@ export default function HomeServiceRequestScreen() {
                 </Text>
               </YStack>
 
+              {selectedIssue ? (
+                <YStack gap="$1">
+                  <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
+                    Issue Selected
+                  </Text>
+                  <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                    {selectedIssue}
+                  </Text>
+                </YStack>
+              ) : null}
+
+              <YStack gap="$1">
+                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
+                  Urgency
+                </Text>
+                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: urgency === 'urgent' ? '#D97706' : theme.textSecondary } as any}>
+                  {urgency === 'urgent' ? '⚡ Urgent (Within 2-4 hrs, +₹100)' : 'Normal (Within 24 hrs)'}
+                </Text>
+              </YStack>
+
               <YStack gap="$1">
                 <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Phone
@@ -2086,21 +2373,23 @@ export default function HomeServiceRequestScreen() {
                 </Text>
               </YStack>
 
-              <YStack gap="$1">
-                <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
-                  Remark
-                </Text>
-                <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
-                  {notes.trim() || 'Not provided'}
-                </Text>
-              </YStack>
+              {notes.trim() ? (
+                <YStack gap="$1">
+                  <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
+                    Remark / Notes
+                  </Text>
+                  <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
+                    {notes.trim()}
+                  </Text>
+                </YStack>
+              ) : null}
 
               <YStack gap="$1">
                 <Text color={theme.textMuted} fontWeight="800" fontSize={t(14)}>
                   Payment
                 </Text>
                 <Text color={theme.text} fontWeight="900" fontSize={t(15)} style={{ fontFamily: 'Times New Roman', color: theme.textSecondary } as any}>
-                  {paymentOption === 'after_service' ? 'Pay After Service' : useWallet ? `Pay ₹${Math.min(walletBalance, HOME_SERVICE_PAYMENT.finalPayable)} from wallet${walletBalance >= HOME_SERVICE_PAYMENT.finalPayable ? '' : ` + ₹${(HOME_SERVICE_PAYMENT.finalPayable - walletBalance).toFixed(2)} via card/UPI`}` : `Pay Online Now (₹${HOME_SERVICE_PAYMENT.finalPayable.toFixed(2)})`}
+                  {paymentOption === 'after_service' ? 'Pay After Service' : useWallet ? `Pay ₹${Math.min(walletBalance, paymentDetails.finalPayable)} from wallet${walletBalance >= paymentDetails.finalPayable ? '' : ` + ₹${(paymentDetails.finalPayable - walletBalance).toFixed(2)} via card/UPI`}` : `Pay Online Now (₹${paymentDetails.finalPayable.toFixed(2)})`}
                 </Text>
               </YStack>
 
