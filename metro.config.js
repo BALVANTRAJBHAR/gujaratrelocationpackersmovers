@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
@@ -32,5 +33,23 @@ config.resolver.blockList = [
   /node_modules\/.*\/__tests__\/.*/,
   /node_modules\/.*\/android\/build\/.*/,
 ];
+
+// Shim native-only modules that cannot run on web
+const WEB_SHIM_PATH = path.resolve(__dirname, 'lib', 'web-shim-empty.js');
+const nativeOnlyModules = [
+  'react-native-maps',
+  'mapbox-gl',
+];
+
+const _originalResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && nativeOnlyModules.includes(moduleName)) {
+    return { type: 'sourceFile', filePath: WEB_SHIM_PATH };
+  }
+  if (_originalResolveRequest) {
+    return _originalResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 module.exports = config;

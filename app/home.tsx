@@ -36,7 +36,7 @@ try {
 }
 
 import { themes } from '@/constants/theme';
-import { searchPlaces } from '@/lib/mapbox';
+import { searchPlaces } from '@/lib/google-maps';
 import { signOutSupabaseSafe, supabase } from '@/lib/supabase';
 import { useAppColorScheme } from '@/providers/color-scheme-provider';
 import { useSession } from '@/providers/session-provider';
@@ -726,10 +726,13 @@ function HomeLandingScreenContent({ embeddedInTabs = false }: { embeddedInTabs?:
         );
 
         // Subscribe (async) — ignore returned promise here but ensure errors are caught
-        void channel.subscribe().catch((err) => {
-          console.warn('Realtime subscribe failed, falling back to polling unread notifications', err);
-          if (!pollInterval) pollInterval = setInterval(() => void fetchUnread(), 30000);
-        });
+        const subPromise: any = channel.subscribe();
+        if (subPromise && typeof subPromise.catch === 'function') {
+          subPromise.catch((err: any) => {
+            console.warn('Realtime subscribe failed, falling back to polling unread notifications', err);
+            if (!pollInterval) pollInterval = setInterval(() => void fetchUnread(), 30000);
+          });
+        }
       } catch (err) {
         // If adding callbacks fails, fallback to polling to avoid crashing the app.
         console.warn('Realtime channel setup failed, using polling fallback', err);
@@ -1252,22 +1255,22 @@ function HomeLandingScreenContent({ embeddedInTabs = false }: { embeddedInTabs?:
           }
 
           const allowedTypes = new Set(['poi', 'neighborhood', 'locality', 'place', 'district', 'address']);
-          const picked = results
-            .filter((x) => {
-              const placeTypes = ((x as any)?.place_type ?? []) as string[];
-              const hasAllowedType = placeTypes.some((t) => allowedTypes.has(String(t)));
+          const picked = (results as any[])
+            .filter((x: any) => {
+              const placeTypes = (x?.place_type ?? []) as string[];
+              const hasAllowedType = placeTypes.some((t: any) => allowedTypes.has(String(t)));
               if (!hasAllowedType) return false;
-              const name = String((x as any)?.place_name ?? '').toLowerCase();
+              const name = String(x?.place_name ?? '').toLowerCase();
               if (stateLower && !name.includes(stateLower)) return false;
               if (cityLower) {
-                const ctx = ((x as any)?.context ?? []) as { text?: string }[];
-                const ctxText = ctx.map((c) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
-                const ctxHasCity = ctxText.some((t) => t.includes(cityLower));
+                const ctx = (x?.context ?? []) as { text?: string }[];
+                const ctxText = ctx.map((c: any) => String(c?.text ?? '').toLowerCase()).filter(Boolean);
+                const ctxHasCity = ctxText.some((t: any) => t.includes(cityLower));
                 if (!name.includes(cityLower) && !ctxHasCity) return false;
               }
               return true;
             })
-            .map((x) => {
+            .map((x: any) => {
               const place = String((x as any)?.place_name ?? '').trim();
               const textLabel = String((x as any)?.text ?? '').trim();
               const placeNameLower = place.toLowerCase();
@@ -1354,16 +1357,16 @@ function HomeLandingScreenContent({ embeddedInTabs = false }: { embeddedInTabs?:
               if (labelLower.includes('metro')) score += 12;
               return { id: String((x as any)?.id ?? place), label, full, score };
             })
-            .filter((x) => x.score > -500)
-            .filter((x) => {
+            .filter((x: any) => x.score > -500)
+            .filter((x: any) => {
               const labelLower = x.label.trim().toLowerCase();
               if (cityLower && labelLower === cityLower) return false;
               if (stateLower && labelLower === stateLower) return false;
               return true;
             })
-            .sort((a, b) => b.score - a.score)
+            .sort((a: any, b: any) => b.score - a.score)
             .slice(0, 6)
-            .map(({ id, label, full }) => ({ id, label, full }));
+            .map(({ id, label, full }: { id: string; label: string; full: string }) => ({ id, label, full }));
 
           setPropertyLocalitySuggestions(picked);
         } catch {
